@@ -1,0 +1,1612 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Unfallverwaltung – Kanzlei</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  :root {
+    --bg:        #080E1A;
+    --bg2:       #0D1726;
+    --bg3:       #122040;
+    --card:      #0F1E38;
+    --card2:     #162845;
+    --border:    #1C3058;
+    --border2:   #243D6A;
+    --gold:      #C9A84C;
+    --gold2:     #E8C97A;
+    --gold3:     #8B6A28;
+    --text:      #EFF4FF;
+    --text2:     #8FA7C8;
+    --text3:     #4E6A8E;
+    --green:     #27AE60;
+    --green2:    #1E8449;
+    --red:       #C0392B;
+    --yellow:    #D4AC0D;
+    --blue:      #2E86C1;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 280px;
+    min-width: 280px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-logo {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo .logo-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    color: var(--gold2);
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+  }
+  .sidebar-logo .logo-sub {
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .sidebar-search {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-search input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .sidebar-search input:focus { border-color: var(--gold3); }
+  .sidebar-search input::placeholder { color: var(--text3); }
+
+  .sidebar-filters {
+    padding: 10px 16px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+  }
+  .filter-btn {
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .filter-btn.active {
+    background: var(--gold3);
+    border-color: var(--gold);
+    color: var(--gold2);
+  }
+  .filter-btn:hover:not(.active) { border-color: var(--text3); color: var(--text); }
+
+  .sidebar-cases {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+
+  .case-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+    border-bottom: 1px solid var(--border);
+  }
+  .case-item:hover { background: var(--bg3); }
+  .case-item.active {
+    background: var(--bg3);
+    border-left-color: var(--gold);
+  }
+  .case-item .case-az {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+  }
+  .case-item .case-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .case-item .case-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+  }
+  .case-item .case-date {
+    font-size: 11px;
+    color: var(--text3);
+  }
+
+  .status-badge {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .status-offen       { background: rgba(46,134,193,0.2); color: #5DADE2; border: 1px solid rgba(46,134,193,0.3); }
+  .status-laufend     { background: rgba(201,168,76,0.15); color: var(--gold2); border: 1px solid rgba(201,168,76,0.3); }
+  .status-abgeschlossen { background: rgba(39,174,96,0.15); color: #58D68D; border: 1px solid rgba(39,174,96,0.3); }
+  .status-ruhend      { background: rgba(127,140,141,0.2); color: #AAB7B8; border: 1px solid rgba(127,140,141,0.3); }
+
+  .sidebar-footer {
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+  }
+  .new-case-btn {
+    width: 100%;
+    padding: 10px;
+    background: linear-gradient(135deg, var(--gold3), #9B7A2E);
+    border: 1px solid var(--gold);
+    border-radius: 6px;
+    color: var(--gold2);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.2s;
+  }
+  .new-case-btn:hover { background: linear-gradient(135deg, #9B7A2E, var(--gold3)); filter: brightness(1.1); }
+
+  /* ── MAIN CONTENT ── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .topbar {
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg2);
+  }
+  .topbar-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    color: var(--text);
+    font-weight: 600;
+  }
+  .topbar-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+  .topbar-actions { display: flex; gap: 10px; }
+  .btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border2);
+    background: var(--bg3);
+    color: var(--text);
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover { border-color: var(--text3); background: var(--card2); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--gold3), #7A5A20);
+    border-color: var(--gold);
+    color: var(--gold2);
+  }
+  .btn-primary:hover { filter: brightness(1.15); }
+  .btn-danger { border-color: rgba(192,57,43,0.5); color: #E74C3C; }
+  .btn-danger:hover { background: rgba(192,57,43,0.1); }
+
+  .content-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px;
+  }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .tab {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .tab:hover { color: var(--text2); }
+  .tab.active { color: var(--gold2); border-bottom-color: var(--gold); }
+
+  /* ── CARDS ── */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .kpi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .kpi-card.gold::before  { background: linear-gradient(90deg, var(--gold), transparent); }
+  .kpi-card.green::before { background: linear-gradient(90deg, var(--green), transparent); }
+  .kpi-card.red::before   { background: linear-gradient(90deg, var(--red), transparent); }
+  .kpi-card.blue::before  { background: linear-gradient(90deg, var(--blue), transparent); }
+
+  .kpi-label {
+    font-size: 11px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+  .kpi-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1;
+  }
+  .kpi-value.gold  { color: var(--gold2); }
+  .kpi-value.green { color: #58D68D; }
+  .kpi-value.red   { color: #EC7063; }
+  .kpi-sub {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 6px;
+  }
+
+  /* ── TABLES ── */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .data-table th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+  }
+  .data-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text2);
+    vertical-align: middle;
+  }
+  .data-table tr:hover td { background: var(--bg3); }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table .mono {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--gold);
+  }
+  .data-table .amount {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    text-align: right;
+  }
+  .amount-positive { color: #58D68D; }
+  .amount-negative { color: #EC7063; }
+  .amount-neutral  { color: var(--gold2); }
+
+  .table-wrapper {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .table-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .table-header-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .count-badge {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    color: var(--text3);
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* ── SECTION ── */
+  .section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .section-head {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .section-body { padding: 20px; }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .info-item .info-label {
+    font-size: 11px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+  .info-item .info-value {
+    font-size: 14px;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .info-item .info-value.mono {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--gold);
+  }
+
+  /* ── AKTIVITÄTSHISTORIE ── */
+  .timeline { padding: 4px 0; }
+  .timeline-item {
+    display: flex;
+    gap: 14px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .timeline-item:last-child { border-bottom: none; }
+  .timeline-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--gold3);
+    border: 2px solid var(--gold);
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+  .timeline-content { flex: 1; }
+  .timeline-cat {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .timeline-desc {
+    font-size: 13px;
+    color: var(--text2);
+    margin-top: 2px;
+  }
+  .timeline-date {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: 'IBM Plex Mono', monospace;
+    margin-top: 4px;
+  }
+
+  /* ── PROGRESS BAR ── */
+  .progress-bar-wrap {
+    background: var(--bg3);
+    border-radius: 4px;
+    height: 6px;
+    overflow: hidden;
+    margin-top: 10px;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--green2), var(--green));
+    transition: width 0.5s ease;
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 5px;
+  }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.15s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    padding: 28px;
+    width: 520px;
+    max-width: 90vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    animation: slideUp 0.2s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(20px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+  .modal-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    color: var(--text);
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── FORMS ── */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .form-input, .form-select, .form-textarea {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    border-color: var(--gold3);
+    box-shadow: 0 0 0 3px rgba(201,168,76,0.1);
+  }
+  .form-select { appearance: none; cursor: pointer; }
+  .form-textarea { resize: vertical; min-height: 80px; }
+
+  /* ── FILE DROP ── */
+  .file-drop {
+    border: 2px dashed var(--border2);
+    border-radius: 8px;
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .file-drop:hover, .file-drop.dragover {
+    border-color: var(--gold3);
+    background: rgba(201,168,76,0.05);
+  }
+  .file-drop-icon { font-size: 32px; margin-bottom: 10px; }
+  .file-drop-text { font-size: 13px; color: var(--text2); }
+  .file-drop-sub  { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text3);
+  }
+  .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+  .empty-state .empty-title { font-size: 15px; font-weight: 500; color: var(--text2); margin-bottom: 6px; }
+  .empty-state .empty-sub { font-size: 13px; }
+
+  /* ── LOADING ── */
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg) } }
+
+  /* ── TOAST ── */
+  .toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 2000;
+  }
+  .toast {
+    background: var(--card2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: slideIn 0.2s ease;
+    max-width: 320px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
+  .toast.success { border-left: 3px solid var(--green); }
+  .toast.error   { border-left: 3px solid var(--red); }
+  .toast.info    { border-left: 3px solid var(--gold); }
+
+  /* ── DIVIDER ── */
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* ── DASHBOARD HOME ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .no-data { color: var(--text3); font-style: italic; font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const API = 'http://localhost:8080';
+
+// ──────────────────────────────────────────────────────────────
+//  API HELPERS
+// ──────────────────────────────────────────────────────────────
+async function apiFetch(path, options = {}) {
+  const res = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    ...options,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// ──────────────────────────────────────────────────────────────
+//  FORMATTERS
+// ──────────────────────────────────────────────────────────────
+const eur = (n) => n == null ? '–' : Number(n).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const fmtDate = (d) => {
+  if (!d) return '–';
+  const dt = typeof d === 'string' ? new Date(d) : d;
+  return dt.toLocaleDateString('de-DE');
+};
+const fmtDateTime = (d) => {
+  if (!d) return '–';
+  return new Date(d).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+};
+
+// ──────────────────────────────────────────────────────────────
+//  TOAST CONTEXT
+// ──────────────────────────────────────────────────────────────
+function ToastContainer({ toasts }) {
+  return (
+    <div className="toast-container">
+      {toasts.map(t => (
+        <div key={t.id} className={`toast ${t.type}`}>
+          <span>{t.type === 'success' ? '✓' : t.type === 'error' ? '✕' : 'ℹ'}</span>
+          {t.msg}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+//  STATUS BADGE
+// ──────────────────────────────────────────────────────────────
+const statusLabel = { offen:'Offen', laufend:'Laufend', abgeschlossen:'Abgeschlossen', ruhend:'Ruhend' };
+function StatusBadge({ status }) {
+  return <span className={`status-badge status-${status}`}>{statusLabel[status] || status}</span>;
+}
+
+// ──────────────────────────────────────────────────────────────
+//  MODAL WRAPPER
+// ──────────────────────────────────────────────────────────────
+function Modal({ title, onClose, children, width }) {
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={width ? { width } : {}}>
+        <div className="modal-title">{title}</div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+//  MODAL: NEUER UNFALL
+// ──────────────────────────────────────────────────────────────
+function NeuerUnfallModal({ onClose, onSaved, addToast }) {
+  const [form, setForm] = useState({ aktenzeichen:'', unfalldatum:'', unfallort:'', status:'offen' });
+  const [loading, setLoading] = useState(false);
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  async function save() {
+    if (!form.aktenzeichen || !form.unfalldatum) {
+      addToast('Aktenzeichen und Datum sind Pflichtfelder.', 'error'); return;
+    }
+    setLoading(true);
+    try {
+      const res = await apiFetch('/unfaelle', { method:'POST', body: JSON.stringify(form) });
+      addToast(`Unfall ${form.aktenzeichen} angelegt.`, 'success');
+      onSaved(res);
+    } catch(e) { addToast(e.message, 'error'); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <Modal title="Neue Unfallakte anlegen" onClose={onClose}>
+      <div className="form-grid">
+        <div className="form-group">
+          <label className="form-label">Aktenzeichen *</label>
+          <input className="form-input" placeholder="z.B. 2025-0042" value={form.aktenzeichen} onChange={e=>set('aktenzeichen',e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Unfalldatum *</label>
+          <input className="form-input" type="date" value={form.unfalldatum} onChange={e=>set('unfalldatum',e.target.value)} />
+        </div>
+        <div className="form-group full">
+          <label className="form-label">Unfallort</label>
+          <input className="form-input" placeholder="z.B. B27, Höhe Stuttgarter Str. 44, Stuttgart" value={form.unfallort} onChange={e=>set('unfallort',e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Status</label>
+          <select className="form-select" value={form.status} onChange={e=>set('status',e.target.value)}>
+            <option value="offen">Offen</option>
+            <option value="laufend">Laufend</option>
+            <option value="abgeschlossen">Abgeschlossen</option>
+            <option value="ruhend">Ruhend</option>
+          </select>
+        </div>
+      </div>
+      <div className="modal-actions">
+        <button className="btn" onClick={onClose}>Abbrechen</button>
+        <button className="btn btn-primary" onClick={save} disabled={loading}>
+          {loading ? <span className="spinner"/> : null} Akte anlegen
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+//  MODAL: PDF UPLOAD
+// ──────────────────────────────────────────────────────────────
+function PdfUploadModal({ unfallId, onClose, onDone, addToast }) {
+  const [file, setFile] = useState(null);
+  const [useLocal, setUseLocal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [drag, setDrag] = useState(false);
+  const inputRef = useRef();
+
+  async function upload() {
+    if (!file) { addToast('Bitte zuerst eine PDF-Datei auswählen.', 'error'); return; }
+    setLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append('unfall_id', unfallId);
+      fd.append('use_local_llm', useLocal);
+      fd.append('datei', file);
+      const res = await fetch(API + '/gutachten/upload', { method:'POST', body: fd });
+      if (!res.ok) throw new Error((await res.json()).detail);
+      const data = await res.json();
+      setResult(data.extrahiert);
+      addToast('Gutachten erfolgreich importiert!', 'success');
+    } catch(e) { addToast(e.message, 'error'); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <Modal title="Schadengutachten importieren" onClose={onClose} width="600px">
+      {!result ? (
+        <>
+          <div
+            className={`file-drop ${drag?'dragover':''}`}
+            onClick={() => inputRef.current.click()}
+            onDragOver={e=>{e.preventDefault();setDrag(true)}}
+            onDragLeave={()=>setDrag(false)}
+            onDrop={e=>{e.preventDefault();setDrag(false);setFile(e.dataTransfer.files[0])}}
+          >
+            <input ref={inputRef} type="file" accept=".pdf" style={{display:'none'}} onChange={e=>setFile(e.target.files[0])} />
+            <div className="file-drop-icon">📄</div>
+            {file
+              ? <div className="file-drop-text" style={{color:'var(--gold2)'}}>{file.name}</div>
+              : <><div className="file-drop-text">PDF hier ablegen oder klicken</div>
+                  <div className="file-drop-sub">Nur .pdf-Dateien</div></>
+            }
+          </div>
+          <div style={{marginTop:16,display:'flex',alignItems:'center',gap:10}}>
+            <input type="checkbox" id="localLlm" checked={useLocal} onChange={e=>setUseLocal(e.target.checked)} />
+            <label htmlFor="localLlm" style={{fontSize:13,color:'var(--text2)',cursor:'pointer'}}>
+              Lokales LLM (Ollama) verwenden – DSGVO-konform, kein Cloud-Versand
+            </label>
+          </div>
+          <div className="modal-actions">
+            <button className="btn" onClick={onClose}>Abbrechen</button>
+            <button className="btn btn-primary" onClick={upload} disabled={loading||!file}>
+              {loading ? <><span className="spinner"/> KI analysiert…</> : '📤 Hochladen & Analysieren'}
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div style={{marginBottom:16,padding:'12px 16px',background:'rgba(39,174,96,0.1)',border:'1px solid rgba(39,174,96,0.3)',borderRadius:8,fontSize:13,color:'#58D68D'}}>
+            ✓ Extraktion abgeschlossen – bitte Daten prüfen
+          </div>
+          <div className="info-grid" style={{marginBottom:16}}>
+            {[
+              ['Gutachter', result.gutachter_name],
+              ['Büro', result.gutachter_buero],
+              ['Gutachtennr.', result.gutachtennummer],
+              ['Datum', result.gutachtendatum],
+              ['Reparatur netto', result.reparaturkosten_netto ? eur(result.reparaturkosten_netto) : null],
+              ['Reparatur brutto', result.reparaturkosten_brutto ? eur(result.reparaturkosten_brutto) : null],
+              ['WBW', result.wiederbeschaffungswert ? eur(result.wiederbeschaffungswert) : null],
+              ['Wertminderung', result.wertminderung ? eur(result.wertminderung) : null],
+              ['Totalschaden', result.totalschaden ? 'Ja' : 'Nein'],
+            ].map(([label, val]) => (
+              <div className="info-item" key={label}>
+                <div className="info-label">{label}</div>
+                <div className="info-value">{val || <span className="no-data">–</span>}</div>
+              </div>
+            ))}
+          </div>
+          <div className="modal-actions">
+            <button className="btn btn-primary" onClick={() => { onDone(); onClose(); }}>Fertig</button>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+//  MODAL: FORDERUNG ERFASSEN
+// ──────────────────────────────────────────────────────────────
+function ForderungModal({ unfallId, onClose, onSaved, addToast }) {
+  const [form, setForm] = useState({
+    forderungsdatum: new Date().toISOString().split('T')[0],
+    frist_datum:'', betrag_reparatur:0, betrag_mietwagen:0,
+    betrag_wertminderung:0, betrag_schmerzensgeld:0,
+    betrag_gutachter:0, betrag_auslagen:25, betrag_anwaltskosten:0, notiz:''
+  });
+  const [loading, setLoading] = useState(false);
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  const gesamt = ['betrag_reparatur','betrag_mietwagen','betrag_wertminderung','betrag_schmerzensgeld','betrag_gutachter','betrag_auslagen','betrag_anwaltskosten']
+    .reduce((s,k) => s + (parseFloat(form[k])||0), 0);
+
+  async function save() {
+    setLoading(true);
+    try {
+      const body = { ...form, unfall_id: unfallId };
+      for (const k of ['betrag_reparatur','betrag_mietwagen','betrag_wertminderung','betrag_schmerzensgeld','betrag_gutachter','betrag_auslagen','betrag_anwaltskosten'])
+        body[k] = parseFloat(body[k]) || 0;
+      await apiFetch('/forderungen', { method:'POST', body: JSON.stringify(body) });
+      addToast('Forderung erfasst.', 'success');
+      onSaved();
+    } catch(e) { addToast(e.message,'error'); }
+    finally { setLoading(false); }
+  }
+
+  const numField = (label, key) => (
+    <div className="form-group" key={key}>
+      <label className="form-label">{label}</label>
+      <input className="form-input" type="number" step="0.01" value={form[key]} onChange={e=>set(key,e.target.value)} />
+    </div>
+  );
+
+  return (
+    <Modal title="Forderung erfassen" onClose={onClose}>
+      <div className="form-grid">
+        <div className="form-group">
+          <label className="form-label">Forderungsdatum</label>
+          <input className="form-input" type="date" value={form.forderungsdatum} onChange={e=>set('forderungsdatum',e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Zahlungsfrist bis</label>
+          <input className="form-input" type="date" value={form.frist_datum} onChange={e=>set('frist_datum',e.target.value)} />
+        </div>
+        {numField('Reparaturkosten (€)', 'betrag_reparatur')}
+        {numField('Wertminderung (€)', 'betrag_wertminderung')}
+        {numField('Mietwagen/Nutzungsausfall (€)', 'betrag_mietwagen')}
+        {numField('Schmerzensgeld (€)', 'betrag_schmerzensgeld')}
+        {numField('Gutachterkosten (€)', 'betrag_gutachter')}
+        {numField('Auslagenpauschale (€)', 'betrag_auslagen')}
+        {numField('Anwaltskosten RVG (€)', 'betrag_anwaltskosten')}
+        <div className="form-group full">
+          <label className="form-label">Notiz</label>
+          <textarea className="form-textarea" value={form.notiz} onChange={e=>set('notiz',e.target.value)} placeholder="Optional…" />
+        </div>
+      </div>
+      <div style={{marginTop:16,padding:'12px 16px',background:'var(--bg3)',borderRadius:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <span style={{fontSize:13,color:'var(--text2)'}}>Gesamtforderung</span>
+        <span style={{fontFamily:'IBM Plex Mono',fontSize:18,color:'var(--gold2)',fontWeight:600}}>{eur(gesamt)}</span>
+      </div>
+      <div className="modal-actions">
+        <button className="btn" onClick={onClose}>Abbrechen</button>
+        <button className="btn btn-primary" onClick={save} disabled={loading}>
+          {loading ? <span className="spinner"/> : null} Forderung speichern
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+//  MODAL: REGULIERUNG
+// ──────────────────────────────────────────────────────────────
+function RegulierungModal({ unfallId, onClose, onSaved, addToast }) {
+  const [form, setForm] = useState({
+    eingangsdatum: new Date().toISOString().split('T')[0],
+    betrag_gesamt:'', vollstaendig:0, notiz:''
+  });
+  const [loading, setLoading] = useState(false);
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  async function save() {
+    setLoading(true);
+    try {
+      await apiFetch('/regulierungen', { method:'POST', body: JSON.stringify({ ...form, unfall_id: unfallId, betrag_gesamt: parseFloat(form.betrag_gesamt)||0 }) });
+      addToast('Regulierung erfasst.', 'success');
+      onSaved();
+    } catch(e) { addToast(e.message,'error'); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <Modal title="Zahlung erfassen" onClose={onClose}>
+      <div className="form-grid">
+        <div className="form-group">
+          <label className="form-label">Eingangsdatum</label>
+          <input className="form-input" type="date" value={form.eingangsdatum} onChange={e=>set('eingangsdatum',e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Betrag (€) *</label>
+          <input className="form-input" type="number" step="0.01" value={form.betrag_gesamt} onChange={e=>set('betrag_gesamt',e.target.value)} />
+        </div>
+        <div className="form-group full">
+          <label className="form-label">Art der Regulierung</label>
+          <select className="form-select" value={form.vollstaendig} onChange={e=>set('vollstaendig',parseInt(e.target.value))}>
+            <option value={0}>Teilzahlung</option>
+            <option value={1}>Vollständig reguliert</option>
+          </select>
+        </div>
+        <div className="form-group full">
+          <label className="form-label">Notiz</label>
+          <textarea className="form-textarea" value={form.notiz} onChange={e=>set('notiz',e.target.value)} />
+        </div>
+      </div>
+      <div className="modal-actions">
+        <button className="btn" onClick={onClose}>Abbrechen</button>
+        <button className="btn btn-primary" onClick={save} disabled={loading}>
+          {loading ? <span className="spinner"/> : null} Zahlung speichern
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+//  MODAL: TÄTIGKEIT
+// ──────────────────────────────────────────────────────────────
+function TaetigkeitModal({ unfallId, onClose, onSaved, addToast }) {
+  const [form, setForm] = useState({ kategorie:'Telefonat', beschreibung:'' });
+  const [loading, setLoading] = useState(false);
+  const kategorien = ['Telefonat','Schreiben','E-Mail','Fax','Termin','Gericht','Gutachten','Zahlung','Sonstiges'];
+
+  async function save() {
+    if (!form.beschreibung.trim()) { addToast('Beschreibung eingeben.','error'); return; }
+    setLoading(true);
+    try {
+      await apiFetch('/taetigkeiten', { method:'POST', body: JSON.stringify({ ...form, unfall_id: unfallId }) });
+      addToast('Tätigkeit gespeichert.', 'success');
+      onSaved();
+    } catch(e) { addToast(e.message,'error'); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <Modal title="Tätigkeit erfassen" onClose={onClose}>
+      <div className="form-grid">
+        <div className="form-group">
+          <label className="form-label">Kategorie</label>
+          <select className="form-select" value={form.kategorie} onChange={e=>setForm(f=>({...f,kategorie:e.target.value}))}>
+            {kategorien.map(k => <option key={k}>{k}</option>)}
+          </select>
+        </div>
+        <div className="form-group full">
+          <label className="form-label">Beschreibung</label>
+          <textarea className="form-textarea" value={form.beschreibung} onChange={e=>setForm(f=>({...f,beschreibung:e.target.value}))} placeholder="Was wurde getan?" style={{minHeight:100}} />
+        </div>
+      </div>
+      <div className="modal-actions">
+        <button className="btn" onClick={onClose}>Abbrechen</button>
+        <button className="btn btn-primary" onClick={save} disabled={loading}>Speichern</button>
+      </div>
+    </Modal>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+//  FALL-DASHBOARD
+// ──────────────────────────────────────────────────────────────
+function FallDashboard({ unfallId, addToast, onRefreshList }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [modal, setModal] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const d = await apiFetch(`/unfaelle/${unfallId}`);
+      setData(d);
+    } catch(e) { addToast(e.message, 'error'); }
+    finally { setLoading(false); }
+  }, [unfallId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function genDoc() {
+    addToast('Forderungsschreiben wird generiert…', 'info');
+    try {
+      const res = await fetch(API + `/unfaelle/${unfallId}/forderungsschreiben`, { method:'POST' });
+      if (!res.ok) throw new Error((await res.json()).detail);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const cd = res.headers.get('content-disposition') || '';
+      a.download = cd.match(/filename=(.+)/)?.[1] || 'forderungsschreiben.docx';
+      a.href = url; a.click();
+      URL.revokeObjectURL(url);
+      addToast('Forderungsschreiben heruntergeladen!', 'success');
+      load();
+    } catch(e) { addToast(e.message, 'error'); }
+  }
+
+  async function statusChange(status) {
+    try {
+      await apiFetch(`/unfaelle/${unfallId}`, { method:'PATCH', body: JSON.stringify({ status }) });
+      addToast(`Status auf "${statusLabel[status]}" gesetzt.`, 'success');
+      load(); onRefreshList();
+    } catch(e) { addToast(e.message,'error'); }
+  }
+
+  if (loading) return <div style={{display:'flex',justifyContent:'center',padding:60}}><span className="spinner" style={{width:32,height:32,borderWidth:3}}/></div>;
+  if (!data) return null;
+
+  const u = data.unfall;
+  const fin = data.finanzen;
+  const mandant = data.beteiligte.find(b => b.rolle === 'mandant');
+  const gegner  = data.beteiligte.find(b => b.rolle === 'gegner');
+  const vers    = data.versicherungen[0];
+  const fzgM    = data.fahrzeuge.find(f => f.rolle === 'mandant');
+  const progressPct = fin.gesamt_gefordert > 0 ? Math.min(100, (fin.gesamt_reguliert / fin.gesamt_gefordert) * 100) : 0;
+
+  return (
+    <div>
+      {/* Modals */}
+      {modal === 'pdf'       && <PdfUploadModal   unfallId={unfallId} onClose={()=>setModal(null)} onDone={load}   addToast={addToast} />}
+      {modal === 'forderung' && <ForderungModal   unfallId={unfallId} onClose={()=>setModal(null)} onSaved={()=>{load();onRefreshList();}} addToast={addToast} />}
+      {modal === 'regulierung'&& <RegulierungModal unfallId={unfallId} onClose={()=>setModal(null)} onSaved={()=>{load();onRefreshList();}} addToast={addToast} />}
+      {modal === 'taetigkeit' && <TaetigkeitModal  unfallId={unfallId} onClose={()=>setModal(null)} onSaved={load} addToast={addToast} />}
+
+      {/* Topbar */}
+      <div className="topbar">
+        <div>
+          <div className="topbar-title">
+            <span style={{fontFamily:'IBM Plex Mono',fontSize:16,color:'var(--gold)',marginRight:12}}>{u.aktenzeichen}</span>
+            {mandant ? `${mandant.vorname||''} ${mandant.nachname}`.trim() : 'Unfall-Akte'}
+          </div>
+          <div className="topbar-sub">
+            Unfalldatum: {fmtDate(u.unfalldatum)} &nbsp;|&nbsp; {u.unfallort || 'Ort unbekannt'} &nbsp;|&nbsp; <StatusBadge status={u.status} />
+          </div>
+        </div>
+        <div className="topbar-actions">
+          <button className="btn" onClick={()=>setModal('pdf')}>📄 Gutachten importieren</button>
+          <button className="btn" onClick={()=>setModal('taetigkeit')}>+ Tätigkeit</button>
+          <button className="btn" onClick={()=>setModal('forderung')}>+ Forderung</button>
+          <button className="btn" onClick={()=>setModal('regulierung')}>+ Zahlung</button>
+          <button className="btn btn-primary" onClick={genDoc}>⬇ Forderungsschreiben</button>
+        </div>
+      </div>
+
+      <div className="content-area">
+        {/* KPI Row */}
+        <div className="cards-grid">
+          <div className="kpi-card gold">
+            <div className="kpi-label">Gesamt gefordert</div>
+            <div className="kpi-value gold">{eur(fin.gesamt_gefordert)}</div>
+            <div className="kpi-sub">{data.forderungen.length} Forderung(en)</div>
+          </div>
+          <div className="kpi-card green">
+            <div className="kpi-label">Reguliert</div>
+            <div className="kpi-value green">{eur(fin.gesamt_reguliert)}</div>
+            <div className="kpi-sub">{data.regulierungen.length} Zahlung(en)</div>
+          </div>
+          <div className="kpi-card red">
+            <div className="kpi-label">Noch offen</div>
+            <div className="kpi-value" style={{color: fin.offen > 0 ? '#EC7063' : '#58D68D'}}>{eur(fin.offen)}</div>
+            <div className="kpi-sub">{fin.offen > 0 ? 'Ausstehend' : 'Vollständig reguliert ✓'}</div>
+          </div>
+          <div className="kpi-card blue">
+            <div className="kpi-label">Regulierungsquote</div>
+            <div className="kpi-value" style={{color:'var(--text)'}}>{progressPct.toFixed(0)} %</div>
+            <div className="progress-bar-wrap">
+              <div className="progress-bar-fill" style={{width: progressPct + '%'}} />
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="tabs">
+          {[['overview','Übersicht'],['finanzen','Finanzen'],['gutachten','Gutachten'],['dokumente','Dokumente'],['historie','Tätigkeitshistorie']].map(([id,label]) => (
+            <div key={id} className={`tab ${activeTab===id?'active':''}`} onClick={()=>setActiveTab(id)}>{label}</div>
+          ))}
+        </div>
+
+        {/* ── TAB: ÜBERSICHT ── */}
+        {activeTab === 'overview' && (
+          <div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+              {/* Mandant */}
+              <div className="section">
+                <div className="section-head">Mandant</div>
+                <div className="section-body">
+                  {mandant ? (
+                    <div className="info-grid">
+                      <div className="info-item"><div className="info-label">Name</div><div className="info-value">{mandant.vorname} {mandant.nachname}</div></div>
+                      <div className="info-item"><div className="info-label">Telefon</div><div className="info-value">{mandant.telefon || '–'}</div></div>
+                      <div className="info-item"><div className="info-label">E-Mail</div><div className="info-value">{mandant.email || '–'}</div></div>
+                      <div className="info-item"><div className="info-label">Adresse</div><div className="info-value">{mandant.strasse ? `${mandant.strasse}, ${mandant.plz} ${mandant.ort}` : '–'}</div></div>
+                    </div>
+                  ) : <span className="no-data">Noch kein Mandant erfasst</span>}
+                </div>
+              </div>
+              {/* Gegner */}
+              <div className="section">
+                <div className="section-head">Unfallgegner</div>
+                <div className="section-body">
+                  {gegner ? (
+                    <div className="info-grid">
+                      <div className="info-item"><div className="info-label">Name</div><div className="info-value">{gegner.vorname} {gegner.nachname}</div></div>
+                      <div className="info-item"><div className="info-label">Telefon</div><div className="info-value">{gegner.telefon || '–'}</div></div>
+                    </div>
+                  ) : <span className="no-data">Kein Gegner erfasst</span>}
+                </div>
+              </div>
+              {/* Fahrzeug */}
+              <div className="section">
+                <div className="section-head">Fahrzeug (Mandant)</div>
+                <div className="section-body">
+                  {fzgM ? (
+                    <div className="info-grid">
+                      <div className="info-item"><div className="info-label">Fahrzeug</div><div className="info-value">{fzgM.marke} {fzgM.modell}</div></div>
+                      <div className="info-item"><div className="info-label">Kennzeichen</div><div className="info-value mono">{fzgM.kennzeichen || '–'}</div></div>
+                      <div className="info-item"><div className="info-label">Erstzulassung</div><div className="info-value">{fmtDate(fzgM.erstzulassung)}</div></div>
+                      <div className="info-item"><div className="info-label">Kilometerstand</div><div className="info-value">{fzgM.km_stand ? fzgM.km_stand.toLocaleString('de-DE') + ' km' : '–'}</div></div>
+                    </div>
+                  ) : <span className="no-data">Kein Fahrzeug erfasst</span>}
+                </div>
+              </div>
+              {/* Versicherung */}
+              <div className="section">
+                <div className="section-head">Haftpflichtversicherung</div>
+                <div className="section-body">
+                  {vers ? (
+                    <div className="info-grid">
+                      <div className="info-item"><div className="info-label">Versicherung</div><div className="info-value">{vers.versicherung_name}</div></div>
+                      <div className="info-item"><div className="info-label">Schadennummer</div><div className="info-value mono">{vers.schadennummer || '–'}</div></div>
+                      <div className="info-item"><div className="info-label">Ansprechpartner</div><div className="info-value">{vers.ansprechpartner || '–'}</div></div>
+                      <div className="info-item"><div className="info-label">E-Mail</div><div className="info-value">{vers.email || '–'}</div></div>
+                    </div>
+                  ) : <span className="no-data">Keine Versicherung erfasst</span>}
+                </div>
+              </div>
+            </div>
+            {/* Status ändern */}
+            <div className="section" style={{marginTop:20}}>
+              <div className="section-head">Status ändern</div>
+              <div className="section-body" style={{display:'flex',gap:10}}>
+                {['offen','laufend','abgeschlossen','ruhend'].map(s => (
+                  <button key={s} className={`btn ${u.status===s?'btn-primary':''}`} onClick={()=>statusChange(s)}>
+                    {statusLabel[s]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB: FINANZEN ── */}
+        {activeTab === 'finanzen' && (
+          <div>
+            <div className="table-wrapper">
+              <div className="table-header">
+                <div className="table-header-title">Forderungen <span className="count-badge">{data.forderungen.length}</span></div>
+                <button className="btn" onClick={()=>setModal('forderung')}>+ Neue Forderung</button>
+              </div>
+              <table className="data-table">
+                <thead><tr>
+                  <th>Datum</th><th>Reparatur</th><th>Mietwagen</th><th>Wertmind.</th><th>Schmerzensgeld</th><th>Anwalt</th><th style={{textAlign:'right'}}>Gesamt</th><th>Frist</th>
+                </tr></thead>
+                <tbody>
+                  {data.forderungen.length === 0
+                    ? <tr><td colSpan={8} style={{textAlign:'center',color:'var(--text3)',padding:24}}>Keine Forderungen erfasst</td></tr>
+                    : data.forderungen.map(f => (
+                      <tr key={f.id}>
+                        <td>{fmtDate(f.forderungsdatum)}</td>
+                        <td className="amount">{f.betrag_reparatur>0 ? eur(f.betrag_reparatur) : <span className="no-data">–</span>}</td>
+                        <td className="amount">{f.betrag_mietwagen>0 ? eur(f.betrag_mietwagen) : <span className="no-data">–</span>}</td>
+                        <td className="amount">{f.betrag_wertminderung>0 ? eur(f.betrag_wertminderung) : <span className="no-data">–</span>}</td>
+                        <td className="amount">{f.betrag_schmerzensgeld>0 ? eur(f.betrag_schmerzensgeld) : <span className="no-data">–</span>}</td>
+                        <td className="amount">{f.betrag_anwaltskosten>0 ? eur(f.betrag_anwaltskosten) : <span className="no-data">–</span>}</td>
+                        <td className="amount amount-neutral">{eur(f.betrag_gesamt)}</td>
+                        <td style={{color: f.frist_datum && new Date(f.frist_datum) < new Date() ? 'var(--red)' : 'var(--text2)'}}>{fmtDate(f.frist_datum)}</td>
+                      </tr>
+                    ))
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <div className="table-wrapper">
+              <div className="table-header">
+                <div className="table-header-title">Regulierungen <span className="count-badge">{data.regulierungen.length}</span></div>
+                <button className="btn" onClick={()=>setModal('regulierung')}>+ Zahlung erfassen</button>
+              </div>
+              <table className="data-table">
+                <thead><tr><th>Eingangsdatum</th><th style={{textAlign:'right'}}>Betrag</th><th>Art</th><th>Notiz</th></tr></thead>
+                <tbody>
+                  {data.regulierungen.length === 0
+                    ? <tr><td colSpan={4} style={{textAlign:'center',color:'var(--text3)',padding:24}}>Keine Zahlungen eingegangen</td></tr>
+                    : data.regulierungen.map(r => (
+                      <tr key={r.id}>
+                        <td>{fmtDate(r.eingangsdatum)}</td>
+                        <td className="amount amount-positive">{eur(r.betrag_gesamt)}</td>
+                        <td><span className={`status-badge ${r.vollstaendig?'status-abgeschlossen':'status-laufend'}`}>{r.vollstaendig?'Vollständig':'Teilzahlung'}</span></td>
+                        <td style={{color:'var(--text2)'}}>{r.notiz || <span className="no-data">–</span>}</td>
+                      </tr>
+                    ))
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB: GUTACHTEN ── */}
+        {activeTab === 'gutachten' && (
+          <div>
+            <div style={{marginBottom:16}}>
+              <button className="btn btn-primary" onClick={()=>setModal('pdf')}>📄 Gutachten PDF importieren</button>
+            </div>
+            {data.gutachten.length === 0
+              ? <div className="empty-state"><div className="empty-icon">📋</div><div className="empty-title">Noch kein Gutachten importiert</div><div className="empty-sub">PDF hochladen um Daten automatisch zu extrahieren</div></div>
+              : data.gutachten.map(g => (
+                <div className="section" key={g.id} style={{marginBottom:16}}>
+                  <div className="section-head">
+                    <span>Gutachten #{g.gutachtennummer || g.id} &nbsp;·&nbsp; {g.gutachter_buero || g.gutachter_name}</span>
+                    <span style={{fontSize:12,color:'var(--text3)'}}>{fmtDate(g.gutachtendatum)}</span>
+                  </div>
+                  <div className="section-body">
+                    <div className="info-grid">
+                      {[
+                        ['Gutachter', g.gutachter_name],
+                        ['Büro', g.gutachter_buero],
+                        ['Gutachtennummer', g.gutachtennummer],
+                        ['Datum', fmtDate(g.gutachtendatum)],
+                        ['Reparatur netto', eur(g.reparaturkosten_netto)],
+                        ['Reparatur brutto', eur(g.reparaturkosten_brutto)],
+                        ['Wiederbeschaffungswert', eur(g.wiederbeschaffungswert)],
+                        ['Restwert', eur(g.restwert)],
+                        ['Wertminderung', eur(g.wertminderung)],
+                        ['Totalschaden', g.totalschaden ? '✓ Ja' : 'Nein'],
+                        ['Importiert am', fmtDateTime(g.pdf_extrahiert_am)],
+                      ].map(([label,val]) => (
+                        <div className="info-item" key={label}>
+                          <div className="info-label">{label}</div>
+                          <div className="info-value">{val || <span className="no-data">–</span>}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {/* ── TAB: DOKUMENTE ── */}
+        {activeTab === 'dokumente' && (
+          <div>
+            <div style={{marginBottom:16}}>
+              <button className="btn btn-primary" onClick={genDoc}>⬇ Forderungsschreiben generieren</button>
+            </div>
+            <div className="table-wrapper">
+              <div className="table-header">
+                <div className="table-header-title">Dokumente <span className="count-badge">{data.dokumente?.length||0}</span></div>
+              </div>
+              <table className="data-table">
+                <thead><tr><th>Datei</th><th>Typ</th><th>Format</th><th>Erstellt</th></tr></thead>
+                <tbody>
+                  {!data.dokumente || data.dokumente.length === 0
+                    ? <tr><td colSpan={4} style={{textAlign:'center',color:'var(--text3)',padding:24}}>Noch keine Dokumente generiert</td></tr>
+                    : data.dokumente.map(d => (
+                      <tr key={d.id}>
+                        <td style={{color:'var(--text)'}}>{d.dateiname}</td>
+                        <td><span className="status-badge status-laufend">{d.dokumenttyp}</span></td>
+                        <td style={{fontFamily:'IBM Plex Mono',fontSize:12,color:'var(--gold)'}}>{d.dateiformat?.toUpperCase()}</td>
+                        <td>{fmtDateTime(d.erstellt_am)}</td>
+                      </tr>
+                    ))
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB: HISTORIE ── */}
+        {activeTab === 'historie' && (
+          <div>
+            <div style={{marginBottom:16}}>
+              <button className="btn" onClick={()=>setModal('taetigkeit')}>+ Tätigkeit erfassen</button>
+            </div>
+            <div className="table-wrapper">
+              {data.taetigkeiten.length === 0
+                ? <div className="empty-state"><div className="empty-icon">📝</div><div className="empty-title">Keine Tätigkeiten</div></div>
+                : <div className="timeline">
+                    {data.taetigkeiten.map(t => (
+                      <div className="timeline-item" key={t.id}>
+                        <div className="timeline-dot" />
+                        <div className="timeline-content">
+                          <div className="timeline-cat">{t.kategorie}</div>
+                          <div className="timeline-desc">{t.beschreibung}</div>
+                          <div className="timeline-date">{fmtDateTime(t.datum)} · {t.erstellt_von}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+              }
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+//  DASHBOARD HOME (Statistiken)
+// ──────────────────────────────────────────────────────────────
+function DashboardHome({ unfaelle }) {
+  const gesamt   = unfaelle.length;
+  const offen    = unfaelle.filter(u=>u.status==='offen').length;
+  const laufend  = unfaelle.filter(u=>u.status==='laufend').length;
+  const abge     = unfaelle.filter(u=>u.status==='abgeschlossen').length;
+  const totalFord= unfaelle.reduce((s,u)=>s+(u.gesamt_gefordert||0),0);
+  const totalReg = unfaelle.reduce((s,u)=>s+(u.gesamt_reguliert||0),0);
+  const totalOffen=unfaelle.reduce((s,u)=>s+(u.offen||0),0);
+
+  // Letzte 5 Fälle
+  const recent = [...unfaelle].sort((a,b)=>new Date(b.erstellt_am)-new Date(a.erstellt_am)).slice(0,5);
+
+  return (
+    <div>
+      <div className="topbar">
+        <div>
+          <div className="topbar-title">Dashboard</div>
+          <div className="topbar-sub">Gesamtübersicht aller Unfallakten</div>
+        </div>
+      </div>
+      <div className="content-area">
+        <div className="stats-row">
+          <div className="kpi-card blue">
+            <div className="kpi-label">Akten gesamt</div>
+            <div className="kpi-value" style={{color:'var(--text)'}}>{gesamt}</div>
+            <div className="kpi-sub">{offen} offen · {laufend} laufend · {abge} abgeschlossen</div>
+          </div>
+          <div className="kpi-card gold">
+            <div className="kpi-label">Gesamt gefordert</div>
+            <div className="kpi-value gold">{eur(totalFord)}</div>
+          </div>
+          <div className="kpi-card green">
+            <div className="kpi-label">Gesamt reguliert</div>
+            <div className="kpi-value green">{eur(totalReg)}</div>
+          </div>
+          <div className="kpi-card red">
+            <div className="kpi-label">Gesamt offen</div>
+            <div className="kpi-value" style={{color:'#EC7063'}}>{eur(totalOffen)}</div>
+          </div>
+        </div>
+
+        <div className="table-wrapper">
+          <div className="table-header">
+            <div className="table-header-title">Zuletzt bearbeitete Akten</div>
+          </div>
+          <table className="data-table">
+            <thead><tr><th>Aktenzeichen</th><th>Unfalldatum</th><th>Ort</th><th>Status</th><th style={{textAlign:'right'}}>Gefordert</th><th style={{textAlign:'right'}}>Reguliert</th><th style={{textAlign:'right'}}>Offen</th></tr></thead>
+            <tbody>
+              {recent.map(u => (
+                <tr key={u.id}>
+                  <td className="mono">{u.aktenzeichen}</td>
+                  <td>{fmtDate(u.unfalldatum)}</td>
+                  <td style={{color:'var(--text2)'}}>{u.unfallort||'–'}</td>
+                  <td><StatusBadge status={u.status}/></td>
+                  <td className="amount amount-neutral">{eur(u.gesamt_gefordert)}</td>
+                  <td className="amount amount-positive">{eur(u.gesamt_reguliert)}</td>
+                  <td className="amount" style={{color:u.offen>0?'#EC7063':'#58D68D'}}>{eur(u.offen)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+//  ROOT APP
+// ──────────────────────────────────────────────────────────────
+function App() {
+  const [unfaelle, setUnfaelle] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('alle');
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const [apiOk, setApiOk] = useState(null);
+
+  const addToast = useCallback((msg, type='info') => {
+    const id = Date.now();
+    setToasts(t => [...t, {id, msg, type}]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
+  }, []);
+
+  const loadList = useCallback(async () => {
+    try {
+      const data = await apiFetch('/unfaelle');
+      setUnfaelle(data);
+      setApiOk(true);
+    } catch(e) {
+      setApiOk(false);
+    }
+  }, []);
+
+  useEffect(() => { loadList(); }, [loadList]);
+
+  const filtered = unfaelle
+    .filter(u => statusFilter === 'alle' || u.status === statusFilter)
+    .filter(u => !search || u.aktenzeichen.toLowerCase().includes(search.toLowerCase()));
+
+  // API offline banner
+  if (apiOk === false) return (
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',gap:16}}>
+      <div style={{fontSize:48}}>🔌</div>
+      <div style={{fontFamily:'Playfair Display,serif',fontSize:24,color:'var(--gold2)'}}>Backend nicht erreichbar</div>
+      <div style={{fontSize:14,color:'var(--text2)',maxWidth:400,textAlign:'center'}}>
+        Bitte das FastAPI-Backend starten:<br/>
+        <code style={{fontFamily:'IBM Plex Mono,monospace',color:'var(--gold)',display:'block',marginTop:10,padding:'8px 16px',background:'var(--bg3)',borderRadius:6}}>
+          uvicorn main:app --reload --port 8000
+        </code>
+      </div>
+      <button className="btn btn-primary" onClick={loadList} style={{marginTop:8}}>Erneut verbinden</button>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Sidebar */}
+      <div className="sidebar">
+        <div className="sidebar-logo">
+          <div className="logo-title">Kanzlei<br/>Unfallverwaltung</div>
+          <div className="logo-sub">Verkehrsunfallrecht</div>
+        </div>
+
+        <div className="sidebar-search">
+          <input placeholder="Aktenzeichen suchen…" value={search} onChange={e=>setSearch(e.target.value)} />
+        </div>
+
+        <div className="sidebar-filters">
+          {[['alle','Alle'],['offen','Offen'],['laufend','Laufend'],['abgeschlossen','Abge.'],['ruhend','Ruhend']].map(([k,l])=>(
+            <button key={k} className={`filter-btn ${statusFilter===k?'active':''}`} onClick={()=>setStatusFilter(k)}>{l}</button>
+          ))}
+        </div>
+
+        <div className="sidebar-cases">
+          {/* Dashboard-Button */}
+          <div className={`case-item ${selected===null?'active':''}`} onClick={()=>setSelected(null)}>
+            <div className="case-az">DASHBOARD</div>
+            <div className="case-name">Gesamtübersicht</div>
+            <div className="case-meta">
+              <span className="case-date">{unfaelle.length} Akten gesamt</span>
+            </div>
+          </div>
+
+          {filtered.length === 0 && (
+            <div className="empty-state" style={{padding:30}}>
+              <div style={{fontSize:28,marginBottom:8,opacity:0.4}}>📂</div>
+              <div style={{fontSize:12,color:'var(--text3)'}}>Keine Akten gefunden</div>
+            </div>
+          )}
+
+          {filtered.map(u => {
+            const progressPct = u.gesamt_gefordert > 0 ? Math.min(100, (u.gesamt_reguliert / u.gesamt_gefordert) * 100) : 0;
+            return (
+              <div key={u.id} className={`case-item ${selected===u.id?'active':''}`} onClick={()=>setSelected(u.id)}>
+                <div className="case-az">{u.aktenzeichen}</div>
+                <div className="case-name">{u.unfallort || 'Ort unbekannt'}</div>
+                <div className="case-meta">
+                  <span className="case-date">{fmtDate(u.unfalldatum)}</span>
+                  <StatusBadge status={u.status} />
+                </div>
+                {u.gesamt_gefordert > 0 && (
+                  <div style={{marginTop:6}}>
+                    <div className="progress-bar-wrap" style={{height:3}}>
+                      <div className="progress-bar-fill" style={{width:progressPct+'%'}}/>
+                    </div>
+                    <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--text3)',marginTop:3}}>
+                      <span>{eur(u.gesamt_reguliert)}</span>
+                      <span>{eur(u.gesamt_gefordert)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="sidebar-footer">
+          <button className="new-case-btn" onClick={()=>setShowNewModal(true)}>＋ Neue Unfallakte</button>
+        </div>
+      </div>
+
+      {/* Main */}
+      <div className="main">
+        {selected === null
+          ? <DashboardHome unfaelle={unfaelle} />
+          : <FallDashboard key={selected} unfallId={selected} addToast={addToast} onRefreshList={loadList} />
+        }
+      </div>
+
+      {/* Modals */}
+      {showNewModal && (
+        <NeuerUnfallModal
+          onClose={()=>setShowNewModal(false)}
+          onSaved={(u)=>{ loadList(); setSelected(u.id); setShowNewModal(false); }}
+          addToast={addToast}
+        />
+      )}
+
+      <ToastContainer toasts={toasts} />
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

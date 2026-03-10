@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Unfallverwaltung – Kanzlei</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  :root {
+    --bg:        #080E1A;
+    --bg2:       #0D1726;
+    --bg3:       #122040;
+    --card:      #0F1E38;
+    --card2:     #162845;
+    --border:    #1C3058;
+    --border2:   #243D6A;
+    --gold:      #C9A84C;
+    --gold2:     #E8C97A;
+    --gold3:     #8B6A28;
+    --text:      #EFF4FF;
+    --text2:     #8FA7C8;
+    --text3:     #4E6A8E;
+    --green:     #27AE60;
+    --green2:    #1E8449;
+    --red:       #C0392B;
+    --yellow:    #D4AC0D;
+    --blue:      #2E86C1;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  .sidebar {
+    width: 280px;
+    min-width: 280px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-logo {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo .logo-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    color: var(--gold2);
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+  }
+  .sidebar-logo .logo-sub {
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .sidebar-search {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-search input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .sidebar-search input:focus { border-color: var(--gold3); }
+  .sidebar-search input::placeholder { color: var(--text3); }
+
+  .sidebar-filters {
+    padding: 10px 16px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+  }
+  .filter-btn {
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .filter-btn.active {
+    background: var(--gold3);
+    border-color: var(--gold);
+    color: var(--gold2);
+  }
+  .filter-btn:hover:not(.active) { border-color: var(--text3); color: var(--text); }
+
+  .sidebar-cases {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+
+  .case-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+    border-bottom: 1px solid var(--border);
+  }
+  .case-item:hover { background: var(--bg3); }
+  .case-item.active {
+    background: var(--bg3);
+    border-left-color: var(--gold);
+  }
+  .case-item .case-az {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+  }
+  .case-item .case-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .case-item .case-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+  }
+  .case-item .case-date {
+    font-size: 11px;
+    color: var(--text3);
+  }
+
+  .status-badge {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .status-offen        { background: rgba(46,134,193,0.2);  color: #5DADE2; border: 1px solid rgba(46,134,193,0.3); }
+  .status-laufend      { background: rgba(201,168,76,0.15); color: var(--gold2); border: 1px solid rgba(201,168,76,0.3); }
+  .status-abgeschlossen{ background: rgba(39,174,96,0.15);  color: #58D68D; border: 1px solid rgba(39,174,96,0.3); }
+  .status-ruhend       { background: rgba(127,140,141,0.2); color: #AAB7B8; border: 1px solid rgba(127,140,141,0.3); }
+
+  .sidebar-footer {
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+  }
+  .new-case-btn {
+    width: 100%;
+    padding: 10px;
+    background: linear-gradient(135deg, var(--gold3), #9B7A2E);
+    border: 1px solid var(--gold);
+    border-radius: 6px;
+    color: var(--gold2);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.2s;
+  }
+  .new-case-btn:hover { filter: brightness(1.1); }
+
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .topbar {
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg2);
+  }
+  .topbar-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    color: var(--text);
+    font-weight: 600;
+  }
+  .topbar-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .topbar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border2);
+    background: var(--bg3);
+    color: var(--text);
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover { border-color: var(--text3); background: var(--card2); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--gold3), #7A5A20);
+    border-color: var(--gold);
+    color: var(--gold2);
+  }
+  .btn-primary:hover { filter: brightness(1.15); }
+
+  .content-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 2px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .tab {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+  }
+  .tab:hover { color: var(--text2); }
+  .tab.active { color: var(--gold2); border-bottom-color: var(--gold); }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .kpi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .kpi-card.gold::before  { background: linear-gradient(90deg, var(--gold), transparent); }
+  .kpi-card.green::before { background: linear-gradient(90deg, var(--green), transparent); }
+  .kpi-card.red::before   { background: linear-gradient(90deg, var(--red), transparent); }
+  .kpi-card.blue::before  { background: linear-gradient(90deg, var(--blue), transparent); }
+
+  .kpi-label {
+    font-size: 11px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+  .kpi-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1;
+  }
+  .kpi-value.gold  { color: var(--gold2); }
+  .kpi-value.green { color: #58D68D; }
+  .kpi-sub { font-size: 11px; color: var(--text3); margin-top: 6px; }
+
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+  }
+  .data-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text2);
+    vertical-align: middle;
+  }
+  .data-table tr:hover td { background: var(--bg3); }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table .mono { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--gold); }
+  .data-table .amount { font-family: 'IBM Plex Mono', monospace; font-size: 13px; text-align: right; }
+  .amount-positive { color: #58D68D; }
+  .amount-negative { color: #EC7063; }
+  .amount-neutral  { color: var(--gold2); }
+
+  .table-wrapper {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .table-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .table-header-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .count-badge {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    color: var(--text3);
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .section { background: var(--card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
+  .section-head {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .section-body { padding: 20px; }
+
+  .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+  .info-item .info-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .info-item .info-value { font-size: 14px; color: var(--text); font-weight: 500; }
+  .info-item .info-value.mono { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--gold); }
+
+  .timeline { padding: 4px 0; }
+  .timeline-item {
+    display: flex;
+    gap: 14px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .timeline-item:last-child { border-bottom: none; }
+  .timeline-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold3); border: 2px solid var(--gold); margin-top: 5px; flex-shrink: 0; }
+  .timeline-content { flex: 1; }
+  .timeline-cat { font-size: 11px; font-weight: 600; color: var(--gold); text-transform: uppercase; letter-spacing: 0.08em; }
+  .timeline-desc { font-size: 13px; color: var(--text2); margin-top: 2px; }
+  .timeline-date { font-size: 11px; color: var(--text3); font-family: 'IBM Plex Mono', monospace; margin-top: 4px; }
+
+  .progress-bar-wrap { background: var(--bg3); border-radius: 4px; height: 6px; overflow: hidden; margin-top: 10px; }
+  .progress-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--green2), var(--green)); transition: width 0.5s ease; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); margin-top: 5px; }
+
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.15s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    padding: 28px;
+    width: 520px;
+    max-width: 90vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    animation: slideUp 0.2s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(20px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+  .modal-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text); margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; }
+  .form-input, .form-select, .form-textarea {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--gold3); box-shadow: 0 0 0 3px rgba(201,168,76,0.1); }
+  .form-select { appearance: none; cursor: pointer; }
+  .form-textarea { resize: vertical; min-height: 80px; }
+
+  .file-drop { border: 2px dashed var(--border2); border-radius: 8px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s; }
+  .file-drop:hover, .file-drop.dragover { border-color: var(--gold3); background: rgba(201,168,76,0.05); }
+  .file-drop-icon { font-size: 32px; margin-bottom: 10px; }
+  .file-drop-text { font-size: 13px; color: var(--text2); }
+  .file-drop-sub  { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
+  .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+  .empty-state .empty-title { font-size: 15px; font-weight: 500; color: var(--text2); margin-bottom: 6px; }
+  .empty-state .empty-sub { font-size: 13px; }
+
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border2); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg) } }
+
+  .toast-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 2000; }
+  .toast {
+    background: var(--card2); border: 1px solid var(--border2); border-radius: 8px;
+    padding: 12px 16px; font-size: 13px; color: var(--text);
+    display: flex; align-items: center; gap: 10px;
+    animation: slideIn 0.2s ease; max-width: 320px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
+  .toast.success { border-left: 3px solid var(--green); }
+  .toast.error   { border-left: 3px solid var(--red); }
+  .toast.info    { border-left: 3px solid var(--gold); }
+
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .no-data { color: var(--text3); font-style: italic; font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const API = 'http://localhost:8000';
+
+async function apiFetch(path, options = {}) {
+  const res = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    ...options,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+const eur = (n) => n == null ? '–' : Number(n).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const fmtDate = (d) => { if (!d) return '–'; return new Date(d).toLocaleDateString('de-DE'); };
+const fmtDateTime = (d) => { if (!d) return '–'; return new Date(d).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }); };
+
+function ToastContainer({ toasts }) {
+  return <div className="toast-container">{toasts.map(t => <div key={t.id} className={`toast ${t.type}`}><span>{t.type==='success'?'✓':t.type==='error'?'✕':'ℹ'}</span>{t.msg}</div>)}</div>;
+}
+
+const statusLabel = { offen:'Offen', laufend:'Laufend', abgeschlossen:'Abgeschlossen', ruhend:'Ruhend' };
+function StatusBadge({ status }) {
+  return <span className={`status-badge status-${status}`}>{statusLabel[status] || status}</span>;
+}
+
+function Modal({ title, onClose, children, width }) {
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={width ? { width } : {}}>
+        <div className="modal-title">{title}</div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function NeuerUnfallModal({ onClose, onSaved, addToast }) {
+  const [form, setForm] = useState({ aktenzeichen:'', unfalldatum:'', unfallort:'', status:'offen' });
+  const [loading, setLoading] = useState(false);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  async function save() {
+    if (!form.aktenzeichen || !form.unfalldatum) { addToast('Aktenzeichen und Datum sind Pflichtfelder.', 'error'); return; }
+    setLoading(true);
+    try {
+      const res = await apiFetch('/unfaelle', { method:'POST', body: JSON.stringify(form) });
+      addToast(`Unfall ${form.aktenzeichen} angelegt.`, 'success');
+      onSaved(res);
+    } catch(e) { addToast(e.message, 'error'); }
+    finally { setLoading(false); }
+  }
+  return (
+    <Modal title="Neue Unfallakte anlegen" onClose={onClose}>
+      <div className="form-grid">
+        <div className="form-group"><label className="form-label">Aktenzeichen *</label><input className="form-input" placeholder="z.B. 2025-0042" value={form.aktenzeichen} onChange={e=>set('aktenzeichen',e.target.value)} /></div>
+        <div className="form-group"><label className="form-label">Unfalldatum *</label><input className="form-input" type="date" value={form.unfalldatum} onChange={e=>set('unfalldatum',e.target.value)} /></div>
+        <div className="form-group full"><label className="form-label">Unfallort</label><input className="form-input" placeholder="z.B. B27, Stuttgart" value={form.unfallort} onChange={e=>set('unfallort',e.target.value)} /></div>
+        <div className="form-group"><label className="form-label">Status</label><select className="form-select" value={form.status} onChange={e=>set('status',e.target.value)}><option value="offen">Offen</option><option value="laufend">Laufend</option><option value="abgeschlossen">Abgeschlossen</option><option value="ruhend">Ruhend</option></select></div>
+      </div>
+      <div className="modal-actions">
+        <button className="btn" onClick={onClose}>Abbrechen</button>
+        <button className="btn btn-primary" onClick={save} disabled={loading}>{loading ? <span className="spinner"/> : null} Akte anlegen</button>
+      </div>
+    </Modal>
+  );
+}
+
+function PdfUploadModal({ unfallId, onClose, onDone, addToast }) {
+  const [file, setFile] = useState(null);
+  const [useLocal, setUseLocal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [drag, setDrag] = useState(false);
+  const inputRef = useRef();
+  async function upload() {
+    if (!file) { addToast('Bitte zuerst eine PDF-Datei auswählen.', 'error'); return; }
+    setLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append('unfall_id', unfallId);
+      fd.append('use_local_llm', useLocal);
+      fd.append('datei', file);
+      const res = await fetch(API + '/gutachten/upload', { method:'POST', body: fd });
+      if (!res.ok) throw new Error((await res.json()).detail);
+      const data = await res.json();
+      setResult(data.extrahiert);
+      addToast('Gutachten erfolgreich importiert!', 'success');
+    } catch(e) { addToast(e.message, 'error'); }
+    finally { setLoading(false); }
+  }
+  return (
+    <Modal title="Schadengutachten importieren" onClose={onClose} width="600px">
+      {!result ? (
+        <>
+          <div className={`file-drop ${drag?'dragover':''}`} onClick={()=>inputRef.current.click()} onDragOver={e=>{e.preventDefault();setDrag(true)}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);setFile(e.dataTransfer.files[0])}}>
+            <input ref={inputRef} type="file" accept=".pdf" style={{display:'none'}} onChange={e=>setFile(e.target.files[0])} />
+            <div className="file-drop-icon">📄</div>
+            {file ? <div className="file-drop-text" style={{color:'var(--gold2)'}}>{file.name}</div> : <><div className="file-drop-text">PDF hier ablegen oder klicken</div><div className="file-drop-sub">Nur .pdf-Dateien</div></>}
+          </div>
+          <div style={{marginTop:16,display:'flex',alignItems:'center',gap:10}}>
+            <input type="checkbox" id="localLlm" checked={useLocal} onChange={e=>setUseLocal(e.target.checked)} />
+            <label htmlFor="localLlm" style={{fontSize:13,color:'var(--text2)',cursor:'pointer'}}>Lokales LLM (Ollama) – DSGVO-konform, kein Cloud-Versand</label>
+          </div>
+          <div className="modal-actions">
+            <button className="btn" onClick={onClose}>Abbrechen</button>
+            <button className="btn btn-primary" onClick={upload} disabled={loading||!file}>{loading ? <><span className="spinner"/> KI analysiert…</> : '📤 Hochladen & Analysieren'}</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div style={{marginBottom:16,padding:'12px 16px',background:'rgba(39,174,96,0.1)',border:'1px solid rgba(39,174,96,0.3)',borderRadius:8,fontSize:13,color:'#58D68D'}}>✓ Extraktion abgeschlossen – bitte Daten prüfen</div>
+          <div className="info-grid" style={{marginBottom:16}}>
+            {[['Gutachter',result.gutachter_name],['Büro',result.gutachter_buero],['Gutachtennr.',result.gutachtennummer],['Datum',result.gutachtendatum],['Reparatur netto',result.reparaturkosten_netto?eur(result.reparaturkosten_netto):null],['Reparatur brutto',result.reparaturkosten_brutto?eur(result.reparaturkosten_brutto):null],['WBW',result.wiederbeschaffungswert?eur(result.wiederbeschaffungswert):null],['Wertminderung',result.wertminderung?eur(result.wertminderung):null],['Totalschaden',result.totalschaden?'Ja':'Nein']].map(([label,val])=>(
+              <div className="info-item" key={label}><div className="info-label">{label}</div><div className="info-value">{val||<span className="no-data">–</span>}</div></div>
+            ))}
+          </div>
+          <div className="modal-actions"><button className="btn
