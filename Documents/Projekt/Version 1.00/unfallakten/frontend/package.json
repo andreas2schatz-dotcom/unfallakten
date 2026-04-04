@@ -1,0 +1,39 @@
+{
+  "name": "unfallakten-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Unfallakten-Management-System – Koch, Schatz & Kollegen",
+  "scripts": {
+    "dev":     "vite",
+    "build":   "vite build",
+    "preview": "vite preview --port 4173",
+    "lint":    "eslint src --ext .js,.jsx --report-unused-disable-directives",
+    "lint:fix":"eslint src --ext .js,.jsx --fix"
+  },
+  "dependencies": {
+    "react":       "^18.3.1",
+    "react-dom":   "^18.3.1",
+    "recharts":    "^2.12.7"
+  },
+  "devDependencies": {
+    "@eslint/js":               "^9.9.0",
+    "@types/react":             "^18.3.3",
+    "@types/react-dom":         "^18.3.0",
+    "@vitejs/plugin-react":     "^4.3.1",
+    "eslint":                   "^9.9.0",
+    "eslint-plugin-react":      "^7.35.0",
+    "eslint-plugin-react-hooks":"^5.1.0",
+    "globals":                  "^15.9.0",
+    "vite":                     "^5.4.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm":  ">=10.0.0"
+  },
+  "browserslist": [
+    "last 2 Chrome versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions",
+    "last 2 Edge versions"
+  ]
+}

@@ -1,0 +1,451 @@
+import React, { useState, useEffect, useCallback } from "react";
+import T from "../config/theme.js";
+import Ic from "../config/icons.jsx";
+import { STATUS_MAP } from "../config/constants.js";
+import { fmtEuro } from "../config/utils.js";
+import { Toast } from "../components/common.jsx";
+import {
+  akten as apiAkten,
+  beteiligte as apiBeteiligte,
+  schaden as apiSchaden,
+  apiTodos,
+  request,
+  ramicroWdm,
+} from "../api.js";
+
+import UebersichtSection from "../sections/UebersichtSection.jsx";
+import { TodoSection } from '../sections/UebersichtSection.jsx';
+import BeteiligteSection from "../sections/BeteiligteSection.jsx";
+import SchadenSection from "../sections/SchadenSection.jsx";
+import RegulierungSection from "../sections/RegulierungSection.jsx";
+import DokumenteSection from "../sections/DokumenteSection.jsx";
+import RaMicroSachstandsCard from "../sections/RaMicroSachstandsCard.jsx";
+import WordSection from "../sections/WordSection.jsx";
+import UnfalldetailsSection from "../sections/UnfalldetailsSection.jsx";
+import KlageSection from "../sections/KlageSection.jsx";
+
+function AkteDetailView({ akte, st, dispatch }) {
+  const [sec, setSec] = useState("uebersicht");
+  const [aktionErledigt, setAktionErledigt] = useState(false);
+  const [todoKlapp, setTodoKlapp] = useState(false);
+  const [statusOffen, setStatusOffen] = useState(false);
+  const [statusSpeichert, setStatusSpeichert] = useState(false);
+
+  const [headerTodos, setHeaderTodos] = useState([]);
+  const [headerTodosLoaded, setHeaderTodosLoaded] = useState(false);
+
+  // To-Dos für Header laden + Reload-Funktion für Live-Sync
+  const ladeHeaderTodos = React.useCallback(() => {
+    if (!akte.az) return;
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(), 8000));
+    Promise.race([apiTodos.liste(akte.az), timeout])
+      .then(r => setHeaderTodos(r?.todos || []))
+      .catch(() => setHeaderTodos([]))
+      .finally(() => setHeaderTodosLoaded(true));
+  }, [akte.az]);
+
+  React.useEffect(() => { ladeHeaderTodos(); }, [ladeHeaderTodos]);
+
+  // Beim ersten Öffnen: Schaden, Regulierungen, Beteiligte und Dokumente aus DB laden
+  useEffect(() => {
+    const id = akte.id;
+    // Schaden laden
+    if (!st.schaden) {
+      apiSchaden.holen(id)
+        .then(res => {
+          if (res?.schaden) dispatch({ type:"SAVE_SCHADEN", akteId:id, schaden:res.schaden });
+        })
+        .catch(() => {});
+    }
+    // Regulierungen laden
+    if (!st.regulierungen) {
+      apiSchaden.regulierungen(id)
+        .then(res => {
+          if (res?.regulierungen) dispatch({ type:"SET_REGULIERUNGEN", akteId:id, regulierungen:res.regulierungen });
+        })
+        .catch(() => {});
+    }
+    // Beteiligte laden
+    if (!st.beteiligte) {
+      apiBeteiligte.liste(id)
+        .then(res => {
+          if (res?.beteiligte?.length) dispatch({ type:"SET_BETEILIGTE", akteId:id, beteiligte:res.beteiligte });
+        })
+        .catch(() => {});
+    }
+    // Dokumente laden – immer frisch aus DB (werden auch per E-Mail-Import hinzugefügt)
+    // Status ebenfalls aus DB laden und in State schreiben
+    request(`/akten/${id}`)
+      .then(data => {
+        if (data?.dokumente) dispatch({ type:"SET_DOKUMENTE", akteId:id, dokumente:data.dokumente });
+        if (data?.status)    dispatch({ type:"SET_STATUS",    akteId:id, status:data.status });
+        if (data?.abrechnungen) dispatch({ type:"SET_ABRECHNUNGEN", akteId:id, abrechnungen:data.abrechnungen });
+      })
+      .catch(() => {});
+  }, [akte.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── PRD-15: WDM automatisch laden wenn keine lokalen Schadendaten ────────
+  const [wdmAutoGeladen, setWdmAutoGeladen] = useState(false);
+
+  useEffect(() => {
+    if (wdmAutoGeladen) return;
+    if (!st.schaden) return; // Schaden noch nicht aus DB geladen
+    if (!akte.id || !String(akte.id).includes("/")) return; // Kein RA-Micro AZ
+
+    // Prüfen ob lokale Schadendaten vorhanden sind
+    const felder = ["rep_gutachten_netto","rep_rechnung_brutto","wiederbeschaffung",
+                    "wertminderung","nutzungsausfall","mietwagenkosten","sv_kosten",
+                    "mietwagenkosten_netto","sv_kosten_netto","abschleppkosten_netto",
+                    "standkosten_netto","anabmeldekosten_netto",
+                    "schmerzensgeld","abschleppkosten","standkosten","anabmeldekosten",
+                    "verdienstausfall","haushalt","unkostenpauschale","sonstiges"];
+    const hatLokal = felder.some(k => (st.schaden[k] || 0) > 0);
+    if (hatLokal) { setWdmAutoGeladen(true); return; }
+
+    setWdmAutoGeladen(true);
+    ramicroWdm.schaden(akte.id)
+      .then(async (wdm) => {
+        if (!wdm?.schaden || (wdm.felder_gefunden || 0) === 0 && (wdm.extras_gefunden || 0) === 0) return;
+
+        // Schaden-Daten aus WDM zusammenbauen
+        const neu = { ...(st.schaden || {}) };
+        Object.entries(wdm.schaden).forEach(([k, v]) => {
+          if (v > 0) neu[k] = v;
+        });
+        neu.quelle = "wdm_ramicro";
+
+        // Extras (sonstige Schäden)
+        const wdmExtras = (wdm.extras || []).filter(e => (e.betrag || 0) > 0);
+        if (wdmExtras.length > 0) {
+          neu._extras = wdmExtras;
+        }
+
+        // Direkt in DB speichern
+        const schadenData = { ...neu };
+        try {
+          const res = await apiSchaden.speichern(akte.id, schadenData);
+          const serverSchaden = res?.schaden || schadenData;
+          dispatch({
+            type: "SAVE_SCHADEN",
+            akteId: akte.id,
+            schaden: { ...schadenData, gesamt_brutto: serverSchaden.gesamt_brutto ?? 0 },
+          });
+        } catch {
+          // Bei Fehler trotzdem in Store dispatchen (Daten sind immerhin da)
+          dispatch({ type: "SAVE_SCHADEN", akteId: akte.id, schaden: schadenData });
+        }
+      })
+      .catch(() => {}); // WDM nicht verfügbar – kein Fehler
+  }, [akte.id, st.schaden, wdmAutoGeladen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Live-Schadensumme — identische Formel wie SchadenSection.calcBrutto
+  // Wird immer neu berechnet (gesamt_brutto aus DB ist nur Fallback wenn alle Felder 0)
+  // PRD-14: Brutto aus Backend-Berechnung (Single Source of Truth)
+  const _sd = st.schaden || {};
+  // _sdExtras: aus Store (nach WDM-Übernahme) oder aus wdm_extras_json (nach DB-Reload)
+  const _sdExtras = (() => {
+    if (_sd._extras && _sd._extras.length > 0) return _sd._extras;
+    if (_sd.wdm_extras_json) {
+      try { const p = JSON.parse(_sd.wdm_extras_json); if (Array.isArray(p)) return p; } catch {}
+    }
+    return [];
+  })();
+  const _berechneterBrutto = _sd.abrechnungsberechnung?.gesamt_brutto ?? _sd.gesamt_brutto ?? 0;
+  // liveBrutto: berechneter Wert hat Vorrang; gesamt_brutto als Fallback wenn Felder leer
+  const liveBrutto = _berechneterBrutto > 0 ? _berechneterBrutto
+    : (_sd.gesamt_brutto || akte.brutto || 0);
+
+  // PRD-16: Status-Punkte je Reiter aus geladenen State-Daten ableiten
+  const _todosOffen     = 0; // wird via apiTodos geladen – Placeholder hier, TodoSection zählt selbst
+  const _beteiligteOk   = (st.beteiligte||[]).some(b => b.rolle === "mandant") &&
+                          (st.beteiligte||[]).some(b => ["gegner","GHPV","GHV","GBEV"].includes(b.rolle||b.kuerzel||""));
+  const _schadenOk      = (st.schaden?.gesamt_brutto || st.schaden?.abrechnungsberechnung?.gesamt_brutto || 0) > 0;
+  const _dokumenteAnz   = st.dokumente?.length || 0;
+  const _regulierungOk  = (st.regulierungen?.length || 0) > 0 || (st.abrechnungen?.length || 0) > 0;
+  const _klageStatus    = akte.status === "klage";
+
+  const _statusPunkt = (ok, fehlt, neutral) => {
+    if (ok)    return { dot: "✅", color: T.green };
+    if (fehlt) return { dot: "⚠️", color: T.amber };
+    return { dot: "⬜", color: T.textFaint };
+  };
+
+  const tabs = [
+    { id:"uebersicht",    label:"Übersicht" },
+    { id:"beteiligte",    label:`👥 Beteiligte`, ..._statusPunkt(_beteiligteOk, !_beteiligteOk && st.beteiligte !== undefined, false) },
+    { id:"unfalldetails", label:"🔍 Unfalldetails" },
+    { id:"schaden",       label:`🚗 Schaden`,    ..._statusPunkt(_schadenOk, !_schadenOk && st.schaden !== undefined, false) },
+    { id:"dokumente",     label:`📄 Dokumente (${_dokumenteAnz})` },
+    { id:"regulierung",   label:`💶 Regulierung`, ..._statusPunkt(_regulierungOk, false, true) },
+    { id:"klage",         label:`⚖ Klage`,       ..._statusPunkt(_klageStatus, false, true) },
+    { id:"word",          label:"📝 Word" },
+    { id:"todos",         label:`📋 To-Dos` },
+  ];
+
+  return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+
+      {/* Header – alles auf einer Zeile */}
+      <div style={{ background:T.navy, padding:"0.85rem 1.75rem 0", flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:"0.75rem", flexWrap:"nowrap" }}>
+
+          {/* ── Links: Icon + AZ + Status-Dropdown ── */}
+          <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+            <div style={{ width:36, height:36, background:T.goldTrim, borderRadius:8,
+              border:"1px solid rgba(200,168,75,0.3)", display:"flex", alignItems:"center",
+              justifyContent:"center", color:T.white, flexShrink:0 }}>{Ic.akte}</div>
+            <div>
+              <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.72rem",
+                color:"rgba(200,168,75,0.65)", letterSpacing:"0.1em", textTransform:"uppercase",
+                lineHeight:1 }}>Aktenzeichen</div>
+              <h1 style={{ fontFamily:"'Playfair Display',Georgia,serif", fontSize:"1.45rem",
+                fontWeight:700, color:T.white, margin:"2px 0 0", lineHeight:1.1 }}>{akte.az}</h1>
+            </div>
+          {/* ── Status-Dropdown (neben AZ) ── */}
+          {(() => {
+            const aktStatus = st.status || akte.status || "offen";
+            const sm = STATUS_MAP[aktStatus] || STATUS_MAP["offen"];
+            return (
+              <div style={{ position:"relative", flexShrink:0 }}>
+                <button onClick={() => setStatusOffen(o => !o)}
+                  style={{ display:"flex", alignItems:"center", gap:5,
+                    padding:"4px 10px 4px 8px", borderRadius:20, cursor:"pointer",
+                    border:`1.5px solid ${sm.color}`,
+                    background:sm.bg, color:sm.color,
+                    fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem",
+                    fontWeight:700, transition:"all 0.15s", whiteSpace:"nowrap" }}>
+                  {sm.label}
+                  <span style={{ fontSize:"0.65rem", opacity:0.7,
+                    transform: statusOffen ? "rotate(180deg)" : "none",
+                    transition:"transform 0.2s", lineHeight:1 }}>▾</span>
+                </button>
+                {statusOffen && (
+                  <>
+                    <div onClick={() => setStatusOffen(false)}
+                      style={{ position:"fixed", inset:0, zIndex:299 }} />
+                    <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0,
+                      background:T.navy, border:`1px solid ${T.goldTrim}`,
+                      borderRadius:10, zIndex:300, overflow:"hidden",
+                      boxShadow:"0 8px 24px rgba(0,0,0,0.4)", minWidth:160 }}>
+                      {["offen","in_regulierung","abgeschlossen","klage"].map(s => {
+                        const smi = STATUS_MAP[s];
+                        const isA = aktStatus === s;
+                        return (
+                          <button key={s} onClick={async () => {
+                            setStatusOffen(false);
+                            dispatch({ type:"SET_STATUS", akteId:akte.id, status:s });
+                            try {
+                              await apiAkten.aktualisieren(akte.id, { status: s });
+                            } catch(e) {
+                              // Rollback + Toast bei Fehler
+                              dispatch({ type:"SET_STATUS", akteId:akte.id, status:aktStatus });
+                              alert("Status konnte nicht gespeichert werden: " + (e?.message || String(e)));
+                            }
+                          }} style={{
+                            display:"block", width:"100%", textAlign:"left",
+                            padding:"8px 14px", background: isA ? "rgba(255,255,255,0.08)" : "transparent",
+                            border:"none", borderBottom:"1px solid rgba(255,255,255,0.07)",
+                            color: isA ? smi.color : "rgba(255,255,255,0.7)",
+                            fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.85rem",
+                            fontWeight: isA ? 700 : 400, cursor:"pointer",
+                            transition:"background 0.1s" }}
+                            onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.08)"}
+                            onMouseLeave={e => e.currentTarget.style.background=isA?"rgba(255,255,255,0.08)":"transparent"}>
+                            <span style={{ display:"inline-block", width:8, height:8,
+                              borderRadius:"50%", background:smi.color,
+                              marginRight:7, verticalAlign:"middle" }} />
+                            {smi.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })()}
+          </div>
+
+          {/* ── Mitte: To-Do Aufklapp-Kachel (flex-grow, so weit links wie möglich) ── */}
+          {(() => {
+            const offeneTodos = headerTodos.filter(t => !t.erledigt);
+            const FARBEN_DOT = { rot:"#ef4444", orange:"#f97316", gelb:"#eab308", grau:"rgba(255,255,255,0.3)" };
+            const heute = new Date(); heute.setHours(0,0,0,0);
+            const dring = (todo) => {
+              if (todo.faellig_am) {
+                const tage = Math.round((new Date(todo.faellig_am) - heute) / 86400000);
+                return tage < 3 ? "rot" : tage < 7 ? "orange" : tage < 14 ? "gelb" : "grau";
+              }
+              const alter = Math.round((heute - new Date(todo.erstellt_am)) / 86400000);
+              return alter >= 15 ? "rot" : alter >= 8 ? "orange" : alter >= 4 ? "gelb" : "grau";
+            };
+            const sortiert = [...offeneTodos].sort((a,b) =>
+              ({rot:0,orange:1,gelb:2,grau:3}[dring(a)]||3) - ({rot:0,orange:1,gelb:2,grau:3}[dring(b)]||3)
+            );
+            const preview = sortiert.slice(0, 2);
+            return (
+              <div style={{ flex:"1 1 0", position:"relative", maxWidth:780 }}>
+                <button onClick={() => setTodoKlapp(o => !o)}
+                  style={{ width:"100%", background:"rgba(255,255,255,0.07)",
+                    border:`1px solid ${offeneTodos.length > 0 ? "rgba(200,168,75,0.5)" : "rgba(255,255,255,0.12)"}`,
+                    borderRadius:10, padding:"6px 14px", cursor:"pointer",
+                    display:"flex", alignItems:"center", gap:10,
+                    transition:"all 0.15s", textAlign:"left" }}>
+                  <span style={{ fontSize:"0.85rem", flexShrink:0 }}>📋</span>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    {offeneTodos.length === 0 ? (
+                      <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem",
+                        color:"rgba(255,255,255,0.4)" }}>Keine To-Do's erfasst</div>
+                    ) : (<>
+                      {preview.map(t => (
+                        <div key={t.id} style={{ display:"flex", alignItems:"center", gap:6,
+                          marginBottom: preview.length > 1 ? 2 : 0 }}>
+                          <span style={{ width:6, height:6, borderRadius:"50%", flexShrink:0,
+                            background:FARBEN_DOT[dring(t)], display:"inline-block" }} />
+                          <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem",
+                            color:"rgba(255,255,255,0.75)", overflow:"hidden",
+                            textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.text}</span>
+                        </div>
+                      ))}
+                      {offeneTodos.length > 2 && (
+                        <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.72rem",
+                          color:"rgba(255,255,255,0.35)", marginTop:1 }}>
+                          + {offeneTodos.length - 2} weitere
+                        </div>
+                      )}
+                    </>)}
+                  </div>
+                  <span style={{ color:T.gold, fontSize:"0.75rem", flexShrink:0,
+                    transform: todoKlapp ? "rotate(180deg)" : "none",
+                    transition:"transform 0.2s", lineHeight:1 }}>▾</span>
+                </button>
+                {todoKlapp && (
+                  <div onClick={() => setTodoKlapp(false)}
+                    style={{ position:"fixed", inset:0, zIndex:199 }} />
+                )}
+                {todoKlapp && (
+                  <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0,
+                    width:"100%", background:T.navy, border:`1px solid ${T.goldTrim}`,
+                    borderRadius:10, zIndex:200, padding:"10px 14px",
+                    boxShadow:"0 8px 32px rgba(0,0,0,0.4)" }}>
+                    {sortiert.length === 0 ? (
+                      <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.85rem",
+                        color:"rgba(255,255,255,0.4)", textAlign:"center", padding:"8px 0" }}>
+                        Keine To-Do's erfasst
+                      </div>
+                    ) : sortiert.map(t => (
+                      <div key={t.id} style={{ display:"flex", alignItems:"flex-start", gap:7,
+                        padding:"6px 0", borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
+                        <button onClick={async () => {
+                          try {
+                            const r = await apiTodos.update(akte.az, t.id, { erledigt: true });
+                            setHeaderTodos(prev => prev.map(x => x.id === t.id ? r.todo : x));
+                          } catch {}
+                        }} title="Als erledigt markieren"
+                          style={{ flexShrink:0, width:16, height:16, borderRadius:"50%",
+                            border:`2px solid ${FARBEN_DOT[dring(t)]}`, background:"transparent",
+                            cursor:"pointer", marginTop:3, padding:0, transition:"all 0.15s" }}
+                          onMouseEnter={e => e.currentTarget.style.background=FARBEN_DOT[dring(t)]}
+                          onMouseLeave={e => e.currentTarget.style.background="transparent"} />
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.83rem",
+                            color:"rgba(255,255,255,0.85)", lineHeight:1.4 }}>{t.text}</div>
+                          {t.faellig_am && (
+                            <div style={{ fontSize:"0.72rem", color:"rgba(255,255,255,0.35)",
+                              fontFamily:"'IBM Plex Mono',monospace", marginTop:1 }}>
+                              Fällig: {(() => { try { const [y,m,d]=t.faellig_am.split("-"); return `${d}.${m}.${y}`; } catch{return t.faellig_am;}})()}
+                              {t.frist_typ==="verjaehrung" && " ⚠️"}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    <button onClick={() => { setTodoKlapp(false); setSec("todos"); }}
+                      style={{ marginTop:8, width:"100%", background:"rgba(200,168,75,0.15)",
+                        border:"1px solid rgba(200,168,75,0.3)", borderRadius:7,
+                        color:T.gold, fontFamily:"'IBM Plex Sans',sans-serif",
+                        fontSize:"0.8rem", padding:"5px 0", cursor:"pointer", fontWeight:600 }}>
+                      Alle To-Dos anzeigen →
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ── Rechts: KPI rechtsbündig ── */}
+          <div style={{ display:"flex", gap:10, background:"rgba(255,255,255,0.05)",
+            border:"1px solid rgba(255,255,255,0.1)", borderRadius:10,
+            padding:"7px 14px", flexShrink:0, marginLeft:"auto" }}>
+            {(() => {
+              const gefordert = liveBrutto * ((akte.hq || 100) / 100);
+              const reguliert = st.regulierungen?.reduce((s,r) => s + (r.betrag_reguliert||0), 0) || 0;
+              const offen     = Math.max(0, gefordert - reguliert);
+              return [
+                { l:"Gefordert", v:fmtEuro(gefordert), farbe: gefordert===0?"#51cf66":"#ffa94d", divider:false },
+                { l:"Reguliert", v:fmtEuro(reguliert), farbe:"#51cf66",                          divider:true },
+                { l:"Offen",     v:fmtEuro(offen),     farbe: offen===0?"#51cf66":"#ff6b6b",     divider:true },
+              ].map((s,i) => (
+                <React.Fragment key={i}>
+                  {s.divider && <div style={{ width:1, background:"rgba(255,255,255,0.12)",
+                    alignSelf:"stretch", margin:"2px 5px" }} />}
+                  <div style={{ textAlign:"center", padding:"0 4px" }}>
+                    <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"1.0rem",
+                      fontWeight:700, color:s.farbe }}>{s.v}</div>
+                    <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.72rem",
+                      color:"rgba(255,255,255,0.45)", marginTop:2, letterSpacing:"0.04em" }}>{s.l}</div>
+                  </div>
+                </React.Fragment>
+              ));
+            })()}
+          </div>
+
+        </div>
+
+        <div style={{ display:"flex", overflowX:"auto", scrollbarWidth:"none" }}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setSec(t.id)}
+              style={{ padding:"8px 16px", background:"transparent", border:"none",
+                borderBottom:sec===t.id?`2px solid ${T.gold}`:"2px solid transparent",
+                color:sec===t.id?T.white:"rgba(255,255,255,0.5)",
+                fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.935rem",
+                fontWeight:sec===t.id?600:400, cursor:"pointer",
+                transition:"all 0.15s", whiteSpace:"nowrap", flexShrink:0,
+                display:"flex", alignItems:"center", gap:5 }}>
+              {t.label}
+              {t.dot && t.dot !== "⬜" && (
+                <span style={{ fontSize:"0.7rem", lineHeight:1 }}>{t.dot}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Section content */}
+      <div style={{ flex:1, overflowY:"auto", background:T.offWhite, padding:"1.5rem 1.75rem" }}>
+        <div style={{ maxWidth:1200 }}>
+          {!aktionErledigt && akte.aktion_erforderlich ? (
+            <AktionBadge
+              az={akte.az_roh || akte.id}
+              aktion={{ aktiv: true, typ: akte.aktion_typ, seit: akte.aktion_seit }}
+              onErledigt={() => setAktionErledigt(true)}
+            />
+          ) : null}
+          {sec==="todos"          && <TodoSection akteId={akte.id} az={akte.az} onTodoChange={ladeHeaderTodos} />}
+          {sec==="beteiligte"     && <BeteiligteSection beteiligte={st.beteiligte||[]} dispatch={dispatch} akteId={akte.id} />}
+          {sec==="schaden"        && <SchadenSection schaden={st.schaden||{}} hq={akte.hq} dispatch={dispatch} akteId={akte.id} vorsteuer={(st.beteiligte||[]).find(b=>b.rolle==="mandant")?.vorsteuer==="Y"} dokumente={st.dokumente||[]} />}
+          {sec==="dokumente"      && <DokumenteSection dokumente={st.dokumente||[]} dispatch={dispatch} akteId={akte.id} />}
+          {sec==="regulierung"    && <RegulierungSection regulierungen={st.regulierungen||[]} brutto={st.schaden?.gesamt_brutto ?? liveBrutto} hq={akte.hq} dispatch={dispatch} akteId={akte.id} schaden={st.schaden||{}} abrechnungenCached={st.abrechnungen||[]} beteiligte={st.beteiligte||[]} dokumente={st.dokumente||[]} />}
+          {sec==="klage"          && <KlageSection akteId={akte.id} akte={akte} st={st} dispatch={dispatch} />}
+          {sec==="word"           && <WordSection akte={akte} st={st} dispatch={dispatch} />}
+          {sec==="uebersicht"     && <UebersichtSection akte={akte} st={st} dispatch={dispatch} />}
+          {sec==="unfalldetails"  && <UnfalldetailsSection akteId={akte.id} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+export default AkteDetailView;

@@ -1,0 +1,12 @@
+# Diese Pakete zusätzlich installieren (pip install -r requirements_additions.txt):
+# Bereits vorhanden (kein Update nötig): flask, sqlite3 (stdlib)
+# NEU für firmen_routes.py: keine externen Dependencies mehr nötig
+# firmen_routes.py nutzt nur stdlib: urllib, re, threading, logging
+
+# Wenn du mechanize für besseres Handelsregister-Scraping willst (optional):
+# mechanize>=0.4.9
+# beautifulsoup4>=4.12.0
+# lxml>=5.0.0
+
+# Migration 23: wird automatisch beim nächsten Serverstart ausgeführt
+# (vertreter_name + vertreter_funktion in beteiligte-Tabelle)

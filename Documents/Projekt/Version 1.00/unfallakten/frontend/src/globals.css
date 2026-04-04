@@ -1,0 +1,36 @@
+/* Globale Styles – Unfallakten-System */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; }
+body {
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  background: #1B2A4A;
+  color: #1a1a2e;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Animationen */
+@keyframes spin     { to { transform: rotate(360deg); } }
+@keyframes shimmer  { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+@keyframes slideUp  { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes boot-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d4ccbc; border-radius: 3px; }
+input[type=number]::-webkit-inner-spin-button { opacity: 0; }
+
+/* Ladescreen während React initialisiert */
+#root:empty::before {
+  content: '';
+  display: block;
+  width: 40px; height: 40px;
+  border: 3px solid rgba(200,168,75,0.2);
+  border-top-color: #C8A84B;
+  border-radius: 50%;
+  animation: boot-spin 0.8s linear infinite;
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+}

@@ -1,0 +1,261 @@
+"""
+Modul 2 – Flask Application Factory
+======================================
+Erstellt und konfiguriert die Flask-App.
+Registriert alle Blueprints und globale Fehlerbehandlung.
+
+Verwendung:
+    # Entwicklung
+    python -m backend.app
+
+    # Produktion (mit gunicorn)
+    gunicorn 'backend.app:erstelle_app()' --bind 0.0.0.0:5000
+"""
+
+import os
+import logging
+from flask import Flask, jsonify
+from .db.schema_manager import init_db
+from .routers.abrechnungsschreiben_routes import abrechnung_bp, pruefbericht_bp
+from .routers.akten_routes import akten_bp
+from .routers.aktensuche_routes import aktensuche_bp
+from .routers.auth_routes import auth_bp
+from .routers.belege_routes import belege_bp
+from .routers.beteiligte_routes import beteiligte_bp
+from .routers.dashboard_routes import dashboard_bp
+from .routers.distanz_routes import distanz_bp
+from .routers.dokumente_routes import dokumente_bp
+from .routers.eakte_routes import eakte_bp
+from .routers.einstellungen_routes import einstellungen_bp
+from .routers.email_routes import email_bp
+from .routers.firmen_routes import firmen_bp
+from .routers.forderung_routes import forderung_bp
+from .routers.klage_routes import klage_bp, unfalldetails_bp
+from .routers.kuerzungsarten_routes import kuerzungsarten_bp
+from .routers.pdf_parse_routes import pdf_parse_bp
+from .routers.personenschaden_routes import ps_bp
+from .routers.pruefberichte_routes import pruefberichte_bp
+from .routers.ramicro_akte_routes import ramicro_akte_bp
+from .routers.schaden_routes import schaden_bp, regulierung_bp
+from .routers.sta_routes import sta_bp
+from .routers.stellungnahme_routes import stellungnahme_bp
+from .routers.todos_routes import todos_bp
+from .routers.wiedervorlage_routes import wiedervorlage_bp
+from .routers.word_routes import word_bp
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+
+def _ensure_admin_exists(app) -> None:
+    """
+    Legt beim ersten Start automatisch den Admin-Benutzer an,
+    falls die Datenbank noch leer ist.
+    Credentials kommen aus .env (ADMIN_EMAIL, ADMIN_PASSWORT) oder Defaults.
+    """
+    try:
+        from .db.database import get_connection
+        with get_connection() as conn:
+            count = conn.execute("SELECT COUNT(*) AS n FROM benutzer").fetchone()["n"]
+            if count > 0:
+                return  # Benutzer bereits vorhanden
+
+        from .models.benutzer import erstelle_benutzer
+        admin_email    = os.environ.get("ADMIN_EMAIL",    "koch@anwalt-offenbach.de")
+        admin_passwort = os.environ.get("ADMIN_PASSWORT", "Kanzlei2024!")
+        admin_name     = os.environ.get("ADMIN_NAME",     "Peter Koch")
+
+        erstelle_benutzer(name=admin_name, email=admin_email,
+                          passwort=admin_passwort, rolle="admin")
+        logger.info("Admin-Benutzer angelegt: %s", admin_email)
+
+        # Zweiter Admin
+        try:
+            erstelle_benutzer(name="Andreas Schatz",
+                              email="schatz@anwalt-offenbach.de",
+                              passwort=os.environ.get("ADMIN_PASSWORT_2", "As155255"),
+                              rolle="admin")
+            logger.info("Admin-Benutzer angelegt: schatz@anwalt-offenbach.de")
+        except Exception:
+            pass
+
+        # Weitere Benutzer aus .env (optional, kommagetrennt)
+        # Format: EXTRA_USERS=Name|email|passwort|rolle,...
+        extra = os.environ.get("EXTRA_USERS", "")
+        for eintrag in extra.split(","):
+            teile = eintrag.strip().split("|")
+            if len(teile) == 4:
+                try:
+                    erstelle_benutzer(name=teile[0], email=teile[1],
+                                      passwort=teile[2], rolle=teile[3])
+                    logger.info("Benutzer angelegt: %s", teile[1])
+                except Exception:
+                    pass
+    except Exception as e:
+        logger.warning("_ensure_admin_exists fehlgeschlagen: %s", e)
+
+
+def erstelle_app(test_config: dict = None) -> Flask:
+    """
+    Application Factory Pattern.
+    Ermöglicht verschiedene Konfigurationen (Entwicklung, Test, Produktion).
+    """
+    app = Flask(__name__)
+
+    # ── Konfiguration ─────────────────────────────────────────────────────────
+    secret_key = os.environ.get("FLASK_SECRET_KEY")
+    if not secret_key:
+        raise RuntimeError(
+            "FLASK_SECRET_KEY ist nicht gesetzt. "
+            "Bitte in der .env-Datei konfigurieren (siehe .env.example)."
+        )
+    app.config.update(
+        SECRET_KEY=secret_key,
+        JSON_SORT_KEYS=False,          # JSON-Reihenfolge beibehalten
+        PROPAGATE_EXCEPTIONS=False,
+    )
+
+    if test_config:
+        app.config.update(test_config)
+
+    # ── Datenbank initialisieren ───────────────────────────────────────────────
+    with app.app_context():
+        init_db()
+        logger.info("Datenbank initialisiert.")
+
+        # ── Initialen Admin anlegen falls keine Benutzer vorhanden ────────────
+        _ensure_admin_exists(app)
+
+    # ── Blueprints registrieren ────────────────────────────────────────────────
+    app.register_blueprint(abrechnung_bp)
+    app.register_blueprint(akten_bp)
+    app.register_blueprint(aktensuche_bp)
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(belege_bp)
+    app.register_blueprint(beteiligte_bp)
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(distanz_bp)
+    app.register_blueprint(dokumente_bp)
+    app.register_blueprint(eakte_bp)
+    app.register_blueprint(einstellungen_bp)
+    app.register_blueprint(email_bp)
+    app.register_blueprint(firmen_bp)
+    app.register_blueprint(forderung_bp)
+    app.register_blueprint(klage_bp)
+    app.register_blueprint(unfalldetails_bp)
+    app.register_blueprint(kuerzungsarten_bp)
+    app.register_blueprint(pdf_parse_bp)
+    app.register_blueprint(pruefbericht_bp)
+    app.register_blueprint(pruefberichte_bp)
+    app.register_blueprint(ps_bp)
+    app.register_blueprint(ramicro_akte_bp)
+    app.register_blueprint(regulierung_bp)
+    app.register_blueprint(schaden_bp)
+    app.register_blueprint(sta_bp)
+    app.register_blueprint(stellungnahme_bp)
+    app.register_blueprint(todos_bp)
+    app.register_blueprint(wiedervorlage_bp)
+    app.register_blueprint(word_bp)
+    logger.info("Alle Blueprints registriert.")
+
+    # ── CORS-Header (für React-Frontend) ──────────────────────────────────────
+    @app.after_request
+    def cors_header(response):
+        response.headers["Access-Control-Allow-Origin"]  = os.environ.get(
+            "CORS_ORIGIN", "http://localhost:5173"   # Vite Dev-Server
+        )
+        response.headers["Access-Control-Allow-Headers"] = (
+            "Content-Type, Authorization"
+        )
+        response.headers["Access-Control-Allow-Methods"] = (
+            "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        )
+        return response
+
+    @app.route("/", methods=["OPTIONS"])
+    @app.route("/<path:path>", methods=["OPTIONS"])
+    def handle_options(path=""):
+        """Beantwortet CORS-Preflight-Anfragen."""
+        return "", 204
+
+    # ── Globale Fehlerbehandlung ───────────────────────────────────────────────
+    @app.errorhandler(404)
+    def nicht_gefunden(e):
+        return jsonify({"fehler": "Endpunkt nicht gefunden.", "status": 404}), 404
+
+    @app.errorhandler(405)
+    def methode_nicht_erlaubt(e):
+        return jsonify({"fehler": "HTTP-Methode nicht erlaubt.", "status": 405}), 405
+
+    @app.errorhandler(500)
+    def interner_fehler(e):
+        logger.error("Interner Serverfehler: %s", e)
+        return jsonify({"fehler": "Interner Serverfehler.", "status": 500}), 500
+
+    # ── Health-Check (für Docker + nginx) ────────────────────────────────────
+    @app.route("/health", methods=["GET"])
+    def health():
+        """
+        Liefert den Gesundheitsstatus der Anwendung.
+        Prüft: DB erreichbar, Schema aktuell.
+        Wird von Docker HEALTHCHECK und nginx genutzt.
+        """
+        import time
+        start = time.monotonic()
+        db_ok = False
+        db_fehler = None
+        akte_anzahl = 0
+
+        try:
+            from .db.database import get_connection
+            with get_connection() as conn:
+                row = conn.execute("SELECT COUNT(*) as n FROM unfallakte").fetchone()
+                akte_anzahl = row["n"] if row else 0
+                db_ok = True
+        except Exception as e:
+            db_fehler = str(e)
+
+        dauer_ms = round((time.monotonic() - start) * 1000, 1)
+        status_code = 200 if db_ok else 503
+
+        return jsonify({
+            "status":    "ok" if db_ok else "fehler",
+            "datenbank": "ok" if db_ok else f"fehler: {db_fehler}",
+            "akten":     akte_anzahl,
+            "version":   "1.0.0",
+            "dauer_ms":  dauer_ms,
+        }), status_code
+
+    # ── Root-Endpunkt ─────────────────────────────────────────────────────────
+    @app.route("/", methods=["GET"])
+    def root():
+        return jsonify({
+            "name":    "Unfallakten-API",
+            "version": "1.0.0",
+            "module":  "Modul 1–6 aktiv",
+            "endpunkte": {
+                "auth":          "/auth/*",
+                "akten":         "/akten/*",
+                "beteiligte":    "/akten/<id>/beteiligte/*",
+                "schaden":       "/akten/<id>/schaden",
+                "regulierungen": "/akten/<id>/regulierungen/*",
+                "dokumente":     "/akten/<id>/dokumente/*",
+                "word":          "/akten/<id>/dokumente/word/*",
+                "health":        "/health",
+            }
+        })
+
+    return app
+
+
+# Direkt ausführbar
+if __name__ == "__main__":
+    app = erstelle_app()
+    port = int(os.environ.get("PORT", 5000))
+    debug = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
+    logger.info("Server startet auf http://localhost:%d", port)
+    app.run(host="0.0.0.0", port=port, debug=debug)

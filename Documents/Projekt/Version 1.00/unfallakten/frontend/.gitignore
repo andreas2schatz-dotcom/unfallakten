@@ -1,0 +1,27 @@
+# ── Build-Ausgabe ─────────────────────────────────────────────
+dist/
+dist-ssr/
+
+# ── Node.js ───────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── Vite ──────────────────────────────────────────────────────
+.vite/
+
+# ── Umgebungsvariablen (enthalten ggf. Secrets) ───────────────
+.env
+.env.local
+.env.*.local
+.env.production
+# .env.development und .env.example werden eingecheckt
+
+# ── Editor ────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

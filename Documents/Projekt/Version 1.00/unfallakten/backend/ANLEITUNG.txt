@@ -1,0 +1,24 @@
+Session v9 – Patch inkl. RA-Micro Matching
+===========================================
+
+ENTPACKEN ins Projekt-Root, Dateien ersetzen lassen.
+
+Neue/geänderte Dateien:
+  backend/email_import/parser.py          Bugs 1,2,5 + _parse_datum Fix
+  backend/email_import/import_service.py  RA-Micro als erste Matching-Stufe
+  backend/ramicro/email_matching.py       NEU – RA-Micro Matching-Modul
+  frontend/src/api.js                     zuordnen + aktensuche
+  frontend/src/App.jsx                    Zwei-Spalten-Layout
+
+Matching-Reihenfolge nach Update:
+  1. RA-Micro: AZ in tblAkten (wenn RAMICRO_AKTIV=true)
+  2. RA-Micro: KFZ in tblAkten
+  3. RA-Micro: E-Mail in tblAdressen
+  4. SQLite: AZ in unfallakte
+  5. SQLite: KFZ in beteiligte
+  6. SQLite: E-Mail in beteiligte
+
+Wenn RA-Micro nicht aktiv: automatischer Fallback auf SQLite.
+
+Nach dem Entpacken:
+  docker restart unfallakten-backend-dev

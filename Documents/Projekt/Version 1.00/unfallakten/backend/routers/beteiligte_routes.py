@@ -1,0 +1,251 @@
+"""
+Modul 3 – Router: Beteiligte
+==============================
+REST-Endpunkte für Beteiligte einer Unfallakte.
+
+Endpunkte:
+  GET    /akten/<id>/beteiligte           Alle Beteiligten einer Akte
+  POST   /akten/<id>/beteiligte           Beteiligten hinzufügen
+  PATCH  /akten/<id>/beteiligte/<bid>     Beteiligten aktualisieren
+  DELETE /akten/<id>/beteiligte/<bid>     Beteiligten entfernen
+"""
+
+import logging
+from flask import Blueprint, request, jsonify, g
+from ..auth.middleware import login_erforderlich
+from ..models.akte import hole_akte_by_id
+from ..models.schaden import (
+    erstelle_beteiligten, hole_beteiligte_by_akte,
+    aktualisiere_beteiligten, loesche_beteiligten,
+    GUELTIGE_ROLLEN
+)
+from ..models.dokument import logge_aktivitaet
+
+logger = logging.getLogger(__name__)
+beteiligte_bp = Blueprint("beteiligte", __name__,
+                           url_prefix="/akten/<path:akte_id>/beteiligte")
+
+
+def _j(daten, status=200):
+    return jsonify(daten), status
+
+def _err(msg, status, **extra):
+    return jsonify({"fehler": msg, "status": status, **extra}), status
+
+def _body():
+    return request.get_json(silent=True) or {}
+
+def _b_dict(b) -> dict:
+    return {
+        "id": b.id, "akte_id": b.akte_id, "rolle": b.rolle,
+        "name": b.name, "vorname": b.vorname, "firma": b.firma,
+        "anschrift": b.anschrift, "plz": b.plz, "ort": b.ort,
+        "telefon": b.telefon, "email": b.email,
+        "kfz_kennzeichen": b.kfz_kennzeichen, "kfz_typ": b.kfz_typ,
+        "versicherung": b.versicherung, "vers_nr": b.vers_nr,
+        "schaden_nr": b.schaden_nr, "iban": b.iban, "notizen": b.notizen,
+        "vollstaendiger_name": b.vollstaendiger_name,
+        # Migration 8
+        "anrede":     getattr(b, "anrede",     "") or "",
+        "vorsteuer":  getattr(b, "vorsteuer",  "N") or "N",
+        # Klage-Rubrum: Vertretungsberechtigter (gespeichert via Handelsregister-Lookup)
+        "vertreter_name":     getattr(b, "vertreter_name",     "") or "",
+        "vertreter_funktion": getattr(b, "vertreter_funktion", "") or "",
+        # RA-Micro-Felder (werden befüllt wenn aus RA-Micro synchronisiert)
+        "kuerzel":    getattr(b, "kuerzel",    "") or "",
+        "briefanrede":getattr(b, "briefanrede","") or "",
+        "betreff1":   getattr(b, "betreff1",   "") or "",
+        "betreff2":   getattr(b, "betreff2",   "") or "",
+        "betreff3":   getattr(b, "betreff3",   "") or "",
+    }
+
+def _pruefe_akte(akte_id: str):
+    """Gibt Akte zurück oder None wenn nicht gefunden."""
+    return hole_akte_by_id(akte_id)
+
+
+@beteiligte_bp.route("", methods=["GET"])
+@login_erforderlich
+def liste(akte_id: str):
+    """
+    GET /akten/<id>/beteiligte
+    Gibt alle Beteiligten einer Akte zurück.
+    Wenn SQLite keine Beteiligte hat, wird RA-Micro als Fallback genutzt.
+
+    Query-Parameter:
+      rolle  Filter nach Rolle (mandant/gegner/zeuge/sachverstaendiger/sonstiger)
+    """
+    if not _pruefe_akte(akte_id):
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+
+    rolle = request.args.get("rolle")
+    beteiligte = hole_beteiligte_by_akte(akte_id, rolle=rolle)
+
+    def _ra_eintrag(ra_rolle: str, b: dict) -> dict:
+        """Wandelt einen RA-Micro-Beteiligten-Dict in das API-Format um."""
+        return {
+            "id": None,  # nicht in SQLite → Adressat-Dropdown zeigt ihn an, Generator lädt Adresse selbst
+            "akte_id": akte_id,
+            "rolle": ra_rolle,
+            "name":        b.get("name", ""),
+            "vorname":     b.get("vorname", ""),
+            "firma":       b.get("firma"),
+            "anschrift":   b.get("anschrift"),
+            "plz":         b.get("plz"),
+            "ort":         b.get("ort"),
+            "telefon":     b.get("telefon"),
+            "email":       b.get("email"),
+            "versicherung":b.get("versicherung"),
+            "vers_nr":     None,
+            "schaden_nr":  b.get("schaden_nr"),
+            "iban":        None,
+            "notizen":     None,
+            "vollstaendiger_name": f"{b.get('vorname','')} {b.get('name','')}".strip(),
+            "anrede":      b.get("anrede", ""),
+            "vorsteuer":   b.get("vorsteuer", "N"),
+            "kuerzel":     b.get("kuerzel", ""),
+            "briefanrede": b.get("briefanrede", ""),
+            "betreff1":    b.get("betreff1", ""),
+            "betreff2":    b.get("betreff2", ""),
+            "betreff3":    b.get("betreff3", ""),
+        }
+
+    # ── Fall 1: SQLite ist komplett leer → vollständig aus RA-Micro laden ──────
+    if not beteiligte:
+        try:
+            from ..word.word_service import _lade_beteiligte_aus_ramicro
+            ra = _lade_beteiligte_aus_ramicro(akte_id)
+            ra_liste = []
+            for ra_rolle, b in (("mandant", ra.get("mandant")), ("gegner", ra.get("gegner"))):
+                if b and (rolle is None or rolle == ra_rolle):
+                    ra_liste.append(_ra_eintrag(ra_rolle, b))
+            if ra_liste:
+                return _j({"beteiligte": ra_liste, "quelle": "ramicro"})
+        except Exception as e:
+            logger.debug("RA-Micro-Fallback für Beteiligte (komplett leer): %s", e)
+        return _j({"beteiligte": []})
+
+    # ── Fall 2: SQLite hat Beteiligte, aber kein Gegner → Gegner aus RA-Micro ergänzen ──
+    # Dies ist der häufige Fall: Mandant steht in SQLite, GHPV-Versicherung nur in RA-Micro.
+    hat_gegner = any(b.rolle == "gegner" for b in beteiligte)
+    if not hat_gegner and (rolle is None or rolle == "gegner"):
+        try:
+            from ..word.word_service import _lade_beteiligte_aus_ramicro
+            ra = _lade_beteiligte_aus_ramicro(akte_id)
+            ra_gegner = ra.get("gegner")
+            if ra_gegner:
+                # SQLite-Beteiligte + RA-Micro-Gegner zusammenführen
+                sqlite_liste = [_b_dict(b) for b in beteiligte]
+                sqlite_liste.append(_ra_eintrag("gegner", ra_gegner))
+                return _j({"beteiligte": sqlite_liste, "quelle": "gemischt"})
+        except Exception as e:
+            logger.debug("RA-Micro-Fallback für fehlenden Gegner: %s", e)
+
+    return _j({"beteiligte": [_b_dict(b) for b in beteiligte]})
+
+
+@beteiligte_bp.route("", methods=["POST"])
+@login_erforderlich
+def erstelle(akte_id: str):
+    """
+    POST /akten/<id>/beteiligte
+    Fügt einen Beteiligten zur Akte hinzu.
+
+    Body:
+      {
+        "rolle":  "mandant",
+        "name":   "Mustermann",
+        "vorname": "Max",
+        "kfz_kennzeichen": "OF-MM 1",
+        "versicherung": "HUK Coburg",
+        ...
+      }
+
+    Response 201: Angelegter Beteiligter
+    """
+    if not _pruefe_akte(akte_id):
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+
+    daten = _body()
+    rolle = daten.get("rolle", "").strip()
+    name  = daten.get("name", "").strip()
+
+    if not rolle:
+        return _err("rolle ist erforderlich.", 422, feld="rolle")
+    if not name:
+        return _err("name ist erforderlich.", 422, feld="name")
+
+    # Optionale Felder übergeben
+    optionale = {
+        k: daten[k] for k in [
+            "vorname", "firma", "anschrift", "plz", "ort", "telefon",
+            "email", "kfz_kennzeichen", "kfz_typ", "versicherung",
+            "vers_nr", "schaden_nr", "iban", "notizen"
+        ] if k in daten
+    }
+
+    try:
+        b = erstelle_beteiligten(akte_id, rolle, name, **optionale)
+    except ValueError as e:
+        return _err(str(e), 422)
+
+    logge_aktivitaet(
+        aktion="beteiligter_hinzugefuegt",
+        beschreibung=f"{rolle.capitalize()} '{name}' zur Akte hinzugefügt.",
+        akte_id=akte_id,
+        benutzer_id=g.benutzer_id,
+    )
+
+    return _j(_b_dict(b), 201)
+
+
+@beteiligte_bp.route("/<int:beteiligter_id>", methods=["PATCH"])
+@login_erforderlich
+def aktualisiere(akte_id: str, beteiligter_id: int):
+    """
+    PATCH /akten/<id>/beteiligte/<bid>
+    Aktualisiert einen Beteiligten.
+    """
+    if not _pruefe_akte(akte_id):
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+
+    daten = _body()
+    erlaubte = {
+        "name", "vorname", "firma", "anschrift", "plz", "ort",
+        "telefon", "email", "kfz_kennzeichen", "kfz_typ",
+        "versicherung", "vers_nr", "schaden_nr", "iban", "notizen"
+    }
+    felder = {k: v for k, v in daten.items() if k in erlaubte}
+
+    if not felder:
+        return _err("Keine aktualisierbaren Felder im Body.", 422)
+
+    upd = aktualisiere_beteiligten(beteiligter_id, **felder)
+    if not upd:
+        return _err(f"Beteiligter {beteiligter_id} nicht gefunden.", 404)
+
+    return _j(_b_dict(upd))
+
+
+@beteiligte_bp.route("/<int:beteiligter_id>", methods=["DELETE"])
+@login_erforderlich
+def loesche(akte_id: str, beteiligter_id: int):
+    """
+    DELETE /akten/<id>/beteiligte/<bid>
+    Entfernt einen Beteiligten aus der Akte.
+    """
+    if not _pruefe_akte(akte_id):
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+
+    from ..models.schaden import loesche_beteiligten as db_loesche
+    erfolg = db_loesche(beteiligter_id)
+    if not erfolg:
+        return _err(f"Beteiligter {beteiligter_id} nicht gefunden.", 404)
+
+    logge_aktivitaet(
+        aktion="beteiligter_entfernt",
+        beschreibung=f"Beteiligter {beteiligter_id} aus Akte entfernt.",
+        akte_id=akte_id,
+        benutzer_id=g.benutzer_id,
+    )
+    return _j({"nachricht": f"Beteiligter {beteiligter_id} gelöscht."})

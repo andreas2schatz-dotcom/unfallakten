@@ -1,0 +1,132 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# docker-compose.prod.yml – PRODUKTION
+#
+# Dienste:
+#   backend  – Flask/Gunicorn, 4 Worker, Port 5000 (intern)
+#   frontend – Vite-Build in nginx:alpine, Port 8080 (intern)
+#   nginx    – TLS-Termination, Routing Frontend/API, Port 80+443
+#   backup   – Nightly SQLite + Upload Backup
+#
+# Voraussetzungen:
+#   1. .env anlegen (aus .env.example kopieren und ausfüllen)
+#   2. SSL-Zertifikat unter nginx/ssl/ ablegen
+#   3. Frontend-Image bauen: make frontend-build
+#
+# Starten:   docker compose -f docker-compose.prod.yml up -d
+# Update:    docker compose -f docker-compose.prod.yml up -d --build
+# Logs:      docker compose -f docker-compose.prod.yml logs -f
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Backend: Gunicorn ────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      target: production
+    image: unfallakten-backend:prod
+    container_name: unfallakten-backend
+    env_file:
+      - .env
+    environment:
+      GUNICORN_WORKERS: "4"
+      GUNICORN_TIMEOUT: "60"
+      # CORS_ORIGIN wird aus .env geladen (dort auf die echte Domain setzen,
+      # z.B. https://anwalt-offenbach.de). In Prod läuft alles auf einer Domain,
+      # daher ist CORS nur als Sicherheitsnetz nötig.
+    volumes:
+      - prod-data:/app/data
+      - prod-uploads:/app/uploads
+      - prod-logs:/app/logs
+    expose:
+      - "5000"
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:5000/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 256M
+
+  # ── Frontend: Vite-Build → nginx ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      target: runtime
+      args:
+        VITE_API_URL: ""           # Leer = gleiche Domain, nginx routet intern
+        VITE_DEMO_MODE: "false"
+        VITE_APP_TITEL: "Unfallakten – Koch, Schatz & Kollegen"
+        CACHEBUST: "${CACHEBUST:-1}"
+    image: unfallakten-frontend:prod
+    container_name: unfallakten-frontend
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/nginx-health 2>/dev/null || curl -fs http://localhost:8080/nginx-health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.2"
+
+  # ── nginx: TLS-Termination + Routing ─────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: unfallakten-nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/proxy_params.conf:/etc/nginx/proxy_params.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx-logs:/var/log/nginx
+      - certbot-webroot:/var/www/certbot:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  # ── Automatische Backups ──────────────────────────────────────────────────────
+  backup:
+    image: alpine:3.20
+    container_name: unfallakten-backup
+    volumes:
+      - prod-data:/data:ro
+      - prod-uploads:/uploads:ro
+      - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+    entrypoint: >
+      sh -c "
+        echo '0 2 * * * sh /backup.sh' | crontab - &&
+        crond -f -l 8
+      "
+    environment:
+      BACKUP_RETENTION_DAYS: "30"
+    restart: always
+
+volumes:
+  prod-data:
+  prod-uploads:
+  prod-logs:
+  nginx-logs:
+  certbot-webroot:

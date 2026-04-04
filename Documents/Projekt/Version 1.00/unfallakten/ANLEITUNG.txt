@@ -1,0 +1,15 @@
+Session v10 – Final (Anhang-Namen + Body-Text)
+===============================================
+
+ZIP entpacken + docker restart backend + frontend + Hard Reload
+
+.env muss enthalten:
+  EMAIL_MAX_FETCH=50
+  KANZLEI_DOMAINS=anwalt-offenbach.de
+
+Was neu ist:
+  - Echte Dateinamen der Anhänge (aus .eml gelesen)
+  - Body-Text der E-Mail wird im aufgeklappten Bereich angezeigt
+  - Anhänge direkt klickbar (PDF öffnet im Browser)
+  - Kanzlei-Domain-basierte Weiterleitungserkennung
+  - Alle Filter entfernt - alle E-Mails werden angezeigt

@@ -1,0 +1,7 @@
+# Diese Zeilen in app.py ergänzen (Blueprint-Registrierung):
+
+from .routers.firmen_routes import firmen_bp
+app.register_blueprint(firmen_bp)
+
+# WICHTIG: firmen_routes.py importiert nur Standardbibliotheken + flask + db.
+# Wenn beim Start ein Traceback erscheint, bitte ins Terminal schauen.

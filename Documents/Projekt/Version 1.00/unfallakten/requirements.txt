@@ -1,0 +1,37 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Unfallakten-System – Python-Abhängigkeiten
+# Getestet mit Python 3.12 (Ubuntu 24.04)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Webframework ──────────────────────────────────────────────────────────────
+Flask==3.1.2
+Werkzeug==3.1.3             # HTTP-Utilities (Teil von Flask)
+
+# ── Produktions-WSGI-Server ───────────────────────────────────────────────────
+gunicorn==22.0.0            # Produktion: gunicorn 'backend.app:erstelle_app()'
+
+# ── Authentifizierung & Sicherheit ────────────────────────────────────────────
+PyJWT==2.7.0                # JWT-Tokens (HS256)
+# bcrypt==4.1.3             # Aktivieren für Produktion (ersetzt PBKDF2)
+
+# ── PDF-Verarbeitung (Modul 4) ────────────────────────────────────────────────
+pdfplumber==0.11.9          # Textextraktion aus PDFs
+Pillow==12.1.1              # Bildverarbeitung (pdfplumber-Abhängigkeit)
+# PyMuPDF==1.24.3           # Optionaler Fallback (nicht im Testsystem)
+
+# ── Word-Dokumente (Modul 5) ──────────────────────────────────────────────────
+python-docx==1.2.0          # .docx-Generierung
+
+# ── Tests & Entwicklung ───────────────────────────────────────────────────────
+reportlab==4.4.10           # Nur für Tests: Erzeugt Test-PDFs
+pytest==8.4.0
+pytest-cov==6.1.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Produktions-Hinweise:
+#   - SQLite → PostgreSQL: psycopg2-binary==2.9.9 + SQLAlchemy==2.0.x
+#   - OCR für gescannte PDFs: pytesseract + Tesseract (apt-get install tesseract-ocr)
+#   - GPT-4o Fallback: openai==1.30.x (OPENAI_API_KEY setzen)
+#   - E-Mail-Import (Modul 7): imap-tools==1.7.x
+# ─────────────────────────────────────────────────────────────────────────────
+pymssql==2.3.1

@@ -1,0 +1,1299 @@
+"""
+Modul 1 – Schema-Manager
+=========================
+Erstellt, prüft und migriert das Datenbankschema.
+Ersetzt Alembic für die SQLite-Phase.
+
+Verwendung:
+    python -m backend.db.schema_manager          # Schema anlegen
+    python -m backend.db.schema_manager --check  # Nur prüfen
+    python -m backend.db.schema_manager --reset  # VORSICHT: Alles löschen + neu
+"""
+
+import sys
+import logging
+import sqlite3
+from .database import get_connection, get_db_path
+from .schema import SCHEMA_DDL
+
+logger = logging.getLogger(__name__)
+
+# Migrations-Registry: version -> SQL
+# Neue Migrationen hier eintragen (für Phase 2+)
+MIGRATIONS: dict[int, str] = {
+    # Modul 7: E-Mail-Import-Log
+    2: """
+CREATE TABLE IF NOT EXISTS email_import_log (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id       TEXT    NOT NULL UNIQUE,
+    betreff          TEXT,
+    absender         TEXT,
+    empfangen_am     TEXT,
+    importiert_am    TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+    akte_id          INTEGER REFERENCES unfallakte(id) ON DELETE SET NULL,
+    status           TEXT    NOT NULL DEFAULT 'verarbeitet'
+                     CHECK(status IN ('verarbeitet', 'kein_treffer',
+                                      'fehler', 'ignoriert')),
+    anhaenge_anzahl  INTEGER DEFAULT 0,
+    importierte_dok  TEXT,
+    notizen          TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_email_log_akte_id ON email_import_log(akte_id);
+CREATE INDEX IF NOT EXISTS idx_email_log_status  ON email_import_log(status);
+    """,
+    # Modul 9: Regulierungsverlauf & Kürzungskatalog
+    3: """
+CREATE TABLE IF NOT EXISTS email_import_log (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id       TEXT    NOT NULL UNIQUE,
+    betreff          TEXT,
+    absender         TEXT,
+    empfangen_am     TEXT,
+    importiert_am    TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+    akte_id          INTEGER REFERENCES unfallakte(id) ON DELETE SET NULL,
+    status           TEXT    NOT NULL DEFAULT 'verarbeitet'
+                     CHECK(status IN ('verarbeitet', 'kein_treffer',
+                                      'fehler', 'ignoriert')),
+    anhaenge_anzahl  INTEGER DEFAULT 0,
+    importierte_dok  TEXT,
+    notizen          TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_email_log_akte_id ON email_import_log(akte_id);
+CREATE INDEX IF NOT EXISTS idx_email_log_status  ON email_import_log(status);
+    """,
+    # Modul 9: Regulierungsverlauf & Kürzungskatalog
+    3: """
+-- ============================================================
+-- KÜRZUNGSARTEN (Stammdaten / Wissensdatenbank)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS kuerzungsarten (
+    id                              INTEGER PRIMARY KEY AUTOINCREMENT,
+    bezeichnung                     TEXT    NOT NULL UNIQUE,
+    kategorie                       TEXT    NOT NULL
+                                    CHECK(kategorie IN (
+                                        'fahrzeugschaden',
+                                        'ersatzbeschaffung',
+                                        'sonstiger_schaden',
+                                        'technisch_gutachten'
+                                    )),
+    standard_gegenargument          TEXT,
+    rechtsgrundlagen                TEXT,
+    hinweis_intern                  TEXT,
+    sv_stellungnahme_erforderlich   INTEGER NOT NULL DEFAULT 0
+                                    CHECK(sv_stellungnahme_erforderlich IN (0,1)),
+    aktiv                           INTEGER NOT NULL DEFAULT 1
+                                    CHECK(aktiv IN (0,1)),
+    sortierung                      INTEGER NOT NULL DEFAULT 0,
+    erstellt_am                     TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
+);
+
+-- Seed: 19 Kürzungsarten aus Kanzlei-Liste
+INSERT OR IGNORE INTO kuerzungsarten
+    (bezeichnung, kategorie, standard_gegenargument, hinweis_intern, sv_stellungnahme_erforderlich, sortierung)
+VALUES
+    ('Stundenverrechnungssätze',        'fahrzeugschaden',    'Werkstattrisiko liegt beim Schädiger; fiktiv nach Stundenverrechnungssatz der Fachwerkstatt zu ersetzen; Verweisbetrieb nur bei konkreter gleichwertiger Werkstatt zulässig.', 'Verweisbetrieb prüfen', 0, 10),
+    ('Wertminderung',                   'fahrzeugschaden',    'Wertminderung ist nach Gutachten zu ersetzen; MwSt-Abzug nur bei gewerblicher Nutzung; abweichende Berechnung bedarf Begründung.', 'MwSt / Berechnungsmethode prüfen', 0, 20),
+    ('Ersatzteilaufschläge / UPE-Zuschläge', 'fahrzeugschaden', 'UPE-Zuschläge sind auch bei fiktiver Abrechnung zu ersetzen; Händlerpreise sind marktüblich.', 'auch fiktiv zu ersetzen', 0, 30),
+    ('Verbringungskosten',              'fahrzeugschaden',    'Verbringungskosten sind ortsüblich und auch fiktiv erstattungsfähig, wenn im Gutachten ausgewiesen.', 'auch fiktiv zu ersetzen', 0, 40),
+    ('Beilackierung',                   'fahrzeugschaden',    'Beilackierung ist zu ersetzen wenn Sachverständiger dies für farbliche Anpassung vorsieht; kein Abzug zulässig.', 'SV-Gutachten maßgeblich', 0, 50),
+    ('Kürzung Reparaturrechnung',       'fahrzeugschaden',    'Kürzung der Reparaturrechnung ist unzulässig; Werkstattrisiko liegt allein beim Schädiger (BGH VI ZR 398/02).', 'nie zulässig – Werkstattrisiko', 0, 60),
+    ('Tankrest',                        'fahrzeugschaden',    'Tankrest ist als Teil des Fahrzeugzustands zu ersetzen wenn im Gutachten ausgewiesen.', 'Gutachten prüfen', 0, 70),
+    ('Batteriestützbetrieb',            'fahrzeugschaden',    'Batteriestützbetrieb ist als notwendige Reparaturmaßnahme auch fiktiv erstattungsfähig.', 'auch fiktiv zu ersetzen', 0, 80),
+    ('Fehlerspeicher auslesen',         'fahrzeugschaden',    'Kosten für Fehlerspeicher-Auslesung sind unfallbedingte Reparaturkosten, auch fiktiv zu ersetzen.', 'auch fiktiv zu ersetzen', 0, 90),
+    ('Kleinteilpauschale',              'fahrzeugschaden',    'Kleinteilpauschale ist Bestandteil der Reparaturkalkulation und auch fiktiv zu ersetzen.', 'auch fiktiv zu ersetzen', 0, 100),
+    ('Technische Kürzungen',            'technisch_gutachten','Abweichender Reparaturweg bedarf Stellungnahme des Sachverständigen; einseitige Kürzung durch Versicherung unzulässig.', 'SV-Stellungnahme erforderlich', 1, 110),
+    ('Zulassungsdienst',                'ersatzbeschaffung',  'Kosten eines Zulassungsdienstes sind erstattungsfähige Nebenkosten bei Ersatzbeschaffung.', NULL, 0, 120),
+    ('Kennzeichen / Schilderkosten',    'ersatzbeschaffung',  'Kennzeichenkosten sind notwendige Nebenkosten der Wiederbeschaffung und zu ersetzen.', NULL, 0, 130),
+    ('Wunschkennzeichen',               'ersatzbeschaffung',  'Mehrkosten gegenüber Standardkennzeichen sind nicht erstattungsfähig; Grundkosten für Kennzeichen schon.', 'nur Grundbetrag erstattungsfähig', 0, 140),
+    ('Unkostenpauschale',               'sonstiger_schaden',  'Unkostenpauschale mindestens 30 € nach ständiger Rechtsprechung; Kürzung auf 25 € ist unzulässig.', 'mind. 30 €', 0, 150),
+    ('Nutzungsausfall',                 'sonstiger_schaden',  'Dauer des Nutzungsausfalls richtet sich nach Reparaturdauer laut Gutachten zzgl. Wiederbeschaffungszeit; Kürzung bedarf konkreter Begründung.', 'Dauer prüfen', 0, 160),
+    ('Kürzung Sachverständigenrechnung','sonstiger_schaden',  'SV-Rechnung ist vollständig zu ersetzen; Werkstattrisiko-Grundsatz gilt analog (BGH VI ZR 67/06).', 'wie Werkstattrisiko', 0, 170),
+    ('Mietwagenrechnung',               'sonstiger_schaden',  'Erstattung nach Schwacke-Liste oder Fraunhofer-Tabelle; Kürzung nur bei erheblicher Überschreitung des Marktüblichen zulässig.', 'Tabelle prüfen', 0, 180),
+    ('Verdienstausfall',                'sonstiger_schaden',  'Verdienstausfall ist durch Lohnbescheinigung oder Einkommenssteuerbescheid zu belegen; Abzug nur bei fehlendem Nachweis zulässig.', 'Nachweis prüfen', 0, 190);
+
+-- ============================================================
+-- ABRECHNUNGSSCHREIBEN (Regulierungsverlauf)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS abrechnungsschreiben (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    akte_id             INTEGER NOT NULL REFERENCES unfallakte(id) ON DELETE CASCADE,
+    datum               TEXT    NOT NULL,
+    versicherung        TEXT,
+    referenz_nr         TEXT,
+    haftungsquote       REAL    NOT NULL DEFAULT 100.0
+                        CHECK(haftungsquote BETWEEN 0 AND 100),
+    haftungsart         TEXT    NOT NULL DEFAULT 'vollhaftung'
+                        CHECK(haftungsart IN (
+                            'vollhaftung', 'mithaftung', 'quote', 'ablehnung'
+                        )),
+    haftungsbegruendung TEXT,
+    gesamt_gefordert    REAL    NOT NULL DEFAULT 0.0,
+    gesamt_reguliert    REAL    NOT NULL DEFAULT 0.0,
+    dokument_id         INTEGER REFERENCES dokumente(id) ON DELETE SET NULL,
+    parse_status        TEXT    NOT NULL DEFAULT 'manuell'
+                        CHECK(parse_status IN (
+                            'ausstehend', 'erfolgreich', 'teilweise', 'manuell', 'fehlgeschlagen'
+                        )),
+    notizen             TEXT,
+    erfasst_am          TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+    erfasst_von         INTEGER REFERENCES benutzer(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_abrechnung_akte_id ON abrechnungsschreiben(akte_id);
+
+-- ============================================================
+-- REGULIERUNG_POSITIONEN (positionsgenaue Regulierung)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS regulierung_positionen (
+    id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+    abrechnungsschreiben_id     INTEGER NOT NULL
+                                REFERENCES abrechnungsschreiben(id) ON DELETE CASCADE,
+    position_key                TEXT    NOT NULL
+                                CHECK(position_key IN (
+                                    'reparaturkosten', 'wiederbeschaffung', 'restwert',
+                                    'wertminderung', 'nutzungsausfall', 'mietwagenkosten',
+                                    'sv_kosten', 'abschleppkosten', 'standkosten',
+                                    'anabmeldekosten', 'schmerzensgeld', 'sonstiges',
+                                    'reparatur_brutto', 'reparatur_netto',
+                                    'wbw', 'wbw_netto', 'wbw_brutto',
+                                    'fahrzeugschaden', 'kostenpauschale',
+                                    'ra_gebuehren', 'mwst_abzug', 'pruefbericht_abzug'
+                                )),
+    betrag_gefordert            REAL    NOT NULL DEFAULT 0.0,
+    betrag_reguliert            REAL    NOT NULL DEFAULT 0.0,
+    kuerzungsart_id             INTEGER REFERENCES kuerzungsarten(id) ON DELETE SET NULL,
+    kuerzung_freitext           TEXT,
+    parser_erkannt              INTEGER NOT NULL DEFAULT 0
+                                CHECK(parser_erkannt IN (0,1)),
+    parser_konfidenz            REAL,
+    fuer_klage_vorgemerkt       INTEGER NOT NULL DEFAULT 0
+                                CHECK(fuer_klage_vorgemerkt IN (0,1)),
+    sv_stellungnahme_ausstehend INTEGER NOT NULL DEFAULT 0
+                                CHECK(sv_stellungnahme_ausstehend IN (0,1))
+);
+
+CREATE INDEX IF NOT EXISTS idx_regpos_abrechnung_id ON regulierung_positionen(abrechnungsschreiben_id);
+CREATE INDEX IF NOT EXISTS idx_regpos_klage         ON regulierung_positionen(fuer_klage_vorgemerkt);
+
+-- ============================================================
+-- PRUEFBERICHTE
+-- ============================================================
+CREATE TABLE IF NOT EXISTS pruefberichte (
+    id                              INTEGER PRIMARY KEY AUTOINCREMENT,
+    akte_id                         INTEGER NOT NULL REFERENCES unfallakte(id) ON DELETE CASCADE,
+    abrechnungsschreiben_id         INTEGER REFERENCES abrechnungsschreiben(id) ON DELETE SET NULL,
+    datum                           TEXT    NOT NULL,
+    gutachter                       TEXT,
+    dokument_id                     INTEGER REFERENCES dokumente(id) ON DELETE SET NULL,
+    parse_status                    TEXT    NOT NULL DEFAULT 'manuell'
+                                    CHECK(parse_status IN (
+                                        'ausstehend', 'erfolgreich', 'teilweise', 'manuell', 'fehlgeschlagen'
+                                    )),
+    -- PDF-Parser Felder
+    pruefdienstleister              TEXT,
+    vorgangsnummer                  TEXT,
+    schadennummer                   TEXT,
+    reparaturkosten_vor_pruefung    REAL,
+    abzug_technisch                 REAL,
+    abzug_werkstattalternative      REAL,
+    abzug_gesamt                    REAL,
+    reparaturkosten_nach_pruefung   REAL,
+    referenzwerkstatt_name          TEXT,
+    referenzwerkstatt_adresse       TEXT,
+    referenzwerkstatt_entfernung    REAL,
+    ist_image_pdf                   INTEGER NOT NULL DEFAULT 0,
+    fahrzeug_hersteller             TEXT,
+    fahrzeug_typ                    TEXT,
+    fahrzeug_kennzeichen            TEXT,
+    -- Allgemein
+    kuerzungen_json                 TEXT,
+    notizen                         TEXT,
+    erfasst_am                      TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+    erfasst_von                     INTEGER REFERENCES benutzer(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_pruefbericht_akte_id ON pruefberichte(akte_id);
+
+INSERT OR IGNORE INTO schema_version (version, beschreibung)
+VALUES (3, 'Modul 9 – Regulierungsverlauf, Kürzungskatalog, Abrechnungsschreiben');
+    """,
+    # Phase 2: PDF-Parser – Prüfbericht-Felder (als Marker, Ausführung via _run_migration_4)
+    4: "-- migration_4_pruefbericht_felder",
+    # Phase 3: AZ als Primary Key – Migration via Python-Handler
+    5: "-- migration_5_az_als_pk",
+    # Phase 4: Neue Schadenfelder aus WDM-Mapping
+    6: "-- migration_6_schaden_felder",
+    # Migration 8: Anrede/Vorsteuer in beteiligte, Nachbesichtigungskosten in schadenpositionen
+    8: "-- migration_8_forderungsschreiben_felder",
+    # Migration 9: Forderungshistorie pro Position und Schreiben
+    9: "-- migration_9_forderung_positionen",
+    # Migration 10: Feldnamen-Harmonisierung rep_fiktiv_* → rep_gutachten_*, rep_rechnung_*
+    10: "-- migration_10_feldnamen_harmonisierung",
+    # Migration 11: aktivitaeten PRIMARY KEY reparieren (nach CREATE TABLE AS SELECT in Mig. 5)
+    11: "-- migration_11_aktivitaeten_pk",
+    # Migration 12: abrechnungsart in schadenpositionen
+    12: "-- migration_12_abrechnungsart",
+    # Migration 13: Neue Tabelle personenschaden
+    13: "-- migration_13_personenschaden",
+    # Migration 14: Netto/USt-Felder für Nebenkosten
+    14: "-- migration_14_nebenkosten_netto_ust",
+    # Migration 15: Tabelle personenschaden_beteiligte
+    15: "-- migration_15_personenschaden_beteiligte",
+    # Migration 16: Manuelle Regulierung + WDM-Fallback
+    16: "-- migration_16_manuell_regulierung",
+    # Migration 17: email_import_log - akte_id TEXT FK + neue Felder
+    17: "-- migration_17_email_import_log_v2",
+    # Phase 5: v_regulierungsstatus GROUP BY a.id → a.az
+    7: """
+DROP VIEW IF EXISTS v_regulierungsstatus;
+CREATE VIEW IF NOT EXISTS v_regulierungsstatus AS
+SELECT
+    a.az             AS akte_id,
+    a.az             AS aktenzeichen,
+    COALESCE(s.gesamt_brutto, 0.0)          AS betrag_gefordert,
+    COALESCE(SUM(r.betrag_reguliert), 0.0)  AS betrag_reguliert,
+    COALESCE(s.gesamt_brutto, 0.0)
+      - COALESCE(SUM(r.betrag_reguliert), 0.0) AS differenz,
+    a.status         AS akte_status
+FROM unfallakte a
+LEFT JOIN v_schadensummen s ON s.akte_id = a.az
+LEFT JOIN regulierung r     ON r.akte_id = a.az
+GROUP BY a.az;
+INSERT OR IGNORE INTO schema_version (version, beschreibung)
+VALUES (7, 'Migration 7 – v_regulierungsstatus GROUP BY az');
+    """,
+}
+
+# Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
+_PRUEFBERICHT_NEUE_SPALTEN = [
+    ("pruefdienstleister",           "TEXT"),
+    ("vorgangsnummer",               "TEXT"),
+    ("schadennummer",                "TEXT"),
+    ("reparaturkosten_vor_pruefung", "REAL"),
+    ("abzug_technisch",              "REAL"),
+    ("abzug_werkstattalternative",   "REAL"),
+    ("abzug_gesamt",                 "REAL"),
+    ("reparaturkosten_nach_pruefung","REAL"),
+    ("referenzwerkstatt_name",       "TEXT"),
+    ("referenzwerkstatt_adresse",    "TEXT"),
+    ("referenzwerkstatt_entfernung", "REAL"),
+    ("ist_image_pdf",                "INTEGER NOT NULL DEFAULT 0"),
+    ("fahrzeug_hersteller",          "TEXT"),
+    ("fahrzeug_typ",                 "TEXT"),
+    ("fahrzeug_kennzeichen",         "TEXT"),
+]
+
+
+def _run_migration_4(conn: sqlite3.Connection) -> None:
+    """Fügt neue Spalten zu pruefberichte hinzu – ignoriert OperationalError falls bereits vorhanden."""
+    vorhandene = {row[1] for row in conn.execute("PRAGMA table_info(pruefberichte)").fetchall()}
+    for spalte, typ in _PRUEFBERICHT_NEUE_SPALTEN:
+        if spalte not in vorhandene:
+            try:
+                conn.execute(f"ALTER TABLE pruefberichte ADD COLUMN {spalte} {typ}")
+                logger.info("Spalte pruefberichte.%s hinzugefügt.", spalte)
+            except sqlite3.OperationalError as e:
+                logger.warning("Spalte pruefberichte.%s: %s", spalte, e)
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
+        (4, "Phase 2 – Prüfbericht PDF-Felder"),
+    )
+
+
+def create_schema() -> None:
+    """
+    Führt das initiale DDL aus.
+    Alle Statements sind idempotent (IF NOT EXISTS).
+    """
+    with get_connection() as conn:
+        conn.executescript(SCHEMA_DDL)
+    logger.info("Schema erfolgreich erstellt/aktualisiert: %s", get_db_path())
+
+
+def get_schema_version(conn: sqlite3.Connection) -> int:
+    """Liest die aktuelle Schema-Version aus der Datenbank."""
+    try:
+        row = conn.execute(
+            "SELECT MAX(version) as v FROM schema_version"
+        ).fetchone()
+        return row["v"] if row and row["v"] else 0
+    except sqlite3.OperationalError:
+        return 0  # Tabelle existiert noch nicht
+
+
+def run_migrations() -> None:
+    """
+    Führt ausstehende Migrationen aus.
+    Jede Migration wird in einer eigenen Transaktion ausgeführt.
+    """
+    with get_connection() as conn:
+        current = get_schema_version(conn)
+        pending = {v: sql for v, sql in MIGRATIONS.items() if v > current}
+
+        if not pending:
+            logger.info("Datenbank ist aktuell (Version %d).", current)
+            return
+
+        for version in sorted(pending):
+            logger.info("Migration %d wird ausgeführt ...", version)
+            if version == 4:
+                # SQLite kennt kein ADD COLUMN IF NOT EXISTS → Python-Handler
+                _run_migration_4(conn)
+            elif version == 5:
+                _run_migration_5(conn)
+            elif version == 6:
+                _run_migration_6(conn)
+            elif version == 8:
+                _run_migration_8(conn)
+            elif version == 9:
+                _run_migration_9(conn)
+            elif version == 10:
+                _run_migration_10(conn)
+            elif version == 11:
+                _run_migration_11(conn)
+            elif version == 12:
+                _run_migration_12(conn)
+            elif version == 13:
+                _run_migration_13(conn)
+            elif version == 14:
+                _run_migration_14(conn)
+            elif version == 15:
+                _run_migration_15(conn)
+            elif version == 16:
+                _run_migration_16(conn)
+            elif version == 17:
+                _run_migration_17(conn)
+            else:
+                conn.executescript(pending[version])
+                conn.execute(
+                    "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
+                    (version, f"Migration {version}")
+                )
+            logger.info("Migration %d erfolgreich.", version)
+
+
+def _run_migration_5(conn: sqlite3.Connection) -> None:
+    """
+    Migration 5: AZ als Primary Key.
+
+    SQLite unterstützt kein ALTER TABLE zum Ändern des Primary Keys.
+    Daher: Neue Tabellen anlegen → Daten migrieren → alte löschen → umbenennen.
+
+    unfallakte.id (INTEGER PK AUTOINCREMENT) → unfallakte.az (TEXT PK)
+    Alle akte_id INTEGER FK → akte_id TEXT FK
+
+    Betroffene Tabellen: beteiligte, schadenpositionen, regulierung,
+                         dokumente, aktivitaeten, email_import_log,
+                         abrechnungsschreiben, regulierung_positionen, pruefberichte
+    """
+    # Prüfen ob unfallakte noch das alte Schema hat (id INTEGER PK)
+    cols = [c[1] for c in conn.execute("PRAGMA table_info(unfallakte)").fetchall()]
+    if "az" in cols and "id" not in cols:
+        # Frische DB mit neuem Schema – Migration nicht nötig
+        logger.info("Migration 5: Neues Schema bereits vorhanden – übersprungen.")
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (5, 'Migration 5 – AZ als PK (bereits aktuell)')"
+        )
+        return
+
+    logger.info("Migration 5: Erstelle neue Tabellenstruktur mit AZ als PK ...")
+
+    # ── 1. Neue unfallakte mit az als PK ──────────────────────────────────────
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS unfallakte_neu (
+            az              TEXT    PRIMARY KEY,
+            unfalldatum     TEXT    NOT NULL DEFAULT '',
+            unfallort       TEXT,
+            erstellt_am     TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+            geaendert_am    TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+            status          TEXT    NOT NULL DEFAULT 'offen'
+                            CHECK(status IN ('offen','in_regulierung','klage','abgeschlossen')),
+            bearbeiter_id   INTEGER REFERENCES benutzer(id) ON DELETE SET NULL,
+            notizen         TEXT,
+            haftungsquote   REAL    NOT NULL DEFAULT 100.0
+                            CHECK(haftungsquote BETWEEN 0 AND 100),
+            -- RA-Micro Stammdaten (gecacht)
+            kurzbezeichnung TEXT,
+            sachbearbeiter  TEXT
+        );
+
+        INSERT OR IGNORE INTO unfallakte_neu
+            (az, unfalldatum, unfallort, erstellt_am, geaendert_am,
+             status, bearbeiter_id, notizen, haftungsquote)
+        SELECT aktenzeichen, unfalldatum, unfallort, erstellt_am, geaendert_am,
+               status, bearbeiter_id, notizen, haftungsquote
+        FROM unfallakte;
+    """)
+
+    # ── 2. Hilfsfunktion: Tabelle mit akte_id INTEGER → TEXT migrieren ────────
+    def _migriere_fk_tabelle(tabelle: str, extra_cols_ddl: str, extra_cols_select: str):
+        """Legt _neu-Variante an, migriert Daten, löscht alte, benennt um."""
+        # Prüfen ob Tabelle existiert
+        exists = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+            (tabelle,)
+        ).fetchone()
+        if not exists:
+            return
+
+        conn.executescript(f"""
+            CREATE TABLE IF NOT EXISTS {tabelle}_neu AS
+                SELECT t.*, u.aktenzeichen AS az_key
+                FROM {tabelle} t
+                LEFT JOIN unfallakte u ON u.id = t.akte_id;
+            DROP TABLE {tabelle}_neu;
+        """)
+
+        # Echte neue Tabelle erstellen und Daten migrieren
+        # Wir lesen die Spaltennamen aus der alten Tabelle
+        cols_info = conn.execute(f"PRAGMA table_info({tabelle})").fetchall()
+        cols = [c[1] for c in cols_info if c[1] not in ("id", "akte_id")]
+        cols_str = ", ".join(cols)
+
+        conn.execute(f"""
+            CREATE TABLE {tabelle}_new (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                akte_id     TEXT NOT NULL REFERENCES unfallakte_neu(az) ON DELETE CASCADE,
+                {extra_cols_ddl}
+                {(',' if cols else '')} {cols_str if cols else ''}
+            )
+        """)
+
+    # Stattdessen einfacher: alle FK-Tabellen mit JOIN migrieren
+    # ── 2. Views und Trigger zuerst droppen (referenzieren alte Tabellen) ─────
+    conn.executescript("""
+        DROP VIEW IF EXISTS v_schadensummen;
+        DROP VIEW IF EXISTS v_regulierungsstatus;
+        DROP TRIGGER IF EXISTS unfallakte_geaendert;
+    """)
+
+    fk_tabellen = [
+        "beteiligte", "schadenpositionen", "regulierung",
+        "dokumente", "aktivitaeten", "email_import_log",
+        "abrechnungsschreiben", "regulierung_positionen", "pruefberichte",
+    ]
+
+    for tbl in fk_tabellen:
+        exists = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (tbl,)
+        ).fetchone()
+        if not exists:
+            continue
+
+        # Spalten ermitteln
+        cols_info = conn.execute(f"PRAGMA table_info({tbl})").fetchall()
+        col_names = [c[1] for c in cols_info]
+
+        # Nur Tabellen mit akte_id migrieren
+        if "akte_id" not in col_names:
+            logger.info("  Tabelle %s hat kein akte_id – übersprungen.", tbl)
+            continue
+
+        old_cols = [c for c in col_names if c != "akte_id"]
+
+        # Da unfallakte_neu noch az-basiert ist, joinen wir auf die alte unfallakte
+        # (die existiert noch unter unfallakte, unfallakte_neu ist die neue)
+        conn.execute(f"ALTER TABLE {tbl} RENAME TO {tbl}_old")
+        conn.execute(f"""
+            CREATE TABLE {tbl} AS
+            SELECT
+                t.{', t.'.join(old_cols)},
+                COALESCE(u.aktenzeichen, CAST(t.akte_id AS TEXT)) AS akte_id
+            FROM {tbl}_old t
+            LEFT JOIN unfallakte u ON CAST(u.id AS TEXT) = CAST(t.akte_id AS TEXT)
+        """)
+        conn.execute(f"DROP TABLE {tbl}_old")
+        logger.info("  Tabelle %s migriert.", tbl)
+
+    # ── 3. Views neu erstellen ─────────────────────────────────────────────────
+    conn.executescript("""
+        DROP TABLE IF EXISTS unfallakte;
+        ALTER TABLE unfallakte_neu RENAME TO unfallakte;
+
+        CREATE TRIGGER IF NOT EXISTS unfallakte_geaendert
+            AFTER UPDATE ON unfallakte
+            FOR EACH ROW
+        BEGIN
+            UPDATE unfallakte SET geaendert_am = datetime('now','localtime')
+            WHERE az = OLD.az;
+        END;
+
+        CREATE VIEW IF NOT EXISTS v_schadensummen AS
+        SELECT
+            akte_id,
+            reparaturkosten, wiederbeschaffung, restwert, wertminderung,
+            nutzungsausfall, mietwagenkosten, sv_kosten, abschleppkosten,
+            standkosten, anabmeldekosten, schmerzensgeld, sonstiges,
+            (reparaturkosten + wiederbeschaffung - restwert + wertminderung)
+                AS fahrzeugschaden_netto,
+            (reparaturkosten + wiederbeschaffung - restwert + wertminderung
+             + nutzungsausfall + mietwagenkosten + sv_kosten + abschleppkosten
+             + standkosten + anabmeldekosten + schmerzensgeld + sonstiges)
+                AS gesamt_brutto,
+            quelle, erfasst_am
+        FROM schadenpositionen;
+
+        CREATE VIEW IF NOT EXISTS v_regulierungsstatus AS
+        SELECT
+            a.az AS akte_id,
+            a.az AS aktenzeichen,
+            COALESCE(s.gesamt_brutto, 0.0)          AS betrag_gefordert,
+            COALESCE(SUM(r.betrag_reguliert), 0.0)  AS betrag_reguliert,
+            COALESCE(s.gesamt_brutto, 0.0)
+              - COALESCE(SUM(r.betrag_reguliert), 0.0) AS differenz,
+            a.status AS akte_status
+        FROM unfallakte a
+        LEFT JOIN v_schadensummen s ON s.akte_id = a.az
+        LEFT JOIN regulierung r     ON r.akte_id = a.az
+        GROUP BY a.az;
+
+        INSERT OR IGNORE INTO schema_version (version, beschreibung)
+        VALUES (5, 'Migration 5 – AZ als Primary Key, RA-Micro Integration');
+    """)
+    logger.info("Migration 5 abgeschlossen.")
+
+
+def _run_migration_6(conn: sqlite3.Connection) -> None:
+    """
+    Migration 6: Neue Schadenfelder aus WDM-Mapping.
+    Ergänzt schadenpositionen um verdienstausfall und haushalt.
+    """
+    neue_spalten = [
+        ("verdienstausfall", "REAL NOT NULL DEFAULT 0.0"),
+        ("haushalt",         "REAL NOT NULL DEFAULT 0.0"),
+        ("rep_fiktiv_netto", "REAL NOT NULL DEFAULT 0.0"),   # varREPKOSTENSV
+        ("rep_fiktiv_mwst",  "REAL NOT NULL DEFAULT 0.0"),   # varUST-REPKOSTENSV
+        ("unkostenpauschale","REAL NOT NULL DEFAULT 0.0"),    # varUNKOSTEN
+        ("wdm_extras_json",  "TEXT"),                          # varSSCHADEN1-6 als JSON
+        ("wdm_info_json",    "TEXT"),                          # varFKLASSE, varREPDAUER etc.
+    ]
+    for spalte, typ in neue_spalten:
+        try:
+            conn.execute(f"ALTER TABLE schadenpositionen ADD COLUMN {spalte} {typ}")
+            logger.info("Migration 6: Spalte %s hinzugefügt.", spalte)
+        except Exception:
+            pass  # Spalte existiert bereits
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (6, 'Migration 6 – WDM-Schadenfelder')"
+    )
+    logger.info("Migration 6 abgeschlossen.")
+
+
+def check_schema() -> dict:
+    """
+    Prüft ob alle erwarteten Tabellen und Views vorhanden sind.
+    Gibt einen Status-Dict zurück.
+    """
+    expected_tables = [
+        "benutzer", "unfallakte", "beteiligte",
+        "schadenpositionen", "regulierung", "dokumente",
+        "aktivitaeten", "schema_version",
+        "kuerzungsarten", "abrechnungsschreiben",
+        "regulierung_positionen", "pruefberichte",
+    ]
+    expected_views = [
+        "v_schadensummen", "v_regulierungsstatus"
+    ]
+
+    result = {"ok": True, "tabellen": {}, "views": {}, "version": 0}
+
+    try:
+        with get_connection() as conn:
+            result["version"] = get_schema_version(conn)
+
+            # Tabellen prüfen
+            for tbl in expected_tables:
+                exists = conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                    (tbl,)
+                ).fetchone()
+                result["tabellen"][tbl] = bool(exists)
+                if not exists:
+                    result["ok"] = False
+
+            # Views prüfen
+            for view in expected_views:
+                exists = conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='view' AND name=?",
+                    (view,)
+                ).fetchone()
+                result["views"][view] = bool(exists)
+                if not exists:
+                    result["ok"] = False
+
+    except Exception as e:
+        result["ok"] = False
+        result["fehler"] = str(e)
+
+    return result
+
+
+def reset_database() -> None:
+    """
+    VORSICHT: Löscht alle Tabellen und erstellt das Schema neu.
+    Nur für Entwicklung/Tests verwenden!
+    """
+    import os
+    db_path = get_db_path()
+    if os.path.exists(db_path):
+        os.remove(db_path)
+        logger.warning("Datenbank gelöscht: %s", db_path)
+    init_db()   # create_schema() + run_migrations() → alle Felder korrekt
+    logger.info("Datenbank neu erstellt.")
+
+
+def _run_migration_8(conn: sqlite3.Connection) -> None:
+    """
+    Migration 8: Felder für das vorlagen-basierte Forderungsschreiben.
+
+    beteiligte:
+      anrede   TEXT  – sAnrede aus RA-Micro (Herrn / Frau / Firma)
+      vorsteuer TEXT DEFAULT 'N' – Vorsteuerabzugsberechtigung (J/N)
+
+    schadenpositionen:
+      kostennb     REAL DEFAULT 0.0 – Nachbesichtigungskosten (netto)
+      kostennb_ust REAL DEFAULT 0.0 – MwSt auf Nachbesichtigung
+    """
+    neue_beteiligte = [
+        ("anrede",    "TEXT"),
+        ("vorsteuer", "TEXT NOT NULL DEFAULT 'N'"),
+    ]
+    neue_schaden = [
+        ("kostennb",     "REAL NOT NULL DEFAULT 0.0"),
+        ("kostennb_ust", "REAL NOT NULL DEFAULT 0.0"),
+    ]
+    for tabelle, spalten in [
+        ("beteiligte",       neue_beteiligte),
+        ("schadenpositionen", neue_schaden),
+    ]:
+        for spalte, typ in spalten:
+            try:
+                conn.execute(f"ALTER TABLE {tabelle} ADD COLUMN {spalte} {typ}")
+                logger.info("Migration 8: %s.%s hinzugefügt.", tabelle, spalte)
+            except Exception:
+                pass  # Spalte existiert bereits
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (8, 'Migration 8 – Forderungsschreiben: Anrede, Vorsteuer, Nachbesichtigung')"
+    )
+    logger.info("Migration 8 abgeschlossen.")
+
+
+def _run_migration_9(conn: sqlite3.Connection) -> None:
+    """
+    Migration 9: Forderungshistorie pro Schadenposition und Forderungsschreiben.
+
+    forderung_positionen trackt welche Positionen mit welchem Schreiben wann
+    gefordert wurden und ihren aktuellen Regulierungsstatus.
+
+    So kann ein zweites Forderungsschreiben gezielt nur noch offene Positionen
+    enthalten, und die Klage wird aus 'gekuerzt'/'abgelehnt'-Positionen gebaut.
+    """
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS forderung_positionen (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            akte_id             TEXT    NOT NULL REFERENCES unfallakte(az) ON DELETE CASCADE,
+
+            -- Verknüpfung zum generierten Dokument
+            dokument_id         INTEGER REFERENCES dokumente(id) ON DELETE SET NULL,
+            forderungsschreiben_nr  INTEGER NOT NULL DEFAULT 1,  -- 1, 2, 3 ...
+            datum               TEXT    NOT NULL
+                                DEFAULT (date('now', 'localtime')),
+
+            -- Schadenposition
+            position_key        TEXT    NOT NULL,
+            -- position_key: Spaltenname aus schadenpositionen
+            -- ODER 'extra_1'..'extra_6' für sonstige Schäden (wdm_extras_json)
+            position_label      TEXT    NOT NULL,  -- Lesbare Bezeichnung für Dokument
+            betrag_gefordert    REAL    NOT NULL DEFAULT 0.0,
+
+            -- Regulierungsstatus (wird aktualisiert wenn Abrechnung eingeht)
+            betrag_reguliert    REAL    NOT NULL DEFAULT 0.0,
+            status              TEXT    NOT NULL DEFAULT 'gefordert'
+                                CHECK(status IN (
+                                    'gefordert',      -- noch keine Antwort
+                                    'teilreguliert',  -- teilweise bezahlt
+                                    'vollreguliert',  -- vollständig bezahlt
+                                    'gekuerzt',       -- Versicherung hat gekürzt
+                                    'abgelehnt'       -- vollständig abgelehnt
+                                )),
+
+            -- Klage-Vorbereitung
+            fuer_klage          INTEGER NOT NULL DEFAULT 0
+                                CHECK(fuer_klage IN (0,1)),
+            kuerzungsart_id     INTEGER REFERENCES kuerzungsarten(id) ON DELETE SET NULL,
+            kuerzung_begruendung TEXT,  -- Freitext-Begründung der Kürzung
+
+            -- Metadaten
+            erfasst_am          TEXT    NOT NULL
+                                DEFAULT (datetime('now', 'localtime')),
+            erfasst_von         INTEGER REFERENCES benutzer(id) ON DELETE SET NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_fordpos_akte_id
+            ON forderung_positionen(akte_id);
+        CREATE INDEX IF NOT EXISTS idx_fordpos_status
+            ON forderung_positionen(status);
+        CREATE INDEX IF NOT EXISTS idx_fordpos_klage
+            ON forderung_positionen(fuer_klage);
+        CREATE INDEX IF NOT EXISTS idx_fordpos_dokument
+            ON forderung_positionen(dokument_id);
+    """)
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (9, 'Migration 9 – Forderungshistorie pro Position (forderung_positionen)')"
+    )
+    logger.info("Migration 9 abgeschlossen.")
+
+
+def _run_migration_11(conn: sqlite3.Connection) -> None:
+    """
+    Migration 11: aktivitaeten.id PRIMARY KEY reparieren.
+
+    Migration 5 hat aktivitaeten per CREATE TABLE AS SELECT neu erstellt.
+    Dabei gingen alle Constraints verloren — id war kein PRIMARY KEY mehr,
+    was lastrowid-basierte SELECTs nach INSERT zum Scheitern brachte (500er).
+    """
+    cols_info = conn.execute("PRAGMA table_info(aktivitaeten)").fetchall()
+    id_col = next((c for c in cols_info if c[1] == "id"), None)
+    # pk=0 bedeutet kein Primary Key
+    if id_col and id_col[5] == 1:
+        logger.info("Migration 11: aktivitaeten.id ist bereits PRIMARY KEY — übersprungen.")
+        conn.execute("INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+                     "VALUES (11, 'Migration 11 – aktivitaeten PK bereits OK')")
+        return
+
+    logger.info("Migration 11: Repariere aktivitaeten PRIMARY KEY ...")
+    conn.executescript("""
+        CREATE TABLE aktivitaeten_m11 (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            akte_id      TEXT    REFERENCES unfallakte(az) ON DELETE CASCADE,
+            benutzer_id  INTEGER REFERENCES benutzer(id) ON DELETE SET NULL,
+            zeitstempel  TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+            aktion       TEXT    NOT NULL,
+            beschreibung TEXT    NOT NULL DEFAULT '',
+            tabelle      TEXT,
+            datensatz_id INTEGER,
+            aenderung_json TEXT
+        );
+        INSERT INTO aktivitaeten_m11
+            (akte_id, benutzer_id, zeitstempel, aktion, beschreibung,
+             tabelle, datensatz_id, aenderung_json)
+        SELECT
+            akte_id, benutzer_id,
+            COALESCE(zeitstempel, datetime('now','localtime')),
+            aktion, COALESCE(beschreibung,''),
+            tabelle, datensatz_id, aenderung_json
+        FROM aktivitaeten
+        WHERE aktion IS NOT NULL;
+        DROP TABLE aktivitaeten;
+        ALTER TABLE aktivitaeten_m11 RENAME TO aktivitaeten;
+    """)
+    conn.execute("INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+                 "VALUES (11, 'Migration 11 – aktivitaeten PRIMARY KEY repariert')")
+    logger.info("Migration 11 abgeschlossen.")
+
+
+def _run_migration_10(conn: sqlite3.Connection) -> None:
+    """
+    Migration 10: Feldnamen-Harmonisierung Schadenpositionen.
+
+    rep_fiktiv_netto → rep_gutachten_netto  (konsistent mit Frontend/WDM-Endpunkt)
+    rep_fiktiv_mwst  → rep_gutachten_mwst
+    + rep_rechnung_netto  REAL DEFAULT 0.0  (neu, lt. Werkstattrechnung netto)
+    + rep_rechnung_brutto REAL DEFAULT 0.0  (neu, lt. Werkstattrechnung brutto)
+    """
+    # SQLite ≥ 3.25 unterstützt RENAME COLUMN
+    renames = [
+        ("rep_fiktiv_netto", "rep_gutachten_netto"),
+        ("rep_fiktiv_mwst",  "rep_gutachten_mwst"),
+    ]
+    cols = [c[1] for c in conn.execute(
+        "PRAGMA table_info(schadenpositionen)").fetchall()]
+
+    for old, new in renames:
+        if old in cols and new not in cols:
+            conn.execute(
+                f"ALTER TABLE schadenpositionen RENAME COLUMN {old} TO {new}"
+            )
+            logger.info("Migration 10: %s → %s umbenannt.", old, new)
+        elif new in cols:
+            logger.info("Migration 10: %s bereits vorhanden.", new)
+
+    for spalte, typ in [
+        ("rep_rechnung_netto",  "REAL NOT NULL DEFAULT 0.0"),
+        ("rep_rechnung_brutto", "REAL NOT NULL DEFAULT 0.0"),
+    ]:
+        if spalte not in cols:
+            conn.execute(
+                f"ALTER TABLE schadenpositionen ADD COLUMN {spalte} {typ}"
+            )
+            logger.info("Migration 10: Spalte %s hinzugefügt.", spalte)
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (10, 'Migration 10 – Feldnamen rep_fiktiv_* → rep_gutachten_*, rep_rechnung_*')"
+    )
+    logger.info("Migration 10 abgeschlossen.")
+
+
+def _run_migration_15(conn: sqlite3.Connection) -> None:
+    """
+    Migration 15: Neue Tabelle personenschaden_beteiligte.
+
+    Speichert Beteiligte der Heilbehandlung (Ärzte, Krankenhaus, etc.)
+    als Adressnummern-Referenzen auf tblAdressen in RA-Micro.
+    Adressdaten werden immer live aus RA-Micro geladen (nur-lesend).
+
+    Datenquellen-Hierarchie:
+      quelle='manuell' → hat Vorrang, manuell erfasst/bestätigt
+      quelle='wdm'     → automatisch aus WDM-Variablen geladen
+    """
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS personenschaden_beteiligte (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            akte_id     TEXT    NOT NULL REFERENCES unfallakte(az) ON DELETE CASCADE,
+            adressnr    INTEGER NOT NULL,
+            rolle       TEXT    NOT NULL
+                        CHECK(rolle IN ('arzt','krankenhaus','physiotherapeut',
+                                        'arbeitgeber','krankenkasse','bg')),
+            sortierung  INTEGER NOT NULL DEFAULT 0,
+            quelle      TEXT    NOT NULL DEFAULT 'manuell'
+                        CHECK(quelle IN ('wdm','manuell')),
+            notizen     TEXT,
+            erfasst_am  TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+            UNIQUE(akte_id, adressnr, rolle)
+        );
+        CREATE INDEX IF NOT EXISTS idx_ps_bet_akte_id
+            ON personenschaden_beteiligte(akte_id);
+    """)
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (15, 'Migration 15 – Tabelle personenschaden_beteiligte')"
+    )
+    logger.info("Migration 15: Tabelle personenschaden_beteiligte angelegt.")
+
+
+def _run_migration_14(conn: sqlite3.Connection) -> None:
+    """
+    Migration 14: Netto + USt-Felder für alle MwSt-pflichtigen Nebenkosten.
+
+    Bisher speicherten sv_kosten, abschleppkosten, standkosten, anabmeldekosten
+    und mietwagenkosten nur einen einzigen Bruttobetrag. Das ist für
+    Vorsteuerabzugsberechtigte falsch (müsste Netto sein).
+
+    Neue Felder je Position:
+      sv_kosten_netto        sv_kosten_ust
+      abschleppkosten_netto  abschleppkosten_ust
+      standkosten_netto      standkosten_ust
+      anabmeldekosten_netto  anabmeldekosten_ust
+      mietwagenkosten_netto  mietwagenkosten_ust
+
+    Die alten Felder bleiben als Brutto-Fallback erhalten.
+    """
+    neue_spalten = [
+        ("sv_kosten_netto",        "REAL NOT NULL DEFAULT 0.0"),
+        ("sv_kosten_ust",          "REAL NOT NULL DEFAULT 0.0"),
+        ("abschleppkosten_netto",  "REAL NOT NULL DEFAULT 0.0"),
+        ("abschleppkosten_ust",    "REAL NOT NULL DEFAULT 0.0"),
+        ("standkosten_netto",      "REAL NOT NULL DEFAULT 0.0"),
+        ("standkosten_ust",        "REAL NOT NULL DEFAULT 0.0"),
+        ("anabmeldekosten_netto",  "REAL NOT NULL DEFAULT 0.0"),
+        ("anabmeldekosten_ust",    "REAL NOT NULL DEFAULT 0.0"),
+        ("mietwagenkosten_netto",  "REAL NOT NULL DEFAULT 0.0"),
+        ("mietwagenkosten_ust",    "REAL NOT NULL DEFAULT 0.0"),
+    ]
+    vorhandene = {row[1] for row in conn.execute(
+        "PRAGMA table_info(schadenpositionen)").fetchall()}
+    for spalte, typ in neue_spalten:
+        if spalte not in vorhandene:
+            conn.execute(f"ALTER TABLE schadenpositionen ADD COLUMN {spalte} {typ}")
+            logger.info("Migration 14: Spalte %s hinzugefügt.", spalte)
+        else:
+            logger.info("Migration 14: %s bereits vorhanden.", spalte)
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (14, 'Migration 14 – Netto/USt-Felder für Nebenkosten')"
+    )
+    logger.info("Migration 14 abgeschlossen.")
+
+
+def _run_migration_12(conn: sqlite3.Connection) -> None:
+    """
+    Migration 12: abrechnungsart in schadenpositionen.
+
+    Neues Feld: abrechnungsart TEXT DEFAULT 'fiktiv'
+    Erlaubte Werte: 'fiktiv' | 'konkret' | 'totalschaden'
+    - fiktiv:      Abrechnung auf Gutachtenbasis (rep_gutachten_netto), netto
+    - konkret:     Abrechnung lt. Werkstattrechnung (rep_rechnung_netto); 130%-Fall ist Unterfall
+    - totalschaden: WBW − Restwert, kein Reparaturweg
+
+    Das Feld wird bewusst leer (NULL) gelassen wenn noch nicht gesetzt,
+    damit der Sachbearbeiter es explizit auswählt.
+    """
+    cols = [c[1] for c in conn.execute(
+        "PRAGMA table_info(schadenpositionen)").fetchall()]
+
+    if "abrechnungsart" not in cols:
+        conn.execute("""
+            ALTER TABLE schadenpositionen
+            ADD COLUMN abrechnungsart TEXT
+            CHECK(abrechnungsart IN ('fiktiv', 'konkret', 'totalschaden'))
+        """)
+        logger.info("Migration 12: Spalte schadenpositionen.abrechnungsart hinzugefügt.")
+    else:
+        logger.info("Migration 12: abrechnungsart bereits vorhanden – übersprungen.")
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (12, 'Migration 12 – abrechnungsart in schadenpositionen')"
+    )
+    logger.info("Migration 12 abgeschlossen.")
+
+
+def _run_migration_13(conn: sqlite3.Connection) -> None:
+    """
+    Migration 13: Neue Tabelle personenschaden.
+
+    1:1 zur Akte (FK auf unfallakte.az).
+    Enthält alle Felder aus dem RA-Micro VU-Fragebogen Blatt 2 (Personenschäden),
+    ergänzt um interne Felder für den Heilbehandlungsverlauf und die spätere Klageschrift.
+
+    Datenquelle-Priorität beim Lesen:
+      1. RA-Micro WDM-Variablen (varV-KHADR.NName, varVERLETZUNG1/2, etc.)
+      2. SQLite (dieses Modell) als manuell erfasster Fallback / Ergänzung
+
+    Ärzte werden als JSON-Array in ambulante_aerzte_json gespeichert:
+      [{"name": "...", "strasse": "...", "ort": "...", "telefon": "..."}]
+    """
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS personenschaden (
+            id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+            akte_id                     TEXT    NOT NULL UNIQUE
+                                        REFERENCES unfallakte(az) ON DELETE CASCADE,
+
+            -- Verletzte Person (i.d.R. identisch mit Mandant, aber explizit gespeichert)
+            verletzter_name             TEXT,
+            verletzter_vorname          TEXT,
+            geburtsdatum                TEXT,           -- ISO: YYYY-MM-DD
+            familienstand               TEXT,           -- ledig/verheiratet/geschieden/verwitwet/sonstiges
+            kinder_anzahl               INTEGER,
+            kinder_alter_text           TEXT,           -- Freitext z.B. "11, 10, 6"
+
+            -- Beruf & Einkommen
+            beruf                       TEXT,
+            selbststaendig              INTEGER NOT NULL DEFAULT 0
+                                        CHECK(selbststaendig IN (0,1)),
+            nettoeinkommen_monatlich    REAL,
+            arbeitgeber_name            TEXT,
+            arbeitgeber_anschrift       TEXT,
+            arbeitgeber_telefon         TEXT,
+            rente_vor_unfall            INTEGER NOT NULL DEFAULT 0
+                                        CHECK(rente_vor_unfall IN (0,1)),
+            rente_betrag_monatlich      REAL,
+
+            -- Verletzungen
+            verletzungen_text           TEXT,           -- Freitext Diagnosen (varVERLETZUNG1+2)
+
+            -- Krankenhausaufenthalt
+            krankenhaus_name            TEXT,           -- varV-KHADR.NName
+            krankenhaus_anschrift       TEXT,
+            krankenhaus_von             TEXT,           -- varV-KHVON (ISO oder TT.MM.JJJJ)
+            krankenhaus_bis             TEXT,           -- varV-KHBIS (voraussichtlich)
+
+            -- Ambulante Ärzte (JSON-Array)
+            -- [{"name": "...", "strasse": "...", "ort": "...", "telefon": "..."}]
+            ambulante_aerzte_json       TEXT,
+
+            -- Krankschreibung
+            krankenhaus_aufenthalt      INTEGER NOT NULL DEFAULT 0
+                                        CHECK(krankenhaus_aufenthalt IN (0,1)),
+            krankgeschrieben            INTEGER NOT NULL DEFAULT 0
+                                        CHECK(krankgeschrieben IN (0,1)),
+            krank_von                   TEXT,           -- varV-KRVON
+            krank_bis                   TEXT,           -- varV-KRBIS (voraussichtlich)
+
+            -- Versicherung & BG
+            krankenkasse_name           TEXT,
+            krankenkasse_anschrift      TEXT,
+            berufsunfall                INTEGER NOT NULL DEFAULT 0
+                                        CHECK(berufsunfall IN (0,1)),
+            bg_name                     TEXT,           -- Berufsgenossenschaft
+            rentenversichert            INTEGER NOT NULL DEFAULT 0
+                                        CHECK(rentenversichert IN (0,1)),
+            rentenversicherung_name     TEXT,
+
+            -- Schweigepflicht & Heilbehandlung
+            schweigepflicht_entbindung  INTEGER NOT NULL DEFAULT 0
+                                        CHECK(schweigepflicht_entbindung IN (0,1)),
+            heilbehandlung_abgeschlossen INTEGER NOT NULL DEFAULT 0
+                                        CHECK(heilbehandlung_abgeschlossen IN (0,1)),
+            heilbehandlung_ende         TEXT,           -- ISO: YYYY-MM-DD
+
+            -- Dauerfolgen
+            dauerfolgen                 INTEGER NOT NULL DEFAULT 0
+                                        CHECK(dauerfolgen IN (0,1)),
+            dauerfolgen_text            TEXT,
+
+            -- Physiotherapie (für Fahrtkosten-Berechnung spätere Klage)
+            physiotherapie              INTEGER NOT NULL DEFAULT 0
+                                        CHECK(physiotherapie IN (0,1)),
+            physiotherapeut_name        TEXT,
+            physiotherapeut_anschrift   TEXT,
+            physiotherapie_anzahl       INTEGER,        -- Anzahl Sitzungen
+
+            -- Sonstiges
+            notizen                     TEXT,
+            erfasst_am                  TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+            erfasst_von                 INTEGER REFERENCES benutzer(id) ON DELETE SET NULL,
+            geaendert_am                TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_personenschaden_akte_id
+            ON personenschaden(akte_id);
+    """)
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (13, 'Migration 13 – Neue Tabelle personenschaden')"
+    )
+    logger.info("Migration 13: Tabelle personenschaden angelegt.")
+
+
+
+def _run_migration_16(conn: sqlite3.Connection) -> None:
+    """
+    Migration 16: Manuelle Regulierungserfassung + WDM-Fallback.
+
+    abrechnungsschreiben:
+      + quelle         TEXT DEFAULT 'pdf'   →  'pdf' | 'manuell' | 'wdm'
+      + wdm_importiert INTEGER DEFAULT 0    →  verhindert Doppel-Import
+
+    regulierung_positionen:
+      + position_label TEXT                 →  Freitext-Label für Sonstiges
+
+    Die CHECK-Constraint auf position_key in regulierung_positionen wird
+    erweitert (neue Keys: rep_gutachten_netto, rep_rechnung_netto,
+    rep_rechnung_brutto, verdienstausfall, haushalt, unkostenpauschale,
+    kostennb, vorschuss, sonstiges_wdm_1–6).
+    Da SQLite keine CHECK-Constraint-Änderung via ALTER TABLE erlaubt,
+    wird die Tabelle neu erstellt.
+    """
+    # ── 1. Neue Spalten in abrechnungsschreiben ──────────────────────────
+    ab_cols = {r[1] for r in conn.execute(
+        "PRAGMA table_info(abrechnungsschreiben)").fetchall()}
+
+    for spalte, typ in [
+        ("quelle",         "TEXT NOT NULL DEFAULT 'pdf'"),
+        ("gesamt_kuerzung","REAL NOT NULL DEFAULT 0.0"),
+        ("wdm_importiert", "INTEGER NOT NULL DEFAULT 0"),
+    ]:
+        if spalte not in ab_cols:
+            conn.execute(
+                f"ALTER TABLE abrechnungsschreiben ADD COLUMN {spalte} {typ}"
+            )
+            logger.info("Migration 16: abrechnungsschreiben.%s hinzugefügt.", spalte)
+
+    # ── 2. Neue Spalte position_label in regulierung_positionen ─────────
+    rp_cols = {r[1] for r in conn.execute(
+        "PRAGMA table_info(regulierung_positionen)").fetchall()}
+
+    if "position_label" not in rp_cols:
+        conn.execute(
+            "ALTER TABLE regulierung_positionen ADD COLUMN position_label TEXT"
+        )
+        logger.info("Migration 16: regulierung_positionen.position_label hinzugefügt.")
+
+    # ── 3. CHECK-Constraint auf position_key erweitern ───────────────────
+    # SQLite kann CHECK-Constraints nicht nachträglich ändern.
+    # Tabelle neu erstellen ohne CHECK (Validierung läuft über Python).
+    # Nur durchführen wenn CHECK noch die alte Liste hat.
+    ddl = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' "
+        "AND name='regulierung_positionen'"
+    ).fetchone()
+    if ddl and "'rep_gutachten_netto'" not in (ddl[0] or ""):
+        logger.info("Migration 16: Erweitere CHECK-Constraint in regulierung_positionen ...")
+        # Foreign-Keys temporär deaktivieren (executescript committet implizit)
+        conn.execute("PRAGMA foreign_keys = OFF")
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS regulierung_positionen_m16 (
+                id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+                abrechnungsschreiben_id     INTEGER NOT NULL,
+                position_key                TEXT    NOT NULL,
+                position_label              TEXT,
+                betrag_gefordert            REAL    NOT NULL DEFAULT 0.0,
+                betrag_reguliert            REAL    NOT NULL DEFAULT 0.0,
+                kuerzungsart_id             INTEGER,
+                kuerzung_freitext           TEXT,
+                parser_erkannt              INTEGER NOT NULL DEFAULT 0
+                                            CHECK(parser_erkannt IN (0,1)),
+                parser_konfidenz            REAL,
+                fuer_klage_vorgemerkt       INTEGER NOT NULL DEFAULT 0
+                                            CHECK(fuer_klage_vorgemerkt IN (0,1)),
+                sv_stellungnahme_ausstehend INTEGER NOT NULL DEFAULT 0
+                                            CHECK(sv_stellungnahme_ausstehend IN (0,1))
+            );
+
+            INSERT INTO regulierung_positionen_m16
+                (id, abrechnungsschreiben_id, position_key, position_label,
+                 betrag_gefordert, betrag_reguliert,
+                 kuerzungsart_id, kuerzung_freitext,
+                 parser_erkannt, parser_konfidenz,
+                 fuer_klage_vorgemerkt, sv_stellungnahme_ausstehend)
+            SELECT
+                id, abrechnungsschreiben_id, position_key, NULL,
+                betrag_gefordert, betrag_reguliert,
+                kuerzungsart_id, kuerzung_freitext,
+                parser_erkannt, parser_konfidenz,
+                fuer_klage_vorgemerkt, sv_stellungnahme_ausstehend
+            FROM regulierung_positionen;
+
+            DROP TABLE regulierung_positionen;
+            ALTER TABLE regulierung_positionen_m16 RENAME TO regulierung_positionen;
+
+            CREATE INDEX IF NOT EXISTS idx_regpos_abrechnung_id
+                ON regulierung_positionen(abrechnungsschreiben_id);
+            CREATE INDEX IF NOT EXISTS idx_regpos_klage
+                ON regulierung_positionen(fuer_klage_vorgemerkt);
+        """)
+        conn.execute("PRAGMA foreign_keys = ON")
+        logger.info("Migration 16: regulierung_positionen ohne CHECK-Constraint neu erstellt.")
+    else:
+        logger.info("Migration 16: CHECK-Constraint bereits aktuell – übersprungen.")
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (16, 'Migration 16 – Manuelle Regulierung, WDM-Fallback')"
+    )
+    logger.info("Migration 16 abgeschlossen.")
+
+
+
+def _run_migration_17(conn: sqlite3.Connection) -> None:
+    """
+    Migration 17: email_import_log modernisieren.
+
+    Aenderungen:
+      - akte_id:    INTEGER REFERENCES unfallakte(id)
+                 -> TEXT    REFERENCES unfallakte(az)
+      - status CHECK: ('verarbeitet','kein_treffer','fehler','ignoriert')
+                 -> ('zugeordnet','nicht_zugeordnet','fehler','ignoriert')
+      - NEU erkannt_az         TEXT
+      - NEU erkannt_kfz        TEXT
+      - NEU match_methode      TEXT
+      - NEU von_name           TEXT
+      - NEU manuell_zugeordnet INTEGER DEFAULT 0
+
+    Bestehende Daten:
+      'verarbeitet'  -> 'zugeordnet'
+      'kein_treffer' -> 'nicht_zugeordnet'
+    """
+    cols = {r[1] for r in conn.execute(
+        "PRAGMA table_info(email_import_log)").fetchall()}
+
+    if "erkannt_az" in cols and "manuell_zugeordnet" in cols:
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+            "VALUES (17, 'Migration 17 - email_import_log v2 (bereits aktuell)')"
+        )
+        logger.info("Migration 17: email_import_log bereits aktuell - uebersprungen.")
+        return
+
+    logger.info("Migration 17: Erstelle email_import_log neu ...")
+
+    conn.execute("PRAGMA foreign_keys = OFF")
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS email_import_log_m17 (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            message_id          TEXT    NOT NULL UNIQUE,
+            betreff             TEXT,
+            absender            TEXT,
+            von_name            TEXT,
+            empfangen_am        TEXT,
+            importiert_am       TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+            akte_id             TEXT    REFERENCES unfallakte(az) ON DELETE SET NULL,
+            status              TEXT    NOT NULL DEFAULT 'nicht_zugeordnet'
+                                CHECK(status IN (
+                                    'zugeordnet', 'nicht_zugeordnet',
+                                    'fehler', 'ignoriert'
+                                )),
+            erkannt_az          TEXT,
+            erkannt_kfz         TEXT,
+            match_methode       TEXT,
+            manuell_zugeordnet  INTEGER NOT NULL DEFAULT 0,
+            anhaenge_anzahl     INTEGER DEFAULT 0,
+            importierte_dok     TEXT,
+            notizen             TEXT
+        );
+
+        INSERT INTO email_import_log_m17 (
+            id, message_id, betreff, absender, empfangen_am, importiert_am,
+            akte_id, status, anhaenge_anzahl, importierte_dok, notizen
+        )
+        SELECT
+            id, message_id, betreff, absender, empfangen_am, importiert_am,
+            CAST(akte_id AS TEXT),
+            CASE status
+                WHEN 'verarbeitet'  THEN 'zugeordnet'
+                WHEN 'kein_treffer' THEN 'nicht_zugeordnet'
+                ELSE status
+            END,
+            anhaenge_anzahl, importierte_dok, notizen
+        FROM email_import_log;
+
+        DROP TABLE email_import_log;
+        ALTER TABLE email_import_log_m17 RENAME TO email_import_log;
+
+        CREATE INDEX IF NOT EXISTS idx_email_log_akte_id
+            ON email_import_log(akte_id);
+        CREATE INDEX IF NOT EXISTS idx_email_log_status
+            ON email_import_log(status);
+        CREATE INDEX IF NOT EXISTS idx_email_log_importiert_am
+            ON email_import_log(importiert_am DESC);
+    """)
+    conn.execute("PRAGMA foreign_keys = ON")
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (17, 'Migration 17 - email_import_log v2: TEXT FK, neue Felder')"
+    )
+    logger.info("Migration 17 abgeschlossen.")
+
+def init_db() -> None:
+    """
+    Hauptfunktion: Schema erstellen + Migrationen ausführen.
+    Wird beim App-Start aufgerufen.
+    """
+    create_schema()
+    run_migrations()
+
+
+# CLI-Modus
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+    if "--check" in sys.argv:
+        status = check_schema()
+        print(f"\n=== Schema-Prüfung ===")
+        print(f"Version : {status['version']}")
+        print(f"Status  : {'✅ OK' if status['ok'] else '❌ FEHLER'}")
+        print(f"\nTabellen:")
+        for t, ok in status["tabellen"].items():
+            print(f"  {'✅' if ok else '❌'} {t}")
+        print(f"\nViews:")
+        for v, ok in status["views"].items():
+            print(f"  {'✅' if ok else '❌'} {v}")
+        sys.exit(0 if status["ok"] else 1)
+
+    elif "--reset" in sys.argv:
+        confirm = input("⚠️  ALLE DATEN LÖSCHEN? Bitte 'ja' eingeben: ")
+        if confirm.strip().lower() == "ja":
+            reset_database()
+        else:
+            print("Abgebrochen.")
+
+    else:
+        init_db()
+        print("✅ Datenbank initialisiert.")

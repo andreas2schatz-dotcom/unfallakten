@@ -1,0 +1,87 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# docker-compose.yml – ENTWICKLUNG
+# Startet: Backend (Flask Dev-Server) + Frontend (Vite Dev-Server)
+#
+# Starten:  docker compose up
+# Neubauen: docker compose up --build
+# Stoppen:  docker compose down
+#
+# HINWEIS: E-Akte-Mount erfordert vorheriges Mounten in WSL:
+#   wsl --user root
+#   mount -t cifs //192.168.10.100/ServerSQL/ra /mnt/eakte -o username=admin,password=passwort,ro
+#
+# URLs:
+#   Frontend: http://localhost:5173
+#   Backend:  http://localhost:5000
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Backend: Flask Dev-Server ───────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      target: builder
+    image: unfallakten-backend:dev
+    container_name: unfallakten-backend-dev
+    command: >
+      python -m flask
+      --app "backend.app:erstelle_app()"
+      run
+      --host 0.0.0.0
+      --port 5000
+      --debug
+      --reload
+    environment:
+      FLASK_ENV: development
+      FLASK_DEBUG: "true"
+      DB_PATH: /app/data/unfallakten.db
+      UPLOAD_DIR: /app/uploads
+      JWT_SECRET_KEY: dev-secret-key-nicht-fuer-produktion
+      FLASK_SECRET_KEY: dev-flask-secret-nicht-fuer-produktion
+      CORS_ORIGIN: "http://localhost:5173"
+      LOG_LEVEL: DEBUG
+      EAKTE_BASE_PATH: /mnt/eakte
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./backend:/app/backend
+      - dev-data:/app/data
+      - dev-uploads:/app/uploads
+      - /mnt/eakte:/mnt/eakte:ro
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # ── Frontend: Vite Dev-Server ───────────────────────────────────────────────
+  frontend:
+    image: node:20-alpine
+    container_name: unfallakten-frontend-dev
+    working_dir: /app
+    command: sh -c "npm install --no-audit && npm run dev"
+    environment:
+      VITE_API_URL: ""
+      VITE_BACKEND_URL: "http://backend:5000"
+      VITE_DEMO_MODE: "false"
+      VITE_APP_TITEL: "Unfallakten [DEV]"
+    volumes:
+      - ./frontend:/app
+      - node_modules:/app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  dev-data:
+  dev-uploads:
+  node_modules:

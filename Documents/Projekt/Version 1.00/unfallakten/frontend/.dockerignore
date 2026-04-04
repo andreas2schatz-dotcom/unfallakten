@@ -1,0 +1,23 @@
+# Ausschlüsse für Docker Build Context
+# (beschleunigt den Build erheblich)
+
+node_modules/
+dist/
+.vite/
+
+.env
+.env.local
+.env.*.local
+
+.git/
+.gitignore
+.dockerignore
+
+*.log
+*.swp
+.DS_Store
+Thumbs.db
+
+# Nicht ins Image: nur für lokale Entwicklung
+.env.development
+README.md

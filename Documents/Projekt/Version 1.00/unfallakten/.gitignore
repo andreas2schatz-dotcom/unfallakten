@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+htmlcov/
+.coverage
+*.egg-info/
+
+# Umgebung
+.env
+.venv/
+venv/
+
+# Datenbank & Uploads
+backend/data/
+backend/uploads/
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+
+# Docker Volumes
+backups/
+
+# SSL (Placeholder damit Ordner in Git existiert)
+nginx/ssl/
+!nginx/ssl/.gitkeep
+
+# Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
