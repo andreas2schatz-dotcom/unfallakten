@@ -1162,11 +1162,11 @@ def ki_haftung(akte_id: str):
     Body: { schilderung: str, hq: float }
     """
     import os
-    api_key = os.environ.get("OPENAI_API_KEY", "")
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:
-        return jsonify({"fehler": "OPENAI_API_KEY nicht konfiguriert."}), 503
+        return jsonify({"fehler": "ANTHROPIC_API_KEY nicht konfiguriert."}), 503
 
-    daten      = request.get_json(silent=True) or {}
+    daten       = request.get_json(silent=True) or {}
     schilderung = (daten.get("schilderung") or "").strip()
     hq          = float(daten.get("hq") or 100)
 
@@ -1196,21 +1196,18 @@ def ki_haftung(akte_id: str):
     )
 
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key)
-        resp = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user",   "content": user_prompt},
-            ],
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model="claude-sonnet-4-6",
             max_tokens=400,
-            temperature=0.4,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
         )
-        text = resp.choices[0].message.content.strip()
+        text = msg.content[0].text.strip()
         return jsonify({"text": text}), 200
     except Exception as e:
-        logger.error("KI-Haftung OpenAI-Fehler: %s", e)
+        logger.error("KI-Haftung Anthropic-Fehler: %s", e)
         return jsonify({"fehler": f"KI-Aufruf fehlgeschlagen: {str(e)}"}), 500
 
 

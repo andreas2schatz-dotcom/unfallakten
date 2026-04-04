@@ -18,7 +18,8 @@ passlib[bcrypt]==1.7.4             # Passwort-Hashing (ersetzt pbkdf2 in Modul 1
 # ── PDF-Parsing (Modul 4) ─────────────────────────────────────────────────────
 pdfplumber==0.11.1
 PyMuPDF==1.24.3
-openai==1.30.1                 # GPT-4o Fallback
+openai==1.30.1                 # GPT-4o (Fallback, nicht aktiv)
+anthropic==0.40.0             # Claude Sonnet – KI-Haftungsbegründung
 
 # ── Word-Generierung (Modul 5) ────────────────────────────────────────────────
 python-docx==1.1.2
