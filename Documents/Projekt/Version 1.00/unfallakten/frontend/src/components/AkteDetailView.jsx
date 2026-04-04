@@ -24,6 +24,7 @@ import RaMicroSachstandsCard from "../sections/RaMicroSachstandsCard.jsx";
 import WordSection from "../sections/WordSection.jsx";
 import UnfalldetailsSection from "../sections/UnfalldetailsSection.jsx";
 import KlageSection from "../sections/KlageSection.jsx";
+import AktionBadge from "../views/email_import/components/AktionBadge.jsx";
 
 function AkteDetailView({ akte, st, dispatch }) {
   const [sec, setSec] = useState("uebersicht");

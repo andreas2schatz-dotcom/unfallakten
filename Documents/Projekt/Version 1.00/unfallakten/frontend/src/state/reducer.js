@@ -30,6 +30,8 @@ function reducer(state, action) {
       return { ...state, [akteId]:{ ...cur,
         abrechnungen: (cur.abrechnungen || []).filter(a => a.id !== action.ab_id),
       }};
+    case "SET_REGULIERUNGEN":
+      return { ...state, [akteId]:{ ...cur, regulierungen: action.regulierungen } };
     case "ADD_REGULIERUNG":
       return { ...state, [akteId]:{ ...cur, regulierungen:[...(cur.regulierungen||[]), action.regulierung] } };
     case "ADD_DOKUMENT":
