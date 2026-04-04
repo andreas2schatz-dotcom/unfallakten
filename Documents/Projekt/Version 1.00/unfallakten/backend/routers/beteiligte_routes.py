@@ -57,6 +57,7 @@ def _b_dict(b) -> dict:
         "betreff1":   getattr(b, "betreff1",   "") or "",
         "betreff2":   getattr(b, "betreff2",   "") or "",
         "betreff3":   getattr(b, "betreff3",   "") or "",
+        "ist_halter": int(getattr(b, "ist_halter", 0) or 0),
     }
 
 def _pruefe_akte(akte_id: str):
@@ -213,7 +214,8 @@ def aktualisiere(akte_id: str, beteiligter_id: int):
     erlaubte = {
         "name", "vorname", "firma", "anschrift", "plz", "ort",
         "telefon", "email", "kfz_kennzeichen", "kfz_typ",
-        "versicherung", "vers_nr", "schaden_nr", "iban", "notizen"
+        "versicherung", "vers_nr", "schaden_nr", "iban", "notizen",
+        "ist_halter"
     }
     felder = {k: v for k, v in daten.items() if k in erlaubte}
 

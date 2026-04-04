@@ -1,15 +1,18 @@
 /**
- * KlageWizard.jsx – PRD-24b
+ * KlageWizard.jsx – PRD-24b / PRD-26
  * ─────────────────────────────────────────────────────────────────
- * 7-Step Modal-Wizard für die Klageschrift-Generierung.
+ * 10-Step Modal-Wizard für die Klageschrift-Generierung.
  *
- * Step 1: Rubrum              – Parteien-Übersicht
- * Step 2: Aktivlegitimation   – Fahrzeugeigentum + Live-Vorschau
- * Step 3: Unfallhergang       – Schilderung, auto-Ersatz Mandant→Kläger
- * Step 4: Schadenpositionen   – Checkboxen + Personenschaden
- * Step 5: Rechtl. Würdigung   – Dynamischer Textbaustein + editierbar
- * Step 6: Verzug & Kosten     – Bestätigung + editierbare Vorschau
- * Step 7: Zusammenfassung     – Abschließende Prüfung + Generieren
+ * Step  1: Gericht             – Zuständiges Gericht auswählen + bestätigen
+ * Step  2: Rubrum              – Parteien-Übersicht (read-only)
+ * Step  3: Aktivlegitimation   – Fahrzeugeigentum + Live-Vorschau
+ * Step  4: Unfallhergang       – Schilderung, auto-Ersatz Mandant→Kläger
+ * Step  5: Schadenpositionen   – Checkboxen + Personenschaden
+ * Step  6: Klageanträge        – Auto-Text + Feststellungsanträge
+ * Step  7: Rechtl. Würdigung   – Dynamischer Textbaustein + Einwände
+ * Step  8: Verzug & Kosten     – Gerichtl. RVG + editierbare Vorschau
+ * Step  9: Außergerichtl. Geb. – RVG außergerichtl. SW + Gebührenantrag
+ * Step 10: Zusammenfassung     – Abschließende Prüfung + Generieren
  */
 
 import React, { useEffect, useRef, useState } from "react";
@@ -66,16 +69,96 @@ function buildVorschauText(typ, freigabe, datum, mkz, mandantIstFahrer, klaeger)
   const basis       = `Das Fahrzeug${mkzSatz} befindet sich im Eigentum der ${eigentuemer}. ${klaeger} ist jedoch aufgrund `;
 
   if (freigabe === "freigabe") {
-    const datumStr = datum || "TT.MM.JJJJ";
+    const datumStr = (!datum || datum === "unbekannt") ? null : datum;
+    const beweisZusatz = datumStr ? `vom ${datumStr}, ` : "";
     return (
       basis +
-      `der vorliegenden Freigabeerklärung der ${finTyp} aktivlegitimiert, den Schaden im eigenen Namen und auf eigene Rechnung geltend zu machen.\n\nBEWEIS: Freigabeerklärung vom ${datumStr}, Anlage K1`
+      `der vorliegenden Freigabeerklärung der ${finTyp} aktivlegitimiert, den Schaden im eigenen Namen und auf eigene Rechnung geltend zu machen.\n\nBEWEIS: Freigabeerklärung ${beweisZusatz}Anlage K1`
     );
   }
   return (
     basis +
     `der ${bedingTyp} aktivlegitimiert, den Schaden im eigenen Namen und auf eigene Rechnung geltend zu machen.\n\nBEWEIS: ${bedingTyp} in Kopie, Anlage K1`
   );
+}
+
+/**
+ * Kombinierter Sachverhalt-Text für Step 3:
+ * Einleitung + Beklagten-Block + Aktivlegitimation + optional Auslandsunfall.
+ * Spiegelt die backend-Logik (klage_service.py §1 Sachverhalt).
+ */
+function buildSachverhaltText({
+  klaeger, vorsteuer, unfalldatum, unfallort,
+  beklagte, fahrGegnerName,
+  aktLegTyp, aktLegFreigabe, aktLegDatum, mandantKz, mandantIstFahrer,
+  auslandsunfall,
+}) {
+  const weiblich    = klaeger.startsWith("Die");
+  const kl_bez      = weiblich ? "Klägerin" : "Kläger";
+  const vst_adj     = vorsteuer
+    ? `vorsteuerabzugsberechtigte${weiblich ? "" : "r"}`
+    : `nicht vorsteuerabzugsberechtigte${weiblich ? "" : "r"}`;
+
+  // ── Satz 1: Kläger + Unfall ──────────────────────────────────────────
+  let text = `${klaeger} macht als ${vst_adj} ${kl_bez} Schadensersatzansprüche `;
+  if (unfalldatum && unfallort) text += `am ${unfalldatum} in ${unfallort} `;
+  else if (unfalldatum)         text += `am ${unfalldatum} `;
+  else if (unfallort)           text += `in ${unfallort} `;
+  text += "geltend.";
+
+  // ── Beklagten-Block ───────────────────────────────────────────────────
+  const gegner = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked);
+
+  const versicherungen = gegner.filter(b => b.versicherung || (b.firma && !b.ist_halter));
+  const halter         = gegner.filter(b => b.ist_halter);
+  const hatFahrer      = !!(fahrGegnerName && fahrGegnerName.trim());
+
+  const gesamtAnzahl = versicherungen.length + (hatFahrer ? 1 : 0) + halter.length;
+  const mehrere      = gesamtAnzahl > 1;
+  let nr = 1;
+  const bekSaetze = [];
+
+  for (const v of versicherungen) {
+    const nrStr = mehrere ? ` zu ${nr})` : "";
+    const kz    = v.kfz_kennzeichen || "";
+    let satz = `Die Beklagte${nrStr} ist die gegnerische Haftpflichtversicherung des unfallverursachenden Fahrzeugs`;
+    if (kz) satz += ` mit dem amtlichen Kennzeichen ${kz}`;
+    satz += ".";
+    bekSaetze.push(satz);
+    nr++;
+  }
+
+  if (hatFahrer) {
+    const nrStr = mehrere ? ` zu ${nr})` : "";
+    bekSaetze.push(`Der Beklagte${nrStr} war zum Unfallzeitpunkt der Fahrer des unfallverursachenden Fahrzeugs.`);
+    nr++;
+  }
+
+  for (const h of halter) {
+    const nrStr     = mehrere ? ` zu ${nr})` : "";
+    const weiblichH = (h.anrede || "").toLowerCase() === "frau";
+    const art       = weiblichH ? "Die" : "Der";
+    const bez       = weiblichH ? "Halterin" : "Halter";
+    bekSaetze.push(`${art} Beklagte${nrStr} ist die ${bez} des unfallverursachenden Fahrzeugs.`);
+    nr++;
+  }
+
+  if (bekSaetze.length > 0) {
+    text += "\n\n" + bekSaetze.join("\n");
+  }
+
+  // ── Aktivlegitimation ─────────────────────────────────────────────────
+  const aktLegText = buildVorschauText(aktLegTyp, aktLegFreigabe, aktLegDatum, mandantKz, mandantIstFahrer, klaeger);
+  if (aktLegText) {
+    text += "\n\n" + aktLegText;
+  }
+
+  // ── Auslandsunfall ────────────────────────────────────────────────────
+  if (auslandsunfall) {
+    text += "\n\n[ZUSTÄNDIGKEIT: Das angerufene Gericht ist örtlich zuständig. Standardtext Auslandsunfall bitte ergänzen.]";
+  }
+
+  return text;
 }
 
 /**
@@ -129,23 +212,23 @@ function Fortschrittsbalken({ step, maxStep, onStepChange }) {
               <div
                 onClick={klickbar ? () => onStepChange(s.nr) : undefined}
                 style={{
-                  width: 26, height: 26, borderRadius: "50%",
+                  width: 32, height: 32, borderRadius: "50%",
                   background: erledigt ? T.navy : aktiv ? T.gold : T.surface,
                   border: `2px solid ${erledigt ? T.navy : aktiv ? T.gold : T.border}`,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontFamily: MONO, fontSize: "0.72rem", fontWeight: 700,
+                  fontFamily: MONO, fontSize: "0.8rem", fontWeight: 700,
                   color: (erledigt || aktiv) ? "#fff" : T.textMuted,
                   transition: "all 0.25s",
-                  boxShadow: aktiv ? `0 0 0 3px ${T.gold}28` : "none",
+                  boxShadow: aktiv ? `0 0 0 4px ${T.gold}28` : "none",
                   flexShrink: 0,
                   cursor: klickbar ? "pointer" : "default",
                 }}>
                 {erledigt ? "✓" : s.nr}
               </div>
               <div style={{
-                fontFamily: PLEX, fontSize: "0.65rem", fontWeight: aktiv ? 700 : 400,
+                fontFamily: PLEX, fontSize: "0.72rem", fontWeight: aktiv ? 700 : 400,
                 color: aktiv ? T.gold : erledigt ? T.navy : T.textMuted,
-                marginTop: 4, textAlign: "center", whiteSpace: "nowrap",
+                marginTop: 5, textAlign: "center", whiteSpace: "nowrap",
                 transition: "color 0.25s",
               }}>
                 {s.label}
@@ -268,7 +351,7 @@ function AbschnittLabel({ text }) {
   );
 }
 
-// ── Step 1: Rubrum ─────────────────────────────────────────────────────────────
+// ── Step 2: Rubrum ─────────────────────────────────────────────────────────────
 
 function StepRubrum({ beklagte, onClose }) {
   const klaeger   = (beklagte || []).filter(b => b.rolle_klage === "klaeger");
@@ -365,7 +448,17 @@ function StepRubrum({ beklagte, onClose }) {
               </div>
               {(b.versicherung || b.firma) && !b.vertreter_name && (
                 <div style={{ fontSize: "0.78rem", color: T.amber, marginTop: 2 }}>
-                  ⚠ Vertreter fehlt – bitte im Klage-Tab nachtragen.
+                  ⚠ Vertreter fehlt –{" "}
+                  <button
+                    onClick={() => {
+                      if (onClose) onClose();
+                      setTimeout(() => document.getElementById("karte-parteien")?.scrollIntoView({ behavior: "smooth" }), 150);
+                    }}
+                    style={{ background: "none", border: "none", padding: 0, cursor: "pointer",
+                      color: T.amber, fontFamily: PLEX, fontSize: "0.78rem",
+                      textDecoration: "underline", fontWeight: 600 }}>
+                    jetzt nachtragen →
+                  </button>
                 </div>
               )}
             </div>
@@ -376,34 +469,45 @@ function StepRubrum({ beklagte, onClose }) {
   );
 }
 
-// ── Step 2: Aktivlegitimation ──────────────────────────────────────────────────
+// ── Step 3: Aktivlegitimation / Sachverhalt ────────────────────────────────────
 
-function StepAktLeg({ aktLegTyp, onAktLegTyp, aktLegFreigabe, onAktLegFreigabe,
-                      aktLegDatum, onAktLegDatum, mandantIstFahrer, mandantKz,
-                      klaeger, aktLegTextOverride, onAktLegTextOverride }) {
-
+function StepAktLeg({
+  aktLegTyp, onAktLegTyp, aktLegFreigabe, onAktLegFreigabe,
+  aktLegDatum, onAktLegDatum, mandantIstFahrer, mandantKz,
+  klaeger,
+  // Neu: kombinierter Sachverhalt
+  vorsteuer, unfalldatum, unfallort, beklagte, fahrGegnerName,
+  auslandsunfall, onAuslandsunfall,
+  sachverhaltText, onSachverhaltText,
+}) {
   const brauchtFreigabe = aktLegTyp !== "eigentum";
-  const vorschauText    = buildVorschauText(
-    aktLegTyp, aktLegFreigabe, aktLegDatum, mandantKz, mandantIstFahrer, klaeger
-  );
 
   const prevAutoRef = useRef(null);
 
   useEffect(() => {
-    const newAuto = vorschauText || "";
+    const newAuto = buildSachverhaltText({
+      klaeger, vorsteuer, unfalldatum, unfallort,
+      beklagte, fahrGegnerName,
+      aktLegTyp, aktLegFreigabe, aktLegDatum, mandantKz, mandantIstFahrer,
+      auslandsunfall,
+    });
     // nur überschreiben wenn Text noch nicht manuell bearbeitet wurde
-    if (prevAutoRef.current === null || aktLegTextOverride === prevAutoRef.current) {
-      if (onAktLegTextOverride) onAktLegTextOverride(newAuto);
+    if (prevAutoRef.current === null || sachverhaltText === prevAutoRef.current) {
+      if (onSachverhaltText) onSachverhaltText(newAuto);
     }
     prevAutoRef.current = newAuto;
-  }, [aktLegTyp, aktLegFreigabe, aktLegDatum, mandantIstFahrer]); // eslint-disable-line
+  }, [aktLegTyp, aktLegFreigabe, aktLegDatum, mandantIstFahrer, auslandsunfall]); // eslint-disable-line
 
   return (
     <div style={{ display: "flex", gap: "1.5rem", alignItems: "stretch" }}>
       <div style={{ flex: "0 0 260px" }}>
         <AbschnittLabel text="Fahrzeugeigentum" />
         <RadioOption checked={aktLegTyp === "eigentum"}   onChange={() => onAktLegTyp("eigentum")}
-          label="Eigentum des Klägers" sub="Standardfall – § 1006 BGB wenn selbst gefahren" />
+          label="Eigentum des Klägers"
+          sub={<span>Standardfall – § 1006 BGB wenn selbst gefahren{" "}
+            <span title="§ 1006 BGB: Der Besitzer einer beweglichen Sache wird als deren Eigentümer vermutet. Hat der Mandant das Fahrzeug selbst geführt, stärkt dies die Aktivlegitimation und erleichtert die Darlegungslast erheblich."
+              style={{ cursor: "help", color: T.textFaint, fontWeight: 600 }}>ℹ</span>
+          </span>} />
         <RadioOption checked={aktLegTyp === "finanziert"} onChange={() => onAktLegTyp("finanziert")}
           label="Finanziert" sub="Fahrzeug im Eigentum der Bank" />
         <RadioOption checked={aktLegTyp === "geleast"}    onChange={() => onAktLegTyp("geleast")}
@@ -427,37 +531,57 @@ function StepAktLeg({ aktLegTyp, onAktLegTyp, aktLegFreigabe, onAktLegFreigabe,
                 <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.textMuted, marginBottom: 6 }}>
                   Datum der Freigabeerklärung
                 </div>
-                <input type="date"
-                  value={(() => {
-                    if (!aktLegDatum) return "";
-                    const m = aktLegDatum.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-                    if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-                    return aktLegDatum;
-                  })()}
-                  onChange={e => {
-                    const v = e.target.value;
-                    if (!v) { onAktLegDatum(""); return; }
-                    const [y, mo, d] = v.split("-");
-                    onAktLegDatum(`${d}.${mo}.${y}`);
-                  }}
-                  style={{
-                    padding: "7px 10px", border: `1.5px solid ${T.border}`,
-                    borderRadius: 7, fontFamily: MONO, fontSize: "0.875rem",
-                    outline: "none", width: "100%", boxSizing: "border-box",
-                    background: T.white, color: T.navy,
-                  }}
-                />
+                {aktLegDatum !== "unbekannt" && (
+                  <input type="date"
+                    value={(() => {
+                      if (!aktLegDatum) return "";
+                      const m = aktLegDatum.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+                      if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+                      return aktLegDatum;
+                    })()}
+                    onChange={e => {
+                      const v = e.target.value;
+                      if (!v) { onAktLegDatum(""); return; }
+                      const [y, mo, d] = v.split("-");
+                      onAktLegDatum(`${d}.${mo}.${y}`);
+                    }}
+                    style={{
+                      padding: "7px 10px", border: `1.5px solid ${T.border}`,
+                      borderRadius: 7, fontFamily: MONO, fontSize: "0.875rem",
+                      outline: "none", width: "100%", boxSizing: "border-box",
+                      background: T.white, color: T.navy,
+                    }}
+                  />
+                )}
+                <label style={{ display: "flex", alignItems: "center", gap: 6,
+                  marginTop: 8, cursor: "pointer",
+                  fontFamily: PLEX, fontSize: "0.78rem", color: T.textMuted }}>
+                  <input type="checkbox"
+                    checked={aktLegDatum === "unbekannt"}
+                    onChange={e => onAktLegDatum(e.target.checked ? "unbekannt" : "")}
+                    style={{ accentColor: T.navy, cursor: "pointer" }} />
+                  Datum noch unbekannt
+                </label>
               </div>
             )}
           </div>
         )}
+
+        <div style={{ marginTop: "1.5rem" }}>
+          <AbschnittLabel text="Besonderheiten" />
+          <label style={{ display: "flex", alignItems: "center", gap: 8,
+            fontFamily: PLEX, fontSize: "0.875rem", cursor: "pointer" }}>
+            <input type="checkbox" checked={auslandsunfall} onChange={e => onAuslandsunfall(e.target.checked)}
+              style={{ accentColor: T.navy, cursor: "pointer" }} />
+            Auslandsunfall (Zuständigkeitstext einfügen)
+          </label>
+        </div>
       </div>
 
       <DokumentCard
-        text={vorschauText}
         warnung={brauchtFreigabe && aktLegFreigabe === "ungeklaert"}
-        editText={aktLegTextOverride}
-        onEditText={onAktLegTextOverride}
+        editText={sachverhaltText}
+        onEditText={onSachverhaltText}
       />
     </div>
   );
@@ -1153,7 +1277,7 @@ function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMind,
 
 function StepGericht({ gericht, setGericht, gerichtSuche, setGSuche,
                        gerichtTreffer, setGTreffer, gerichtLaedt,
-                       sucheGerichte, bestaetigt, setBestaetigt }) {
+                       sucheGerichte, bestaetigt, setBestaetigt, onWeiter }) {
   return (
     <div style={{ maxWidth: 520 }}>
       <AbschnittLabel text="Zuständiges Gericht" />
@@ -1191,7 +1315,7 @@ function StepGericht({ gericht, setGericht, gerichtSuche, setGSuche,
             </button>
           </div>
           {!bestaetigt && (
-            <button onClick={() => setBestaetigt(true)}
+            <button onClick={onWeiter}
               style={{
                 marginTop: "0.75rem", width: "100%",
                 padding: "9px 0", borderRadius: 7, cursor: "pointer",
@@ -1533,10 +1657,14 @@ export default function KlageWizard({
   gericht, setGericht, gerichtSuche, setGSuche,
   gerichtTreffer, setGTreffer, gerichtLaedt,
   sucheGerichte, gerichtBestaetigt, setGerichtBestaetigt,
-  // Step 3 (Aktivlegitimation)
+  onGerichtBestaetigen,
+  // Step 3 (Aktivlegitimation / Sachverhalt)
   aktLegTyp, onAktLegTyp, aktLegFreigabe, onAktLegFreigabe,
   aktLegDatum, onAktLegDatum, mandantIstFahrer, mandantKz,
-  aktLegTextOverride, onAktLegTextOverride,
+  sachverhaltText, onSachverhaltText,
+  auslandsunfall, onAuslandsunfall,
+  fahrGegnerName, mandantVorsteuer,
+  unfallort,
   // Step 4 (Unfallhergang)
   schilderungOriginal,
   wizardUnfallText, onWizardUnfallText,
@@ -1606,7 +1734,7 @@ export default function KlageWizard({
         <div style={{
           background: "#fff", borderRadius: 16,
           width: "100%", maxWidth: 840,
-          maxHeight: "92vh", overflow: "hidden",
+          height: "92vh", overflow: "hidden",
           display: "flex", flexDirection: "column",
           boxShadow: "0 24px 80px rgba(0,0,0,0.28), 0 4px 16px rgba(0,0,0,0.12)",
           animation: "slideUp 0.22s cubic-bezier(0.16,1,0.3,1)",
@@ -1620,10 +1748,10 @@ export default function KlageWizard({
             flexShrink: 0,
           }}>
             <div>
-              <div style={{ fontFamily: PLEX, fontSize: "1.1rem", fontWeight: 700, color: T.navy }}>
+              <div style={{ fontFamily: PLEX, fontSize: "1.25rem", fontWeight: 700, color: T.navy }}>
                 Klageschrift zusammenstellen
               </div>
-              <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.textMuted, marginTop: 2 }}>
+              <div style={{ fontFamily: PLEX, fontSize: "0.875rem", color: T.textMuted, marginTop: 3 }}>
                 Schritt {step} von {STEPS.length} – {STEPS[step - 1]?.label}
               </div>
             </div>
@@ -1646,6 +1774,7 @@ export default function KlageWizard({
                 gerichtTreffer={gerichtTreffer} setGTreffer={setGTreffer}
                 gerichtLaedt={gerichtLaedt}   sucheGerichte={sucheGerichte}
                 bestaetigt={gerichtBestaetigt} setBestaetigt={setGerichtBestaetigt}
+                onWeiter={onGerichtBestaetigen}
               />
             )}
 
@@ -1661,8 +1790,15 @@ export default function KlageWizard({
                 mandantIstFahrer={mandantIstFahrer}
                 mandantKz={mandantKz}
                 klaeger={klaeger}
-                aktLegTextOverride={aktLegTextOverride}
-                onAktLegTextOverride={onAktLegTextOverride}
+                sachverhaltText={sachverhaltText}
+                onSachverhaltText={onSachverhaltText}
+                vorsteuer={mandantVorsteuer}
+                unfalldatum={unfalldatum}
+                unfallort={unfallort}
+                beklagte={beklagte}
+                fahrGegnerName={fahrGegnerName}
+                auslandsunfall={auslandsunfall}
+                onAuslandsunfall={onAuslandsunfall}
               />
             )}
 

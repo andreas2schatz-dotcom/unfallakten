@@ -289,6 +289,8 @@ export const apiKlage = {
   // Expliziter WDM-Import: lädt frisch aus RA-Micro, ignoriert SQLite-Werte
   wdmLaden:        (az)         => request(`/akten/${az}/unfalldetails?force_wdm=1`),
   gerichte:        (az, q='', typ='') => request(`/akten/${az}/klage/gerichte?q=${encodeURIComponent(q)}&typ=${typ}`),
+  gerichtSpeichern:(az, gericht)     => request(`/akten/${az}/klage/gericht`, {
+                                         method: 'PUT', body: JSON.stringify(gericht) }),
   generieren: async (az, klagenConfig, overrides = null) => {
     const token = tokenStore.getAccess();
     const reqBody = { klage_config: klagenConfig, in_db: true };

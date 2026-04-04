@@ -9,6 +9,7 @@ import {
   akten as apiAkten,
   apiKlage,
   apiFirmen,
+  beteiligte as apiBeteiligte,
 } from "../api.js";
 
 function vertretungsHinweis(name) {
@@ -169,7 +170,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [wizardPos, setWizardPos]             = useState([]);
   const [wizardMitSG, setWizardMitSG]         = useState(false);
   const [wizardSGMind, setWizardSGMind]       = useState(0);
-  const [wizardAktLegText, setWizardAktLegText] = useState("");
+  const [wizardSachverhaltText, setWizardSachverhaltText] = useState("");
+  const [auslandsunfall, setAuslandsunfall] = useState(false);
   const [wizardUnfallText, setWizardUnfallText] = useState("");
   const [wizardRwText, setWizardRwText]         = useState("");
   const [wizardVerzugText, setWizardVerzugText] = useState("");
@@ -255,6 +257,12 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setPos(p => p.map(x => x.key === key ? {...x, checked: !x.checked} : x));
   const toggleBek = (id) =>
     setBek(b => b.map(x => x.id === id ? {...x, checked: !x.checked} : x));
+  const toggleHalter = async (bid, neuerWert) => {
+    try {
+      await apiBeteiligte.aktualisieren(akteId, bid, { ist_halter: neuerWert ? 1 : 0 });
+      setBek(prev => prev.map(b => b.id === bid ? { ...b, ist_halter: neuerWert ? 1 : 0 } : b));
+    } catch { /* nicht kritisch */ }
+  };
 
   const lookupVertreter = async (id, firmenname) => {
     setVLookup(p => ({...p, [id]: {laden: true, ergebnis: null}}));
@@ -315,7 +323,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setWizardPos([...positionen]);
     setWizardMitSG(mitSG);
     setWizardSGMind(sgMind);
-    setWizardAktLegText("");
+    setWizardSachverhaltText("");
+    setAuslandsunfall(false);
 
     // ── Unfallhergang: Schilderung laden + Mandant→Kläger ersetzen ──
     const klaegerObj = beklagte.find(b => b.rolle_klage === "klaeger");
@@ -374,6 +383,17 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setWizardOffen(true);
   };
 
+  // ── Gericht bestätigen + in Akte speichern + Wizard weiterschalten ────
+  const gerichtBestaetigenUndWeiter = () => {
+    if (gericht) {
+      apiKlage.gerichtSpeichern(akteId, gericht).catch(() => {});
+    }
+    setWizardGerichtBest(true);
+    const next = wizardStep + 1;
+    setWizardStep(next);
+    if (next > wizardMaxStep) setWizardMaxStep(next);
+  };
+
   // ── Wizard generieren – mit Overrides ─────────────────────────────────
   const wizardGenerieren = async () => {
     setGenLaedt(true); setFehler("");
@@ -382,7 +402,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         aktivlegitimation_typ:             aktLegTyp,
         aktivlegitimation_freigabe:        aktLegFreigabe,
         aktivlegitimation_datum:           aktLegDatum || null,
-        aktivlegitimation_text_override:   wizardAktLegText || null,
+        sachverhalt_override:              wizardSachverhaltText || null,
         schilderung:                       wizardUnfallText || null,
         rw_text_override:                  wizardRwText     || null,
         verzug_text_override:              wizardVerzugText || null,
@@ -439,14 +459,20 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           gerichtLaedt={gerichtLaedt}
           sucheGerichte={sucheGerichte}
           gerichtBestaetigt={wizardGerichtBest} setGerichtBestaetigt={setWizardGerichtBest}
-          // Step 3: Aktivlegitimation
+          onGerichtBestaetigen={gerichtBestaetigenUndWeiter}
+          // Step 3: Aktivlegitimation / Sachverhalt
           aktLegTyp={aktLegTyp}         onAktLegTyp={setAktLegTyp}
           aktLegFreigabe={aktLegFreigabe} onAktLegFreigabe={setAktLegFreigabe}
           aktLegDatum={aktLegDatum}     onAktLegDatum={setAktLegDatum}
           mandantIstFahrer={daten?.aktivlegitimation?.mandant_ist_fahrer || false}
           mandantKz={daten?.unfalldetails?._wdm_mandant_kz || ""}
-          aktLegTextOverride={wizardAktLegText}
-          onAktLegTextOverride={setWizardAktLegText}
+          sachverhaltText={wizardSachverhaltText}
+          onSachverhaltText={setWizardSachverhaltText}
+          auslandsunfall={auslandsunfall}
+          onAuslandsunfall={setAuslandsunfall}
+          fahrGegnerName={daten?.unfalldetails?.fahrer_gegner || ""}
+          mandantVorsteuer={beklagte.find(b => b.rolle_klage === "klaeger")?.vorsteuer === "J"}
+          unfallort={daten?.unfallort || ""}
           // Step 4: Unfallhergang
           schilderungOriginal={daten?.unfalldetails?.schilderung || ""}
           wizardUnfallText={wizardUnfallText}
@@ -733,6 +759,17 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                         <div style={{ fontSize:"0.82rem", color:T.textMuted, marginTop:2 }}>
                           {extras.join(" · ")}
                         </div>
+                      )}
+                      {!b.versicherung && !b.firma && (
+                        <label style={{ display:"flex", alignItems:"center", gap:6, marginTop:4,
+                          fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem", cursor:"pointer",
+                          color: T.textMuted }}>
+                          <input type="checkbox"
+                            checked={!!b.ist_halter}
+                            onChange={() => toggleHalter(b.id, !b.ist_halter)}
+                            style={{ accentColor: T.navy, cursor:"pointer" }} />
+                          Ist Halter/Halterin
+                        </label>
                       )}
                       {b.checked && (
                         <div style={{ textAlign:"right", fontSize:"0.875rem",

@@ -6,6 +6,7 @@ REST-Endpunkte für das Klage-Modul.
   GET  /akten/<az>/klage/daten           Alle Daten für den Klage-Tab laden
   GET  /akten/<az>/unfalldetails         Unfalldetails laden
   PUT  /akten/<az>/unfalldetails         Unfalldetails speichern
+  PUT  /akten/<az>/klage/gericht         Gewähltes Gericht in SQLite speichern
   POST /akten/<az>/klage/rvg-berechnen   RVG-Vorschau berechnen
   POST /akten/<az>/klage/generieren      Klageschrift generieren + speichern
 """
@@ -726,6 +727,7 @@ def hole_klage_daten(akte_id: str):
             "kuerzel":           _get("kuerzel"),
             "vertreter_name":    _get("vertreter_name"),
             "vertreter_funktion":_get("vertreter_funktion"),
+            "ist_halter":        int(_get("ist_halter", 0)),
         }
 
     alle_bet = [b_dict(b) for b in beteiligte_objs]
@@ -1052,6 +1054,7 @@ def generiere_klage(akte_id: str):
                 "aktivlegitimation_text_override",
                 None
             ),
+            "sachverhalt_override": _override("sachverhalt_override", None),
             # PRD-24b: Wizard-Overrides für Textblöcke
             "rw_text_override":     _override("rw_text_override",  None),
             "verzug_text_override": _override("verzug_text_override", None),
@@ -1103,6 +1106,43 @@ def generiere_klage(akte_id: str):
         as_attachment=True,
         download_name=dateiname,
     )
+
+
+# ── Gericht in Akte speichern ─────────────────────────────────────────────────
+
+@klage_bp.route("/gericht", methods=["PUT"])
+@login_erforderlich
+def speichere_gericht(akte_id: str):
+    """
+    PUT /akten/<az>/klage/gericht
+    Speichert das vom Nutzer bestätigte Gericht als Beteiligter (rolle='gericht')
+    in der lokalen SQLite. Überschreibt einen ggf. vorhandenen Eintrag.
+    Body: { name, strasse, plz, ort, adressnr }
+    """
+    if not hole_akte_by_id(akte_id):
+        return jsonify({"fehler": f"Akte {akte_id} nicht gefunden."}), 404
+
+    daten = request.get_json(silent=True) or {}
+    name = (daten.get("name") or "").strip()
+    if not name:
+        return jsonify({"fehler": "name ist erforderlich."}), 422
+
+    strasse  = (daten.get("strasse")  or "").strip()
+    plz      = (daten.get("plz")      or "").strip()
+    ort      = (daten.get("ort")      or "").strip()
+
+    with get_connection() as conn:
+        conn.execute(
+            "DELETE FROM beteiligte WHERE akte_id = ? AND rolle = 'gericht'",
+            (akte_id,)
+        )
+        conn.execute(
+            """INSERT INTO beteiligte (akte_id, rolle, name, anschrift, plz, ort)
+               VALUES (?, 'gericht', ?, ?, ?, ?)""",
+            (akte_id, name, strasse, plz, ort)
+        )
+
+    return jsonify({"ok": True}), 200
 
 
 # ── Gerichte aus RA-Micro suchen ──────────────────────────────────────────────

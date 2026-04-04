@@ -262,6 +262,7 @@ VALUES (7, 'Migration 7 – v_regulierungsstatus GROUP BY az');
     31: "-- migration_31_fristen_index",
     32: "-- migration_32_todos_dok_ref_fix",
     33: "-- migration_33_konfiguration",
+    34: "-- migration_34_ist_halter",
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -395,6 +396,8 @@ def run_migrations() -> None:
                 _run_migration_32(conn)
             elif version == 33:
                 _run_migration_33(conn)
+            elif version == 34:
+                _run_migration_34(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
@@ -2056,6 +2059,27 @@ def _run_migration_32(conn):
         "VALUES (32, 'Migration 32 - todos.dok_id Referenz auf dokumente korrigiert')"
     )
     logger.info("Migration 32: todos.dok_id Referenz korrigiert.")
+
+
+def _run_migration_34(conn):
+    # type: (sqlite3.Connection) -> None
+    """
+    Migration 34: ist_halter-Flag in beteiligte (PRD-26 Einleitungssatz).
+    Ermöglicht Unterscheidung Gegner-Halter vs. Gegner-Versicherung im Klage-Wizard.
+    """
+    vorhandene = {row[1] for row in conn.execute("PRAGMA table_info(beteiligte)").fetchall()}
+    if "ist_halter" not in vorhandene:
+        conn.execute(
+            "ALTER TABLE beteiligte ADD COLUMN ist_halter INTEGER NOT NULL DEFAULT 0"
+        )
+        logger.info("Migration 34: beteiligte.ist_halter hinzugefuegt.")
+    else:
+        logger.info("Migration 34: ist_halter bereits vorhanden.")
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (34, 'Migration 34 \u2013 ist_halter in beteiligte (PRD-26 Einleitungssatz)')"
+    )
+    logger.info("Migration 34 abgeschlossen.")
 
 
 def _run_migration_33(conn):

@@ -341,11 +341,12 @@ def get_aktivlegitimation_text(details: dict, kl_einf: str, anrede: str) -> str:
 
     # ── Fall A + B: Eigentum ──────────────────────────────────────────────────
     if typ == "eigentum":
+        kl_einf_klein = kl_einf[0].lower() + kl_einf[1:]
         text = f"{kl_einf} ist {kl_eigen} des Fahrzeugs{mkz_satz}."
         if ist_fahrer:
             text += (
                 f"\nFür {kl_pron_akk} streitet bereits § 1006 BGB, "
-                f"da {kl_einf} zum Zeitpunkt des Unfalls das Fahrzeug selbst fuhr."
+                f"da {kl_einf_klein} zum Zeitpunkt des Unfalls das Fahrzeug selbst fuhr."
             )
         return text
 
@@ -531,6 +532,17 @@ def _vertretungs_hinweis(firmenname: str) -> str:
     if any(x in n for x in (" AG", "SE ", " SE,", " KGA", "KGAA")):
         return "– vertreten durch den Vorstand –"
     return "– vertreten durch den gesetzlichen Vertreter –"
+
+def _sachverhalt_override_xml(text):
+    # type: (str) -> str
+    """
+    Wandelt einen sachverhalt_override-Freitext (Absätze mit \\n\\n getrennt)
+    in OOXML um.  Wird verwendet wenn der Wizard einen kombinierten
+    Sachverhalt-Text (Einleitung + Beklagten-Block + AktLeg) übergeben hat.
+    """
+    absaetze = text.split("\n\n")
+    return "".join(_p(a.strip()) for a in absaetze if a.strip())
+
 
 def _build_aktivlegitimation_xml(details: dict, kl_einf: str, anrede: str) -> str:
     """
@@ -807,9 +819,11 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         else:
             vertreter_suffix = ""
 
-        # Adresszeile + Vertreter in einer Zeile
+        # Adresszeile + Vertreter + Schadennummer in einer Zeile
+        schaden_nr_val = (bek.get("schaden_nr") or "").strip()
+        schaden_suffix = f", zur Schadennummer {schaden_nr_val}" if schaden_nr_val else ""
         adress_teile = [t for t in [bek_name, bek_anschr, bek_plz_ort] if t]
-        full_line = ", ".join(adress_teile) + vertreter_suffix
+        full_line = ", ".join(adress_teile) + vertreter_suffix + schaden_suffix
         hpv_xml += _p(full_line)
         hpv_xml += _rolle_rechts(f"– Beklagte{nr_suffix} –")
         if i < len(beklagte_gef) - 1:
@@ -926,38 +940,46 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         antraege_xml += _versaeumnis_block
 
     # ── {{EINLEITUNG}} ────────────────────────────────────────────────────
-    einleitung_xml  = _lz() + _p("1.) Sachverhalt", fett=True)
-    einleitung_xml += _lz()
-    einleitung_xml += _p(
-        f"{kl_nom} macht als {nicht_vst} {kl_einf} Schadensersatzforderungen "
-        f"aus einem Verkehrsunfall vom {unfalltag} in {unfallort} geltend."
-        if unfalltag else
-        f"{kl_nom} macht Schadensersatzforderungen aus einem Verkehrsunfall "
-        f"in {unfallort} geltend."
-    )
-    beklagte_satz = (
-        f"Die Beklagte ist die Haftpflichtversicherung des unfallverursachenden "
-        f"Fahrzeugs mit dem amtlichen Kennzeichen {gegner_kz}."
-        if gegner_kz else
-        "Die Beklagte ist die Haftpflichtversicherung des unfallverursachenden Fahrzeugs."
-    )
-    if schadennummer:
-        beklagte_satz += f" Sie führt den Vorgang unter der Schadennummer {schadennummer}."
-    einleitung_xml += _p(beklagte_satz)
-
-    # K-04: Aktivlegitimation + Mandant-Kennzeichen
-    mandant_kz = (details.get("_wdm_mandant_kz") or
-                  mandant.get("kfz_kennzeichen") or "").strip()
-    eigentuemer = "Eigentümerin" if anrede_m == "frau" else "Eigentümer"
-    if mandant_kz:
-        einleitung_xml += _p(
-            f"{kl_nom} ist {eigentuemer} des bei dem Unfall beschädigten "
-            f"Fahrzeugs mit dem amtlichen Kennzeichen {mandant_kz}."
-        )
+    if details.get("sachverhalt_override"):
+        # Wizard hat einen kombinierten Sachverhalt-Text übergeben (Einleitung +
+        # Beklagten-Block + AktLeg in einem). Überschreibt die Auto-Generierung.
+        einleitung_xml = _lz() + _p("1.) Sachverhalt", fett=True) + _lz()
+        einleitung_xml += _sachverhalt_override_xml(details["sachverhalt_override"])
+        aktivleg_xml   = ""
     else:
+        einleitung_xml  = _lz() + _p("1.) Sachverhalt", fett=True)
+        einleitung_xml += _lz()
         einleitung_xml += _p(
-            f"{kl_nom} ist {eigentuemer} des bei dem Unfall beschädigten Fahrzeugs."
+            f"{kl_nom} macht als {nicht_vst} {kl_einf} Schadensersatzforderungen "
+            f"aus einem Verkehrsunfall vom {unfalltag} in {unfallort} geltend."
+            if unfalltag else
+            f"{kl_nom} macht Schadensersatzforderungen aus einem Verkehrsunfall "
+            f"in {unfallort} geltend."
         )
+        beklagte_satz = (
+            f"Die Beklagte ist die Haftpflichtversicherung des unfallverursachenden "
+            f"Fahrzeugs mit dem amtlichen Kennzeichen {gegner_kz}."
+            if gegner_kz else
+            "Die Beklagte ist die Haftpflichtversicherung des unfallverursachenden Fahrzeugs."
+        )
+        if schadennummer:
+            beklagte_satz += f" Sie führt den Vorgang unter der Schadennummer {schadennummer}."
+        einleitung_xml += _p(beklagte_satz)
+
+        # K-04: Aktivlegitimation + Mandant-Kennzeichen
+        mandant_kz = (details.get("_wdm_mandant_kz") or
+                      mandant.get("kfz_kennzeichen") or "").strip()
+        eigentuemer = "Eigentümerin" if anrede_m == "frau" else "Eigentümer"
+        if mandant_kz:
+            einleitung_xml += _p(
+                f"{kl_nom} ist {eigentuemer} des bei dem Unfall beschädigten "
+                f"Fahrzeugs mit dem amtlichen Kennzeichen {mandant_kz}."
+            )
+        else:
+            einleitung_xml += _p(
+                f"{kl_nom} ist {eigentuemer} des bei dem Unfall beschädigten Fahrzeugs."
+            )
+        aktivleg_xml = _build_aktivlegitimation_xml(details, kl_nom, anrede_m)
 
     # ── {{UNFALLHERGANG}} ─────────────────────────────────────────────────
     schilderung = details.get("schilderung") or ""
@@ -1161,9 +1183,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         "{{HPV_BLOCK}}":              hpv_xml,
         "{{ANTRAEGE}}":               antraege_xml,
         "{{EINLEITUNG}}":             einleitung_xml,
-        "{{AKTIVLEGITIMATION}}":      _build_aktivlegitimation_xml(
-            details, kl_einf, anrede_m
-        ),
+        "{{AKTIVLEGITIMATION}}":      aktivleg_xml,
         "{{UNFALLHERGANG}}":          unfall_xml,
         "{{SCHADEN}}":                schaden_xml,
         "{{RECHTLICHE_WUERDIGUNG}}":  rw_xml,
