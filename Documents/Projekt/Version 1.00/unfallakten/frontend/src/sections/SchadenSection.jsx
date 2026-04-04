@@ -101,7 +101,6 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
   // ── WDM-Discovery ────────────────────────────────────────────────────────
   const [wdmLaden, setWdmLaden]         = useState(false);
   const [wdmSchadenDaten, setWdmSchaden]= useState(null);
-  const [autoWdmGesucht, setAutoWdmGesucht] = useState(false);
   // true wenn User explizit "WDM neu laden" geklickt hat → Panel immer anzeigen
   const [wdmExplizit, setWdmExplizit]   = useState(false);
   // Automatisch erkannte Abrechnungsart (Vorschlag)
@@ -118,22 +117,6 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
     return felder.some(k => (schaden[k] || 0) > 0) || (schaden._extras?.length > 0);
   }, [schaden]);
 
-  // Auto-Load: Wenn keine lokalen Daten → WDM automatisch abfragen
-  React.useEffect(() => {
-    if (autoWdmGesucht) return;
-    if (hatLokaleWerte) return;
-    if (!akteId || !akteId.includes("/")) return;
-    setAutoWdmGesucht(true);
-    setWdmLaden(true);
-    ramicroWdm.schaden(akteId)
-      .then(schdn => {
-        setWdmSchaden(schdn);
-        if ((schdn?.felder_gefunden || 0) > 0 || (schdn?.extras_gefunden || 0) > 0) {
-          
-        }
-      }).catch(() => {})
-      .finally(() => setWdmLaden(false));
-  }, [akteId, hatLokaleWerte, autoWdmGesucht]);
 
 
   const uebernehmeWdmSchaden = async () => {
