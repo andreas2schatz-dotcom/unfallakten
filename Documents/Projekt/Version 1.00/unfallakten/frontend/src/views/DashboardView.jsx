@@ -4,6 +4,7 @@ import Ic from "../config/icons.jsx";
 import { STATUS_MAP } from "../config/constants.js";
 import { StatusBadge, Card, Btn, Skeleton, ApiErrorBanner } from "../components/common.jsx";
 import { apiDashboard, ramicroListe } from "../api.js";
+import { fmtEuro } from "../config/utils.js";
 
 // ─────────────────────────────────────────────────────────────
 //  Hilfsfunktionen
@@ -14,11 +15,6 @@ function fmtDatum(iso) {
   const d = new Date(iso.slice(0, 10));
   if (isNaN(d)) return iso;
   return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
-}
-
-function fmtEuro(val) {
-  if (val == null || val === "") return "–";
-  return Number(val).toLocaleString("de-DE", { style: "currency", currency: "EUR", minimumFractionDigits: 2 });
 }
 
 // ─────────────────────────────────────────────────────────────

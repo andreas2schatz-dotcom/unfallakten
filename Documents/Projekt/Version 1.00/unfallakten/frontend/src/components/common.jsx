@@ -99,7 +99,7 @@ function FieldSelect({ label, value, onChange, options }) {
 
 
 function Toast({ msg, onDone }) {
-  useEffect(() => { const t = setTimeout(onDone, 2600); return () => clearTimeout(t); }, []);
+  useEffect(() => { const t = setTimeout(onDone, 2600); return () => clearTimeout(t); }, [onDone]);
   return (
     <div style={{ position:"fixed", bottom:24, right:24, zIndex:600, background:T.navy, color:T.white, padding:"10px 18px", borderRadius:10, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.975rem", boxShadow:"0 8px 32px rgba(0,0,0,0.25)", borderLeft:`3px solid ${T.gold}`, display:"flex", alignItems:"center", gap:8, animation:"slideUp 0.3s ease-out" }}>
       <span style={{ color:T.white }}>{Ic.check}</span>{msg}

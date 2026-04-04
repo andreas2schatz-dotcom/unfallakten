@@ -3,6 +3,7 @@ import KlageWizard from "./KlageWizard.jsx";
 import { RegulierungsTabelle, TodoSection } from './UebersichtSection.jsx';
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
+import { fmtEuro } from "../config/utils.js";
 import { Card, KlageCardHead, Btn, Toast } from "../components/common.jsx";
 import {
   akten as apiAkten,
@@ -374,7 +375,6 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   };
 
   const rvgGesamt = rvgOverride ? parseFloat(rvgOverride) : (rvgData?.gesamt || 0);
-  const fmtEur = (v) => (v||0).toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2}) + " €";
 
   const inS = { padding:"6px 10px", border:`1px solid ${T.border}`, borderRadius:7,
     fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.915rem", outline:"none",
@@ -708,7 +708,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                 {klagebetrag > 0 && (
                   <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"1.25rem",
                     fontWeight:700, color:"white", textAlign:"center" }}>
-                    {fmtEur(klagebetrag + (mitSG ? sgMind : 0))}
+                    {fmtEuro(klagebetrag + (mitSG ? sgMind : 0))}
                   </div>
                 )}
                 {gericht
@@ -757,7 +757,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
 
         {/* 3) Schadenpositionen + Regulierungsstand (zusammengeführt) */}
         <Card>
-          <KlageCardHead nr={3} title={`Schadenpositionen & Regulierung – Klagebetrag: ${fmtEur(klagebetrag)}`} />
+          <KlageCardHead nr={3} title={`Schadenpositionen & Regulierung – Klagebetrag: ${fmtEuro(klagebetrag)}`} />
           <div style={{ padding:"0.75rem 1.25rem 0" }}>
             {/* Checkbox-Liste aus positionen-State (Quelle der Wahrheit für Klagebetrag) */}
             {positionen.length === 0 && (
@@ -774,7 +774,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                 <div style={{ flex:1, fontFamily:"'IBM Plex Sans',sans-serif",
                   fontSize:"0.925rem", color:p.checked ? T.text : T.textMuted }}>{p.label}</div>
                 <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.925rem",
-                  fontWeight:600, color:T.navy, flexShrink:0 }}>{fmtEur(p.betrag)}</span>
+                  fontWeight:600, color:T.navy, flexShrink:0 }}>{fmtEuro(p.betrag)}</span>
               </div>
             ))}
           </div>
@@ -809,7 +809,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                     </span>
                     <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.86rem",
                       color:T.green }}>
-                      {fmtEur(ab.gesamt_reguliert || 0)}
+                      {fmtEuro(ab.gesamt_reguliert || 0)}
                     </span>
                   </div>
                 ))}
@@ -928,7 +928,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                       </div>
                       <div style={{ fontFamily:"'IBM Plex Mono',monospace",
                         fontSize:"1.1rem", fontWeight:700, color:T.navy }}>
-                        {fmtEur(sw.val)}
+                        {fmtEuro(sw.val)}
                       </div>
                       <div style={{ fontFamily:"'IBM Plex Sans',sans-serif",
                         fontSize:"0.74rem", color:T.textFaint, marginTop:2 }}>
@@ -956,7 +956,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                     borderTop:    i === 6 ? `1px solid ${T.border}` : "none",
                     fontWeight:   z.bold ? 700 : 400 }}>
                     <span style={{ color: z.faint ? T.textFaint : T.textMuted }}>{z.label}</span>
-                    <span style={{ color: z.bold ? T.navy : T.text }}>{fmtEur(z.val)}</span>
+                    <span style={{ color: z.bold ? T.navy : T.text }}>{fmtEuro(z.val)}</span>
                   </div>
                 ))}
               </div>
@@ -984,12 +984,12 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                 color:"rgba(255,255,255,0.7)", marginBottom:4 }}>Gegenstandswert (Sachschaden)</div>
               <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"1.5rem",
                 fontWeight:700, color:"white" }}>
-                {fmtEur(klagebetrag + (mitSG ? sgMind : 0))}
+                {fmtEuro(klagebetrag + (mitSG ? sgMind : 0))}
               </div>
               <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.815rem",
                 color:"rgba(255,255,255,0.5)", marginTop:2 }}>
-                {mitSG ? `Sachschaden ${fmtEur(klagebetrag)} + Schmerzensgeld mind. ${fmtEur(sgMind)}` : ""}
-                {" · "}RVG {fmtEur(rvgGesamt)} als Nebenforderung
+                {mitSG ? `Sachschaden ${fmtEuro(klagebetrag)} + Schmerzensgeld mind. ${fmtEuro(sgMind)}` : ""}
+                {" · "}RVG {fmtEuro(rvgGesamt)} als Nebenforderung
               </div>
               {gericht
                 ? <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.815rem",

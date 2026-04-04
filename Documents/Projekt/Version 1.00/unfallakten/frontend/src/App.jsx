@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useReducer } from "react";
+import React, { useState, useCallback, useReducer, useMemo } from "react";
 import { auth as apiAuth, ramicroListe } from "./api.js";
 import T from "./config/theme.js";
 import Ic from "./config/icons.jsx";
@@ -57,11 +57,11 @@ function AppShell({ user, onLogout }) {
     });
   }, [active]);
 
-  const tabsLive = tabs.map(t => t.akte ? {
+  const tabsLive = useMemo(() => tabs.map(t => t.akte ? {
     ...t,
     status: aktenState[t.akte.id]?.status || t.status,
     aktion_erforderlich: aktenState[t.akte.id]?.aktion_erforderlich || 0,
-  } : t);
+  } : t), [tabs, aktenState]);
   const activeTab = tabs.find(t => t.id===active);
 
   // Linke Menü-Einträge
