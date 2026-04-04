@@ -807,6 +807,7 @@ function AbrechnungFormular({ schaden, kuerzungsarten, akteId, onSave, onCancel,
   });
   const [positionen, setPositionen] = useState(() => positionenVorlage(schaden));
   const [saving, setSaving]         = useState(false);
+  const [toast, setToast]           = useState("");
   const [showPdfImport, setShowPdf] = useState(false);
 
   // prefill aus PDF-Import anwenden
@@ -844,7 +845,7 @@ function AbrechnungFormular({ schaden, kuerzungsarten, akteId, onSave, onCancel,
   };
 
   const save = async () => {
-    if (!form.datum) { alert("Datum ist erforderlich."); return; }
+    if (!form.datum) { setToast("Datum ist erforderlich."); return; }
     setSaving(true);
     const payload = {
       ...form,
@@ -866,10 +867,10 @@ function AbrechnungFormular({ schaden, kuerzungsarten, akteId, onSave, onCancel,
       if (res?.abrechnung) {
         onSave(res.abrechnung);
       } else {
-        alert("Fehler beim Speichern – bitte Seite neu laden.");
+        setToast("Fehler beim Speichern – bitte Seite neu laden.");
       }
     } catch(e) {
-      alert("Fehler: " + (e?.message || String(e)));
+      setToast("Fehler: " + (e?.message || String(e)));
     }
     setSaving(false);
   };
@@ -961,6 +962,7 @@ function AbrechnungFormular({ schaden, kuerzungsarten, akteId, onSave, onCancel,
         <Btn variant="secondary" onClick={onCancel}>Abbrechen</Btn>
       </div>
     </div>
+    {toast && <Toast msg={toast} onDone={() => setToast("")} />}
   );
 }
 
@@ -969,6 +971,7 @@ function AbrechnungFormular({ schaden, kuerzungsarten, akteId, onSave, onCancel,
 function ManuelleAbrechnungFormular({ schaden, kuerzungsarten, akteId, versicherungDefault, initialData, onSave, onCancel }) {
   const [modus, setModus]       = useState("schnell");   // "schnell" | "vollstaendig"
   const [saving, setSaving]     = useState(false);
+  const [toast, setToast]       = useState("");
   const [form, setForm]         = useState(() => initialData ? {
     datum:              initialData.datum || new Date().toISOString().slice(0, 10),
     versicherung:       initialData.versicherung || versicherungDefault || "",
@@ -1049,13 +1052,13 @@ function ManuelleAbrechnungFormular({ schaden, kuerzungsarten, akteId, versicher
   };
 
   const save = async () => {
-    if (!form.datum) { alert("Datum ist erforderlich."); return; }
+    if (!form.datum) { setToast("Datum ist erforderlich."); return; }
     const posFilt = positionen.filter(p => {
       const g = parseFloat(p.betrag_gefordert) || 0;
       const r = parseFloat(p.betrag_reguliert) || 0;
       return g > 0 || r > 0;
     });
-    if (posFilt.length === 0) { alert("Mindestens eine Position mit Betrag erforderlich."); return; }
+    if (posFilt.length === 0) { setToast("Mindestens eine Position mit Betrag erforderlich."); return; }
 
     setSaving(true);
     const haftungsart = form.haftungsart || "vollhaftung";
@@ -1091,7 +1094,7 @@ function ManuelleAbrechnungFormular({ schaden, kuerzungsarten, akteId, versicher
         onSave(res.abrechnung);
       }
     } catch(e) {
-      alert("Fehler: " + (e?.message || String(e)));
+      setToast("Fehler: " + (e?.message || String(e)));
     }
     setSaving(false);
   };
@@ -1284,6 +1287,7 @@ function ManuelleAbrechnungFormular({ schaden, kuerzungsarten, akteId, versicher
         <Btn variant="secondary" onClick={onCancel}>Abbrechen</Btn>
       </div>
     </div>
+    {toast && <Toast msg={toast} onDone={() => setToast("")} />}
   );
 }
 

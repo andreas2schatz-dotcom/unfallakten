@@ -591,7 +591,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                             await apiDokumente.loeschen(akteId, d.id);
                             dispatch({ type:"DELETE_DOKUMENT", akteId, id:d.id });
                           } catch(e) {
-                            alert("Löschen fehlgeschlagen: " + (e?.message || String(e)));
+                            setToast("Löschen fehlgeschlagen: " + (e?.message || String(e)));
                           }
                         }}>{Ic.trash}</Btn>
                 </div>

@@ -83,6 +83,7 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
 
   // IBAN-Check: nur für Mandantenkachel
   const [ibanCheck, setIbanCheck] = useState(null); // null=lädt, {iban_vorhanden, mandant_email, ...}
+  const [toast, setToast]        = useState("");
   React.useEffect(() => {
     if (titel !== "Mandant" || !akteId || !akteId.includes("/")) return;
     request(`/ramicro/akte/mandant-checks?az=${encodeURIComponent(akteId)}`)
@@ -256,7 +257,7 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
                             });
                             if (!res.ok) {
                               const err = await res.json().catch(() => ({}));
-                              alert(`Fehler: ${err.fehler || err.typ || res.status}\n${err.pfad ? "Pfad: " + err.pfad : ""}`);
+                              setToast(`Vollmacht-Fehler: ${err.fehler || err.typ || res.status}`);
                               return;
                             }
                             const blob = await res.blob();
@@ -269,7 +270,7 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
                             document.body.removeChild(a);
                             setTimeout(() => URL.revokeObjectURL(url), 5000);
                           } catch(e) {
-                            alert(`Vollmacht-Fehler: ${e.message}`);
+                            setToast(`Vollmacht-Fehler: ${e.message}`);
                           }
                         }}
                         style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.77rem",
@@ -301,6 +302,7 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
         </div>
       ))}
     </div>
+    {toast && <Toast msg={toast} onDone={() => setToast("")} />}
   );
 }
 
@@ -652,6 +654,7 @@ function ForderungshistorieKarte({ akteId }) {
 function AktenTimeline({ abrechnungen, aktivitaeten, akteId, onAktivitaetenChange }) {
   const [filter, setFilter] = useState("alle");
   const [loeschend, setLoeschend] = useState(null); // id gerade gelöscht wird
+  const [toast, setToast]         = useState("");
 
   const loescheAktivitaet = async (id) => {
     setLoeschend(id);
@@ -659,7 +662,7 @@ function AktenTimeline({ abrechnungen, aktivitaeten, akteId, onAktivitaetenChang
       await apiAkten.aktivitaetLoeschen(akteId, id);
       if (onAktivitaetenChange) onAktivitaetenChange();
     } catch (e) {
-      alert("Löschen fehlgeschlagen: " + (e?.message || e));
+      setToast("Löschen fehlgeschlagen: " + (e?.message || e));
     } finally {
       setLoeschend(null);
     }
@@ -823,6 +826,7 @@ function AktenTimeline({ abrechnungen, aktivitaeten, akteId, onAktivitaetenChang
         )}
       </div>
     </Card>
+    {toast && <Toast msg={toast} onDone={() => setToast("")} />}
   );
 }
 
