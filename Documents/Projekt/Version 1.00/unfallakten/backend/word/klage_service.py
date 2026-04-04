@@ -662,6 +662,20 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     zins_sachsch  = f"dem {verzugsdatum}" if zinsen_ab == "verzug" and verzugsdatum else "Rechtshängigkeit"
     zins_rvg      = "Rechtshängigkeit"
 
+    # ── PRD-26: Antrags-Override + Feststellungsanträge + RVG außergerichtlich ─
+    antraege_override     = (cfg.get("antraege_override") or "").strip()
+    mit_feststellung_sg   = bool(cfg.get("mit_feststellung_sg"))
+    mit_feststellung_sach = bool(cfg.get("mit_feststellung_sach"))
+    rvg_ausserg           = cfg.get("rvg_ausserg") or {}
+    rvg_ausserg_override  = cfg.get("rvg_ausserg_override")
+    # BE-3: Welcher Betrag kommt in den RVG-Antrag?
+    if rvg_ausserg_override is not None:
+        rvg_antrag_betrag = float(rvg_ausserg_override)
+    elif rvg_ausserg.get("gesamt") is not None:
+        rvg_antrag_betrag = float(rvg_ausserg["gesamt"])
+    else:
+        rvg_antrag_betrag = float(rvg["gesamt"])
+
     # ── Schmerzensgeld ───────────────────────────────────────────────────────
     mit_sg  = bool(cfg.get("mit_schmerzensgeld"))
     sg_mind = float(cfg.get("schmerzensgeld_mindest") or 0)
@@ -815,45 +829,101 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
 
     vollmacht_text = ("der Kläger" if mehrere_klaeger
                       else ("des Klägers" if kl_bez == "Klägers" else "der Klägerin"))
-    antraege_xml  = _p(f"Namens und in Vollmacht {vollmacht_text} erheben wir Klage, "
-                       "bitten um Anordnung des schriftlichen Vorverfahrens "
-                       "und werden beantragen:")
-    antraege_xml += _lz()
-    antraege_xml += antrag(
-        f"Die Beklagte wird verurteilt, an {kl_dat} {_eur_str(klagebetrag)} "
-        f"nebst Zinsen in Höhe von 5 Prozentpunkten über dem jeweiligen Basiszinssatz "
-        f"seit {zins_sachsch} zu zahlen."
+    # Dativ für Feststellungsanträge
+    if mehrere_klaeger:
+        kl_dat3 = "den Klägern"
+    elif kl_bez == "Klägerin":
+        kl_dat3 = "der Klägerin"
+    else:
+        kl_dat3 = "dem Kläger"
+
+    _versaeumnis_block = (
+        _lz()
+        + _p("Für den Fall der Anordnung des schriftlichen Vorverfahrens bitten wir, "
+             "für den Fall der Nichteinlassung der Beklagten:")
+        + _lz()
+        + _p("Versäumnisurteil", fett=True, center=True)
+        + _lz()
+        + _p("ohne mündliche Verhandlung zu erlassen.")
     )
-    antraege_xml += _lz()
-    if mit_sg:
-        if sg_mind > 0:
-            antraege_xml += antrag(
-                f"Die Beklagte wird verurteilt, an {kl_dat} ein angemessenes, "
-                f"vom Gericht festzulegendes Schmerzensgeld zu zahlen, "
-                f"wobei die Höhe nicht weniger als {_eur_str(sg_mind)} betragen sollte, "
-                f"nebst Zinsen von 5 Prozentpunkten über dem Basiszinssatz seit Rechtshängigkeit."
-            )
-        else:
-            antraege_xml += antrag(
-                f"Die Beklagte wird verurteilt, an {kl_dat} ein angemessenes, "
-                f"vom Gericht nach billigem Ermessen festzulegendes Schmerzensgeld zu zahlen, "
-                f"nebst Zinsen von 5 Prozentpunkten über dem Basiszinssatz seit Rechtshängigkeit."
-            )
+
+    if antraege_override:
+        # BE-1: Wizard-Override direkt rendern
+        antraege_xml  = _p(f"Namens und in Vollmacht {vollmacht_text} erheben wir Klage, "
+                           "bitten um Anordnung des schriftlichen Vorverfahrens "
+                           "und werden beantragen:")
         antraege_xml += _lz()
-    antraege_xml += antrag(
-        f"Die Beklagte wird verurteilt, an {kl_dat} weitere {_eur_str(rvg['gesamt'])} "
-        f"nebst Zinsen von 5 Prozentpunkten über dem Basiszinssatz "
-        f"seit {zins_rvg} zu zahlen."
-    )
-    antraege_xml += _lz()
-    antraege_xml += antrag("Die Beklagte trägt die Kosten des Rechtsstreits.", fett=False)
-    antraege_xml += _lz()
-    antraege_xml += _p("Für den Fall der Anordnung des schriftlichen Vorverfahrens bitten wir, "
-                       "für den Fall der Nichteinlassung der Beklagten:")
-    antraege_xml += _lz()
-    antraege_xml += _p("Versäumnisurteil", fett=True, center=True)
-    antraege_xml += _lz()
-    antraege_xml += _p("ohne mündliche Verhandlung zu erlassen.")
+        for _line in antraege_override.split("\n"):
+            _line = _line.strip()
+            if not _line:
+                antraege_xml += _lz()
+            elif re.match(r'^\d+\.[\t ]', _line):
+                # Nummerierter Antrag → hängender Einzug + fett
+                antraege_xml += (
+                    f'<w:p><w:pPr><w:jc w:val="both"/>'
+                    f'<w:ind w:left="720" w:hanging="360"/></w:pPr>'
+                    f'<w:r><w:rPr>'
+                    f'<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
+                    f'<w:b/><w:bCs/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>'
+                    f'<w:t xml:space="preserve">{_esc(_line)}</w:t></w:r></w:p>'
+                )
+            else:
+                antraege_xml += _p(_line)
+        antraege_xml += _versaeumnis_block
+    else:
+        # Fallback: Auto-Generierung (rückwärtskompatibel)
+        antraege_xml  = _p(f"Namens und in Vollmacht {vollmacht_text} erheben wir Klage, "
+                           "bitten um Anordnung des schriftlichen Vorverfahrens "
+                           "und werden beantragen:")
+        antraege_xml += _lz()
+        antraege_xml += antrag(
+            f"Die Beklagte wird verurteilt, an {kl_dat} {_eur_str(klagebetrag)} "
+            f"nebst Zinsen in Höhe von 5 Prozentpunkten über dem jeweiligen Basiszinssatz "
+            f"seit {zins_sachsch} zu zahlen."
+        )
+        antraege_xml += _lz()
+        if mit_sg:
+            if sg_mind > 0:
+                antraege_xml += antrag(
+                    f"Die Beklagte wird verurteilt, an {kl_dat} ein angemessenes, "
+                    f"vom Gericht festzulegendes Schmerzensgeld zu zahlen, "
+                    f"wobei die Höhe nicht weniger als {_eur_str(sg_mind)} betragen sollte, "
+                    f"nebst Zinsen von 5 Prozentpunkten über dem Basiszinssatz seit Rechtshängigkeit."
+                )
+            else:
+                antraege_xml += antrag(
+                    f"Die Beklagte wird verurteilt, an {kl_dat} ein angemessenes, "
+                    f"vom Gericht nach billigem Ermessen festzulegendes Schmerzensgeld zu zahlen, "
+                    f"nebst Zinsen von 5 Prozentpunkten über dem Basiszinssatz seit Rechtshängigkeit."
+                )
+            antraege_xml += _lz()
+        # BE-2: Feststellungsanträge (Personenschaden)
+        if mit_feststellung_sg:
+            antraege_xml += antrag(
+                f"Es wird festgestellt, dass die Beklagte verpflichtet ist, {kl_dat3} "
+                f"sämtliche künftigen materiellen und immateriellen Schäden zu ersetzen, "
+                f"die aus dem Unfallereignis vom {unfalltag} noch entstehen werden, "
+                f"soweit Ansprüche nicht auf Sozialversicherungsträger oder sonstige Dritte "
+                f"übergegangen sind oder noch übergehen werden."
+            )
+            antraege_xml += _lz()
+        # BE-2: Feststellungsantrag (Sachschaden)
+        if mit_feststellung_sach:
+            antraege_xml += antrag(
+                f"Es wird festgestellt, dass die Beklagte verpflichtet ist, {kl_dat3} "
+                f"sämtliche weiteren materiellen Schäden zu ersetzen, die aus dem "
+                f"Unfallereignis vom {unfalltag} noch entstehen werden."
+            )
+            antraege_xml += _lz()
+        # BE-3: RVG-Antrag auf außergerichtlichem Streitwert (wenn rvg_ausserg vorhanden)
+        antraege_xml += antrag(
+            f"Die Beklagte wird verurteilt, an {kl_dat} weitere {_eur_str(rvg_antrag_betrag)} "
+            f"nebst Zinsen von 5 Prozentpunkten über dem Basiszinssatz "
+            f"seit {zins_rvg} zu zahlen."
+        )
+        antraege_xml += _lz()
+        antraege_xml += antrag("Die Beklagte trägt die Kosten des Rechtsstreits.", fett=False)
+        antraege_xml += _versaeumnis_block
 
     # ── {{EINLEITUNG}} ────────────────────────────────────────────────────
     einleitung_xml  = _lz() + _p("1.) Sachverhalt", fett=True)
@@ -962,7 +1032,10 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         for _line in rw_text_override.split("\n"):
             _line = _line.strip()
             if _line:
-                rw_xml += _p(_line)
+                if _line.startswith("**") and _line.endswith("**"):
+                    rw_xml += _p(_line[2:-2], fett=True)
+                else:
+                    rw_xml += _p(_line)
     else:
         haftungsbegruendung = details.get("haftungsbegruendung") or ""
         gesamt_reguliert    = sum(float(a.get("gesamt_reguliert") or 0) for a in abrechnungen)

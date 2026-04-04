@@ -173,6 +173,17 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [wizardUnfallText, setWizardUnfallText] = useState("");
   const [wizardRwText, setWizardRwText]         = useState("");
   const [wizardVerzugText, setWizardVerzugText] = useState("");
+  // PRD-26: neue Wizard-States
+  const [wizardHq, setWizardHq]                     = useState(100);
+  const [wizardHb, setWizardHb]                     = useState("");
+  const [wizardMaxStep, setWizardMaxStep]           = useState(1);
+  const [wizardGerichtBest, setWizardGerichtBest]   = useState(false);
+  const [wizardMitFestSg, setWizardMitFestSg]       = useState(false);
+  const [wizardMitFestSach, setWizardMitFestSach]   = useState(false);
+  const [wizardAntraegeText, setWizardAntraegeText] = useState("");
+  const [wizardRvgAussergData, setWizardRvgAussergData] = useState(null);
+  const [wizardRvgAussergOv, setWizardRvgAussergOv]     = useState("");
+  const [wizardGebuehrenText, setWizardGebuehrenText]   = useState("");
 
   useEffect(() => {
     (async () => {
@@ -218,6 +229,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
 
   // RVG neu berechnen wenn Positionen sich ändern
   const klagebetrag = positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag||0), 0);
+  const swAusserg   = positionen.reduce((s, p) => s + (p.betrag || 0), 0); // außergerichtl. Streitwert
   useEffect(() => {
     if (!daten) return;
     (async () => {
@@ -227,6 +239,17 @@ function KlageSection({ akteId, akte, st, dispatch }) {
       } catch {}
     })();
   }, [klagebetrag]);
+
+  // Step 9: RVG auf außergerichtl. Streitwert berechnen wenn Step 9 erreicht
+  useEffect(() => {
+    if (!wizardOffen || wizardStep !== 9 || wizardRvgAussergData) return;
+    (async () => {
+      try {
+        const res = await apiKlage.rvgBerechnen(akteId, { streitwert: swAusserg });
+        setWizardRvgAussergData(res.rvg);
+      } catch {}
+    })();
+  }, [wizardStep, wizardOffen]); // eslint-disable-line
 
   const togglePos = (key) =>
     setPos(p => p.map(x => x.key === key ? {...x, checked: !x.checked} : x));
@@ -314,6 +337,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     const hq      = parseFloat(daten?.unfalldetails?.haftungsquote || 100);
     const gesReg  = (daten?.abrechnungen || []).reduce((s, a) => s + (parseFloat(a.gesamt_reguliert) || 0), 0);
     const hb      = daten?.unfalldetails?.haftungsbegruendung || "";
+    setWizardHq(hq);
+    setWizardHb(hb);
     const kl_dat  = weiblich ? "der Klägerin" : "des Klägers";
     const rw_lines = [
       `Der bei der Beklagten versicherte Unfallgegner verursachte den Unfall durch ` +
@@ -335,6 +360,16 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     const vdat = zinsenAb === "verzug" && verzug ? `spätestens am ${verzug}` : "mit Rechtshängigkeit";
     setWizardVerzugText(`Verzug ist ${vdat} eingetreten.`);
 
+    // PRD-26: neue States initialisieren
+    setWizardMaxStep(1);
+    setWizardGerichtBest(gericht?.quelle === "akte"); // nur vorbestätigt wenn aus Akte gespeichert
+    setWizardMitFestSg(mitSG);
+    setWizardMitFestSach(false);
+    setWizardAntraegeText("");
+    setWizardRvgAussergData(null);
+    setWizardRvgAussergOv("");
+    setWizardGebuehrenText("");
+
     setWizardStep(1);
     setWizardOffen(true);
   };
@@ -349,8 +384,13 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         aktivlegitimation_datum:           aktLegDatum || null,
         aktivlegitimation_text_override:   wizardAktLegText || null,
         schilderung:                       wizardUnfallText || null,
-        rw_text_override:                  wizardRwText    || null,
+        rw_text_override:                  wizardRwText     || null,
         verzug_text_override:              wizardVerzugText || null,
+        mit_feststellung_sg:               wizardMitFestSg,
+        mit_feststellung_sach:             wizardMitFestSach,
+        antraege_override:                 wizardAntraegeText || null,
+        rvg_ausserg:                       wizardRvgAussergData,
+        rvg_ausserg_override:              wizardRvgAussergOv ? parseFloat(wizardRvgAussergOv) : null,
       };
       await apiKlage.generieren(akteId, {
         gericht,
@@ -391,7 +431,15 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         <KlageWizard
           step={wizardStep}          onStepChange={setWizardStep}
           onClose={() => setWizardOffen(false)}
-          // Step 2: Aktivlegitimation
+          wizardMaxStep={wizardMaxStep} onMaxStep={setWizardMaxStep}
+          // Step 1: Gericht
+          gericht={gericht}             setGericht={setGericht}
+          gerichtSuche={gerichtSuche}   setGSuche={setGSuche}
+          gerichtTreffer={gerichtTreffer} setGTreffer={setGTreffer}
+          gerichtLaedt={gerichtLaedt}
+          sucheGerichte={sucheGerichte}
+          gerichtBestaetigt={wizardGerichtBest} setGerichtBestaetigt={setWizardGerichtBest}
+          // Step 3: Aktivlegitimation
           aktLegTyp={aktLegTyp}         onAktLegTyp={setAktLegTyp}
           aktLegFreigabe={aktLegFreigabe} onAktLegFreigabe={setAktLegFreigabe}
           aktLegDatum={aktLegDatum}     onAktLegDatum={setAktLegDatum}
@@ -399,25 +447,34 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           mandantKz={daten?.unfalldetails?._wdm_mandant_kz || ""}
           aktLegTextOverride={wizardAktLegText}
           onAktLegTextOverride={setWizardAktLegText}
-          // Step 3: Unfallhergang
+          // Step 4: Unfallhergang
           schilderungOriginal={daten?.unfalldetails?.schilderung || ""}
           wizardUnfallText={wizardUnfallText}
           onWizardUnfallText={setWizardUnfallText}
-          // Step 4: Schadenpositionen
+          // Step 5: Schadenpositionen
           abrechnungen={daten?.abrechnungen || []}
           positionen={wizardPos}        onTogglePos={key =>
             setWizardPos(p => p.map(x => x.key === key ? {...x, checked: !x.checked} : x))}
           mitSG={wizardMitSG}           onMitSG={setWizardMitSG}
           sgMind={wizardSGMind}         onSGMind={setWizardSGMind}
-          // Step 5: Rechtliche Würdigung
-          haftungsbegruendungInit={daten?.unfalldetails?.haftungsbegruendung || ""}
-          haftungsquoteInit={daten?.unfalldetails?.haftungsquote || 100}
+          // Step 6: Klageanträge
+          unfalldatum={daten?.unfalldetails?.unfalldatum || ""}
+          wizardMitFestSg={wizardMitFestSg}     onMitFestSg={setWizardMitFestSg}
+          wizardMitFestSach={wizardMitFestSach}  onMitFestSach={setWizardMitFestSach}
+          wizardAntraegeText={wizardAntraegeText} onAntraegeText={setWizardAntraegeText}
+          // Step 7: Rechtliche Würdigung
+          wizardHq={wizardHq}           onWizardHq={setWizardHq}
+          wizardHb={wizardHb}           onWizardHb={setWizardHb}
           wizardRwText={wizardRwText}   onWizardRwText={setWizardRwText}
           kuerzungsarten={daten?.kuerzungsarten || []}
-          // Step 6: Verzug & Kosten
+          // Step 8: Verzug
           wizardVerzugText={wizardVerzugText} onWizardVerzugText={setWizardVerzugText}
-          // Shared / Step 7
-          gericht={gericht}
+          // Step 9: Außergerichtl. Gebühren
+          swAusserg={swAusserg}
+          wizardRvgAussergData={wizardRvgAussergData} onRvgAussergData={setWizardRvgAussergData}
+          wizardRvgAussergOv={wizardRvgAussergOv}     onRvgAussergOv={setWizardRvgAussergOv}
+          wizardGebuehrenText={wizardGebuehrenText}   onGebuehrenText={setWizardGebuehrenText}
+          // Shared
           beklagte={beklagte}
           rvgData={rvgData}
           rvgOverride={rvgOverride}
@@ -538,6 +595,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         </Card>
 
         {/* 2) Parteien – Rubrum */}
+        <div id="karte-parteien" />
         <Card>
           <KlageCardHead nr={2} title="Parteien (Rubrum)" />
           <div style={{ padding:"1.25rem 1.75rem", fontFamily:"'IBM Plex Sans',sans-serif" }}>
@@ -730,6 +788,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                   🧙 Klage-Wizard
                 </Btn>
                 <Btn onClick={generieren}
+                  title="Veraltet – bitte Wizard verwenden"
                   disabled={generiert_laedt || !gericht ||
                     positionen.filter(p => p.checked).length === 0 ||
                     (() => {
@@ -738,16 +797,16 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                         (b.versicherung || b.firma) && !b.vertreter_name);
                       return ohne.length > 0;
                     })()}
-                  style={{ background:T.gold, color:"white", padding:"13px 8px",
+                  style={{ background:"#9ca3af", color:"white", padding:"13px 8px",
                     fontSize:"0.9rem", fontWeight:700, borderRadius:9, width:"100%",
-                    textAlign:"center" }}>
+                    textAlign:"center", opacity:0.85 }}>
                   {generiert_laedt
                     ? <><div style={{ width:12, height:12,
                         border:"2px solid rgba(255,255,255,0.3)",
                         borderTopColor:"white", borderRadius:"50%",
                         animation:"spin 0.7s linear infinite",
                         display:"inline-block", marginRight:6 }}/>Wird erstellt …</>
-                    : "⚖ Klageschrift"}
+                    : "⚖ Klageschrift (veraltet)"}
                 </Btn>
               </div>
             </Card>
@@ -1010,7 +1069,9 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                 marginRight:10 }}>
               🧙 Wizard
             </Btn>
-            <Btn onClick={generieren} disabled={generiert_laedt || !gericht || positionen.filter(p=>p.checked).length === 0 || (() => {
+            <Btn onClick={generieren}
+              title="Veraltet – bitte Wizard verwenden"
+              disabled={generiert_laedt || !gericht || positionen.filter(p=>p.checked).length === 0 || (() => {
                 // Pflicht: Firmen brauchen Vertreter
                 const firmenOhneVertreter = beklagte.filter(b =>
                   b.checked &&
@@ -1020,14 +1081,14 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                 );
                 return firmenOhneVertreter.length > 0;
               })()}
-              style={{ background:T.gold, color:"white", padding:"12px 28px",
-                fontSize:"1rem", fontWeight:700, borderRadius:9 }}>
+              style={{ background:"#9ca3af", color:"white", padding:"12px 28px",
+                fontSize:"1rem", fontWeight:700, borderRadius:9, opacity:0.85 }}>
               {generiert_laedt
                 ? <><div style={{ width:14, height:14, border:"2px solid rgba(255,255,255,0.3)",
                     borderTopColor:"white", borderRadius:"50%",
                     animation:"spin 0.7s linear infinite", display:"inline-block",
                     marginRight:8 }}/>Wird erstellt …</>
-                : "⚖ Klageschrift generieren"}
+                : "⚖ Klageschrift generieren (veraltet)"}
             </Btn>
           </div>
         </Card>

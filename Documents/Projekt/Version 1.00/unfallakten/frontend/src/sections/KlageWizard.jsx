@@ -18,13 +18,16 @@ import T from "../config/theme.js";
 // ── Konstanten ─────────────────────────────────────────────────────────────────
 
 const STEPS = [
-  { nr: 1, label: "Rubrum" },
-  { nr: 2, label: "Aktivleg." },
-  { nr: 3, label: "Unfall" },
-  { nr: 4, label: "Schaden" },
-  { nr: 5, label: "Würdigung" },
-  { nr: 6, label: "Verzug" },
-  { nr: 7, label: "Generieren" },
+  { nr: 1,  label: "Gericht"   },
+  { nr: 2,  label: "Rubrum"    },
+  { nr: 3,  label: "Aktiv."    },
+  { nr: 4,  label: "Unfall"    },
+  { nr: 5,  label: "Schaden"   },
+  { nr: 6,  label: "Anträge"   },
+  { nr: 7,  label: "Würdigung" },
+  { nr: 8,  label: "Verzug"    },
+  { nr: 9,  label: "Gebühren"  },
+  { nr: 10, label: "Generieren"},
 ];
 
 const PLEX = "'IBM Plex Sans', sans-serif";
@@ -113,26 +116,30 @@ function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguliert, we
 
 // ── Teilkomponenten ────────────────────────────────────────────────────────────
 
-function Fortschrittsbalken({ step }) {
+function Fortschrittsbalken({ step, maxStep, onStepChange }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: "1.5rem" }}>
       {STEPS.map((s, i) => {
-        const aktiv    = s.nr === step;
-        const erledigt = s.nr < step;
+        const aktiv     = s.nr === step;
+        const erledigt  = s.nr < step;
+        const klickbar  = s.nr <= maxStep && s.nr !== step;
         return (
           <React.Fragment key={s.nr}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
-              <div style={{
-                width: 26, height: 26, borderRadius: "50%",
-                background: erledigt ? T.navy : aktiv ? T.gold : T.surface,
-                border: `2px solid ${erledigt ? T.navy : aktiv ? T.gold : T.border}`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontFamily: MONO, fontSize: "0.72rem", fontWeight: 700,
-                color: (erledigt || aktiv) ? "#fff" : T.textMuted,
-                transition: "all 0.25s",
-                boxShadow: aktiv ? `0 0 0 3px ${T.gold}28` : "none",
-                flexShrink: 0,
-              }}>
+              <div
+                onClick={klickbar ? () => onStepChange(s.nr) : undefined}
+                style={{
+                  width: 26, height: 26, borderRadius: "50%",
+                  background: erledigt ? T.navy : aktiv ? T.gold : T.surface,
+                  border: `2px solid ${erledigt ? T.navy : aktiv ? T.gold : T.border}`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontFamily: MONO, fontSize: "0.72rem", fontWeight: 700,
+                  color: (erledigt || aktiv) ? "#fff" : T.textMuted,
+                  transition: "all 0.25s",
+                  boxShadow: aktiv ? `0 0 0 3px ${T.gold}28` : "none",
+                  flexShrink: 0,
+                  cursor: klickbar ? "pointer" : "default",
+                }}>
                 {erledigt ? "✓" : s.nr}
               </div>
               <div style={{
@@ -263,7 +270,7 @@ function AbschnittLabel({ text }) {
 
 // ── Step 1: Rubrum ─────────────────────────────────────────────────────────────
 
-function StepRubrum({ beklagte }) {
+function StepRubrum({ beklagte, onClose }) {
   const klaeger   = (beklagte || []).filter(b => b.rolle_klage === "klaeger");
   const beklagteG = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked);
   const mehrereK  = klaeger.length > 1;
@@ -275,8 +282,22 @@ function StepRubrum({ beklagte }) {
         background: T.surface, border: `1px solid ${T.borderSoft}`,
         borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "1.25rem",
         fontFamily: PLEX, fontSize: "0.8rem", color: T.textMuted,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
-        ℹ Parteien-Überblick. Änderungen: zurück zur Kachel „2. Parteien" im Klage-Tab.
+        <span>ℹ Parteien-Überblick</span>
+        <button
+          onClick={() => {
+            if (onClose) onClose();
+            setTimeout(() => document.getElementById("karte-parteien")?.scrollIntoView({ behavior: "smooth" }), 150);
+          }}
+          style={{
+            background: T.navy, color: "white", border: "none",
+            borderRadius: 6, padding: "5px 14px", fontFamily: PLEX,
+            fontSize: "0.8rem", cursor: "pointer", fontWeight: 600,
+          }}
+        >
+          Parteien bearbeiten →
+        </button>
       </div>
 
       <div style={{
@@ -366,8 +387,15 @@ function StepAktLeg({ aktLegTyp, onAktLegTyp, aktLegFreigabe, onAktLegFreigabe,
     aktLegTyp, aktLegFreigabe, aktLegDatum, mandantKz, mandantIstFahrer, klaeger
   );
 
+  const prevAutoRef = useRef(null);
+
   useEffect(() => {
-    if (onAktLegTextOverride) onAktLegTextOverride(vorschauText || "");
+    const newAuto = vorschauText || "";
+    // nur überschreiben wenn Text noch nicht manuell bearbeitet wurde
+    if (prevAutoRef.current === null || aktLegTextOverride === prevAutoRef.current) {
+      if (onAktLegTextOverride) onAktLegTextOverride(newAuto);
+    }
+    prevAutoRef.current = newAuto;
   }, [aktLegTyp, aktLegFreigabe, aktLegDatum, mandantIstFahrer]); // eslint-disable-line
 
   return (
@@ -616,7 +644,17 @@ const KATEGORIE_LABELS = {
 // Erweiterungspunkt: weitere Einwands-Kategorien hier ergänzen, sobald sie im
 // Backend als eigene Kategorie in kuerzungsarten oder einer neuen Tabelle gepflegt werden.
 
-function EinwandePanel({ abrechnungen, kuerzungsarten, onUebernehmen, onClose }) {
+const EINLEITUNGS_VARIANTEN = [
+  (z, eur) => `Die Beklagte${z} hat hier einen Abzug in Höhe von ${eur} vorgenommen.`,
+  (z, eur) => `Die Beklagte${z} zog von dieser Position ${eur} ab.`,
+  (z, eur) => `Auch hier behielt die Beklagte${z} ${eur} zu Unrecht ein.`,
+  (z, eur) => `Weiterhin kürzte die Beklagte${z} diese Position um ${eur}.`,
+  (_z, eur) => `Zusätzlich wurden hier ${eur} zu wenig gezahlt.`,
+];
+const EINLEITUNG_LETZT = (z, eur) =>
+  `Schließlich kürzt die Beklagte${z} auch hier noch einen Betrag in Höhe von ${eur}.`;
+
+function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, onClose }) {
   // IDs der tatsächlich gekürzten Positionen (aus Regulierungsschreiben)
   const aktiveIds = new Set(
     (abrechnungen || []).flatMap(ab =>
@@ -651,12 +689,48 @@ function EinwandePanel({ abrechnungen, kuerzungsarten, onUebernehmen, onClose })
   function uebernehmen() {
     const selected = (kuerzungsarten || []).filter(ka => checked.has(ka.id));
     if (selected.length === 0) { onUebernehmen(""); return; }
+
+    // "(zu 1)" nur wenn mehrere Beklagte in der Klageschrift
+    const beklagteGef = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked);
+    const zuSuffix = beklagteGef.length > 1 ? " (zu 1)" : "";
+
+    // Kürzungsbetrag je kuerzungsart_id aus Abrechnungspositionen
+    const kuerzungMap = {};
+    (abrechnungen || []).forEach(ab =>
+      (ab.positionen || []).forEach(p => {
+        if (p.kuerzungsart_id != null) {
+          const abzug = (parseFloat(p.betrag_gefordert) || 0) - (parseFloat(p.betrag_reguliert) || 0);
+          kuerzungMap[p.kuerzungsart_id] = (kuerzungMap[p.kuerzungsart_id] || 0) + abzug;
+        }
+      })
+    );
+
+    const alphabet = "abcdefghijklmnopqrstuvwxyz";
+    const bloecke = selected.map((ka, i) => {
+      const letter   = alphabet[i] || String(i + 1);
+      const abzug    = kuerzungMap[ka.id] || 0;
+      const eur      = fmtEur(abzug);
+      const istLetzt = selected.length > 1 && i === selected.length - 1;
+      const betragsatz = abzug > 0
+        ? (istLetzt ? EINLEITUNG_LETZT(zuSuffix, eur) : EINLEITUNGS_VARIANTEN[i % 5](zuSuffix, eur))
+        : "";
+      return [
+        `**${letter}) ${ka.bezeichnung}**`,
+        betragsatz,
+        (ka.standard_gegenargument || "").trim(),
+      ].filter(Boolean).join("\n");
+    });
+
+    const gesamtKuerzung = selected.reduce((s, ka) => s + (kuerzungMap[ka.id] || 0), 0);
+    const schlusssatz = gesamtKuerzung > 0
+      ? `Insgesamt hat die Beklagte${zuSuffix} daher einen Betrag in Höhe von ${fmtEur(gesamtKuerzung)} zu Unrecht einbehalten.`
+      : "";
+
     const lines = [
       "Die Beklagte hat folgende Positionen zu Unrecht nicht oder nicht vollständig reguliert:",
       "",
-      ...selected.map(ka =>
-        `${ka.bezeichnung}: ${(ka.standard_gegenargument || "").trim()}`
-      ),
+      ...bloecke,
+      ...(schlusssatz ? ["", schlusssatz] : []),
     ];
     onUebernehmen(lines.join("\n\n"));
   }
@@ -784,11 +858,9 @@ function EinwandePanel({ abrechnungen, kuerzungsarten, onUebernehmen, onClose })
 
 // ── Step 5: Rechtliche Würdigung ───────────────────────────────────────────────
 
-function StepRw({ haftungsbegruendungInit, haftungsquoteInit, abrechnungen, weiblich,
-                  rwText, onRwText, kuerzungsarten }) {
+function StepRw({ hq, onHq, hb, onHb, abrechnungen, weiblich,
+                  rwText, onRwText, kuerzungsarten, beklagte }) {
   const gesamtReg = (abrechnungen || []).reduce((s, ab) => s + (parseFloat(ab.gesamt_reguliert) || 0), 0);
-  const [hq, setHq] = useState(parseFloat(haftungsquoteInit) || 100);
-  const [hb, setHb] = useState(haftungsbegruendungInit || "");
   const [einwandeOffen, setEinwandeOffen] = useState(false);
 
   function neuGenerieren() {
@@ -808,6 +880,7 @@ function StepRw({ haftungsbegruendungInit, haftungsquoteInit, abrechnungen, weib
       <EinwandePanel
         abrechnungen={abrechnungen}
         kuerzungsarten={kuerzungsarten || []}
+        beklagte={beklagte}
         onUebernehmen={einwandeUebernehmen}
         onClose={() => setEinwandeOffen(false)}
       />
@@ -822,7 +895,7 @@ function StepRw({ haftungsbegruendungInit, haftungsquoteInit, abrechnungen, weib
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <input type="number" value={hq}
-              onChange={e => setHq(parseFloat(e.target.value) || 0)}
+              onChange={e => onHq(parseFloat(e.target.value) || 0)}
               min="0" max="100" step="5"
               style={{
                 width: 72, padding: "6px 8px",
@@ -843,7 +916,7 @@ function StepRw({ haftungsbegruendungInit, haftungsquoteInit, abrechnungen, weib
           <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.textMuted, marginBottom: 4 }}>
             Haftungsbegründung
           </div>
-          <textarea value={hb} onChange={e => setHb(e.target.value)}
+          <textarea value={hb} onChange={e => onHb(e.target.value)}
             placeholder="z.B. Rotlichtverstoß, Überschreitung der Vorfahrt, …"
             rows={4}
             style={{
@@ -1076,27 +1149,417 @@ function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMind,
   );
 }
 
+// ── Step 1: Gericht ────────────────────────────────────────────────────────────
+
+function StepGericht({ gericht, setGericht, gerichtSuche, setGSuche,
+                       gerichtTreffer, setGTreffer, gerichtLaedt,
+                       sucheGerichte, bestaetigt, setBestaetigt }) {
+  return (
+    <div style={{ maxWidth: 520 }}>
+      <AbschnittLabel text="Zuständiges Gericht" />
+
+      {gericht ? (
+        <div style={{
+          background: bestaetigt ? `${T.green}10` : `${T.amber}10`,
+          border: `1.5px solid ${bestaetigt ? T.green : T.amber}`,
+          borderRadius: 10, padding: "0.9rem 1.1rem", marginBottom: "1rem",
+        }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+            <div>
+              <div style={{ fontFamily: PLEX, fontSize: "1rem", fontWeight: 700, color: T.navy }}>
+                {gericht.name}
+              </div>
+              <div style={{ fontFamily: MONO, fontSize: "0.835rem", color: T.textMuted, marginTop: 2 }}>
+                {[gericht.strasse, gericht.plz, gericht.ort].filter(Boolean).join(", ")}
+              </div>
+              {gericht.quelle && (
+                <div style={{ fontFamily: PLEX, fontSize: "0.78rem", marginTop: 4,
+                  color: bestaetigt ? T.green : T.amber }}>
+                  {bestaetigt
+                    ? "✓ Bestätigt"
+                    : gericht.quelle === "akte"
+                      ? "✓ In Akte gespeichert – bitte bestätigen"
+                      : "⚡ Vorschlag nach Unfallort – bitte prüfen und bestätigen"}
+                </div>
+              )}
+            </div>
+            <button onClick={() => { setGericht(null); setGTreffer([]); setGSuche(""); setBestaetigt(false); }}
+              style={{ background: "none", border: `1px solid ${T.border}`, borderRadius: 6,
+                padding: "3px 10px", cursor: "pointer", color: T.textMuted,
+                fontFamily: PLEX, fontSize: "0.825rem", flexShrink: 0 }}>
+              ✕ Ändern
+            </button>
+          </div>
+          {!bestaetigt && (
+            <button onClick={() => setBestaetigt(true)}
+              style={{
+                marginTop: "0.75rem", width: "100%",
+                padding: "9px 0", borderRadius: 7, cursor: "pointer",
+                border: "none", background: T.navy,
+                fontFamily: PLEX, fontSize: "0.9rem", fontWeight: 700, color: "#fff",
+              }}>
+              ✓ Gericht bestätigen → weiter
+            </button>
+          )}
+        </div>
+      ) : (
+        <div style={{ color: T.amber, fontFamily: PLEX, fontSize: "0.875rem", marginBottom: "0.75rem" }}>
+          ⚠ Kein Gericht ausgewählt – bitte suchen.
+        </div>
+      )}
+
+      {!gericht && (
+        <div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center",
+            background: T.white, border: `1px solid ${T.border}`, borderRadius: 8,
+            padding: "6px 12px", marginBottom: "0.5rem" }}>
+            <span style={{ color: T.textFaint }}>🔍</span>
+            <input value={gerichtSuche} onChange={e => sucheGerichte(e.target.value)}
+              placeholder="Gericht suchen (z.B. Frankfurt, Offenbach) …"
+              autoFocus
+              style={{ flex: 1, border: "none", outline: "none", background: "transparent",
+                fontFamily: PLEX, fontSize: "0.935rem" }} />
+            {gerichtLaedt && (
+              <div style={{ width: 14, height: 14, border: `2px solid ${T.border}`,
+                borderTopColor: T.navy, borderRadius: "50%",
+                animation: "spin 0.7s linear infinite" }} />
+            )}
+          </div>
+          {gerichtTreffer.length > 0 && (
+            <div style={{ border: `1px solid ${T.border}`, borderRadius: 8,
+              overflow: "hidden", maxHeight: 260, overflowY: "auto" }}>
+              {gerichtTreffer.map((g, i) => (
+                <div key={g.adressnr}
+                  onClick={() => { setGericht(g); setGTreffer([]); setGSuche(""); setBestaetigt(false); }}
+                  style={{ padding: "9px 14px", cursor: "pointer",
+                    borderBottom: i < gerichtTreffer.length - 1 ? `1px solid ${T.borderSoft}` : "none",
+                    background: T.white, transition: "background 0.1s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = T.surface}
+                  onMouseLeave={e => e.currentTarget.style.background = T.white}>
+                  <div style={{ fontFamily: PLEX, fontSize: "0.925rem", fontWeight: 600, color: T.navy }}>
+                    {g.name}
+                  </div>
+                  <div style={{ fontFamily: MONO, fontSize: "0.825rem", color: T.textMuted }}>
+                    {[g.strasse, g.plz, g.ort].filter(Boolean).join(", ")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {gerichtSuche.length >= 2 && !gerichtLaedt && gerichtTreffer.length === 0 && (
+            <div style={{ fontFamily: PLEX, fontSize: "0.875rem", color: T.textFaint, padding: "6px 0" }}>
+              Keine Gerichte gefunden.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Step 6: Klageanträge ───────────────────────────────────────────────────────
+
+const ALPHABET = "abcdefghijklmnopqrstuvwxyz";
+
+function baueAntraegeText(opts) {
+  const { positionen, mitSG, sgMind, beklagte, weiblich, zinsenAb, verzug,
+          unfalldatum, mitFestSg, mitFestSach } = opts;
+
+  const klagebetrag = positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag || 0), 0);
+  const beklagteGef = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked);
+  const nrSuffix    = beklagteGef.length > 1 ? " (zu 1)" : "";
+  const kl_dat      = weiblich ? "der Klägerin" : "des Klägers";
+  const zinsDat     = zinsenAb === "verzug" && verzug ? `seit ${verzug}` : "seit Rechtshängigkeit";
+  const udStr       = unfalldatum || "TT.MM.JJJJ";
+  const fNr         = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+
+  const antraege = [];
+
+  // 1. Hauptantrag
+  antraege.push(
+    `Die Beklagte${nrSuffix} wird verurteilt, an ${kl_dat} ${fNr(klagebetrag)} ` +
+    `nebst Zinsen in Höhe von 5 Prozentpunkten über dem jeweiligen Basiszinssatz ` +
+    `${zinsDat} zu zahlen.`
+  );
+
+  // 2. Schmerzensgeld
+  if (mitSG) {
+    if (sgMind > 0) {
+      antraege.push(
+        `Die Beklagte${nrSuffix} wird verurteilt, an ${kl_dat} ein angemessenes, ` +
+        `vom Gericht festzulegendes Schmerzensgeld zu zahlen, wobei die Höhe nicht ` +
+        `weniger als ${fNr(sgMind)} betragen sollte, nebst Zinsen von 5 Prozentpunkten ` +
+        `über dem Basiszinssatz seit Rechtshängigkeit.`
+      );
+    } else {
+      antraege.push(
+        `Die Beklagte${nrSuffix} wird verurteilt, an ${kl_dat} ein angemessenes, ` +
+        `vom Gericht nach billigem Ermessen festzulegendes Schmerzensgeld zu zahlen, ` +
+        `nebst Zinsen von 5 Prozentpunkten über dem Basiszinssatz seit Rechtshängigkeit.`
+      );
+    }
+  }
+
+  // 3. Feststellungsantrag Personenschaden
+  if (mitSG && mitFestSg) {
+    antraege.push(
+      `Es wird festgestellt, dass die Beklagte${nrSuffix} verpflichtet ist, ` +
+      `${kl_dat} sämtliche künftigen materiellen und immateriellen Schäden zu ersetzen, ` +
+      `die aus dem Unfallereignis vom ${udStr} noch entstehen werden, soweit Ansprüche ` +
+      `nicht auf Sozialversicherungsträger oder sonstige Dritte übergegangen sind oder ` +
+      `noch übergehen werden.`
+    );
+  }
+
+  // 4. Feststellungsantrag Sachschaden
+  if (mitFestSach) {
+    antraege.push(
+      `Es wird festgestellt, dass die Beklagte${nrSuffix} verpflichtet ist, ` +
+      `${kl_dat} sämtliche weiteren materiellen Schäden zu ersetzen, die aus dem ` +
+      `Unfallereignis vom ${udStr} noch entstehen werden.`
+    );
+  }
+
+  // Platzhalter für RVG-Antrag (Step 9)
+  antraege.push("[Außergerichtliche Anwaltsgebühren – wird in Schritt 9 ergänzt]");
+
+  // Kostentragung
+  antraege.push(`Die Beklagte${nrSuffix} trägt die Kosten des Rechtsstreits.`);
+
+  return antraege.map((t, i) => `${i + 1}.\t${t}`).join("\n\n");
+}
+
+function StepAntraege({ positionen, mitSG, sgMind, beklagte, weiblich,
+                        zinsenAb, verzug, unfalldatum,
+                        mitFestSg, onMitFestSg, mitFestSach, onMitFestSach,
+                        antraegeText, onAntraegeText }) {
+  const klagebetrag = positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag || 0), 0);
+  const sgGesamt    = mitSG && sgMind > 0 ? klagebetrag + sgMind : klagebetrag;
+
+  function regenerieren() {
+    onAntraegeText(baueAntraegeText({
+      positionen, mitSG, sgMind, beklagte, weiblich,
+      zinsenAb, verzug, unfalldatum, mitFestSg, mitFestSach,
+    }));
+  }
+
+  // Initial generieren wenn noch leer
+  useEffect(() => {
+    if (!antraegeText) regenerieren();
+  }, []); // eslint-disable-line
+
+  return (
+    <div style={{ display: "flex", gap: "1.5rem", alignItems: "stretch" }}>
+      <div style={{ flex: "0 0 250px", display: "flex", flexDirection: "column", gap: "0.9rem" }}>
+        <AbschnittLabel text="Antragsauswahl" />
+
+        <div style={{ background: T.surface, borderRadius: 8, padding: "0.75rem 1rem",
+          border: `1px solid ${T.borderSoft}` }}>
+          <div style={{ fontFamily: PLEX, fontSize: "0.72rem", fontWeight: 700,
+            color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em",
+            marginBottom: "0.5rem" }}>Gerichtlicher Streitwert</div>
+          <div style={{ fontFamily: MONO, fontSize: "1.1rem", fontWeight: 700, color: T.navy }}>
+            {fmtEur(sgGesamt)}
+          </div>
+          {mitSG && sgMind > 0 && (
+            <div style={{ fontFamily: PLEX, fontSize: "0.75rem", color: T.textMuted, marginTop: 2 }}>
+              Sachschaden {fmtEur(klagebetrag)} + SG {fmtEur(sgMind)}
+            </div>
+          )}
+        </div>
+
+        {[
+          { label: "Hauptantrag Sachschaden",    aktiv: true,    fest: true },
+          { label: "Schmerzensgeld-Antrag",       aktiv: mitSG,   fest: true,  hidden: !mitSG },
+          { label: "Feststellungsantrag Personenschaden", aktiv: mitSG && mitFestSg, fest: false,
+            hidden: !mitSG, onChange: () => onMitFestSg(!mitFestSg) },
+          { label: "Feststellungsantrag Sachschaden",     aktiv: mitFestSach, fest: false,
+            onChange: () => onMitFestSach(!mitFestSach) },
+          { label: "Kostentragung",              aktiv: true,    fest: true },
+        ].filter(x => !x.hidden).map((x, i) => (
+          <label key={i} style={{ display: "flex", alignItems: "center", gap: 10,
+            cursor: x.fest ? "default" : "pointer",
+            opacity: x.fest ? 0.7 : 1 }}>
+            <input type="checkbox" checked={x.aktiv}
+              onChange={x.onChange || (() => {})}
+              disabled={x.fest}
+              style={{ accentColor: T.navy, cursor: x.fest ? "default" : "pointer",
+                width: 15, height: 15 }} />
+            <span style={{ fontFamily: PLEX, fontSize: "0.85rem",
+              color: x.aktiv ? T.navy : T.textMuted, fontWeight: x.aktiv ? 600 : 400 }}>
+              {x.label}
+            </span>
+          </label>
+        ))}
+
+        <button onClick={regenerieren}
+          style={{ padding: "9px 12px", borderRadius: 8, cursor: "pointer",
+            border: `1.5px solid ${T.navy}`, background: `${T.navy}08`,
+            fontFamily: PLEX, fontSize: "0.85rem", fontWeight: 600, color: T.navy, marginTop: "auto" }}>
+          ↻ Anträge neu generieren
+        </button>
+        <div style={{ fontFamily: PLEX, fontSize: "0.72rem", color: T.textFaint }}>
+          RVG-Antrag folgt in Schritt 9.
+        </div>
+      </div>
+
+      <DokumentCard editText={antraegeText} onEditText={onAntraegeText} />
+    </div>
+  );
+}
+
+// ── Step 9: Außergerichtliche Gebühren ─────────────────────────────────────────
+
+function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
+                         rvgAussergOv, onRvgAussergOv,
+                         gebuehrenText, onGebuehrenText,
+                         beklagte, weiblich,
+                         antraegeText, onAntraegeText }) {
+  const beklagteGef = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked);
+  const nrSuffix    = beklagteGef.length > 1 ? " (zu 1)" : "";
+  const kl_dat      = weiblich ? "der Klägerin" : "des Klägers";
+  const rvgGesamt   = rvgAussergOv ? parseFloat(rvgAussergOv) : (rvgAussergData?.gesamt || 0);
+
+  function baueGebuehrenAntrag(betrag) {
+    const b = betrag || rvgGesamt;
+    return (
+      `Die Beklagte${nrSuffix} wird verurteilt, an ${kl_dat} weitere ` +
+      `${b.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € ` +
+      `nebst Zinsen in Höhe von 5 Prozentpunkten über dem jeweiligen Basiszinssatz ` +
+      `seit Rechtshängigkeit zu zahlen.`
+    );
+  }
+
+  useEffect(() => {
+    if (!gebuehrenText && rvgGesamt > 0) {
+      onGebuehrenText(baueGebuehrenAntrag(rvgGesamt));
+    }
+  }, [rvgGesamt]); // eslint-disable-line
+
+  // Platzhalter in antraegeText ersetzen sobald gebuehrenText gesetzt
+  useEffect(() => {
+    if (!gebuehrenText || !antraegeText) return;
+    const PLACEHOLDER = "[Außergerichtliche Anwaltsgebühren – wird in Schritt 9 ergänzt]";
+    if (antraegeText.includes(PLACEHOLDER)) {
+      onAntraegeText(antraegeText.replace(PLACEHOLDER, gebuehrenText));
+    }
+  }, [gebuehrenText]); // eslint-disable-line
+
+  const fNr = (v) => (v || 0).toLocaleString("de-DE",
+    { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+
+  return (
+    <div style={{ display: "flex", gap: "1.5rem", alignItems: "stretch" }}>
+      <div style={{ flex: "0 0 260px", display: "flex", flexDirection: "column", gap: "0.9rem" }}>
+        <AbschnittLabel text="Vorgerichtliche Kosten" />
+
+        <div style={{ background: T.surface, borderRadius: 8, padding: "0.75rem 1rem",
+          border: `1px solid ${T.borderSoft}` }}>
+          <div style={{ fontFamily: PLEX, fontSize: "0.72rem", fontWeight: 700,
+            color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em",
+            marginBottom: "0.6rem" }}>Gegenstandswert (außergerichtl.)</div>
+          <div style={{ fontFamily: MONO, fontSize: "1rem", fontWeight: 700, color: T.navy }}>
+            {fNr(swAusserg)}
+          </div>
+          <div style={{ fontFamily: PLEX, fontSize: "0.72rem", color: T.textFaint, marginTop: 3 }}>
+            Summe aller Schadenpositionen
+          </div>
+        </div>
+
+        {rvgAussergData && (
+          <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.text, lineHeight: 1.8,
+            background: T.white, border: `1px solid ${T.borderSoft}`, borderRadius: 8,
+            padding: "0.6rem 0.85rem" }}>
+            {[
+              { l: `Geschäftsgebühr §§ 13, 14 Nr. 2300 VV RVG (${rvgAussergData.faktor})`, v: rvgAussergData.gebuehr_netto },
+              { l: "Post u. Telekommunikation Nr. 7002 VV RVG", v: rvgAussergData.post_pauschale },
+              { l: "Zwischensumme netto", v: rvgAussergData.zwischen_netto, faint: true },
+              { l: "19 % Umsatzsteuer", v: rvgAussergData.ust },
+              { l: "Gesamtbetrag", v: rvgAussergData.gesamt, bold: true },
+            ].map((z, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between",
+                fontWeight: z.bold ? 700 : 400, color: z.faint ? T.textFaint : z.bold ? T.navy : T.text,
+                borderTop: z.bold ? `1px solid ${T.border}` : "none",
+                marginTop: z.bold ? 4 : 0, paddingTop: z.bold ? 4 : 0 }}>
+                <span style={{ flex: 1, paddingRight: 8, fontSize: "0.75rem" }}>{z.l}</span>
+                <span style={{ fontFamily: MONO, fontSize: "0.8rem", whiteSpace: "nowrap" }}>{fNr(z.v)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!rvgAussergData && (
+          <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.amber }}>
+            ⚠ RVG wird beim Öffnen berechnet.
+          </div>
+        )}
+
+        <div>
+          <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.textMuted, marginBottom: 4 }}>
+            Betrag überschreiben (optional)
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input type="number" min="0" step="0.01"
+              value={rvgAussergOv}
+              onChange={e => {
+                onRvgAussergOv(e.target.value);
+                if (e.target.value) onGebuehrenText(baueGebuehrenAntrag(parseFloat(e.target.value)));
+              }}
+              placeholder={rvgAussergData ? rvgAussergData.gesamt.toFixed(2) : ""}
+              style={{ width: 120, padding: "6px 8px",
+                border: `1.5px solid ${T.border}`, borderRadius: 7,
+                fontFamily: MONO, fontSize: "0.9rem", outline: "none",
+                background: T.white, color: T.navy }} />
+            <span style={{ fontFamily: PLEX, fontSize: "0.85rem", color: T.textMuted }}>€</span>
+          </div>
+        </div>
+
+        <div style={{ fontFamily: PLEX, fontSize: "0.72rem", color: T.textFaint }}>
+          Text erscheint als Klageantrag. Wird automatisch in Schritt 6 eingefügt.
+        </div>
+      </div>
+
+      <DokumentCard editText={gebuehrenText} onEditText={onGebuehrenText} />
+    </div>
+  );
+}
+
 // ── Hauptkomponente ────────────────────────────────────────────────────────────
 
 export default function KlageWizard({
   step, onStepChange, onClose,
-  // Step 2 (Aktivlegitimation)
+  wizardMaxStep, onMaxStep,
+  // Step 1 (Gericht)
+  gericht, setGericht, gerichtSuche, setGSuche,
+  gerichtTreffer, setGTreffer, gerichtLaedt,
+  sucheGerichte, gerichtBestaetigt, setGerichtBestaetigt,
+  // Step 3 (Aktivlegitimation)
   aktLegTyp, onAktLegTyp, aktLegFreigabe, onAktLegFreigabe,
   aktLegDatum, onAktLegDatum, mandantIstFahrer, mandantKz,
   aktLegTextOverride, onAktLegTextOverride,
-  // Step 3 (Unfallhergang)
+  // Step 4 (Unfallhergang)
   schilderungOriginal,
   wizardUnfallText, onWizardUnfallText,
-  // Step 4 (Schadenpositionen)
+  // Step 5 (Schadenpositionen)
   abrechnungen,
   positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind,
-  // Step 5 (Rechtliche Würdigung)
-  haftungsbegruendungInit, haftungsquoteInit,
+  // Step 6 (Klageanträge)
+  unfalldatum,
+  wizardMitFestSg, onMitFestSg,
+  wizardMitFestSach, onMitFestSach,
+  wizardAntraegeText, onAntraegeText,
+  // Step 7 (Rechtliche Würdigung)
+  wizardHq, onWizardHq, wizardHb, onWizardHb,
   wizardRwText, onWizardRwText, kuerzungsarten,
-  // Step 6 (Verzug & Kosten)
+  // Step 8 (Verzug)
   wizardVerzugText, onWizardVerzugText,
-  // Step 7 (Zusammenfassung) + shared
-  gericht, beklagte, rvgData, rvgOverride, zinsenAb, verzug,
+  // Step 9 (Außergerichtl. Gebühren)
+  swAusserg,
+  wizardRvgAussergData, onRvgAussergData,
+  wizardRvgAussergOv, onRvgAussergOv,
+  wizardGebuehrenText, onGebuehrenText,
+  // Shared
+  beklagte, rvgData, rvgOverride, zinsenAb, verzug,
   // Generieren
   laedt, onGenerieren, fehler,
 }) {
@@ -1113,10 +1576,16 @@ export default function KlageWizard({
   const weiblich   = klaeger.startsWith("Die");
 
   const kannWeiter = () => {
-    if (step === 4 && positionen.filter(p => p.checked).length === 0) return false;
+    if (step === 1 && !gerichtBestaetigt) return false;
+    if (step === 5 && positionen.filter(p => p.checked).length === 0) return false;
     return true;
   };
-  const weiter  = () => { if (kannWeiter()) onStepChange(step + 1); };
+  const weiter = () => {
+    if (!kannWeiter()) return;
+    const next = step + 1;
+    onStepChange(next);
+    if (next > wizardMaxStep) onMaxStep(next);
+  };
   const zurueck = () => onStepChange(step - 1);
 
   return (
@@ -1168,11 +1637,23 @@ export default function KlageWizard({
 
           {/* Body */}
           <div style={{ flex: 1, overflowY: "auto", padding: "1.5rem" }}>
-            <Fortschrittsbalken step={step} />
+            <Fortschrittsbalken step={step} maxStep={wizardMaxStep} onStepChange={onStepChange} />
 
-            {step === 1 && <StepRubrum beklagte={beklagte} />}
+            {step === 1 && (
+              <StepGericht
+                gericht={gericht}             setGericht={setGericht}
+                gerichtSuche={gerichtSuche}   setGSuche={setGSuche}
+                gerichtTreffer={gerichtTreffer} setGTreffer={setGTreffer}
+                gerichtLaedt={gerichtLaedt}   sucheGerichte={sucheGerichte}
+                bestaetigt={gerichtBestaetigt} setBestaetigt={setGerichtBestaetigt}
+              />
+            )}
 
             {step === 2 && (
+              <StepRubrum beklagte={beklagte} onClose={onClose} />
+            )}
+
+            {step === 3 && (
               <StepAktLeg
                 aktLegTyp={aktLegTyp}         onAktLegTyp={onAktLegTyp}
                 aktLegFreigabe={aktLegFreigabe} onAktLegFreigabe={onAktLegFreigabe}
@@ -1185,7 +1666,7 @@ export default function KlageWizard({
               />
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <StepUnfall
                 schilderungOriginal={schilderungOriginal}
                 klaeger={klaeger}
@@ -1194,7 +1675,7 @@ export default function KlageWizard({
               />
             )}
 
-            {step === 4 && (
+            {step === 5 && (
               <StepSchaden
                 abrechnungen={abrechnungen}
                 positionen={positionen}   onTogglePos={onTogglePos}
@@ -1203,19 +1684,31 @@ export default function KlageWizard({
               />
             )}
 
-            {step === 5 && (
-              <StepRw
-                haftungsbegruendungInit={haftungsbegruendungInit}
-                haftungsquoteInit={haftungsquoteInit}
-                abrechnungen={abrechnungen}
-                weiblich={weiblich}
-                rwText={wizardRwText}
-                onRwText={onWizardRwText}
-                kuerzungsarten={kuerzungsarten}
+            {step === 6 && (
+              <StepAntraege
+                positionen={positionen}   mitSG={mitSG}   sgMind={sgMind}
+                beklagte={beklagte}       weiblich={weiblich}
+                zinsenAb={zinsenAb}       verzug={verzug}
+                unfalldatum={unfalldatum}
+                mitFestSg={wizardMitFestSg}   onMitFestSg={onMitFestSg}
+                mitFestSach={wizardMitFestSach} onMitFestSach={onMitFestSach}
+                antraegeText={wizardAntraegeText} onAntraegeText={onAntraegeText}
               />
             )}
 
-            {step === 6 && (
+            {step === 7 && (
+              <StepRw
+                hq={wizardHq}             onHq={onWizardHq}
+                hb={wizardHb}             onHb={onWizardHb}
+                abrechnungen={abrechnungen}
+                weiblich={weiblich}
+                rwText={wizardRwText}     onRwText={onWizardRwText}
+                kuerzungsarten={kuerzungsarten}
+                beklagte={beklagte}
+              />
+            )}
+
+            {step === 8 && (
               <StepVerzug
                 verzug={verzug}           zinsenAb={zinsenAb}
                 rvgData={rvgData}         rvgOverride={rvgOverride}
@@ -1225,7 +1718,18 @@ export default function KlageWizard({
               />
             )}
 
-            {step === 7 && (
+            {step === 9 && (
+              <StepGebuehren
+                swAusserg={swAusserg}
+                rvgAussergData={wizardRvgAussergData} onRvgAussergData={onRvgAussergData}
+                rvgAussergOv={wizardRvgAussergOv}     onRvgAussergOv={onRvgAussergOv}
+                gebuehrenText={wizardGebuehrenText}   onGebuehrenText={onGebuehrenText}
+                beklagte={beklagte}                   weiblich={weiblich}
+                antraegeText={wizardAntraegeText}     onAntraegeText={onAntraegeText}
+              />
+            )}
+
+            {step === 10 && (
               <StepZusammenfassung
                 gericht={gericht}         beklagte={beklagte}
                 positionen={positionen}   mitSG={mitSG}        sgMind={sgMind}
@@ -1256,7 +1760,12 @@ export default function KlageWizard({
               ← Zurück
             </button>
 
-            {step === 4 && positionen.filter(p => p.checked).length === 0 && (
+            {step === 1 && !gerichtBestaetigt && (
+              <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.amber }}>
+                ⚠ Bitte Gericht bestätigen
+              </div>
+            )}
+            {step === 5 && positionen.filter(p => p.checked).length === 0 && (
               <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.amber }}>
                 ⚠ Bitte mindestens eine Position auswählen
               </div>
