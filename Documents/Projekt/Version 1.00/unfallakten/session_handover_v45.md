@@ -156,6 +156,7 @@ Danach Step 5–10, dann PRD-22c/25c/25d/Bußgeld.
 | Danach | **PRD-25d** – Intelligente STA End-to-End-Test |
 | Danach | **Bußgeld** – Deployment (bussgeld@ Strato + .env) |
 | Später | **ReguWizard** – Analog-Wizard für Antwort auf Abrechnungsschreiben |
+| Später | **Auto-Parser-Optimierung** |
 
 ---
 

@@ -174,7 +174,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [auslandsunfall, setAuslandsunfall] = useState(false);
   const [wizardUnfallText, setWizardUnfallText] = useState("");
   const [wizardRwText, setWizardRwText]         = useState("");
-  const [wizardVerzugText, setWizardVerzugText] = useState("");
+  const [wizardVerzugText, setWizardVerzugText]   = useState("");
+  const [wizardVerzugDatum, setWizardVerzugDatum] = useState("");
   // PRD-26: neue Wizard-States
   const [wizardHq, setWizardHq]                     = useState(100);
   const [wizardHb, setWizardHb]                     = useState("");
@@ -348,25 +349,43 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     const hb      = daten?.unfalldetails?.haftungsbegruendung || "";
     setWizardHq(hq);
     setWizardHb(hb);
-    const kl_dat  = weiblich ? "der Klägerin" : "des Klägers";
-    const rw_lines = [
-      `Der bei der Beklagten versicherte Unfallgegner verursachte den Unfall durch ` +
-      `${hb || "sein schuldhaftes Verhalten"}. Die Haftungsquote beträgt ${Math.round(hq)} %.`,
-      gesReg > 0
-        ? `Die Beklagte hat eine Teilregulierung in Höhe von ` +
-          `${gesReg.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})} € vorgenommen. ` +
-          `Die verbleibenden Kürzungen sind nicht gerechtfertigt, sodass die Klage in Höhe des offenen Restbetrages erhoben wird.`
-        : `Die Beklagte hat bislang keine Regulierung vorgenommen. ` +
-          `Da trotz mehrfacher Fristsetzung keine Zahlung erfolgte, war die Klage notwendig.`,
-      ...(hq < 100
-        ? [`Die Mithaftungsquote ${kl_dat} beträgt ${Math.round(100 - hq)} %. ` +
-           `Die Klageforderung wurde entsprechend gekürzt.`]
-        : []),
-    ];
+    const kl_dat      = weiblich ? "der Klägerin" : "des Klägers";
+    const beklagteGef = beklagte.filter(b => b.rolle_klage !== "klaeger" && b.checked);
+    const nrSuffix    = beklagteGef.length > 1 ? " (zu 1)" : "";
+    const bek1        = beklagteGef[0];
+    const bek1Maenl   = bek1 && !bek1.versicherung && !bek1.firma
+                        && (bek1.anrede || "").toLowerCase() === "herr";
+    const bek_gen_art = bek1Maenl ? "des" : "der";      // Genitiv: des/der Beklagten
+    const bek_dat_pp  = bek1Maenl ? "bei dem" : "bei der"; // Dativ: bei dem/bei der Beklagten
+    const rw_lines = hq >= 100
+      ? [
+          `Die alleinige Haftung ${bek_gen_art} Beklagten${nrSuffix} steht außer Frage.` +
+          ` Der Unfall wurde allein schuldhaft von dem ${bek_dat_pp} Beklagten${nrSuffix} versicherten Fahrzeug verursacht.`,
+          ...(gesReg > 0
+            ? [`Ein wesentlicher Teil des Schadens wurde bereits bezahlt. Offen ist, ob der Schaden in voller` +
+               ` Höhe beglichen wurde. Die Differenz zwischen dem geforderten und regulierten Schaden ist` +
+               ` Gegenstand des Klageantrags zu 1.`]
+            : [`Die Beklagte hat bislang keine Regulierung vorgenommen. ` +
+               `Da trotz mehrfacher Fristsetzung keine Zahlung erfolgte, war die Klage notwendig.`]),
+        ]
+      : [
+          `Der bei der Beklagten versicherte Unfallgegner verursachte den Unfall durch ` +
+          `${hb || "sein schuldhaftes Verhalten"}. Die Haftungsquote beträgt ${Math.round(hq)} %.`,
+          gesReg > 0
+            ? `Die Beklagte hat eine Teilregulierung in Höhe von ` +
+              `${gesReg.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})} € vorgenommen. ` +
+              `Die verbleibenden Kürzungen sind nicht gerechtfertigt, sodass die Klage in Höhe des offenen Restbetrages erhoben wird.`
+            : `Die Beklagte hat bislang keine Regulierung vorgenommen. ` +
+              `Da trotz mehrfacher Fristsetzung keine Zahlung erfolgte, war die Klage notwendig.`,
+          `Die Mithaftungsquote ${kl_dat} beträgt ${Math.round(100 - hq)} %. ` +
+          `Die Klageforderung wurde entsprechend gekürzt.`,
+        ];
     setWizardRwText(rw_lines.join("\n\n"));
 
-    // ── Verzug: Kurztext für Vorschau ──
-    const vdat = zinsenAb === "verzug" && verzug ? `spätestens am ${verzug}` : "mit Rechtshängigkeit";
+    // ── Verzug: Datum aus WDM (varVERZUGAB via verzug_datum), Fallback Rechtshängigkeit ──
+    const verzugDatum = verzug || "";
+    setWizardVerzugDatum(verzugDatum);
+    const vdat = verzugDatum ? `spätestens am ${verzugDatum}` : "mit Rechtshängigkeit";
     setWizardVerzugText(`Verzug ist ${vdat} eingetreten.`);
 
     // PRD-26: neue States initialisieren
@@ -494,7 +513,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           wizardRwText={wizardRwText}   onWizardRwText={setWizardRwText}
           kuerzungsarten={daten?.kuerzungsarten || []}
           // Step 8: Verzug
-          wizardVerzugText={wizardVerzugText} onWizardVerzugText={setWizardVerzugText}
+          wizardVerzugText={wizardVerzugText}   onWizardVerzugText={setWizardVerzugText}
+          wizardVerzugDatum={wizardVerzugDatum} onWizardVerzugDatum={setWizardVerzugDatum}
           // Step 9: Außergerichtl. Gebühren
           swAusserg={swAusserg}
           wizardRvgAussergData={wizardRvgAussergData} onRvgAussergData={setWizardRvgAussergData}

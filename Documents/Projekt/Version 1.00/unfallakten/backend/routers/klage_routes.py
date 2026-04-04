@@ -828,6 +828,11 @@ def hole_klage_daten(akte_id: str):
 
     # ── Aktivlegitimation aus unfalldetails + Fahrer-Ermittlung ──────────────
     _ud_dict = dict(ud) if ud else {}
+    # WDM-Fallback: schilderung aus varSCHILD wenn SQLite leer
+    if not _ud_dict.get("schilderung"):
+        _wdm_schild = _wdm("varSCHILD")
+        if _wdm_schild:
+            _ud_dict["schilderung"] = _wdm_schild
 
     # Mandant ist Fahrer wenn varM-FAHRER == Mandantenname oder "siehe oben"
     _fahrer_wdm   = (_wdm("varM-FAHRER") or "").strip().lower()
@@ -858,7 +863,7 @@ def hole_klage_daten(akte_id: str):
     return _j({
         "beteiligte":         alle_bet,
         "positionen":         [p for p in pos_definitionen if p["betrag"] > 0],
-        "unfalldetails":      _ud_dict or None,
+        "unfalldetails":      _ud_dict,
         "verzug_datum":       verzug_datum,
         "rvg":                rvg,
         "abrechnungen":       [
