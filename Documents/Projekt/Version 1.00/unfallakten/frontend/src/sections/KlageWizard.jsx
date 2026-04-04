@@ -155,7 +155,7 @@ function buildSachverhaltText({
 
   // ── Auslandsunfall ────────────────────────────────────────────────────
   if (auslandsunfall) {
-    text += "\n\n[ZUSTÄNDIGKEIT: Das angerufene Gericht ist örtlich zuständig. Standardtext Auslandsunfall bitte ergänzen.]";
+    text += "\n\nWir machen auf die Entscheidung des EuGH vom 13.12.2007 – Az. C 463/06 –\nund die Vorlage des BGH im Verfahren vom 26.9.2006 zu VI ZR 200/05 aufmerksam. Der EuGH hat in der Entscheidung festgestellt, dass dem Geschädigten auch der Rechtsweg am Gericht seines Wohnortes eröffnet ist.";
   }
 
   return text;
