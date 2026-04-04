@@ -19,10 +19,10 @@ const REG_STATUS = {
 const INITIAL_STATE = {};
 
 const IMAP_CONFIG = {
-  host:"mail.anwalt-offenbach.de", port:993, ssl:true,
-  user:"import@anwalt-offenbach.de", ordner:"INBOX", max_fetch:50,
-  letzte_sync:"09.03.2026 08:00", naechste_sync:"09.03.2026 09:00",
-  status:"verbunden",
+  host:"", port:993, ssl:true,
+  user:"", ordner:"INBOX", max_fetch:50,
+  letzte_sync:"–", naechste_sync:"–",
+  status:"nicht konfiguriert",
 };
 
 

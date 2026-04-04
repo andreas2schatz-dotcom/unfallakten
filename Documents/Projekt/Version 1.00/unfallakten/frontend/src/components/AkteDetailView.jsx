@@ -32,6 +32,7 @@ function AkteDetailView({ akte, st, dispatch }) {
   const [todoKlapp, setTodoKlapp] = useState(false);
   const [statusOffen, setStatusOffen] = useState(false);
   const [statusSpeichert, setStatusSpeichert] = useState(false);
+  const [toast, setToast] = useState("");
 
   const [headerTodos, setHeaderTodos] = useState([]);
   const [headerTodosLoaded, setHeaderTodosLoaded] = useState(false);
@@ -250,9 +251,8 @@ function AkteDetailView({ akte, st, dispatch }) {
                             try {
                               await apiAkten.aktualisieren(akte.id, { status: s });
                             } catch(e) {
-                              // Rollback + Toast bei Fehler
                               dispatch({ type:"SET_STATUS", akteId:akte.id, status:aktStatus });
-                              alert("Status konnte nicht gespeichert werden: " + (e?.message || String(e)));
+                              setToast("Status konnte nicht gespeichert werden: " + (e?.message || String(e)));
                             }
                           }} style={{
                             display:"block", width:"100%", textAlign:"left",
@@ -456,6 +456,7 @@ function AkteDetailView({ akte, st, dispatch }) {
         </div>
       </div>
     </div>
+    {toast && <Toast msg={toast} onDone={() => setToast("")} />}
   );
 }
 

@@ -240,9 +240,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
       setVModal({id, name: firmenname, daten: res});
     } catch(e) {
       setVLookup(p => ({...p, [id]: {laden: false, ergebnis: null}}));
-      // Zeige HTTP-Status falls verfügbar
       const msg = e?.status ? `HTTP ${e.status}: ${e.message}` : (e?.message || String(e));
-      alert("Lookup fehlgeschlagen:\n" + msg);
+      setToast("Vertreter-Lookup fehlgeschlagen: " + msg);
     }
   };
 
