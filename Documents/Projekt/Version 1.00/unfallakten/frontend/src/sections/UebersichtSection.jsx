@@ -130,6 +130,7 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
   };
 
   return (
+    <>
     <div style={{ background:T.white, border: titel ? `1px solid ${T.border}` : "none", borderRadius: titel ? 10 : 0, overflow:"hidden", boxShadow: titel ? "0 1px 4px rgba(0,0,0,0.04)" : "none" }}>
       {/* Kachel-Header – wird ausgeblendet wenn kein Titel (z.B. in RechtsschutzKlappkachel) */}
       {titel && <div style={{ background: farbe + "18", borderBottom:`1px solid ${farbe}33`, padding:"8px 14px", display:"flex", alignItems:"center", gap:8 }}>
@@ -303,6 +304,7 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
       ))}
     </div>
     {toast && <Toast msg={toast} onDone={() => setToast("")} />}
+    </>
   );
 }
 
@@ -739,6 +741,7 @@ function AktenTimeline({ abrechnungen, aktivitaeten, akteId, onAktivitaetenChang
                    alle.filter(e => e.kategorie === filter);
 
   return (
+    <>
     <Card>
       <div style={{ padding:"1rem 1.4rem 0", display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8 }}>
         <div style={{ fontSize:"0.825rem", fontWeight:600, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.08em" }}>
@@ -827,6 +830,7 @@ function AktenTimeline({ abrechnungen, aktivitaeten, akteId, onAktivitaetenChang
       </div>
     </Card>
     {toast && <Toast msg={toast} onDone={() => setToast("")} />}
+    </>
   );
 }
 

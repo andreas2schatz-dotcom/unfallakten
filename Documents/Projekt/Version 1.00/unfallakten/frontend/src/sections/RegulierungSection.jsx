@@ -876,6 +876,7 @@ function AbrechnungFormular({ schaden, kuerzungsarten, akteId, onSave, onCancel,
   };
 
   return (
+    <>
     <div style={{ background:T.goldPale, border:`1px solid ${T.goldTrim}`, borderRadius:10, padding:"1.25rem 1.4rem", marginBottom:"1rem" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1rem" }}>
         <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem", fontWeight:600, color:T.navy, textTransform:"uppercase", letterSpacing:"0.07em" }}>
@@ -963,6 +964,7 @@ function AbrechnungFormular({ schaden, kuerzungsarten, akteId, onSave, onCancel,
       </div>
     </div>
     {toast && <Toast msg={toast} onDone={() => setToast("")} />}
+    </>
   );
 }
 
@@ -1109,6 +1111,7 @@ function ManuelleAbrechnungFormular({ schaden, kuerzungsarten, akteId, versicher
   const sGrid2 = { display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.75rem" };
 
   return (
+    <>
     <div style={{ background:T.goldPale, border:`1px solid ${T.goldTrim}`, borderRadius:10,
                   padding:"1.25rem 1.4rem", marginBottom:"1rem" }}>
 
@@ -1288,6 +1291,7 @@ function ManuelleAbrechnungFormular({ schaden, kuerzungsarten, akteId, versicher
       </div>
     </div>
     {toast && <Toast msg={toast} onDone={() => setToast("")} />}
+    </>
   );
 }
 
