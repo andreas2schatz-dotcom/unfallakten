@@ -1280,14 +1280,17 @@ function StepVerzug({ zinsenAb, rvgData, rvgOverride, weiblich,
   );
 }
 
-// ── Step 7: Zusammenfassung + Generieren ───────────────────────────────────────
+// ── Step 10: Zusammenfassung + Generieren ──────────────────────────────────────
 
 function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMind,
-                               rvgData, rvgOverride, aktLegTyp, aktLegFreigabe,
-                               zinsenAb, verzug,
+                               rvgData, rvgOverride,
+                               rvgAussergData, rvgAussergOv,
+                               aktLegTyp, aktLegFreigabe,
+                               zinsenAb, wizardVerzugDatum,
                                laedt, onGenerieren, fehler }) {
-  const klagebetrag = positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag || 0), 0);
-  const rvgGesamt   = rvgOverride ? parseFloat(rvgOverride) : (rvgData?.gesamt || 0);
+  const klagebetrag  = positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag || 0), 0);
+  const rvgGesamt    = rvgOverride    ? parseFloat(rvgOverride)    : (rvgData?.gesamt        || 0);
+  const rvgAussGes   = rvgAussergOv   ? parseFloat(rvgAussergOv)   : (rvgAussergData?.gesamt || 0);
   const klaeger     = beklagte?.filter(b => b.rolle_klage === "klaeger") || [];
   const beklagteG   = beklagte?.filter(b => b.rolle_klage !== "klaeger" && b.checked) || [];
 
@@ -1333,13 +1336,15 @@ function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMind,
         <ZeileZusammenfassung icon="⚖" label="Klagebetrag"
           wert={fmtEur(klagebetrag + (mitSG && sgMind > 0 ? sgMind : 0))} warn={keinPositionen} />
         <ZeileZusammenfassung icon="⏱" label="Zinsen ab"
-          wert={zinsenAb === "verzug" && verzug ? `Verzugseintritt ${verzug}` : "Rechtshängigkeit"} />
+          wert={wizardVerzugDatum ? `Verzugseintritt ${wizardVerzugDatum}` : "Rechtshängigkeit"} />
         <ZeileZusammenfassung icon="🏠" label="Aktivlegitimation"
           wert={aktLegFreigabe === "ungeklaert"
             ? `${aktLegLabel} – ⚠ ungeklärt`
             : `${aktLegLabel}${aktLegTyp !== "eigentum" ? ` · ${freigabeLabel}` : ""}`}
           warn={aktLegFreigabe === "ungeklaert"} />
-        <ZeileZusammenfassung icon="💶" label="RVG (Nebenforderung)" wert={fmtEur(rvgGesamt)} />
+        <ZeileZusammenfassung icon="💶" label="RVG gerichtlich" wert={fmtEur(rvgGesamt)} />
+        <ZeileZusammenfassung icon="💶" label="RVG außergerichtlich"
+          wert={rvgAussGes > 0 ? fmtEur(rvgAussGes) : "–"} warn={rvgAussGes === 0} />
       </div>
 
       {(keinGericht || keinPositionen || firmenOhneVertreter.length > 0 || aktLegFreigabe === "ungeklaert") && (
@@ -2012,12 +2017,13 @@ export default function KlageWizard({
 
             {step === 10 && (
               <StepZusammenfassung
-                gericht={gericht}         beklagte={beklagte}
-                positionen={positionen}   mitSG={mitSG}        sgMind={sgMind}
-                rvgData={rvgData}         rvgOverride={rvgOverride}
-                aktLegTyp={aktLegTyp}     aktLegFreigabe={aktLegFreigabe}
-                zinsenAb={zinsenAb}       verzug={verzug}
-                laedt={laedt}             onGenerieren={onGenerieren}
+                gericht={gericht}           beklagte={beklagte}
+                positionen={positionen}     mitSG={mitSG}          sgMind={sgMind}
+                rvgData={rvgData}           rvgOverride={rvgOverride}
+                rvgAussergData={wizardRvgAussergData} rvgAussergOv={wizardRvgAussergOv}
+                aktLegTyp={aktLegTyp}       aktLegFreigabe={aktLegFreigabe}
+                zinsenAb={zinsenAb}         wizardVerzugDatum={wizardVerzugDatum}
+                laedt={laedt}               onGenerieren={onGenerieren}
                 fehler={fehler}
               />
             )}
