@@ -1,5 +1,5 @@
 # Klage-Wizard Map – Kanzlei Koch, Schatz & Kollegen
-> Stand: Session v44 – 4. April 2026
+> Stand: Session v45 – 4. April 2026
 > Datei: `frontend/src/sections/KlageWizard.jsx`
 > Hauptkomponente: `export default function KlageWizard` (ca. Zeile 1529)
 
@@ -32,8 +32,9 @@ KlageWizard.jsx
 │  Aktion:  Suche → Treffer-Liste → Auswahl → Bestätigen-Button              │
 │  Output:  gericht (obj), gerichtBestaetigt (bool)                          │
 │  Sperre:  Weiter-Button gesperrt bis gerichtBestaetigt===true              │
-│  Status:  ✅ Vollständig                                                    │
-│  Potential: Gericht zurück in Akte speichern (aktuell nur Session-State)   │
+│  Status:  ✅ Vollständig + v45 optimiert                                    │
+│  v45:     Gericht-Persistenz (PUT /klage/gericht), auto-bestätigt beim     │
+│           nächsten Öffnen; race-condition-sicherer gerichtBestaetigenUndWeiter│
 └─────────────────────────────────────────────────────────────────────────────┘
          │ gericht gespeichert
          ▼
@@ -44,23 +45,27 @@ KlageWizard.jsx
 │  Zeigt:   Kläger + Beklagte read-only                                      │
 │  Button:  „Parteien bearbeiten →" → onClose() + scrollTo #karte-parteien  │
 │  Output:  –  (nur Anzeige, kein eigener State)                             │
-│  Status:  ✅ P-4 implementiert                                              │
-│  Potential: Warnung wenn Vertreter fehlt stärker hervorheben               │
+│  Status:  ✅ P-4 implementiert + v45 optimiert                              │
+│  v45:     Vertreter-Warnung klickbar; Schadennummer im Word-Rubrum (HPV)   │
 └─────────────────────────────────────────────────────────────────────────────┘
          │
          ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  3 · StepAktLeg                                                             │
+│  3 · StepAktLeg → Sachverhalt                                               │
 │  ─────────────────                                                          │
 │  Input:   aktLegTyp (eigentum|finanziert|geleast)                          │
 │           aktLegFreigabe (freigabe|bedingungen|ungeklaert)                 │
-│           aktLegDatum (DD.MM.YYYY)                                         │
-│  Zeigt:   Radio-Buttons links + DokumentCard rechts (live buildVorschauText)│
-│  FIX P-3: prevAutoRef → kein Überschreiben manueller Edits                │
-│  Output:  aktLegTextOverride (str → geht in klage_service als              │
-│           aktivlegitimation_text_override)                                  │
-│  Status:  ✅ P-3 behoben                                                    │
-│  Potential: „Datum unbekannt"-Option, Tooltip zu § 1006 BGB                │
+│           aktLegDatum (DD.MM.YYYY | "unbekannt")                           │
+│           beklagte[], fahrGegnerName, mandantVorsteuer, auslandsunfall     │
+│  Zeigt:   Radio-Buttons + kombinierter editierbarer Sachverhalt-Textarea   │
+│  buildSachverhaltText(): Kläger+Beklagte-Block+AktLeg+Auslandsunfall       │
+│  Flektierung: Halter/Halterin (beteiligte.anrede), Fahrer/Fahrerin         │
+│  prevAutoRef: kein Überschreiben manueller Edits                           │
+│  Output:  sachverhaltText (str → sachverhalt_override im Backend)          │
+│           ersetzt BEIDE Platzhalter {{EINLEITUNG}} + {{AKTIVLEGITIMATION}}  │
+│  ist_halter: DB v34, PATCH beteiligte, Halter-Checkbox im Klage-Tab        │
+│  Auslandsunfall: EuGH 13.12.2007 C 463/06 + BGH VI ZR 200/05              │
+│  Status:  ✅ v45 komplett umgebaut                                          │
 └─────────────────────────────────────────────────────────────────────────────┘
          │
          ▼
@@ -175,7 +180,8 @@ KlageWizard.jsx
 │  ─────────────────                                                          │
 │  gericht, beklagte, positionen, mit_schmerzensgeld, schmerzensgeld_mindest │
 │  zinsen_ab, verzugsdatum, rvg (berechnet), rvg_override                   │
-│  aktivlegitimation_typ, aktivlegitimation_text_override (Step 3)           │
+│  aktivlegitimation_typ (Step 3, intern)                                     │
+│  sachverhalt_override = wizardSachverhaltText (Step 3) ← v45 NEU           │
 │  unfalltext_override = wizardUnfallText (Step 4)                           │
 │  rw_text_override = wizardRwText (Step 7)                                  │
 │  verzug_text_override = wizardVerzugText (Step 8)                          │
@@ -191,13 +197,12 @@ KlageWizard.jsx
 
 | Step | Problem | Priorität |
 |---|---|---|
-| 1 | Gericht wird nicht in Akte gespeichert (nur Session) | Mittel |
-| 2 | Vertreter-Warnung nicht klickbar | Niedrig |
 | 4 | Kein Diff-View, kein Zurücksetzen-Button | Niedrig |
 | 5 | Kein Regulierungsstand neben Position | Niedrig |
 | 8 | Zeigt gerichtl. RVG, könnte Nutzer verwirren | Niedrig |
 | 10 | Zeigt nur gerichtl. RVG, nicht außergerichtl. | Niedrig |
 | Datei | Header-Kommentar sagt noch „7-Step" statt „10-Step" | Trivial |
+| 3 | Auslandsunfall-Standardtext fest im Code – bei Änderung → Code-Edit nötig | Niedrig |
 
 ---
 
@@ -207,7 +212,9 @@ KlageWizard.jsx
 Wizard-States (PRD-24b, ergänzt PRD-26):
   wizardOffen, wizardStep, wizardMaxStep
   gericht, gerichtSuche, gerichtTreffer, gerichtLaedt, gerichtBestaetigt
-  aktLegTyp, aktLegFreigabe, aktLegDatum, wizardAktLegText
+  aktLegTyp, aktLegFreigabe, aktLegDatum
+  wizardSachverhaltText       ← v45 (ersetzt wizardAktLegText)
+  auslandsunfall              ← v45 (bool)
   wizardUnfallText
   wizardPos (=positionen), wizardMitSG, wizardSGMind
   wizardHq, wizardHb, wizardRwText
