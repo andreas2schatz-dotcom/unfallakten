@@ -176,6 +176,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [wizardRwText, setWizardRwText]         = useState("");
   const [wizardVerzugText, setWizardVerzugText]   = useState("");
   const [wizardVerzugDatum, setWizardVerzugDatum] = useState("");
+  const [kiLaedt, setKiLaedt]                     = useState(false);
   // PRD-26: neue Wizard-States
   const [wizardHq, setWizardHq]                     = useState(100);
   const [wizardHb, setWizardHb]                     = useState("");
@@ -413,6 +414,19 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     if (next > wizardMaxStep) setWizardMaxStep(next);
   };
 
+  // ── KI-Haftungsbegründung ─────────────────────────────────────────────
+  const handleKiHaftung = async () => {
+    setKiLaedt(true);
+    try {
+      const res = await apiKlage.kiHaftung(akteId, wizardUnfallText, wizardHq);
+      setWizardRwText(res.text);
+    } catch (e) {
+      setFehler(e.message || "KI-Aufruf fehlgeschlagen.");
+    } finally {
+      setKiLaedt(false);
+    }
+  };
+
   // ── Wizard generieren – mit Overrides ─────────────────────────────────
   const wizardGenerieren = async () => {
     setGenLaedt(true); setFehler("");
@@ -512,6 +526,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           wizardHb={wizardHb}           onWizardHb={setWizardHb}
           wizardRwText={wizardRwText}   onWizardRwText={setWizardRwText}
           kuerzungsarten={daten?.kuerzungsarten || []}
+          onKiHaftung={handleKiHaftung} kiLaedt={kiLaedt}
           // Step 8: Verzug
           wizardVerzugText={wizardVerzugText}   onWizardVerzugText={setWizardVerzugText}
           wizardVerzugDatum={wizardVerzugDatum} onWizardVerzugDatum={setWizardVerzugDatum}

@@ -1047,7 +1047,8 @@ function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, 
 // ── Step 5: Rechtliche Würdigung ───────────────────────────────────────────────
 
 function StepRw({ hq, onHq, hb, onHb, abrechnungen, weiblich,
-                  rwText, onRwText, kuerzungsarten, beklagte }) {
+                  rwText, onRwText, kuerzungsarten, beklagte,
+                  onKiHaftung, kiLaedt }) {
   const gesamtReg = (abrechnungen || []).reduce((s, ab) => s + (parseFloat(ab.gesamt_reguliert) || 0), 0);
   const [einwandeOffen, setEinwandeOffen] = useState(false);
 
@@ -1146,6 +1147,29 @@ function StepRw({ hq, onHq, hb, onHb, abrechnungen, weiblich,
             fontFamily: PLEX, fontSize: "0.85rem", fontWeight: 600, color: T.navy,
           }}>
           ↻ Text neu generieren
+        </button>
+
+        <button onClick={onKiHaftung} disabled={kiLaedt || !onKiHaftung}
+          style={{
+            padding: "9px 12px", borderRadius: 8,
+            cursor: kiLaedt ? "wait" : "pointer",
+            border: `1.5px solid ${T.gold}`, background: `${T.gold}12`,
+            fontFamily: PLEX, fontSize: "0.85rem", fontWeight: 600, color: "#7a4f00",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            opacity: kiLaedt ? 0.7 : 1,
+          }}>
+          {kiLaedt ? (
+            <>
+              <div style={{
+                width: 13, height: 13,
+                border: "2px solid #7a4f0050",
+                borderTopColor: "#7a4f00",
+                borderRadius: "50%",
+                animation: "spin 0.7s linear infinite",
+              }} />
+              KI analysiert …
+            </>
+          ) : "✦ KI-Vorschlag generieren"}
         </button>
 
         <button onClick={() => setEinwandeOffen(true)}
@@ -1825,6 +1849,7 @@ export default function KlageWizard({
   // Step 7 (Rechtliche Würdigung)
   wizardHq, onWizardHq, wizardHb, onWizardHb,
   wizardRwText, onWizardRwText, kuerzungsarten,
+  onKiHaftung, kiLaedt,
   // Step 8 (Verzug)
   wizardVerzugText, onWizardVerzugText,
   wizardVerzugDatum, onWizardVerzugDatum,
@@ -1988,6 +2013,7 @@ export default function KlageWizard({
                 rwText={wizardRwText}     onRwText={onWizardRwText}
                 kuerzungsarten={kuerzungsarten}
                 beklagte={beklagte}
+                onKiHaftung={onKiHaftung} kiLaedt={kiLaedt}
               />
             )}
 

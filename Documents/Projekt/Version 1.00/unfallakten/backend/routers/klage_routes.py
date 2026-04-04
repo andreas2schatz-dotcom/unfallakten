@@ -1150,6 +1150,70 @@ def speichere_gericht(akte_id: str):
     return jsonify({"ok": True}), 200
 
 
+# ── KI-gestützte Haftungsbegründung ───────────────────────────────────────────
+
+@klage_bp.route("/ki-haftung", methods=["POST"])
+@login_erforderlich
+def ki_haftung(akte_id: str):
+    """
+    POST /akten/<az>/klage/ki-haftung
+    Sendet die Unfallschilderung an GPT-4o und gibt einen individuellen
+    Haftungsbegründungstext zurück (2-3 Sätze, juristischer Stil).
+    Body: { schilderung: str, hq: float }
+    """
+    import os
+    api_key = os.environ.get("OPENAI_API_KEY", "")
+    if not api_key:
+        return jsonify({"fehler": "OPENAI_API_KEY nicht konfiguriert."}), 503
+
+    daten      = request.get_json(silent=True) or {}
+    schilderung = (daten.get("schilderung") or "").strip()
+    hq          = float(daten.get("hq") or 100)
+
+    if not schilderung:
+        return jsonify({"fehler": "Keine Unfallschilderung vorhanden."}), 400
+
+    if hq >= 100:
+        haftung_ctx = "Die alleinige Haftung des Unfallgegners steht fest (100 %)."
+    elif hq >= 50:
+        haftung_ctx = f"Der Unfallgegner haftet überwiegend zu {hq:.0f} %."
+    else:
+        haftung_ctx = f"Der Unfallgegner haftet zu {hq:.0f} % (Mithaftung)."
+
+    system_prompt = (
+        "Du bist ein erfahrener Rechtsanwalt für Verkehrsrecht in Deutschland. "
+        "Du formulierst prägnante, juristische Texte für Klageschriftsätze im Stil "
+        "einer professionellen Anwaltskanzlei. Keine Einleitungs- oder Schlussphrasen, "
+        "nur den reinen Haftungstext."
+    )
+    user_prompt = (
+        f"{haftung_ctx}\n\n"
+        f"Unfallschilderung (anonymisiert – Mandant wird als Kläger bezeichnet):\n"
+        f"{schilderung}\n\n"
+        f"Erstelle 2–3 Sätze für den Abschnitt »Rechtliche Würdigung« einer Klageschrift. "
+        f"Begründe konkret und fallbezogen, warum der Unfallgegner haftet. "
+        f"Beziehe dich auf die Schilderung. Juristischer, sachlicher Stil."
+    )
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+        resp = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user",   "content": user_prompt},
+            ],
+            max_tokens=400,
+            temperature=0.4,
+        )
+        text = resp.choices[0].message.content.strip()
+        return jsonify({"text": text}), 200
+    except Exception as e:
+        logger.error("KI-Haftung OpenAI-Fehler: %s", e)
+        return jsonify({"fehler": f"KI-Aufruf fehlgeschlagen: {str(e)}"}), 500
+
+
 # ── Gerichte aus RA-Micro suchen ──────────────────────────────────────────────
 
 @klage_bp.route("/gerichte", methods=["GET"])

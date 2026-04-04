@@ -291,6 +291,9 @@ export const apiKlage = {
   gerichte:        (az, q='', typ='') => request(`/akten/${az}/klage/gerichte?q=${encodeURIComponent(q)}&typ=${typ}`),
   gerichtSpeichern:(az, gericht)     => request(`/akten/${az}/klage/gericht`, {
                                          method: 'PUT', body: JSON.stringify(gericht) }),
+  kiHaftung:       (az, schilderung, hq) => request(`/akten/${az}/klage/ki-haftung`, {
+                                         method: 'POST',
+                                         body: JSON.stringify({ schilderung, hq }) }),
   generieren: async (az, klagenConfig, overrides = null) => {
     const token = tokenStore.getAccess();
     const reqBody = { klage_config: klagenConfig, in_db: true };
