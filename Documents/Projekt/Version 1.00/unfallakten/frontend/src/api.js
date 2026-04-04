@@ -504,8 +504,11 @@ export const wiedervorlage = {
     const a = document.createElement("a");
     a.href = url;
     a.download = `${sicheresAz}_sachstandsanfrage_${datum}.docx`;
+    a.style.display = 'none';
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   },
 
   /**
@@ -531,8 +534,11 @@ export const wiedervorlage = {
     const a = document.createElement("a");
     a.href = url;
     a.download = `sachstandsanfragen_${datum}.zip`;
+    a.style.display = 'none';
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   },
 
   /** Alle Beteiligten einer Akte (für Adressaten-Dropdown) */
@@ -732,10 +738,13 @@ export const apiStellungnahme = {
    * @param {number|null} abId       Optional: nur dieses Abrechnungsschreiben
    */
   generieren: async (az, abId = null) => {
+    const token = tokenStore.getAccess();
     const res = await fetch(`${API_BASE}/akten/${az}/stellungnahme/generieren`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify(abId ? { abrechnungsschreiben_id: abId } : {}),
     });
     if (!res.ok) {
