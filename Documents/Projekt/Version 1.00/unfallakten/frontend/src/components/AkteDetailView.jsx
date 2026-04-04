@@ -197,6 +197,7 @@ function AkteDetailView({ akte, st, dispatch }) {
   ];
 
   return (
+    <>
     <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
       {/* Header – alles auf einer Zeile */}
@@ -457,6 +458,7 @@ function AkteDetailView({ akte, st, dispatch }) {
       </div>
     </div>
     {toast && <Toast msg={toast} onDone={() => setToast("")} />}
+    </>
   );
 }
 
