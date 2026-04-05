@@ -35,3 +35,7 @@ pytest-cov==6.1.0
 #   - E-Mail-Import (Modul 7): imap-tools==1.7.x
 # ─────────────────────────────────────────────────────────────────────────────
 pymssql==2.3.1
+
+# ── KI-Integration (Modul PRD-26) ────────────────────────────────────────────
+anthropic==0.40.0             # Claude Sonnet – KI-Haftungsbegründung
+google-genai==1.10.0          # Gemini 3.1 Pro – KI-Haftungsbegründung

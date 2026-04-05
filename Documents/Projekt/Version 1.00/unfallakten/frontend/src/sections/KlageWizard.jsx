@@ -208,7 +208,7 @@ function Fortschrittsbalken({ step, maxStep, onStepChange }) {
         const klickbar  = s.nr <= maxStep && s.nr !== step;
         return (
           <React.Fragment key={s.nr}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, minWidth: 0 }}>
               <div
                 onClick={klickbar ? () => onStepChange(s.nr) : undefined}
                 style={{
@@ -229,6 +229,7 @@ function Fortschrittsbalken({ step, maxStep, onStepChange }) {
                 fontFamily: PLEX, fontSize: "0.72rem", fontWeight: aktiv ? 700 : 400,
                 color: aktiv ? T.gold : erledigt ? T.navy : T.textMuted,
                 marginTop: 5, textAlign: "center", whiteSpace: "nowrap",
+                overflow: "hidden", width: "100%",
                 transition: "color 0.25s",
               }}>
                 {s.label}

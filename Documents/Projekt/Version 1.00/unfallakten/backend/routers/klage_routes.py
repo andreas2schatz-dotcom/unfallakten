@@ -1202,7 +1202,7 @@ def ki_haftung(akte_id: str):
             import anthropic
             client = anthropic.Anthropic(api_key=api_key)
             msg  = client.messages.create(
-                model=modell, max_tokens=400,
+                model=modell, max_tokens=800,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
             )
@@ -1219,7 +1219,8 @@ def ki_haftung(akte_id: str):
                 model=modell,
                 config=gtypes.GenerateContentConfig(
                     system_instruction=system_prompt,
-                    max_output_tokens=400,
+                    max_output_tokens=800,
+                    thinking_config=gtypes.ThinkingConfig(thinking_budget=0),
                 ),
                 contents=user_prompt,
             )

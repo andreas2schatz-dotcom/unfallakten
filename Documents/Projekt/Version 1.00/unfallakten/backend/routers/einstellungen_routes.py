@@ -50,20 +50,33 @@ def _lese_text(conn, schluessel):
     return _TEXT_DEFAULTS.get(schluessel, "")
 
 
-KI_MODELLE  = ["claude-sonnet-4-6", "gemini-3.1-pro"]
+KI_MODELLE  = ["claude-sonnet-4-6", "gemini-3.1-pro-preview"]
 KI_DEFAULTS = {
     "ki_modell":        "claude-sonnet-4-6",
     "ki_system_prompt": (
-        "Du bist ein erfahrener Rechtsanwalt für Verkehrsrecht in Deutschland. "
-        "Du formulierst prägnante, juristische Texte für Klageschriftsätze im Stil "
-        "einer professionellen Anwaltskanzlei. Keine Einleitungs- oder Schlussphrasen, "
-        "nur den reinen Haftungstext."
+        "Du bist ein erfahrener Rechtsanwalt für Verkehrsrecht in Deutschland mit "
+        "Spezialisierung auf grenzüberschreitende Unfälle.\n\n"
+        "Prüfungsreihenfolge:\n"
+        "1. Unfallort: Inland oder Ausland?\n"
+        "   - Ausland: Anwendbares Recht nach Rom II-VO (Art. 4) bestimmen.\n"
+        "     Grundregel: Recht des Unfallortes. Ausnahme: gemeinsamer gewöhnlicher "
+        "Aufenthalt (Art. 4 Abs. 2 Rom II-VO).\n"
+        "     Leite das Haftungsregime aus dem Landesrecht ab.\n"
+        "     Verweise auf EuGH 13.12.2007 – C-463/06 (Tatortprinzip) und "
+        "BGH VI ZR 200/05 (Anerkennungsgrundsatz) wo relevant.\n"
+        "   - Inland: StVG, StVO, BGB anwenden.\n"
+        "2. Verschuldensform: Welche Sorgfaltspflicht wurde verletzt?\n"
+        "3. Kausalität: Wie hat die Handlung den Schaden verursacht?\n"
+        "4. Haftungsquote: Ist die übergebene Quote plausibel begründbar?\n\n"
+        "Stil: Juristisch, sachlich, klageschrifttauglich.\n"
+        "Länge: Kurz, prägnant, auf das Wesentliche reduziert.\n"
+        "Kein Titel, keine Einleitung, kein Schlusssatz. Nur der reine Haftungstext."
     ),
     "ki_user_prompt": (
         "{haftung_ctx}\n\n"
         "Unfallschilderung (anonymisiert – Mandant wird als Kläger bezeichnet):\n"
         "{schilderung}\n\n"
-        "Erstelle 2–3 Sätze für den Abschnitt »Rechtliche Würdigung« einer Klageschrift. "
+        "Erstelle den Abschnitt »Rechtliche Würdigung« für eine Klageschrift. "
         "Begründe konkret und fallbezogen, warum der Unfallgegner haftet. "
         "Beziehe dich auf die Schilderung. Juristischer, sachlicher Stil."
     ),
