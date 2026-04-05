@@ -860,6 +860,10 @@ def hole_klage_daten(akte_id: str):
         "mandant_ist_fahrer": mandant_ist_fahrer,
     }
 
+    with get_connection() as conn2:
+        row = conn2.execute("SELECT wert FROM konfiguration WHERE schluessel='lg_grenzwert'").fetchone()
+        lg_grenzwert = int(row["wert"]) if row else 10000
+
     return _j({
         "beteiligte":         alle_bet,
         "positionen":         [p for p in pos_definitionen if p["betrag"] > 0],
@@ -876,6 +880,7 @@ def hole_klage_daten(akte_id: str):
         "unfallort":          akte.unfallort or (_wdm("varU-ORT") if wdm else "") or "",
         "aktivlegitimation":  aktivlegitimation,
         "kuerzungsarten":     kuerzungsarten_katalog,
+        "lg_grenzwert":       lg_grenzwert,
     })
 
 

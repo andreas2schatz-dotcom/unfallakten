@@ -216,3 +216,35 @@ def put_ki_einstellungen():
         if "user_prompt" in body:
             _upsert(conn, "ki_user_prompt", str(body["user_prompt"]).strip())
         return jsonify({"ok": True, **_ki_werte(conn)})
+
+
+@einstellungen_bp.route("/lg-grenzwert", methods=["GET"])
+@login_erforderlich
+def get_lg_grenzwert():
+    """GET /einstellungen/lg-grenzwert – LG-Zuständigkeitsschwelle."""
+    with get_connection() as conn:
+        row = conn.execute("SELECT wert FROM konfiguration WHERE schluessel='lg_grenzwert'").fetchone()
+        wert = int(row["wert"]) if row else 10000
+    return jsonify({"lg_grenzwert": wert})
+
+
+@einstellungen_bp.route("/lg-grenzwert", methods=["PUT"])
+@login_erforderlich
+def put_lg_grenzwert():
+    """PUT /einstellungen/lg-grenzwert – LG-Zuständigkeitsschwelle aktualisieren."""
+    body = request.get_json(silent=True) or {}
+    try:
+        wert = int(body.get("lg_grenzwert", 10000))
+        if not (1 <= wert <= 10_000_000):
+            return jsonify({"fehler": "Wert muss zwischen 1 und 10.000.000 liegen."}), 400
+    except (ValueError, TypeError):
+        return jsonify({"fehler": "Kein gültiger ganzzahliger Wert."}), 400
+    with get_connection() as conn:
+        conn.execute(
+            """INSERT INTO konfiguration (schluessel, wert, geaendert_am)
+               VALUES ('lg_grenzwert', ?, datetime('now','localtime'))
+               ON CONFLICT(schluessel) DO UPDATE SET
+                   wert=excluded.wert, geaendert_am=excluded.geaendert_am""",
+            (str(wert),)
+        )
+    return jsonify({"ok": True, "lg_grenzwert": wert})

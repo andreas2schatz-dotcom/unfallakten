@@ -30,6 +30,11 @@ function EinstellungenView() {
   const [kiLaedt,  setKiLaedt]  = useState(false);
   const [kiSpeich, setKiSpeich] = useState(false);
 
+  // LG-Zuständigkeitsgrenze
+  const [lgGrenzwert,      setLgGrenzwert]      = useState(10000);
+  const [lgGrenzwertLaedt, setLgGrenzwertLaedt] = useState(false);
+  const [lgGrenzwertSpeich, setLgGrenzwertSpeich] = useState(false);
+
   // Klassifikations-Trainingsdaten
   const [training, setTraining] = useState(null);
 
@@ -57,6 +62,11 @@ function EinstellungenView() {
       .then(d => setKi(d))
       .catch(() => {})
       .finally(() => setKiLaedt(false));
+    setLgGrenzwertLaedt(true);
+    apiEinstellungen.lgGrenzwert()
+      .then(d => setLgGrenzwert(d.lg_grenzwert ?? 10000))
+      .catch(() => {})
+      .finally(() => setLgGrenzwertLaedt(false));
   }, []);
 
   const speichereNeu = async () => {
@@ -124,12 +134,13 @@ function EinstellungenView() {
         <div style={{ display:"flex", gap:4, marginBottom:"1.5rem",
           borderBottom:`1px solid ${T.border}` }}>
           {[
-            ["versicherer", "🏦 Versicherer"],
-            ["gutachter",   "🔍 Gutachter"],
-            ["absender",    "📋 Alle Vorlagen"],
-            ["imap",        "📧 IMAP"],
-            ["fristen",     "⏱ Fristen"],
-            ["ki",          "✦ KI-Assistent"],
+            ["versicherer",   "🏦 Versicherer"],
+            ["gutachter",     "🔍 Gutachter"],
+            ["absender",      "📋 Alle Vorlagen"],
+            ["imap",          "📧 IMAP"],
+            ["fristen",       "⏱ Fristen"],
+            ["ki",            "✦ KI-Assistent"],
+            ["zustaendigkeit","⚖ Zuständigkeit"],
           ].map(([id, label]) => (
             <button key={id} onClick={() => { setTab(id); setSuche(""); }}
               style={{ padding:"8px 18px", border:"none", background:"transparent",
@@ -138,7 +149,7 @@ function EinstellungenView() {
                 borderBottom: tab===id ? `2px solid ${T.gold}` : "2px solid transparent",
                 marginBottom:-1 }}>
               {label}
-              {id !== "imap" && id !== "fristen" && id !== "ki" && (
+              {id !== "imap" && id !== "fristen" && id !== "ki" && id !== "zustaendigkeit" && (
                 <span style={{ marginLeft:6, background:T.surface, color:T.textMuted,
                   borderRadius:10, padding:"1px 7px", fontSize:"0.8rem", fontWeight:400 }}>
                   {id === "versicherer" ? vorlagen.filter(v => v.kategorie==="versicherung").length
@@ -431,8 +442,70 @@ function EinstellungenView() {
           </div>
         )}
 
+        {/* Zuständigkeit Tab */}
+        {tab === "zustaendigkeit" && (
+          <div style={{ display:"flex", flexDirection:"column", gap:"1.25rem", maxWidth:520 }}>
+
+            <div style={{ background:T.white, borderRadius:10, padding:"1rem 1.25rem",
+              border:`1px solid ${T.border}`, fontFamily:"'IBM Plex Sans',sans-serif",
+              fontSize:"0.915rem", color:T.textMuted, lineHeight:1.6 }}>
+              Legt fest, ab welchem Streitwert das <strong style={{ color:T.text }}>Landgericht</strong> zuständig ist.
+              Im Klage-Wizard (Step 10) erscheint eine Warnung, wenn das gewählte Gericht ein Amtsgericht ist
+              und der Streitwert diese Grenze überschreitet.
+              <br/><br/>
+              Gesetzliche Grundlage: <strong style={{ color:T.text }}>§ 23 Nr. 1 GVG</strong> (AG bis 10.000 €),
+              <strong style={{ color:T.text }}> § 71 Abs. 1 GVG</strong> (LG ab 10.000 €).
+              Standard: 10.000 € (seit Justizmodernisierungsgesetz 2023). Dieser Wert kann für besondere Zuständigkeitsvereinbarungen angepasst werden.
+            </div>
+
+            <Card>
+              <CardHead title="LG-Zuständigkeitsgrenze" />
+              <div style={{ padding:"1rem 1.25rem", display:"flex", flexDirection:"column", gap:"1rem" }}>
+
+                <div>
+                  <label style={{ display:"block", fontFamily:"'IBM Plex Sans',sans-serif",
+                    fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:6 }}>
+                    LG-Zuständigkeitsgrenze (€)
+                  </label>
+                  <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem",
+                    color:T.textFaint, marginBottom:8 }}>
+                    Ab diesem Streitwert ist das Landgericht zuständig (§ 23 GVG / § 71 GVG)
+                  </div>
+                  <input
+                    type="number" min={1} max={10000000}
+                    value={lgGrenzwert}
+                    onChange={e => setLgGrenzwert(parseInt(e.target.value) || 10000)}
+                    disabled={lgGrenzwertLaedt}
+                    style={{ ...inputStyle, width:160, textAlign:"right",
+                      fontFamily:"'IBM Plex Mono',monospace", fontSize:"1rem", fontWeight:600 }}
+                  />
+                  <span style={{ marginLeft:8, fontFamily:"'IBM Plex Sans',sans-serif",
+                    fontSize:"0.875rem", color:T.textMuted }}>€</span>
+                </div>
+
+                <div style={{ display:"flex", justifyContent:"flex-end" }}>
+                  <Btn
+                    onClick={async () => {
+                      setLgGrenzwertSpeich(true);
+                      try {
+                        const res = await apiEinstellungen.lgGrenzwertSpeichern(lgGrenzwert);
+                        setLgGrenzwert(res.lg_grenzwert ?? lgGrenzwert);
+                        setToast("LG-Grenze gespeichert.");
+                      } catch(e) {
+                        setToast(e?.message || "Fehler beim Speichern.");
+                      } finally { setLgGrenzwertSpeich(false); }
+                    }}
+                    disabled={lgGrenzwertSpeich || lgGrenzwertLaedt}>
+                    {lgGrenzwertSpeich ? "Speichern …" : "Speichern"}
+                  </Btn>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
         {/* Versicherer / Gutachter / Alle Vorlagen Tabs */}
-        {tab !== "imap" && tab !== "fristen" && tab !== "ki" && (
+        {tab !== "imap" && tab !== "fristen" && tab !== "ki" && tab !== "zustaendigkeit" && (
           <div>
             {/* Neue Vorlage anlegen */}
             <Card style={{ marginBottom:"1.25rem" }}>

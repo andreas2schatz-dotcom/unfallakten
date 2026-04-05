@@ -177,6 +177,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [wizardVerzugText, setWizardVerzugText]   = useState("");
   const [wizardVerzugDatum, setWizardVerzugDatum] = useState("");
   const [kiLaedt, setKiLaedt]                     = useState(false);
+  const [lgGrenzwert, setLgGrenzwert]             = useState(10000);
   // PRD-26: neue Wizard-States
   const [wizardHq, setWizardHq]                     = useState(100);
   const [wizardHb, setWizardHb]                     = useState("");
@@ -202,6 +203,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         })));
         setVerzug(res.verzug_datum || "");
         setRvgData(res.rvg || null);
+        if (res.lg_grenzwert) setLgGrenzwert(res.lg_grenzwert);
         // Gericht-Vorschlag automatisch setzen
         if (res.gericht_vorschlag) {
           setGericht(res.gericht_vorschlag);
@@ -541,6 +543,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           rvgOverride={rvgOverride}
           zinsenAb={zinsenAb}
           verzug={verzug}
+          lgGrenzwert={lgGrenzwert}
           // Generieren
           laedt={generiert_laedt}
           onGenerieren={wizardGenerieren}

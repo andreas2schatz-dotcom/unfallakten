@@ -792,6 +792,10 @@ export const apiEinstellungen = {
   kiEinstellungenSpeichern: (d)  => request('/einstellungen/ki', {
     method: 'PUT', body: JSON.stringify(d),
   }),
+  lgGrenzwert:            ()      => request('/einstellungen/lg-grenzwert'),
+  lgGrenzwertSpeichern:   (wert)  => request('/einstellungen/lg-grenzwert', {
+    method: 'PUT', body: JSON.stringify({ lg_grenzwert: wert }),
+  }),
 };
 
 // ── PRD-25d: Intelligente Sachstandsanfrage ───────────────────────────────────

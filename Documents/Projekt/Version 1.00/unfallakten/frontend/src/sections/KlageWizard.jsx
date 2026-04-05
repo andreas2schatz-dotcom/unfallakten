@@ -1318,10 +1318,14 @@ function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMind,
                                rvgAussergData, rvgAussergOv,
                                aktLegTyp, aktLegFreigabe,
                                zinsenAb, wizardVerzugDatum,
-                               laedt, onGenerieren, fehler }) {
+                               laedt, onGenerieren, fehler,
+                               lgGrenzwert, swAusserg }) {
   const klagebetrag  = positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag || 0), 0);
   const rvgGesamt    = rvgOverride    ? parseFloat(rvgOverride)    : (rvgData?.gesamt        || 0);
   const rvgAussGes   = rvgAussergOv   ? parseFloat(rvgAussergOv)   : (rvgAussergData?.gesamt || 0);
+  const swGerichtlich = klagebetrag + (mitSG && sgMind > 0 ? sgMind : 0);
+  const istAmtsgericht = gericht && /amtsgericht/i.test(gericht.name || "");
+  const lgWarnung = lgGrenzwert > 0 && swGerichtlich > lgGrenzwert && istAmtsgericht;
   const klaeger     = beklagte?.filter(b => b.rolle_klage === "klaeger") || [];
   const beklagteG   = beklagte?.filter(b => b.rolle_klage !== "klaeger" && b.checked) || [];
 
@@ -1373,12 +1377,12 @@ function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMind,
             ? `${aktLegLabel} – ⚠ ungeklärt`
             : `${aktLegLabel}${aktLegTyp !== "eigentum" ? ` · ${freigabeLabel}` : ""}`}
           warn={aktLegFreigabe === "ungeklaert"} />
-        <ZeileZusammenfassung icon="💶" label="RVG gerichtlich" wert={fmtEur(rvgGesamt)} />
-        <ZeileZusammenfassung icon="💶" label="RVG außergerichtlich"
+        <ZeileZusammenfassung icon="💶" label={`RVG gerichtlich (SW: ${fmtEur(swGerichtlich)})`} wert={fmtEur(rvgGesamt)} />
+        <ZeileZusammenfassung icon="💶" label={`RVG außergerichtlich (SW: ${fmtEur(swAusserg || 0)})`}
           wert={rvgAussGes > 0 ? fmtEur(rvgAussGes) : "–"} warn={rvgAussGes === 0} />
       </div>
 
-      {(keinGericht || keinPositionen || firmenOhneVertreter.length > 0 || aktLegFreigabe === "ungeklaert") && (
+      {(keinGericht || keinPositionen || firmenOhneVertreter.length > 0 || aktLegFreigabe === "ungeklaert" || lgWarnung) && (
         <div style={{ marginBottom: "1rem" }}>
           {keinGericht && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: T.red,
             padding: "7px 12px", background: `${T.red}10`, borderRadius: 7, marginBottom: 6 }}>
@@ -1395,6 +1399,10 @@ function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMind,
           {aktLegFreigabe === "ungeklaert" && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: T.amber,
             padding: "7px 12px", background: `${T.amber}12`, borderRadius: 7, marginBottom: 6 }}>
             ⚠ Aktivlegitimation ungeklärt – kein Text wird generiert.
+          </div>}
+          {lgWarnung && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: "#c05c00",
+            padding: "7px 12px", background: "#c05c0015", borderRadius: 7, marginBottom: 6, border: "1px solid #c05c0030" }}>
+            ⚠ Streitwert {fmtEur(swGerichtlich)} überschreitet die LG-Grenze von {fmtEur(lgGrenzwert)} – zuständig ist das <strong>Landgericht</strong>, nicht das Amtsgericht.
           </div>}
         </div>
       )}
@@ -1867,6 +1875,7 @@ export default function KlageWizard({
   wizardGebuehrenText, onGebuehrenText,
   // Shared
   beklagte, rvgData, rvgOverride, zinsenAb, verzug,
+  lgGrenzwert,
   // Generieren
   laedt, onGenerieren, fehler,
 }) {
@@ -2058,6 +2067,7 @@ export default function KlageWizard({
                 zinsenAb={zinsenAb}         wizardVerzugDatum={wizardVerzugDatum}
                 laedt={laedt}               onGenerieren={onGenerieren}
                 fehler={fehler}
+                lgGrenzwert={lgGrenzwert}   swAusserg={swAusserg}
               />
             )}
           </div>
