@@ -1225,8 +1225,19 @@ function buildVerzugAutoText(datum) {
 function StepVerzug({ zinsenAb, rvgData, rvgOverride, weiblich,
                       wizardVerzugDatum, onWizardVerzugDatum,
                       wizardVerzugText, onWizardVerzugText }) {
-  const rvgGesamt  = rvgOverride ? parseFloat(rvgOverride) : (rvgData?.gesamt || 0);
-  const prevAutoRef = useRef(wizardVerzugText);
+  const rvgGesamt      = rvgOverride ? parseFloat(rvgOverride) : (rvgData?.gesamt || 0);
+  const prevAutoRef    = useRef(wizardVerzugText);
+  const datepickerRef  = useRef(null);
+
+  function datumZuIso(de) {
+    const m = (de || "").match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    return m ? `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}` : "";
+  }
+  function isoZuDatum(iso) {
+    if (!iso) return "";
+    const [y, mo, d] = iso.split("-");
+    return `${d}.${mo}.${y}`;
+  }
 
   function handleDatumChange(val) {
     onWizardVerzugDatum(val);
@@ -1253,19 +1264,46 @@ function StepVerzug({ zinsenAb, rvgData, rvgOverride, weiblich,
           <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.textMuted, marginBottom: 4 }}>
             Datum (leer = Rechtshängigkeit)
           </div>
-          <input
-            type="text"
-            value={wizardVerzugDatum}
-            onChange={e => handleDatumChange(e.target.value)}
-            placeholder="TT.MM.JJJJ"
-            style={{
-              width: "100%", padding: "7px 10px", borderRadius: 7,
-              border: `1.5px solid ${wizardVerzugDatum ? T.navy : T.amber}`,
-              fontFamily: MONO, fontSize: "0.875rem",
-              color: wizardVerzugDatum ? T.navy : T.textMuted,
-              background: T.white, boxSizing: "border-box",
-            }}
-          />
+          <div style={{ display: "flex", gap: 6, alignItems: "center", position: "relative" }}>
+            <input
+              type="text"
+              value={wizardVerzugDatum}
+              onChange={e => handleDatumChange(e.target.value)}
+              placeholder="TT.MM.JJJJ"
+              style={{
+                flex: 1, padding: "7px 10px", borderRadius: 7,
+                border: `1.5px solid ${wizardVerzugDatum ? T.navy : T.amber}`,
+                fontFamily: MONO, fontSize: "0.875rem",
+                color: wizardVerzugDatum ? T.navy : T.textMuted,
+                background: T.white, boxSizing: "border-box",
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => datepickerRef.current?.showPicker?.()}
+              title="Kalender öffnen"
+              style={{
+                padding: "6px 9px", borderRadius: 7, cursor: "pointer",
+                border: `1.5px solid ${T.border}`, background: T.white,
+                color: T.textMuted, fontSize: "1rem", lineHeight: 1,
+                display: "flex", alignItems: "center", flexShrink: 0,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1" y="3" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.4"/>
+                <path d="M1 7h14" stroke="currentColor" strokeWidth="1.4"/>
+                <path d="M5 1v3M11 1v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+            </button>
+            <input
+              ref={datepickerRef}
+              type="date"
+              value={datumZuIso(wizardVerzugDatum)}
+              onChange={e => handleDatumChange(isoZuDatum(e.target.value))}
+              style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0, right: 0 }}
+              tabIndex={-1}
+            />
+          </div>
           {!wizardVerzugDatum && (
             <div style={{ fontFamily: PLEX, fontSize: "0.72rem", color: T.amber, marginTop: 3 }}>
               Fallback: Rechtshängigkeit
