@@ -938,7 +938,10 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
             f"seit {zins_rvg} zu zahlen."
         )
         antraege_xml += _lz()
-        antraege_xml += antrag("Die Beklagte trägt die Kosten des Rechtsstreits.", fett=False)
+        kosten_text = ("Die Beklagten tragen die Kosten des Rechtsstreits."
+                       if len(beklagte_gef) > 1
+                       else "Die Beklagte trägt die Kosten des Rechtsstreits.")
+        antraege_xml += antrag(kosten_text, fett=False)
         antraege_xml += _versaeumnis_block
 
     # ── {{EINLEITUNG}} ────────────────────────────────────────────────────
@@ -1106,15 +1109,22 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         verzug_xml = ""
         for _line in verzug_text_override.split("\n"):
             _line = _line.strip()
-            if _line:
+            if not _line:
+                continue
+            if _line.upper().startswith("BEWEIS:"):
+                verzug_xml += _beweis(_line[len("BEWEIS:"):].strip())
+            else:
                 verzug_xml += _p(_line)
         verzug_xml += _lz()
     else:
-        verzug_xml = _p(f"Verzug ist spätestens am {verzugsdatum} eingetreten."
-                        if verzugsdatum else
-                        "Verzug ist mit Rechtshängigkeit eingetreten.")
         if verzugsdatum:
-            verzug_xml += _beweis(f"Schreiben vom {verzugsdatum} in Kopie, Anlage K 3")
+            verzug_xml = _p(
+                f"Der Verzug ist nach Ablauf der Zahlungsfrist bzw. dem ernsthaften "
+                f"und endgültigen Verweigern der Leistung am {verzugsdatum} eingetreten."
+            )
+            verzug_xml += _beweis(f"Schreiben vom {verzugsdatum}")
+        else:
+            verzug_xml = _p("Verzug ist mit Rechtshängigkeit eingetreten.")
         verzug_xml += _lz()
 
     # ── {{VORGERICHTLICHE_KOSTEN}} ────────────────────────────────────────

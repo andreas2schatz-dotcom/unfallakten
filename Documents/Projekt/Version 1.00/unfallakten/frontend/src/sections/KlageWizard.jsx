@@ -1218,7 +1218,7 @@ function StepRw({ hq, onHq, hb, onHb, abrechnungen, weiblich,
 
 function buildVerzugAutoText(datum) {
   return datum
-    ? `Verzug ist spätestens am ${datum} eingetreten.`
+    ? `Der Verzug ist nach Ablauf der Zahlungsfrist bzw. dem ernsthaften und endgültigen Verweigern der Leistung am ${datum} eingetreten.\n\nBEWEIS: Schreiben vom ${datum}`
     : `Verzug ist mit Rechtshängigkeit eingetreten.`;
 }
 
