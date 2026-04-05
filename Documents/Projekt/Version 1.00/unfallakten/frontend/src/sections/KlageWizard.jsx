@@ -354,11 +354,46 @@ function AbschnittLabel({ text }) {
 
 // ── Step 2: Rubrum ─────────────────────────────────────────────────────────────
 
+/** Entfernt doppelten "Schadennummer:"-Prefix der aus RA-Micro kommen kann */
+function _schadenNrBereinigt(raw) {
+  if (!raw) return "";
+  return raw.replace(/^Schadennummer:\s*/i, "").trim();
+}
+
 function StepRubrum({ beklagte, onClose }) {
+  // checked=null → wie checked=true behandeln (Word-Verhalten: default True)
   const klaeger   = (beklagte || []).filter(b => b.rolle_klage === "klaeger");
-  const beklagteG = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked);
+  const beklagteG = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked !== false);
   const mehrereK  = klaeger.length > 1;
   const mehrereB  = beklagteG.length > 1;
+
+  // Eine Rubrum-Zeile: Text links, Rolle rechts (wie im Word-Dokument)
+  function RubrumZeile({ links, rolle, warn }) {
+    return (
+      <div style={{ marginBottom: "0.4rem" }}>
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "baseline",
+          gap: "1rem",
+        }}>
+          <span style={{ fontFamily: PLEX, fontSize: "0.9rem", color: T.navy }}>{links}</span>
+          <span style={{
+            fontFamily: PLEX, fontSize: "0.85rem", fontStyle: "italic",
+            color: T.textFaint, whiteSpace: "nowrap", flexShrink: 0,
+          }}>– {rolle} –</span>
+        </div>
+        {warn && (
+          <div style={{ fontSize: "0.78rem", color: T.amber, marginTop: 2 }}>
+            ⚠ Vertreter fehlt –{" "}
+            <button onClick={() => { if (onClose) onClose(); setTimeout(() => document.getElementById("karte-parteien")?.scrollIntoView({ behavior: "smooth" }), 150); }}
+              style={{ background: "none", border: "none", padding: 0, cursor: "pointer",
+                color: T.amber, fontFamily: PLEX, fontSize: "0.78rem", textDecoration: "underline", fontWeight: 600 }}>
+              jetzt nachtragen →
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -368,7 +403,7 @@ function StepRubrum({ beklagte, onClose }) {
         fontFamily: PLEX, fontSize: "0.8rem", color: T.textMuted,
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
-        <span>ℹ Parteien-Überblick</span>
+        <span>ℹ Vorschau entspricht dem Rubrum im Word-Dokument</span>
         <button
           onClick={() => {
             if (onClose) onClose();
@@ -387,83 +422,54 @@ function StepRubrum({ beklagte, onClose }) {
       <div style={{
         background: "#fdfcf7", border: `1px solid #e8e4d4`,
         borderRadius: 10, padding: "1.5rem",
-        fontFamily: PLEX, fontSize: "0.925rem",
+        fontFamily: PLEX, fontSize: "0.9rem",
       }}>
         {/* Kläger */}
         {klaeger.length === 0 ? (
           <div style={{ color: T.amber }}>⚠ Kein Kläger erfasst.</div>
         ) : klaeger.map((b, i) => {
-          const name   = b.vorname ? `${b.vorname} ${b.name}`.trim() : b.name || b.firma || "Mandant";
-          const anschr = [b.anschrift, [b.plz, b.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ");
-          const anrede = (b.anrede || "").toLowerCase();
-          let rolleBez = mehrereK
+          const name    = b.vorname ? `${b.vorname} ${b.name}`.trim() : b.name || b.firma || "Mandant";
+          const anschr  = [b.anschrift, [b.plz, b.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+          const zeile   = [name, anschr].filter(Boolean).join(", ");
+          const anrede  = (b.anrede || "").toLowerCase();
+          const rolleBez = mehrereK
             ? (anrede === "frau" ? `Klägerin zu ${i + 1})` : `Kläger zu ${i + 1})`)
             : (anrede === "frau" ? "Klägerin" : "Kläger");
-          return (
-            <div key={b.id} style={{ marginBottom: "0.75rem" }}>
-              <div style={{ fontWeight: 700, color: T.navy }}>{name}</div>
-              {anschr && <div style={{ fontSize: "0.85rem", color: T.textMuted }}>{anschr}</div>}
-              <div style={{ fontSize: "0.8rem", fontStyle: "italic", color: T.textFaint, marginTop: 2 }}>
-                – {rolleBez} –
-              </div>
-            </div>
-          );
+          return <RubrumZeile key={b.id || i} links={zeile} rolle={rolleBez} />;
         })}
 
         {klaeger.length > 0 && (
-          <div style={{ fontSize: "0.875rem", color: T.text, marginBottom: "0.75rem" }}>
+          <div style={{ fontFamily: PLEX, fontSize: "0.875rem", color: T.text, margin: "0.5rem 0" }}>
             Prozessbevollmächtigte: Koch, Schatz &amp; Kollegen, Tulpenhofstr. 1, 63067 Offenbach
           </div>
         )}
 
         {klaeger.length > 0 && beklagteG.length > 0 && (
           <div style={{
-            textAlign: "center", padding: "0.6rem 0", marginBottom: "0.75rem",
+            textAlign: "center", padding: "0.6rem 0", margin: "0.5rem 0",
             fontSize: "0.875rem", letterSpacing: "0.15em", color: T.textFaint,
             borderTop: `1px solid ${T.borderSoft}`, borderBottom: `1px solid ${T.borderSoft}`,
-            textTransform: "uppercase",
           }}>
             g e g e n
           </div>
         )}
 
+        {/* Beklagte */}
         {beklagteG.length === 0 ? (
           <div style={{ color: T.amber, fontSize: "0.875rem" }}>⚠ Keine Beklagten ausgewählt.</div>
         ) : beklagteG.map((b, i) => {
-          const name    = b.versicherung || b.firma || `${b.vorname || ""} ${b.name || ""}`.trim() || "Unbekannt";
-          const anschr  = [b.anschrift, [b.plz, b.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ");
-          const extras  = [b.schaden_nr ? `Schaden-Nr. ${b.schaden_nr}` : null, b.kfz_kennzeichen || null].filter(Boolean);
-          const nr      = mehrereB ? ` zu ${i + 1})` : "";
-          const vertr   = b.vertreter_name
+          const name       = b.versicherung || b.firma || `${b.vorname || ""} ${b.name || ""}`.trim() || "Unbekannt";
+          const anschr     = [b.anschrift, [b.plz, b.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+          const ist_firma  = !!(b.versicherung || b.firma);
+          const vertr      = b.vertreter_name
             ? `, vertreten durch ${b.vertreter_funktion || "den Vorstand"} ${b.vertreter_name}`
-            : "";
-          return (
-            <div key={b.id} style={{ marginBottom: i < beklagteG.length - 1 ? "0.75rem" : 0 }}>
-              <div style={{ fontWeight: 600, color: T.navy }}>{name}{vertr}</div>
-              {anschr && <div style={{ fontSize: "0.85rem", color: T.textMuted }}>{anschr}</div>}
-              {extras.length > 0 && (
-                <div style={{ fontSize: "0.8rem", color: T.textFaint }}>{extras.join(" · ")}</div>
-              )}
-              <div style={{ fontSize: "0.8rem", fontStyle: "italic", color: T.textFaint, marginTop: 2 }}>
-                – Beklagte{b.anrede === "frau" ? "" : "r"}{nr} –
-              </div>
-              {(b.versicherung || b.firma) && !b.vertreter_name && (
-                <div style={{ fontSize: "0.78rem", color: T.amber, marginTop: 2 }}>
-                  ⚠ Vertreter fehlt –{" "}
-                  <button
-                    onClick={() => {
-                      if (onClose) onClose();
-                      setTimeout(() => document.getElementById("karte-parteien")?.scrollIntoView({ behavior: "smooth" }), 150);
-                    }}
-                    style={{ background: "none", border: "none", padding: 0, cursor: "pointer",
-                      color: T.amber, fontFamily: PLEX, fontSize: "0.78rem",
-                      textDecoration: "underline", fontWeight: 600 }}>
-                    jetzt nachtragen →
-                  </button>
-                </div>
-              )}
-            </div>
-          );
+            : ist_firma ? `, vertreten durch den Vorstand` : "";
+          const schadenNr  = _schadenNrBereinigt(b.schaden_nr);
+          const schadenSfx = schadenNr ? `, zur Schadennummer ${schadenNr}` : "";
+          const nr_suffix  = mehrereB ? ` zu ${i + 1})` : "";
+          const zeile      = [name, anschr].filter(Boolean).join(", ") + vertr + schadenSfx;
+          const warn       = ist_firma && !b.vertreter_name;
+          return <RubrumZeile key={b.id || i} links={zeile} rolle={`Beklagte${nr_suffix}`} warn={warn} />;
         })}
       </div>
     </div>

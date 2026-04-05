@@ -820,7 +820,9 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
             vertreter_suffix = ""
 
         # Adresszeile + Vertreter + Schadennummer in einer Zeile
-        schaden_nr_val = (bek.get("schaden_nr") or "").strip()
+        import re as _re
+        schaden_nr_raw = (bek.get("schaden_nr") or "").strip()
+        schaden_nr_val = _re.sub(r"^Schadennummer:\s*", "", schaden_nr_raw, flags=_re.IGNORECASE)
         schaden_suffix = f", zur Schadennummer {schaden_nr_val}" if schaden_nr_val else ""
         adress_teile = [t for t in [bek_name, bek_anschr, bek_plz_ort] if t]
         full_line = ", ".join(adress_teile) + vertreter_suffix + schaden_suffix
