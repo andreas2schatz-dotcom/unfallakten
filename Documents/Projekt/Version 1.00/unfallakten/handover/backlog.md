@@ -6,6 +6,16 @@
 
 ## Offen
 
+### [PRD-27] ReguWizard – Stellungnahme zum Abrechnungsschreiben
+**Priorität:** mittel
+**Status:** Planung offen
+**Beschreibung:** Geführter Wizard zur Erstellung einer Stellungnahme auf ein
+Abrechnungsschreiben des gegnerischen Haftpflichtversicherers. Schrittweise durch
+Kürzungspositionen führen, Gegenargumente auswählen, Word-Export.
+**PRD:** `handover/PRD-27_ReguWizard.md`
+
+---
+
 ### [IDEA] Gebührenoptimierungsassistent
 **Priorität:** mittel
 **Beschreibung:** Modul, das anhand des Aktenverlaufs (E-Mails, Dokumente, Fristen, Kommunikation)
