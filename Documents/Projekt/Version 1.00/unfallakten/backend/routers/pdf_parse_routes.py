@@ -26,6 +26,44 @@ def _err(msg, status=400, **kw):
     return jsonify({"fehler": msg, "status": status, **kw}), status
 
 
+def _bestimme_routing(domain, rubrik):
+    # type: (str, str) -> dict
+    """
+    Bestimmt Routing-Entscheidung anhand von Domain und Rubrik.
+
+    Gibt dict zurück:
+      basis:   "domain_versicherer" | "rubrik" | "fallback_kein_signal" | "fallback_domain_unbekannt"
+      typ:     "versicherung" | "mandant" | "aussergerichtlich" | "unbekannt"
+      skip:    False (Fallback noch nicht aktiv – erst nach Testphase aktivierbar)
+
+    Fallback-Logging:
+      "fallback_kein_signal"      → kein Domain-Match, keine Rubrik → Classifier läuft
+      "fallback_domain_unbekannt" → Domain vorhanden, aber nicht in Whitelist → Classifier läuft
+      (Beide werden im Log sichtbar – nach Testphase kann "fallback_domain_unbekannt" auf skip=True gestellt werden)
+    """
+    import re as _re
+    from ..parsers.document_classifier import VERSICHERER_PATTERNS
+
+    RELEVANTE_RUBRIKEN = {"von mandant", "außergerichtlich"}
+
+    # Domain bekannt als Versicherer?
+    if domain:
+        for pattern, _kuerzel, _name, _prio in VERSICHERER_PATTERNS:
+            if _re.search(pattern, domain):
+                return {"basis": "domain_versicherer", "typ": "versicherung", "skip": False}
+
+    # Rubrik relevant?
+    if rubrik in RELEVANTE_RUBRIKEN:
+        return {"basis": "rubrik", "typ": rubrik, "skip": False}
+
+    # Kein Signal überhaupt
+    if not domain and not rubrik:
+        return {"basis": "fallback_kein_signal", "typ": "unbekannt", "skip": False}
+
+    # Domain vorhanden aber nicht in Whitelist
+    return {"basis": "fallback_domain_unbekannt", "typ": "unbekannt", "skip": False}
+
+
 def _parse_versicherungs_pdf(datei_bytes: bytes) -> dict:
     """
     Führt den vollständigen Parser-Workflow durch:
@@ -372,6 +410,16 @@ def parse_eakte_dokument(akte_id: str, eakte_nr: int):
     if not dok:
         return _err("E-Akte-Dokument %d nicht gefunden." % eakte_nr, 404)
 
+    # Routing-Signal bestimmen (Domain-Whitelist → Rubrik → Fallback)
+    _domain = (dok.get("absender_domain") or "").lower()
+    _rubrik = (dok.get("rubrik") or "").lower()
+    routing = _bestimme_routing(_domain, _rubrik)
+    if routing["basis"].startswith("fallback"):
+        logger.info(
+            "E-Akte-Dok %d: routing_basis=%s domain=%r rubrik=%r",
+            eakte_nr, routing["basis"], _domain or "(leer)", _rubrik or "(leer)",
+        )
+
     pfad = baue_dateipfad(dok["dateiname"])
     if not pfad:
         return _err(
@@ -400,11 +448,12 @@ def parse_eakte_dokument(akte_id: str, eakte_nr: int):
                 ).fetchone()
             if cached and cached["datei_groesse"] == datei_groesse:
                 return jsonify({
-                    "akte_id":   akte_id,
-                    "eakte_nr":  eakte_nr,
-                    "dateiname": dok.get("anzeigename", ""),
-                    "aus_cache": True,
-                    "ergebnis":  _json.loads(cached["ergebnis_json"]),
+                    "akte_id":     akte_id,
+                    "eakte_nr":    eakte_nr,
+                    "dateiname":   dok.get("anzeigename", ""),
+                    "aus_cache":   True,
+                    "routing_info": routing,
+                    "ergebnis":    _json.loads(cached["ergebnis_json"]),
                 }), 200
         except Exception as cache_err:
             logger.warning("Cache-Lesen fehlgeschlagen (nicht kritisch): %s", cache_err)
@@ -435,11 +484,12 @@ def parse_eakte_dokument(akte_id: str, eakte_nr: int):
         logger.warning("Cache-Schreiben fehlgeschlagen (nicht kritisch): %s", write_err)
 
     return jsonify({
-        "akte_id":   akte_id,
-        "eakte_nr":  eakte_nr,
-        "dateiname": dok.get("anzeigename", ""),
-        "aus_cache": False,
-        "ergebnis":  ergebnis,
+        "akte_id":     akte_id,
+        "eakte_nr":    eakte_nr,
+        "dateiname":   dok.get("anzeigename", ""),
+        "aus_cache":   False,
+        "routing_info": routing,
+        "ergebnis":    ergebnis,
     }), 200
 
 

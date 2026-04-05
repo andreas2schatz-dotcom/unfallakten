@@ -169,6 +169,29 @@ def _domain_aus_email(email):
     return email.split("@")[-1].lower().strip()
 
 
+def _routing_basis_eakte_dok(dok):
+    # type: (dict) -> str
+    """
+    Bestimmt Routing-Signal für ein E-Akte-Dokument (für Debug-Anzeige in der UI).
+    Gleiche Logik wie _bestimme_routing() in pdf_parse_routes.py.
+    """
+    domain = (dok.get("absender_domain") or "").lower()
+    rubrik = (dok.get("rubrik") or "").lower()
+    try:
+        from ..parsers.document_classifier import VERSICHERER_PATTERNS
+        if domain:
+            for pattern, _k, _n, _p in VERSICHERER_PATTERNS:
+                if _re.search(pattern, domain):
+                    return "domain_versicherer"
+    except Exception:
+        pass
+    if rubrik in {"von mandant", "außergerichtlich"}:
+        return "rubrik"
+    if not domain and not rubrik:
+        return "fallback_kein_signal"
+    return "fallback_domain_unbekannt"
+
+
 def _klassifiziere_eakte_dok(dok, beteiligte, vorsteuer):
     # type: (dict, list, bool) -> list
     """
@@ -743,6 +766,11 @@ def kandidaten(akte_id):
                     "betrag_vorschlag": betrag_vorschlag,
                     "betrag_ist_netto": betrag_ist_netto,
                     "lieferant":       treffer.get("lieferant"),
+                    # E-Akte-Metadaten für Debug-Dialog
+                    "domain":          dok.get("absender_domain") or "",
+                    "rubrik":          dok.get("rubrik") or "",
+                    "einf_datum":      dok.get("einf_datum") or "",
+                    "routing_basis":   _routing_basis_eakte_dok(dok),
                 })
 
     except (ImportError, RuntimeError, ValueError):

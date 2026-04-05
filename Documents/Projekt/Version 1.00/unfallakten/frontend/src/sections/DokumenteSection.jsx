@@ -906,10 +906,34 @@ function KandidatenDebugDialog({ kandidaten, onClose }) {
       if (!g[dk]) g[dk] = [];
       g[dk].push(k);
     });
-    // Jede Gruppe nach Konfidenz absteigend sortieren
     Object.values(g).forEach(arr => arr.sort((a,b) => (b.konfidenz||0)-(a.konfidenz||0)));
     return g;
   }, [kandidaten]);
+
+  // Stats für Header-Zeile
+  const stats = useMemo(() => {
+    const eakteList = kandidaten.filter(k => k.quelle === "eakte");
+    const lokalList = kandidaten.filter(k => k.quelle === "lokal");
+    const routingCounts = {};
+    eakteList.forEach(k => {
+      const b = k.routing_basis || "unbekannt";
+      routingCounts[b] = (routingCounts[b] || 0) + 1;
+    });
+    return { eakte: eakteList.length, lokal: lokalList.length, routing: routingCounts };
+  }, [kandidaten]);
+
+  const ROUTING_LABEL = {
+    domain_versicherer:        "Domain ✓ Versicherer",
+    rubrik:                    "Rubrik-Signal",
+    fallback_kein_signal:      "Fallback (kein Signal)",
+    fallback_domain_unbekannt: "Fallback (Domain unbekannt)",
+  };
+  const ROUTING_COLOR = {
+    domain_versicherer:        "#22c55e",
+    rubrik:                    "#3b82f6",
+    fallback_kein_signal:      "#f59e0b",
+    fallback_domain_unbekannt: "#f59e0b",
+  };
 
   const gruppenKeys = Object.keys(gruppen).sort((a,b) => a === "__ref__" ? 1 : b === "__ref__" ? -1 : a.localeCompare(b));
 
@@ -919,23 +943,43 @@ function KandidatenDebugDialog({ kandidaten, onClose }) {
       display:"flex", alignItems:"center", justifyContent:"center", padding:16,
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        background:"#fff", borderRadius:12, width:"100%", maxWidth:860,
+        background:"#fff", borderRadius:12, width:"100%", maxWidth:920,
         maxHeight:"88vh", display:"flex", flexDirection:"column",
         boxShadow:"0 8px 40px rgba(0,0,0,0.28)",
       }}>
         {/* Header */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-          padding:"14px 20px", borderBottom:`1px solid ${T.border}` }}>
-          <div>
+        <div style={{ padding:"14px 20px", borderBottom:`1px solid ${T.border}` }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
             <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontWeight:700, fontSize:"1rem", color:T.text }}>
-              🔍 Auto-Parser Debug – Kandidaten
+              Auto-Parser Debug – Kandidaten
             </div>
-            <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem", color:T.textMuted, marginTop:2 }}>
-              {kandidaten.length} Kandidat(en) · <strong style={{color:T.green}}>{winnerSet.size}</strong> werden an den Schadenreiter übergeben (fett markiert)
-            </div>
+            <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer",
+              fontSize:"1.3rem", color:T.textMuted, lineHeight:1, padding:"4px 8px" }}>✕</button>
           </div>
-          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer",
-            fontSize:"1.3rem", color:T.textMuted, lineHeight:1, padding:"4px 8px" }}>✕</button>
+          <div style={{ display:"flex", gap:16, flexWrap:"wrap", marginTop:6,
+            fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem" }}>
+            <span style={{ color:T.textMuted }}>
+              Gesamt: <strong style={{color:T.text}}>{kandidaten.length}</strong>
+            </span>
+            <span style={{ color:T.textMuted }}>
+              Gewinner: <strong style={{color:T.green}}>{winnerSet.size}</strong>
+            </span>
+            {stats.eakte > 0 && (
+              <span style={{ color:T.textMuted }}>
+                E-Akte: <strong style={{color:T.blue}}>{stats.eakte}</strong>
+              </span>
+            )}
+            {stats.lokal > 0 && (
+              <span style={{ color:T.textMuted }}>
+                Lokal: <strong style={{color:T.text}}>{stats.lokal}</strong>
+              </span>
+            )}
+            {Object.entries(stats.routing).map(([basis, cnt]) => (
+              <span key={basis} style={{ color: ROUTING_COLOR[basis] || T.textMuted, fontWeight:600 }}>
+                {ROUTING_LABEL[basis] || basis}: {cnt}
+              </span>
+            ))}
+          </div>
         </div>
 
         {/* Body */}
@@ -955,42 +999,79 @@ function KandidatenDebugDialog({ kandidaten, onClose }) {
                   {posLabel}
                 </div>
 
-                {/* Kandidaten-Zeilen */}
                 {gruppen[dk].map((k, i) => {
                   const isWinner = winnerSet.has(k);
                   const konfPct = Math.round((k.konfidenz||0)*100);
                   const konfColor = konfPct >= 85 ? T.green : konfPct >= 65 ? T.amber : T.textMuted;
+                  const isEakte = k.quelle === "eakte";
+                  const routingColor = ROUTING_COLOR[k.routing_basis] || T.textFaint;
                   return (
                     <div key={i} style={{
-                      display:"grid", gridTemplateColumns:"1fr 60px 90px 1fr 110px",
-                      gap:"0 12px", alignItems:"center",
-                      padding:"5px 8px", borderRadius:6,
+                      padding:"6px 8px", borderRadius:6, marginBottom:4,
                       background: isWinner ? T.green+"12" : (i%2===0 ? "#fafafa" : "#fff"),
                       border: isWinner ? `1px solid ${T.green}44` : "1px solid transparent",
-                      fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem",
+                      fontFamily:"'IBM Plex Sans',sans-serif",
                       fontWeight: isWinner ? 700 : 400,
-                      color: T.text, marginBottom:3,
+                      color: T.text,
                     }}>
-                      <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}
-                        title={k.dateiname}>
-                        {isWinner ? "★ " : ""}{k.dateiname || "—"}
-                      </span>
-                      <span style={{ fontSize:"0.72rem", color: k.quelle==="eakte" ? T.blue : T.textMuted,
-                        fontWeight:600, textAlign:"center" }}>
-                        {k.quelle === "eakte" ? "E-Akte" : "lokal"}
-                      </span>
-                      <span style={{ color:konfColor, fontWeight:700, textAlign:"right" }}>
-                        {konfPct} %
-                      </span>
-                      <span style={{ fontSize:"0.75rem", color:T.textMuted, overflow:"hidden",
-                        textOverflow:"ellipsis", whiteSpace:"nowrap" }}
-                        title={k.grund}>
-                        {k.grund}
-                      </span>
-                      <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.8rem",
-                        textAlign:"right", color: k.betrag_vorschlag != null ? T.text : T.textFaint }}>
-                        {k.betrag_vorschlag != null ? fmtEuro(k.betrag_vorschlag) : "kein Betrag"}
-                      </span>
+                      {/* Hauptzeile */}
+                      <div style={{
+                        display:"grid", gridTemplateColumns:"1fr 60px 80px 1fr 110px",
+                        gap:"0 10px", alignItems:"center", fontSize:"0.82rem",
+                      }}>
+                        <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}
+                          title={k.dateiname}>
+                          {isWinner ? "★ " : ""}{k.dateiname || "—"}
+                        </span>
+                        <span style={{ fontSize:"0.72rem", color: isEakte ? T.blue : T.textMuted,
+                          fontWeight:600, textAlign:"center" }}>
+                          {isEakte ? "E-Akte" : "lokal"}
+                        </span>
+                        <span style={{ color:konfColor, fontWeight:700, textAlign:"right" }}>
+                          {konfPct} %
+                        </span>
+                        <span style={{ fontSize:"0.75rem", color:T.textMuted, overflow:"hidden",
+                          textOverflow:"ellipsis", whiteSpace:"nowrap" }}
+                          title={k.grund}>
+                          {k.grund}
+                        </span>
+                        <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.8rem",
+                          textAlign:"right", color: k.betrag_vorschlag != null ? T.text : T.textFaint }}>
+                          {k.betrag_vorschlag != null ? fmtEuro(k.betrag_vorschlag) : "kein Betrag"}
+                        </span>
+                      </div>
+                      {/* Metadaten-Zeile (nur E-Akte) */}
+                      {isEakte && (
+                        <div style={{
+                          display:"flex", gap:12, flexWrap:"wrap", marginTop:3,
+                          fontSize:"0.72rem", color:T.textMuted,
+                        }}>
+                          {k.domain && (
+                            <span title="Absender-Domain">
+                              <span style={{opacity:0.6}}>Domain:</span>{" "}
+                              <span style={{fontFamily:"'IBM Plex Mono',monospace", color:T.text}}>{k.domain}</span>
+                            </span>
+                          )}
+                          {k.rubrik && (
+                            <span title="RA-MICRO Rubrik">
+                              <span style={{opacity:0.6}}>Rubrik:</span>{" "}
+                              <span style={{color:T.text}}>{k.rubrik}</span>
+                            </span>
+                          )}
+                          {k.einf_datum && (
+                            <span title="Einfüge-Datum in RA-MICRO">
+                              <span style={{opacity:0.6}}>Datum:</span>{" "}
+                              <span style={{color:T.text}}>{k.einf_datum.slice(0,10)}</span>
+                            </span>
+                          )}
+                          {k.routing_basis && (
+                            <span style={{ color: routingColor, fontWeight:600 }}
+                              title="Routing-Signal">
+                              {ROUTING_LABEL[k.routing_basis] || k.routing_basis}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

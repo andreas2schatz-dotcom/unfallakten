@@ -90,7 +90,7 @@ def parse_az(az):
 
 # ── E-Akte Dokumente abfragen ────────────────────────────────────────────────
 
-def hole_eakte_dokumente(az, nur_pdf=True, limit=200):
+def hole_eakte_dokumente(az, nur_pdf=True, limit=500):
     # type: (str, bool, int) -> List[Dict]
     """
     Holt Dokument-Metadaten aus tblElo_AktenArchiv.
