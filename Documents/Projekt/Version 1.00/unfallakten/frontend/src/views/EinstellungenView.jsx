@@ -25,6 +25,11 @@ function EinstellungenView() {
   const [fristenLaedt,  setFristenLaedt]  = useState(false);
   const [fristenSpeich, setFristenSpeich] = useState(false);
 
+  // KI-Assistent
+  const [ki,       setKi]       = useState({ modell: "claude-sonnet-4-6", system_prompt: "", user_prompt: "", modelle: [] });
+  const [kiLaedt,  setKiLaedt]  = useState(false);
+  const [kiSpeich, setKiSpeich] = useState(false);
+
   // Klassifikations-Trainingsdaten
   const [training, setTraining] = useState(null);
 
@@ -47,6 +52,11 @@ function EinstellungenView() {
     apiEinstellungen.trainingStats()
       .then(d => setTraining(d))
       .catch(() => {});
+    setKiLaedt(true);
+    apiEinstellungen.kiEinstellungen()
+      .then(d => setKi(d))
+      .catch(() => {})
+      .finally(() => setKiLaedt(false));
   }, []);
 
   const speichereNeu = async () => {
@@ -119,6 +129,7 @@ function EinstellungenView() {
             ["absender",    "📋 Alle Vorlagen"],
             ["imap",        "📧 IMAP"],
             ["fristen",     "⏱ Fristen"],
+            ["ki",          "✦ KI-Assistent"],
           ].map(([id, label]) => (
             <button key={id} onClick={() => { setTab(id); setSuche(""); }}
               style={{ padding:"8px 18px", border:"none", background:"transparent",
@@ -127,7 +138,7 @@ function EinstellungenView() {
                 borderBottom: tab===id ? `2px solid ${T.gold}` : "2px solid transparent",
                 marginBottom:-1 }}>
               {label}
-              {id !== "imap" && id !== "fristen" && (
+              {id !== "imap" && id !== "fristen" && id !== "ki" && (
                 <span style={{ marginLeft:6, background:T.surface, color:T.textMuted,
                   borderRadius:10, padding:"1px 7px", fontSize:"0.8rem", fontWeight:400 }}>
                   {id === "versicherer" ? vorlagen.filter(v => v.kategorie==="versicherung").length
@@ -320,8 +331,108 @@ function EinstellungenView() {
           </div>
         )}
 
+        {/* KI-Assistent Tab */}
+        {tab === "ki" && (
+          <div style={{ display:"flex", flexDirection:"column", gap:"1.25rem", maxWidth:640 }}>
+
+            {/* Info */}
+            <div style={{ background:T.white, borderRadius:10, padding:"1rem 1.25rem",
+              border:`1px solid ${T.border}`, fontFamily:"'IBM Plex Sans',sans-serif",
+              fontSize:"0.915rem", color:T.textMuted, lineHeight:1.6 }}>
+              Konfiguriert den KI-Vorschlag-Button im Klage-Wizard (Step 7 – Rechtliche Würdigung).
+              API-Keys werden in der <code>.env</code>-Datei hinterlegt:
+              <code style={{ display:"block", background:T.offWhite, padding:"0.75rem 1rem",
+                borderRadius:7, fontSize:"0.85rem", color:T.navy, marginTop:8, lineHeight:1.8 }}>
+                ANTHROPIC_API_KEY=sk-ant-…<br/>
+                GEMINI_API_KEY=AIza…
+              </code>
+            </div>
+
+            <Card>
+              <CardHead title="Sprachmodell" />
+              <div style={{ padding:"1rem 1.25rem", display:"flex", flexDirection:"column", gap:"1rem" }}>
+
+                <div>
+                  <label style={{ display:"block", fontFamily:"'IBM Plex Sans',sans-serif",
+                    fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:6 }}>
+                    Aktives Modell
+                  </label>
+                  <select value={ki.modell}
+                    onChange={e => setKi(p => ({ ...p, modell: e.target.value }))}
+                    style={{ ...inputStyle, maxWidth:320 }}>
+                    {(ki.modelle.length ? ki.modelle : ["claude-sonnet-4-6","gemini-3.1-pro"]).map(m => (
+                      <option key={m} value={m}>
+                        {m === "claude-sonnet-4-6" ? "Claude Sonnet 4.6 (Anthropic)"
+                       : m === "gemini-3.1-pro"    ? "Gemini 3.1 Pro (Google)"
+                       : m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:5 }}>
+                    <label style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.825rem",
+                      fontWeight:600, color:T.textMuted }}>System-Prompt</label>
+                  </div>
+                  <textarea rows={5} value={ki.system_prompt}
+                    onChange={e => setKi(p => ({ ...p, system_prompt: e.target.value }))}
+                    style={{ ...inputStyle, resize:"vertical", lineHeight:1.6,
+                      fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem" }} />
+                </div>
+
+                <div>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:5 }}>
+                    <label style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.825rem",
+                      fontWeight:600, color:T.textMuted }}>User-Prompt-Vorlage</label>
+                    <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.755rem",
+                      color:T.textFaint, background:T.offWhite, padding:"2px 8px",
+                      borderRadius:5, border:`1px solid ${T.border}` }}>
+                      {"{haftung_ctx}"} · {"{schilderung}"}
+                    </span>
+                  </div>
+                  <textarea rows={8} value={ki.user_prompt}
+                    onChange={e => setKi(p => ({ ...p, user_prompt: e.target.value }))}
+                    style={{ ...inputStyle, resize:"vertical", lineHeight:1.6,
+                      fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem" }} />
+                </div>
+
+                <div style={{ display:"flex", justifyContent:"flex-end", gap:10 }}>
+                  <Btn style={{ background:"transparent", color:T.textMuted,
+                    border:`1px solid ${T.border}` }}
+                    onClick={() => {
+                      setKiLaedt(true);
+                      apiEinstellungen.kiEinstellungen()
+                        .then(d => setKi(d)).catch(() => {})
+                        .finally(() => setKiLaedt(false));
+                    }}
+                    disabled={kiLaedt || kiSpeich}>
+                    ↺ Defaults laden
+                  </Btn>
+                  <Btn onClick={async () => {
+                    setKiSpeich(true);
+                    try {
+                      const res = await apiEinstellungen.kiEinstellungenSpeichern({
+                        modell:        ki.modell,
+                        system_prompt: ki.system_prompt,
+                        user_prompt:   ki.user_prompt,
+                      });
+                      setKi(res);
+                      setToast("KI-Einstellungen gespeichert.");
+                    } catch(e) {
+                      setToast(e?.message || "Fehler beim Speichern.");
+                    } finally { setKiSpeich(false); }
+                  }} disabled={kiSpeich || kiLaedt}>
+                    {kiSpeich ? "Speichern …" : "Speichern"}
+                  </Btn>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
         {/* Versicherer / Gutachter / Alle Vorlagen Tabs */}
-        {tab !== "imap" && tab !== "fristen" && (
+        {tab !== "imap" && tab !== "fristen" && tab !== "ki" && (
           <div>
             {/* Neue Vorlage anlegen */}
             <Card style={{ marginBottom:"1.25rem" }}>

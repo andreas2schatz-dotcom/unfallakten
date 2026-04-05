@@ -1162,9 +1162,8 @@ def ki_haftung(akte_id: str):
     Body: { schilderung: str, hq: float }
     """
     import os
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        return jsonify({"fehler": "ANTHROPIC_API_KEY nicht konfiguriert."}), 503
+    from ..db.database import get_connection
+    from .einstellungen_routes import KI_DEFAULTS
 
     daten       = request.get_json(silent=True) or {}
     schilderung = (daten.get("schilderung") or "").strip()
@@ -1173,6 +1172,17 @@ def ki_haftung(akte_id: str):
     if not schilderung:
         return jsonify({"fehler": "Keine Unfallschilderung vorhanden."}), 400
 
+    # ── Einstellungen aus DB lesen ────────────────────────────────────────
+    def _lese(conn, key):
+        row = conn.execute("SELECT wert FROM konfiguration WHERE schluessel=?", (key,)).fetchone()
+        return row["wert"] if (row and row["wert"].strip()) else KI_DEFAULTS[key]
+
+    with get_connection() as conn:
+        modell        = _lese(conn, "ki_modell")
+        system_prompt = _lese(conn, "ki_system_prompt")
+        user_template = _lese(conn, "ki_user_prompt")
+
+    # ── Platzhalter befüllen ──────────────────────────────────────────────
     if hq >= 100:
         haftung_ctx = "Die alleinige Haftung des Unfallgegners steht fest (100 %)."
     elif hq >= 50:
@@ -1180,34 +1190,48 @@ def ki_haftung(akte_id: str):
     else:
         haftung_ctx = f"Der Unfallgegner haftet zu {hq:.0f} % (Mithaftung)."
 
-    system_prompt = (
-        "Du bist ein erfahrener Rechtsanwalt für Verkehrsrecht in Deutschland. "
-        "Du formulierst prägnante, juristische Texte für Klageschriftsätze im Stil "
-        "einer professionellen Anwaltskanzlei. Keine Einleitungs- oder Schlussphrasen, "
-        "nur den reinen Haftungstext."
-    )
-    user_prompt = (
-        f"{haftung_ctx}\n\n"
-        f"Unfallschilderung (anonymisiert – Mandant wird als Kläger bezeichnet):\n"
-        f"{schilderung}\n\n"
-        f"Erstelle 2–3 Sätze für den Abschnitt »Rechtliche Würdigung« einer Klageschrift. "
-        f"Begründe konkret und fallbezogen, warum der Unfallgegner haftet. "
-        f"Beziehe dich auf die Schilderung. Juristischer, sachlicher Stil."
-    )
+    user_prompt = user_template.replace("{haftung_ctx}", haftung_ctx)\
+                               .replace("{schilderung}", schilderung)
 
+    # ── API-Aufruf je nach Modell ─────────────────────────────────────────
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
-        msg = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=400,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],
-        )
-        text = msg.content[0].text.strip()
-        return jsonify({"text": text}), 200
+        if modell.startswith("claude"):
+            api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+            if not api_key:
+                return jsonify({"fehler": "ANTHROPIC_API_KEY nicht in .env konfiguriert."}), 503
+            import anthropic
+            client = anthropic.Anthropic(api_key=api_key)
+            msg  = client.messages.create(
+                model=modell, max_tokens=400,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+            )
+            text = msg.content[0].text.strip()
+
+        elif modell.startswith("gemini"):
+            api_key = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GOOGLE_API_KEY", "")
+            if not api_key:
+                return jsonify({"fehler": "GEMINI_API_KEY nicht in .env konfiguriert."}), 503
+            from google import genai
+            from google.genai import types as gtypes
+            client   = genai.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model=modell,
+                config=gtypes.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    max_output_tokens=400,
+                ),
+                contents=user_prompt,
+            )
+            text = response.text.strip()
+
+        else:
+            return jsonify({"fehler": f"Unbekanntes Modell: {modell}"}), 400
+
+        return jsonify({"text": text, "modell": modell}), 200
+
     except Exception as e:
-        logger.error("KI-Haftung Anthropic-Fehler: %s", e)
+        logger.error("KI-Haftung Fehler (%s): %s", modell, e)
         return jsonify({"fehler": f"KI-Aufruf fehlgeschlagen: {str(e)}"}), 500
 
 

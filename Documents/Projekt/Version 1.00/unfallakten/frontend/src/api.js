@@ -787,7 +787,11 @@ export const apiEinstellungen = {
     method: 'PUT',
     body: JSON.stringify(daten),
   }),
-  trainingStats: () => request('/einstellungen/klassifikation-training'),
+  trainingStats:          ()      => request('/einstellungen/klassifikation-training'),
+  kiEinstellungen:        ()      => request('/einstellungen/ki'),
+  kiEinstellungenSpeichern: (d)  => request('/einstellungen/ki', {
+    method: 'PUT', body: JSON.stringify(d),
+  }),
 };
 
 // ── PRD-25d: Intelligente Sachstandsanfrage ───────────────────────────────────

@@ -3,6 +3,8 @@ Einstellungen-Routen
 ====================
 GET  /einstellungen/sta-fristen   → Fristenzeiten + Texttemplates
 PUT  /einstellungen/sta-fristen   → Fristen + Texte aktualisieren
+GET  /einstellungen/ki            → KI-Modell + Prompts
+PUT  /einstellungen/ki            → KI-Modell + Prompts aktualisieren
 """
 
 import logging
@@ -46,6 +48,33 @@ def _lese_text(conn, schluessel):
     if row and row["wert"].strip():
         return row["wert"]
     return _TEXT_DEFAULTS.get(schluessel, "")
+
+
+KI_MODELLE  = ["claude-sonnet-4-6", "gemini-3.1-pro"]
+KI_DEFAULTS = {
+    "ki_modell":        "claude-sonnet-4-6",
+    "ki_system_prompt": (
+        "Du bist ein erfahrener Rechtsanwalt für Verkehrsrecht in Deutschland. "
+        "Du formulierst prägnante, juristische Texte für Klageschriftsätze im Stil "
+        "einer professionellen Anwaltskanzlei. Keine Einleitungs- oder Schlussphrasen, "
+        "nur den reinen Haftungstext."
+    ),
+    "ki_user_prompt": (
+        "{haftung_ctx}\n\n"
+        "Unfallschilderung (anonymisiert – Mandant wird als Kläger bezeichnet):\n"
+        "{schilderung}\n\n"
+        "Erstelle 2–3 Sätze für den Abschnitt »Rechtliche Würdigung« einer Klageschrift. "
+        "Begründe konkret und fallbezogen, warum der Unfallgegner haftet. "
+        "Beziehe dich auf die Schilderung. Juristischer, sachlicher Stil."
+    ),
+}
+
+
+def _lese_wert(conn, schluessel, default=""):
+    row = conn.execute(
+        "SELECT wert FROM konfiguration WHERE schluessel = ?", (schluessel,)
+    ).fetchone()
+    return row["wert"] if (row and row["wert"].strip()) else default
 
 
 def _upsert(conn, schluessel, wert):
@@ -139,3 +168,38 @@ def put_sta_fristen():
             return jsonify({"fehler": "; ".join(fehler)}), 400
 
         return jsonify({"ok": True, **_alle_werte(conn)})
+
+
+def _ki_werte(conn):
+    return {
+        "modell":        _lese_wert(conn, "ki_modell",        KI_DEFAULTS["ki_modell"]),
+        "system_prompt": _lese_wert(conn, "ki_system_prompt", KI_DEFAULTS["ki_system_prompt"]),
+        "user_prompt":   _lese_wert(conn, "ki_user_prompt",   KI_DEFAULTS["ki_user_prompt"]),
+        "modelle":       KI_MODELLE,
+    }
+
+
+@einstellungen_bp.route("/ki", methods=["GET"])
+@login_erforderlich
+def get_ki_einstellungen():
+    """GET /einstellungen/ki – Gibt KI-Modell und Prompts zurück."""
+    with get_connection() as conn:
+        return jsonify(_ki_werte(conn))
+
+
+@einstellungen_bp.route("/ki", methods=["PUT"])
+@login_erforderlich
+def put_ki_einstellungen():
+    """PUT /einstellungen/ki – Aktualisiert KI-Modell und/oder Prompts."""
+    body = request.get_json(silent=True) or {}
+    with get_connection() as conn:
+        if "modell" in body:
+            modell = str(body["modell"]).strip()
+            if modell not in KI_MODELLE:
+                return jsonify({"fehler": f"Unbekanntes Modell: {modell}"}), 400
+            _upsert(conn, "ki_modell", modell)
+        if "system_prompt" in body:
+            _upsert(conn, "ki_system_prompt", str(body["system_prompt"]).strip())
+        if "user_prompt" in body:
+            _upsert(conn, "ki_user_prompt", str(body["user_prompt"]).strip())
+        return jsonify({"ok": True, **_ki_werte(conn)})
