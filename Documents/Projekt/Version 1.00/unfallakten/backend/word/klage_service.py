@@ -865,6 +865,10 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
 
     if antraege_override:
         # BE-1: Wizard-Override direkt rendern
+        # RVG-Antragsnummer: vorletzter nummerierter Antrag (letzter = Kostentragung)
+        _nummern = re.findall(r'^\d+(?=\.[\t ])', antraege_override, re.MULTILINE)
+        rvg_antrag_nr = int(_nummern[-2]) if len(_nummern) >= 2 else len(_nummern)
+
         antraege_xml  = _p(f"Namens und in Vollmacht {vollmacht_text} erheben wir Klage, "
                            "bitten um Anordnung des schriftlichen Vorverfahrens "
                            "und werden beantragen:")
@@ -932,6 +936,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
             )
             antraege_xml += _lz()
         # BE-3: RVG-Antrag auf außergerichtlichem Streitwert (wenn rvg_ausserg vorhanden)
+        rvg_antrag_nr = antrag_nr[0]   # Nummer vor dem Aufruf merken
         antraege_xml += antrag(
             f"Die Beklagte wird verurteilt, an {kl_dat} weitere {_eur_str(rvg_antrag_betrag)} "
             f"nebst Zinsen von 5 Prozentpunkten über dem Basiszinssatz "
@@ -1161,11 +1166,32 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         + '</w:tbl>'
     )
 
+    bek_haften = "haften" if len(beklagte_gef) > 1 else "haftet"
+    bek_nom    = "die Beklagten" if len(beklagte_gef) > 1 else "die Beklagte"
+
     vk_xml  = _lz() + _p("4.) Vorgerichtliche Rechtsanwaltsgebühren", fett=True)
     vk_xml += _lz()
-    vk_xml += _p(f"Der Klageantrag ergibt sich aus den vorgerichtlich entstandenen "
-                 f"Rechtsanwaltskosten. Aus einem Gegenstandswert von "
-                 f"{_eur_str(klagebetrag)} ergibt sich:")
+    vk_xml += _p(
+        f"Der Klageantrag zu {rvg_antrag_nr}. ergibt sich aus den vorgerichtlich entstandenen "
+        f"Gebühren, für die {bek_nom} ebenfalls {bek_haften}. "
+        f"Der Anspruch auf Zahlung vorgerichtlicher Rechtsverfolgungskosten folgt aus § 249 ff. BGB "
+        f"unabhängig von einem etwaigen Verzugseintritt. Der Geschädigte sieht sich im Regelfall "
+        f"einem in der Regulierung von Unfallschäden versierten Sachbearbeiter des "
+        f"Haftpflichtversicherers gegenüber. Unter dem Aspekt der Waffengleichheit wird deshalb "
+        f"eine Erstattungsfähigkeit der Rechtsanwaltskosten im Rahmen der Rechtsverfolgungskosten "
+        f"grundsätzlich bejaht (Berz/Buhrmann Straßenverkehrsrecht \u2013 Hdb/Ziegenhardt, "
+        f"48. EL August 2023 5. C. Rn. 82, Beck-online)."
+    )
+    vk_xml += _lz()
+    vk_xml += _p(
+        "Der Prozessbevollmächtigte war bereits vorgerichtlich mit der Gegenseite in Kontakt "
+        "getreten. Letztmalig, als man die Gegenseite unter Fristsetzung zur Zahlung aufforderte."
+    )
+    vk_xml += _lz()
+    vk_xml += _p(
+        "Die hieraus vorgerichtlich entstandenen Rechtsanwaltsgebühren sind zu ersetzen. "
+        "Die Gebühren berechnen sich wie folgt:"
+    )
     vk_xml += rvg_tabelle
 
     # ── {{SCHLUSSFORMEL}} ─────────────────────────────────────────────────
