@@ -150,7 +150,7 @@ Danach Step 5–10, dann PRD-22c/25c/25d/Bußgeld.
 
 | Priorität | Was |
 |---|---|
-| **Jetzt** | Wizard Step 4–10 optimieren (Unfallhergang, Schaden, Anträge, RW, Verzug, Gebühren, Zusammenfassung) |
+| ✅ **Deployed** | **Klage-Wizard (PRD-26)** – 10 Steps vollständig, deployed, **zum Testen freigegeben** (Stand 05.04.2026) |
 | Danach | **PRD-22c Sess. 5** – Tests Fragebogen-Backend |
 | Danach | **PRD-25c** – Mandantenkommunikation |
 | Danach | **PRD-25d** – Intelligente STA End-to-End-Test |
