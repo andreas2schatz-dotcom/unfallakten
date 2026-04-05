@@ -157,6 +157,7 @@ Danach Step 5–10, dann PRD-22c/25c/25d/Bußgeld.
 | Danach | **Bußgeld** – Deployment (bussgeld@ Strato + .env) |
 | Später | **ReguWizard** – Analog-Wizard für Antwort auf Abrechnungsschreiben |
 | Später | **Auto-Parser-Optimierung** |
+| Später | **Gebührenoptimierungsassistent** – Modul erkennt anhand des Aktenverlaufs, ob eine erhöhte Geschäftsgebühr (> 1,3-fach, Nr. 2300 VV RVG) abgerechnet werden kann; Details → `handover/backlog.md` |
 
 ---
 
