@@ -485,6 +485,7 @@ def kandidaten(akte_id):
     lokal_geprueft = len(lokale_rows)
     eakte_geprueft = 0
     eakte_verfuegbar = False
+    auto_importiert = 0   # Zählt in diesem Aufruf neu importierte E-Akte-Dokumente
 
     # ── Stufe 0: Lokale Dokumente auswerten ──────────────────────────────────
     for dok in lokale_rows:
@@ -668,6 +669,7 @@ def kandidaten(akte_id):
                             conn.commit()
                         importierte_nrs.add(nr)
                         auto_dok_id = db_dok.id
+                        auto_importiert += 1
 
                         # Dispatch-Pipeline (Text + Klassifikation + Parser)
                         from ..workflow.dispatcher import (
@@ -810,10 +812,11 @@ def kandidaten(akte_id):
     kandidaten_liste = bereinigt
 
     return _j({
-        "kandidaten":      kandidaten_liste,
-        "lokal_geprueft":  lokal_geprueft,
-        "eakte_geprueft":  eakte_geprueft,
+        "kandidaten":       kandidaten_liste,
+        "lokal_geprueft":   lokal_geprueft,
+        "eakte_geprueft":   eakte_geprueft,
         "eakte_verfuegbar": eakte_verfuegbar,
+        "auto_importiert":  auto_importiert,
     })
 
 

@@ -80,12 +80,22 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
     return () => { if (belegVorschauUrl) URL.revokeObjectURL(belegVorschauUrl); };
   }, [belegVorschau]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Dokumente-Liste frisch aus der DB laden und in State schreiben
+  const ladeDokumenteListe = async () => {
+    try {
+      const res = await apiDokumente.liste(akteId);
+      if (res?.dokumente) dispatch({ type: "SET_DOKUMENTE", akteId, dokumente: res.dokumente });
+    } catch {}
+  };
+
   // Kandidaten still laden (nach Import oder Klassen-Korrektur)
   const ladeBelegeKandidaten = async () => {
     try {
       const res = await apiBelege.kandidaten(akteId);
       const kandidaten = res?.kandidaten || [];
       dispatch({ type: "SET_BELEGE_KANDIDATEN", akteId, kandidaten });
+      // Neu importierte E-Akte-Dokumente → Kacheln sofort anzeigen
+      if ((res?.auto_importiert ?? 0) > 0) ladeDokumenteListe();
     } catch { /* still – kein Toast, da Hintergrund-Refresh */ }
   };
 
@@ -120,6 +130,8 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
       const eakteVerfuegbar = res?.eakte_verfuegbar ?? false;
       const gesamtGeprueft = lokalGeprueft + eakteGeprueft;
       dispatch({ type: "SET_BELEGE_KANDIDATEN", akteId, kandidaten });
+      // Kacheln aktualisieren: neuParsen ändert parse_json + dokumentenklasse in DB
+      ladeDokumenteListe();
       setBatchParserFortschritt(kandidaten.length);
       setBatchParserTotal(gesamtGeprueft);
       const quellen = [
