@@ -634,20 +634,44 @@ def kandidaten(akte_id):
             # Wenn EAKTE_BASE_PATH konfiguriert und Datei erreichbar: direkt importieren.
             gut_betraege = {}    # befüllt wenn Auto-Import erfolgreich
             auto_dok_id = None   # gesetzt wenn Gutachten lokal registriert wurde
+            # Nur Auto-Import wenn Konfidenz >= 0.85 (verhindert Import von
+            # SV-Korrespondenz/E-Mails durch domain_match_sv_unklar 0.72)
             hat_gutachten_pos = any(
                 t.get("position_key") in (
                     "rep_gutachten_netto", "wiederbeschaffung",
                     "restwert", "wertminderung",
-                ) for t in treffer_liste
+                ) and (t.get("konfidenz") or 0) >= 0.85
+                for t in treffer_liste
             )
             if hat_gutachten_pos and eakte_base_path:
                 try:
+                    import hashlib as _hashlib
                     from ..ramicro.eakte_service import baue_dateipfad
                     from ..models.dokument import registriere_dokument
                     from ..workflow.dispatcher import dispatch_dokument
                     pfad = baue_dateipfad(dok.get("dateiname") or "")
                     if pfad and _os.path.exists(pfad):
-                        dateigroesse = _os.path.getsize(pfad)
+                        # ── Hash-basierte Duplikat-Prüfung ─────────────────
+                        # RA-MICRO kann dieselbe Datei unter verschiedenen
+                        # eakte_nr-Einträgen führen – eakte_nr-Dedup reicht
+                        # dafür nicht aus. SHA-256 des Datei-Inhalts ist eindeutig.
+                        with open(pfad, "rb") as _fh:
+                            _datei_bytes = _fh.read()
+                        _pdf_hash = _hashlib.sha256(_datei_bytes).hexdigest()
+                        with get_connection() as conn:
+                            _dup = conn.execute(
+                                "SELECT id, dateiname FROM dokumente "
+                                "WHERE akte_id=? AND pdf_hash=?",
+                                (akte_id, _pdf_hash),
+                            ).fetchone()
+                        if _dup:
+                            logger.info(
+                                "E-Akte nr=%d: Hash-Duplikat von dok_id=%d (%s) – Import übersprungen",
+                                nr, _dup["id"], _dup["dateiname"],
+                            )
+                            importierte_nrs.add(nr)
+                            continue  # Nächstes E-Akte-Dokument
+                        dateigroesse = len(_datei_bytes)
                         db_dok = registriere_dokument(
                             akte_id=akte_id,
                             typ="sonstiges",
