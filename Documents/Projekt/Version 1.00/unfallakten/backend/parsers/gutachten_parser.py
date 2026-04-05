@@ -403,17 +403,42 @@ def _extract_betraege(text: str, result: GutachtenParseResult) -> None:
                     result.restwert = v
 
     # ── Wertminderung ────────────────────────────────────────────────────
-    # Textwerte wie "keine", "entfällt", "nicht ermittelt" sowie "0" / "0,00" → 0,0
-    _wm_kein = re.search(
-        r"(?:Merkantile\s+Wertminderung|Wertminderung(?:\s*\(merkantil\))?|Minderwert)"
-        r"[^\n]{0,80}"
-        r"(?:keine?|entfällt|nicht\s+ermittelt|0[,.]00\s*€?|\b0\s*€)",
-        text, re.IGNORECASE
-    )
-    if _wm_kein:
-        result.wertminderung = 0.0
-    else:
-        result.wertminderung = _find_betrag(text, LABELS_WERTMINDERUNG)
+    # Reihenfolge: erst konkreten Betrag suchen, dann explizit 0/keine prüfen.
+    #
+    # 1) Spezifische Labels (Merkantile Wertminderung, Minderwert, §251 BGB)
+    result.wertminderung = _find_betrag(text, LABELS_WERTMINDERUNG)
+    #
+    # 2) Fallback: "Wertminderung 150,00 €" ohne "merkantil"-Zusatz (häufig in SV-Gutachten).
+    #    Nur gleiche Zeile, kein "keine/entfällt" davor.
+    #    "Wertminderung" allein bleibt aus LABELS_WERTMINDERUNG ausgeschlossen
+    #    (würde sonst WBW-Betrag in der Folgezeile greifen).
+    if result.wertminderung is None:
+        _wm_fb = re.search(
+            r"\bWertminderung\b"
+            r"(?![^\n]{0,40}(?:keine?|entfällt|nicht\s+ermittelt))"
+            r"[^\n]{0,60}"
+            r"(?:(?:€|EUR)\s*(\d{1,3}(?:[.\s]\d{3})*,\d{2}|\d+,\d{2})"
+            r"|(?<!\d)(\d{1,3}(?:[.\s]\d{3})*,\d{2}|\d+,\d{2})\s*(?:€|EUR))",
+            text, re.IGNORECASE
+        )
+        if _wm_fb:
+            raw = _wm_fb.group(1) or _wm_fb.group(2)
+            v = parse_betrag(raw)
+            if v is not None and v > 0:
+                result.wertminderung = v
+    #
+    # 3) Kein positiver Betrag gefunden → prüfen ob explizit 0/keine angegeben.
+    #    FIX: (?<!\d)0[,.]00 verhindert Backtracking-Fehlmatch bei "150,00 €"
+    #    (alte Regex sah "150,0" als "[^\n]{0,80}" + "0,00 €" → false positive).
+    if result.wertminderung is None:
+        _wm_kein = re.search(
+            r"(?:Merkantile\s+Wertminderung|Wertminderung(?:\s*\(merkantil\))?|Minderwert)"
+            r"[^\n]{0,80}"
+            r"(?:keine?|entfällt|nicht\s+ermittelt|(?<!\d)0[,.]00\s*€?|\b0\s*€)",
+            text, re.IGNORECASE
+        )
+        if _wm_kein:
+            result.wertminderung = 0.0
 
     # ── Wertverbesserung (Abzug bei Vorschäden) ──────────────────────────
     wv_m = re.search(

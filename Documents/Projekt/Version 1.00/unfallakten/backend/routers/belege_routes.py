@@ -629,13 +629,13 @@ def kandidaten(akte_id):
             if not treffer_liste:
                 continue
 
-            # ── Gutachten: PDF auto-importieren und parsen ────────────────────
-            # Gutachten-Positionen liegen erst vor, nachdem das PDF geparst wurde.
+            # ── Gutachten + SV-Rechnung: PDF auto-importieren und parsen ─────────
+            # Positionen liegen erst vor, nachdem das PDF geparst wurde.
             # Wenn EAKTE_BASE_PATH konfiguriert und Datei erreichbar: direkt importieren.
-            gut_betraege = {}    # befüllt wenn Auto-Import erfolgreich
-            auto_dok_id = None   # gesetzt wenn Gutachten lokal registriert wurde
-            # Nur Auto-Import wenn Konfidenz >= 0.85 (verhindert Import von
-            # SV-Korrespondenz/E-Mails durch domain_match_sv_unklar 0.72)
+            gut_betraege = {}    # befüllt wenn Auto-Import (Gutachten) erfolgreich
+            auto_dok_id = None   # gesetzt wenn lokal registriert wurde
+            # Konfidenz >= 0.85: verhindert Import von SV-Korrespondenz/E-Mails
+            # (domain_match_sv_unklar hat nur 0.72)
             hat_gutachten_pos = any(
                 t.get("position_key") in (
                     "rep_gutachten_netto", "wiederbeschaffung",
@@ -643,7 +643,12 @@ def kandidaten(akte_id):
                 ) and (t.get("konfidenz") or 0) >= 0.85
                 for t in treffer_liste
             )
-            if hat_gutachten_pos and eakte_base_path:
+            hat_sv_rechnung_pos = any(
+                t.get("position_key") in ("sv_kosten", "sv_kosten_netto")
+                and (t.get("konfidenz") or 0) >= 0.85
+                for t in treffer_liste
+            )
+            if (hat_gutachten_pos or hat_sv_rechnung_pos) and eakte_base_path:
                 try:
                     import hashlib as _hashlib
                     from ..ramicro.eakte_service import baue_dateipfad
@@ -709,36 +714,59 @@ def kandidaten(akte_id):
                         # Mietwagenkosten-Erwähnung im Text): Klasse korrigieren + neu parsen.
                         # korrigiere_klassifikation liest den Text erneut und ruft den
                         # Gutachten-Parser mit korrektem meta (inkl. pruefdienstleister) auf.
-                        if dispatch_res.get("klasse") != "gutachten":
-                            logger.info(
-                                "E-Akte Gutachten %d: Dispatcher erkannte '%s' → korrigiere zu gutachten",
-                                nr, dispatch_res.get("klasse"),
-                            )
-                            korr = korrigiere_klassifikation(
-                                dok_id=auto_dok_id,
-                                akte_az=akte_id,
-                                neue_klasse="gutachten",
-                                benutzer_id=benutzer_id,
-                            )
-                            _sp = (korr.get("parse_ergebnis") or {}).get("schadenpositionen") or {}
-                        else:
-                            _sp = (dispatch_res.get("parse_ergebnis") or {}).get("schadenpositionen") or {}
+                        _klasse = dispatch_res.get("klasse")
 
-                        rep = _sp.get("reparaturkosten") or _sp.get("rep_gutachten_netto")
-                        if rep: gut_betraege["rep_gutachten_netto"] = rep
-                        wbw = _sp.get("wiederbeschaffung")
-                        if wbw: gut_betraege["wiederbeschaffung"] = wbw
-                        rw = _sp.get("restwert")
-                        if rw is not None: gut_betraege["restwert"] = rw
-                        wm = _sp.get("wertminderung")
-                        if wm is not None: gut_betraege["wertminderung"] = wm
-                        logger.info(
-                            "E-Akte Gutachten %d auto-importiert: dok_id=%d klasse=%s betraege=%s",
-                            nr, auto_dok_id, dispatch_res.get("klasse"), list(gut_betraege.keys()),
-                        )
+                        if hat_gutachten_pos:
+                            if _klasse != "gutachten":
+                                logger.info(
+                                    "E-Akte Gutachten %d: Dispatcher erkannte '%s' → korrigiere zu gutachten",
+                                    nr, _klasse,
+                                )
+                                korr = korrigiere_klassifikation(
+                                    dok_id=auto_dok_id,
+                                    akte_az=akte_id,
+                                    neue_klasse="gutachten",
+                                    benutzer_id=benutzer_id,
+                                )
+                                _sp = (korr.get("parse_ergebnis") or {}).get("schadenpositionen") or {}
+                            else:
+                                _sp = (dispatch_res.get("parse_ergebnis") or {}).get("schadenpositionen") or {}
+                            rep = _sp.get("reparaturkosten") or _sp.get("rep_gutachten_netto")
+                            if rep: gut_betraege["rep_gutachten_netto"] = rep
+                            wbw = _sp.get("wiederbeschaffung")
+                            if wbw: gut_betraege["wiederbeschaffung"] = wbw
+                            rw = _sp.get("restwert")
+                            if rw is not None: gut_betraege["restwert"] = rw
+                            wm = _sp.get("wertminderung")
+                            if wm is not None: gut_betraege["wertminderung"] = wm
+                            logger.info(
+                                "E-Akte Gutachten %d auto-importiert: dok_id=%d klasse=%s betraege=%s",
+                                nr, auto_dok_id, _klasse, list(gut_betraege.keys()),
+                            )
+
+                        elif hat_sv_rechnung_pos and _klasse in ("rechnung", "sv_rechnung"):
+                            # SV-Rechnung: Betrag aus parse_json extrahieren
+                            # und in-memory eakte_cache aktualisieren damit der
+                            # Betrag-Lookup weiter unten im gleichen Aufruf greift.
+                            _pr = dispatch_res.get("parse_ergebnis") or {}
+                            _netto = _pr.get("nettobetrag")
+                            _brutto = _pr.get("bruttobetrag")
+                            eakte_cache[nr] = {
+                                "nettobetrag": _netto,
+                                "bruttobetrag": _brutto,
+                            }
+                            logger.info(
+                                "E-Akte SV-Rechnung %d auto-importiert: dok_id=%d netto=%s brutto=%s",
+                                nr, auto_dok_id, _netto, _brutto,
+                            )
+                        else:
+                            logger.info(
+                                "E-Akte %d auto-importiert (klasse=%s) – kein Betrag extrahiert",
+                                nr, _klasse,
+                            )
                 except Exception as _auto_e:
                     logger.warning(
-                        "Auto-Import E-Akte Gutachten nr=%s fehlgeschlagen: %s", nr, _auto_e
+                        "Auto-Import E-Akte nr=%s fehlgeschlagen: %s", nr, _auto_e
                     )
 
             # Betrag aus Cache (nur für Rechnungen sinnvoll)
