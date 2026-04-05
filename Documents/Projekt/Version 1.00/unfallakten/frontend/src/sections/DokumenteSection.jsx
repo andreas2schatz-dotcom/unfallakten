@@ -523,8 +523,9 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
               display:"flex", flexDirection:"column", overflow:"hidden" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
                 padding:"12px 20px", borderBottom:`1px solid ${T.border}`, background:T.surface }}>
-                <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.9rem", fontWeight:600, color:T.navy }}>
-                  📄 Beleg-Vorschau
+                <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.9rem", fontWeight:600, color:T.navy,
+                  overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"70vw" }}>
+                  📄 {dokumente.find(d => d.id === belegVorschau)?.dateiname || "Vorschau"}
                 </span>
                 <button onClick={() => setBelegVorschau(null)}
                   style={{ background:"none", border:"none", cursor:"pointer", fontSize:"1.2rem", color:T.textFaint, lineHeight:1 }}>✕</button>
@@ -589,6 +590,14 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                         <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.895rem", fontWeight:600, color:d.parse_konfidenz>0.7?T.green:d.parse_konfidenz>0.4?T.amber:T.red }}>{Math.round(d.parse_konfidenz*100)} %</span>
                       )}
                     </>
+                  )}
+                  {isPdf && (
+                    <Btn size="sm" variant="secondary"
+                      onClick={() => setBelegVorschau(belegVorschau === d.id ? null : d.id)}
+                      title="Vorschau"
+                      style={{ background: belegVorschau === d.id ? T.goldPale : undefined }}>
+                      👁
+                    </Btn>
                   )}
                   <Btn size="sm" variant="secondary" onClick={async () => {
                     try {
