@@ -847,3 +847,101 @@ const ladeArten = async () => {
 **Symptom:** 13 Blueprints wurden am File-Anfang importiert, 13 weitere lazy innerhalb von `erstelle_app()`. Kein erkennbarer Grund für die Unterscheidung.
 **Fix:** Alle 26 Blueprints alphabetisch sortiert an den File-Anfang verschoben. Registrierungsblock nur noch `app.register_blueprint(x)`-Aufrufe.
 **Lerneffekt:** Neue Blueprints immer oben mit den anderen importieren. Lazy-Imports in `erstelle_app()` nur wenn zirkuläre Imports es erzwingen.
+
+### [CR-11 cont.] Inkonsistente Blueprint-Imports – abgeschlossen
+**Lerneffekt:** Alle Blueprints alphabetisch sortiert am Modul-Anfang importieren. Keine lazy-Imports in `erstelle_app()`.
+
+---
+
+## Session v46 – Bug-Fixes (6. April 2026)
+
+---
+
+### [v46-01] Duplikat-Gutachten durch E-Akte Auto-Import
+**Datei:** `backend/routers/belege_routes.py`
+**Symptom:** Akte 1031/23 hatte zwei identische Gutachten-Kacheln im Dokumente-Reiter nach Auto-Import.
+**Ursache:** RA-MICRO speichert dasselbe physische PDF unter zwei verschiedenen `eakte_nr`-Werten in `tblElo_AktenArchiv` (z.B. UAkte-Unterversionen). Beide wurden importiert ohne Duplikat-Erkennung.
+**Fix:** SHA-256 Hash-Check vor `registriere_dokument`: Datei einlesen → `hashlib.sha256` → `SELECT ... WHERE akte_id=? AND pdf_hash=?`. Bei Treffer: `importierte_nrs.add(nr)` + `continue` (zählt als importiert, kein zweiter Import).
+```python
+with open(pfad, "rb") as _fh:
+    _datei_bytes = _fh.read()
+_pdf_hash = _hashlib.sha256(_datei_bytes).hexdigest()
+_dup = conn.execute(
+    "SELECT id FROM dokumente WHERE akte_id=? AND pdf_hash=?",
+    (akte_id, _pdf_hash),
+).fetchone()
+if _dup:
+    importierte_nrs.add(nr)
+    continue
+```
+**Lerneffekt:** E-Akte-Nummern sind keine zuverlässige Eindeutigkeitsgarantie. Immer Inhalt hashen. `pdf_hash`-Spalte existiert in `dokumente` seit Migration 24.
+
+---
+
+### [v46-02] SV-E-Mail fälschlich als Gutachten auto-importiert
+**Datei:** `backend/routers/belege_routes.py`
+**Symptom:** Akte 1031/23: E-Mail vom SV-Büro ("Vielen Dank für Ihren Auftrag") wurde als E-Akte-Dokument auto-importiert, obwohl es kein Gutachten ist.
+**Ursache:** Der Klassifikator vergab `domain_match_sv_unklar` (Konfidenz ~0.72), was über dem alten (impliziten) Schwellenwert von 0 lag.
+**Fix:** Explizite Konfidenz-Schwelle `>= 0.85` für Auto-Import:
+```python
+hat_gutachten_pos = any(
+    t.get("position_key") in ("rep_gutachten_netto", "wiederbeschaffung", "restwert", "wertminderung")
+    and (t.get("konfidenz") or 0) >= 0.85
+    for t in treffer_liste
+)
+```
+**Lerneffekt:** Auto-Import-Schwellen explizit definieren. `domain_match_sv_unklar` (~0.72) ist zu niedrig für automatischen Import – kann Korrespondenz, E-Mails und Angebote treffen. 0.85 lässt nur klare Dokument-Matches durch.
+
+---
+
+### [v46-03] SV-Rechnung nicht auto-importiert (nur manueller Import erkannte sie)
+**Datei:** `backend/routers/belege_routes.py`
+**Symptom:** E-Akte-Rechnung des SV-Büros wurde beim Auto-Import nicht erkannt. Manuell importiert und geparst → korrekt als `sv_rechnung` klassifiziert.
+**Ursache:** `hat_gutachten_pos` prüfte nur Gutachten-Positionen (`rep_gutachten_netto`, `wbw`, `rw`, `wm`). SV-Rechnungen haben `position_key = "sv_kosten"` / `"sv_kosten_netto"` – diese wurden nicht geprüft.
+**Fix:** Separates `hat_sv_rechnung_pos` Flag + eigener Dispatch-Branch:
+```python
+hat_sv_rechnung_pos = any(
+    t.get("position_key") in ("sv_kosten", "sv_kosten_netto")
+    and (t.get("konfidenz") or 0) >= 0.85
+    for t in treffer_liste
+)
+if (hat_gutachten_pos or hat_sv_rechnung_pos) and eakte_base_path:
+    ...
+    elif hat_sv_rechnung_pos and _klasse in ("rechnung", "sv_rechnung"):
+        _pr = dispatch_res.get("parse_ergebnis") or {}
+        eakte_cache[nr] = {"nettobetrag": _pr.get("nettobetrag"), "bruttobetrag": _pr.get("bruttobetrag")}
+```
+`eakte_cache[nr]` wird in-memory befüllt → Betrag-Lookup im selben API-Aufruf greift sofort.
+**Lerneffekt:** Auto-Import-Logik bei neuen Dokumentklassen immer erweitern. `rechnung_parse_cache` (DB) wird NUR durch manuellen Parse-Endpunkt befüllt – Auto-Import muss `eakte_cache` direkt aktualisieren.
+
+---
+
+### [v46-04] Wertminderung = 0.0 statt 150.0 (Regex-Backtracking)
+**Datei:** `backend/parsers/gutachten_parser.py`
+**Symptom:** Gutachten mit "Wertminderung 150,00 €" lieferte `result.wertminderung = 0.0`.
+**Ursache:** Regex `[^\n]{0,80}(?:0[,.]00\s*€?)` – der Wildcard-Teil `[^\n]{0,80}` fraß ` 15` aus `150,00 €`, danach matchte `0,00 €` die Restzeichenfolge. Backtracking-Fehlmatch.
+```python
+# FALSCH – Backtracking-Falle:
+r"(?:Merkantile\s+Wertminderung|...)[^\n]{0,80}(?:0[,.]00\s*€?|\b0\s*€)"
+
+# RICHTIG – Lookbehind verhindert Fehlmatch auf Ziffernteil:
+r"(?:Merkantile\s+Wertminderung|...)[^\n]{0,80}(?:(?<!\d)0[,.]00\s*€?|\b0\s*€)"
+```
+**Zweites Problem:** Reihenfolge war falsch – `_wm_kein` (0-Check) lief vor `_find_betrag` (Betrag-Suche). Bei Gutachten die zuerst "Wertminderung" erwähnen und danach den Betrag nennen: `_wm_kein` matche zuerst und setzte 0.0.
+**Fix:** 3-Pass-Ansatz:
+1. `_find_betrag(text, LABELS_WERTMINDERUNG)` – spezifische Labels
+2. Fallback-Regex für `\bWertminderung\b` mit positivem Betrag (gleiche Zeile, kein keine/entfällt davor)
+3. Erst wenn kein positiver Betrag → `_wm_kein` mit `(?<!\d)0[,.]00`
+**Lerneffekt:** Bei Regex die `[^\n]{0,N}` gefolgt von `0,00` haben: immer `(?<!\d)` Lookbehind einsetzen. Reihenfolge: erst positiven Wert suchen, dann Null/keine prüfen.
+
+---
+
+### [v46-05] Dokument-Kacheln nach Auto-Import nicht aktualisiert
+**Datei:** `frontend/src/sections/DokumenteSection.jsx`
+**Symptom:** Nach Auto-Parsing wurden neue Dokumente in der DB gespeichert, aber die Kacheln im Dokumente-Reiter zeigten die neuen Einträge nicht.
+**Ursache:** `ladeBelegeKandidaten` rief `ladeDokumenteListe()` nicht auf. Der Store kannte die neuen `dokumente`-Einträge nicht.
+**Fix:** Response enthält `auto_importiert` (Zähler). Wenn > 0: `ladeDokumenteListe()` aufrufen. `handleBatchParser` ruft es immer auf.
+```javascript
+if (res?.auto_importiert > 0) await ladeDokumenteListe();
+```
+**Lerneffekt:** Wenn Backend-Operationen neue Rows in `dokumente` erstellen, muss das Frontend danach `dokumente/liste` neu fetchen. `auto_importiert` im Response dient als Signal.

@@ -1,6 +1,6 @@
 # Projekt-Architektur – Unfallakten-Verwaltungssystem
 # Kanzlei Koch, Schatz & Kollegen
-> Stand: 2026-04-04 | Schema-Version 33
+> Stand: 2026-04-06 | Schema-Version 34
 
 ---
 
@@ -125,7 +125,7 @@ Alle Blueprints in `backend/app.py → erstelle_app()` registriert.
 | `benutzer` | User-Konten + Rollen |
 | `schema_version` | Migrationsversionierung |
 
-### Erweiterungen (Schema 11–33)
+### Erweiterungen (Schema 11–34)
 | Tabelle | Inhalt |
 |---|---|
 | `abrechnungsschreiben` | Abrechnungs-Schreiben (mit Kürzungsanalyse) |
@@ -137,8 +137,12 @@ Alle Blueprints in `backend/app.py → erstelle_app()` registriert.
 | `eakte_klassifikation` | Dokumentklassifizierung (E-Akte) |
 | `email_import_log` | E-Mail-Import-Protokoll |
 | `fragebogen_erstkontakt` | Mandanten-Fragebogen (PRD-22c) |
-| `rechnung_parse_cache` | PDF-Parser-Cache |
+| `rechnung_parse_cache` | PDF-Parser-Cache (nur manueller Parse-Endpunkt schreibt hier) |
 | `konfiguration` | App-Einstellungen (Key-Value) |
+
+**Wichtige `dokumente`-Spalten:**
+- `pdf_hash TEXT` (seit Migration 24): SHA-256 hex – vor `registriere_dokument` auf Duplikat prüfen
+- `dateigroesse INTEGER`: Byte-Größe der Datei
 
 ### RA-MICRO (read-only, //192.168.10.100)
 | Quelle | Zugriff | Inhalt |
@@ -175,4 +179,7 @@ Python:         3.9 – keine Union-Types (X | Y), kein Walrus (:=)
 Reducer:        Neue Actions immer in reducer.js eintragen
 JSX:            Toast/Modal neben Root-div → Fragment <> </> erforderlich
 WDM-Keys:       sonstiges_wdm_X ≠ extra_wdm_ssX → Remap bei posMap prüfen
+E-Akte-Cache:   rechnung_parse_cache (DB) = nur manueller Parse. Auto-Import → eakte_cache dict (in-memory)
+Auto-Import:    Konfidenz >= 0.85 für E-Akte Auto-Import. Darunter: nur anzeigen, nicht importieren.
+Hash-Dedup:     Vor registriere_dokument immer pdf_hash prüfen (SHA-256, WHERE akte_id+pdf_hash)
 ```

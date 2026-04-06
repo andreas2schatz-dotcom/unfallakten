@@ -1,6 +1,6 @@
 # Session-Übergabe – Kanzlei Koch, Schatz & Kollegen
 # Unfallakten-Verwaltungssystem
-> Stand: Session v17 – 27. März 2026
+> Stand: Session v46 – 6. April 2026
 
 ---
 
@@ -8,29 +8,28 @@
 
 | Komponente | Details |
 |---|---|
-| DB-Schema-Version | **23** |
-| App.jsx | ~10.865 Zeilen |
-| Backend | Flask/Python, SQLite PK az TEXT |
-| RA-Micro | Optional |
+| DB-Schema-Version | **34** |
+| Frontend | React + Vite, aufgeteilt in Section-Dateien (kein Monolith mehr) |
+| Backend | Flask/Python 3.9, SQLite PK az TEXT |
+| RA-Micro | Optional (RAMICRO_AKTIV=true) |
+| E-Akte | EAKTE_BASE_PATH konfiguriert → Auto-Import aktiv |
 
 ---
 
-## Erledigte Features v17
+## Erledigte Features v46
 
-| Feature | Status |
-|---|---|
-| Prüfbericht-Persistenz in SQLite (3 Bugs behoben) | ✅ |
-| B-07: Status → `klage` nach Klageschrift-Generierung | ✅ |
-| Auto-Vertreter-Lookup beim Öffnen des Klage-Tabs | ✅ |
-| Vertreter-Persistenz: `Beteiligter`-Dataclass gefixed | ✅ |
-| Regulierungsreiter komplett neu (Tabelle statt Formular) | ✅ |
-| Gezahlt-Popup mit Datum/Versicherung/Referenz-Nr. | ✅ |
-| Kürzungsarten: Checkboxen + Kategorisierung nach Position | ✅ |
-| Fahrzeugschaden als eine Zeile je Abrechnungsart | ✅ |
-| `RegulierungsTabelle` gemeinsame Komponente | ✅ |
-| Klage-Tab: Kachel 4 Regulierungsstand | ✅ |
-| Klage-Tab: RVG-Split außergerichtlich/gerichtlich | ✅ |
-| abrechnungsschreiben.py: WHERE id→az, PRAGMA FK=OFF, POSITION_KEYS erweitert | ✅ |
+| Feature | Commit | Status |
+|---|---|---|
+| Auto-Parser Routing-Whitelist + Debug-Dialog | `648cf3b` | ✅ |
+| `domain`, `rubrik`, `einf_datum`, `routing_basis` in Kandidaten-Response | `648cf3b` | ✅ |
+| `KandidatenDebugDialog`: Stats-Header + Metadaten-Zeile pro Kandidat | `648cf3b` | ✅ |
+| Dokument-Kacheln nach Auto-Parser sofort aktualisieren (`auto_importiert` + `ladeDokumenteListe`) | `d7bc02c` | ✅ |
+| Vorschau-Button (👁) für lokale PDF-Kacheln | `d37ab75` | ✅ |
+| SHA-256 Hash-Duplikat-Check vor `registriere_dokument` | `c8c3eed` | ✅ |
+| Konfidenz-Schwelle >= 0.85 für E-Akte Auto-Import | `c8c3eed` | ✅ |
+| `eakte_service.py`: Limit 200→500 | `c8c3eed` | ✅ |
+| Gutachten-Parser: Wertminderung 3-Pass-Fix (false positive 0.0 → korrekt 150.0) | `5a274e4` | ✅ |
+| SV-Rechnung Auto-Import via `hat_sv_rechnung_pos` + `eakte_cache[nr]` | `5a274e4` | ✅ |
 
 ---
 
@@ -39,29 +38,16 @@
 | # | Problem | Priorität |
 |---|---|---|
 | – | Klagegenerator noch nicht vollständig getestet (13 Blöcke) | 🔴 |
+| – | PRD-22c Session 4–5 (Fragebogen-Backend-Tests) ausstehend | 🟡 |
+| – | PRD-25c Mandantenkommunikation nicht implementiert | 🟡 |
+| – | PRD-25d STA End-to-End-Test ausstehend | 🟡 |
+| – | Bußgeld-Deployment ausstehend | 🟡 |
 
 ---
 
 ## To-Do – Nächste Session
 
-### ✅ Erledigt v18: Stellungnahme zum Abrechnungsschreiben
-`stellungnahme_service.py` + `stellungnahme_routes.py` + Button im Regulierungsreiter.
-Nutzt `forderungsschreiben_vorlage.docx` als Stil-Träger, liest `standard_gegenargument` aus `kuerzungsarten`.
-
-### ✅ Erledigt v18: Kürzungskatalog-Bug behoben
-`KATEGORIE_CFG` war nie definiert → React Error Boundary fing Crash stumm ab → Dauerspinner.
-Fix: Konstante definiert, `finally`-Block, 10s Timeout via `Promise.race`, echte Fehler-Toasts.
-
-### 🔴 Priorität 1: Textbaustein-Feld in Kürzungsarten
-Migration: `ALTER TABLE kuerzungsarten ADD COLUMN textbaustein TEXT`.
-UI: Textarea im Kürzungskatalog-Formular.
-Service: `stellungnahme_service.py` nutzt `textbaustein` statt `standard_gegenargument` (Fallback bleibt).
-
-### 🔴 Priorität 2: Dokumente hochladen – kategorisiert
-Beim Hochladen von Dokumenten Kategorisierung ermöglichen (Dokumenttyp, Beteiligter, Datum etc.).
-Details noch zu klären.
-
-### 🔴 Priorität 3: Klagegenerator – Abschlusstest (je Block)
+### 🔴 Priorität 1: Klagegenerator – Abschlusstest (je Block)
 
 | Block | Was prüfen | Status |
 |---|---|---|
@@ -79,86 +65,67 @@ Details noch zu klären.
 | **RVG** | Streitwert = Summe gemerkter Positionen, §13-Tabelle korrekt, Mehrwertsteuer, Override | ⬜ |
 | **Verweisbetrieb** | Textbaustein erscheint wenn verweisFlag gesetzt, Entfernungsangabe korrekt | ⬜ |
 
-### 🟡 Priorität 3: D4 Rechtliche Würdigung
-- Kürzungsargumente aus `kuerzungsarten.standard_gegenargument` automatisch in Klageschrift
+### 🟡 Priorität 2: PRD-27 ReguWizard
+Geführter Wizard: Stellungnahme auf Abrechnungsschreiben. PRD: `handover/PRD-27_ReguWizard.md`.
 
-### 🟡 Priorität 4: Vorlagen-Verwaltung (Einstellungen)
+### 🟡 Priorität 3: PRD-25c Mandantenkommunikation
+### 🟡 Priorität 4: PRD-25d STA End-to-End-Test
+### 🟡 Priorität 5: Bußgeld-Deployment
 
 ---
 
 ## Kritische Architektur-Notizen
 
 - `unfallakte` PK = `az TEXT` (kein Integer seit Migration 5) → `WHERE az=?` überall
+- Nach `hole_akte_by_id(akte_id)` IMMER `az = akte.aktenzeichen` setzen – nie rohen URL-Parameter für DB nutzen
+- Beteiligte: IMMER `hole_beteiligte_by_akte(az)` nutzen, nie `SELECT * FROM beteiligte`
 - `Beteiligter.from_row()` filtert mit `dataclasses.fields()` → neue Felder MÜSSEN in Dataclass eingetragen werden
 - `POSITION_KEYS` in `abrechnungsschreiben.py` UND `_POSITION_KEYS_ERWEITERT` in Route – neue Keys immer an BEIDEN Stellen
 - `PRAGMA foreign_keys = OFF` vor INSERT in `abrechnungsschreiben` (FK-Mismatch auf `dokumente`)
-- `fahrzeugschaden_netto` ist Frontend-only Key → beim Speichern mappen: totalschaden→`wiederbeschaffung`, konkret→`rep_rechnung_netto`, fiktiv→`rep_gutachten_netto`
-- `pruefbericht_bp` in `abrechnungsschreiben_routes.py` ist die aktive Route (nicht `pruefberichte_routes.py`)
 - WDM-Variablen: `varSCHREIBENVERZUG` bevorzugen vor `varVERZUGAB`; `varQUOTEG` hat `" EUR"` Suffix → strippen
-- Catch-Blöcke im Frontend NIE stumm lassen – immer echten Fehler im Toast zeigen
-- `POSITION_KEYS` in `abrechnungsschreiben.py` UND `_POSITION_KEYS_ERWEITERT` in Route – neue Keys immer an BEIDEN Stellen eintragen
+- RA-MICRO: NIEMALS schreiben. Nur SELECT auf `ra` und `raEloakte`. Eigene Daten → SQLite.
+- `pdf_hash` in `dokumente` (seit Migration 24): SHA-256, vor `registriere_dokument` auf Duplikat prüfen
 
 ---
 
-## Neue Komponente: RegulierungsTabelle
+## E-Akte Auto-Import – Architektur (v46)
 
-```jsx
-<RegulierungsTabelle
-  schaden={schaden}          // Schaden-Objekt aus Store
-  abrechnungen={abrechnungen} // Array aus Store
-  showCheckboxes={false}      // true = Klage-Tab-Modus mit Checkboxen
-  checked={{}}                // {[key]: bool} kontrollierter State
-  onToggle={(key) => {}}      // Callback bei Checkbox-Klick
-  showKlageBadge={true}       // KLAGE-Badge in Übersicht zeigen
-/>
+```
+E-Akte Kandidaten-Aufruf (GET /belege/kandidaten)
+  └─ hole_eakte_dokumente() → Metadaten (max. 500)
+       └─ _klassifiziere_eakte_dok() → treffer_liste + konfidenz
+            ├─ hat_gutachten_pos (konfidenz >= 0.85): rep_gutachten_netto / wbw / rw / wm
+            ├─ hat_sv_rechnung_pos (konfidenz >= 0.85): sv_kosten / sv_kosten_netto
+            └─ wenn EAKTE_BASE_PATH konfiguriert:
+                 ├─ SHA-256 Hash → Duplikat? → skip
+                 ├─ registriere_dokument()
+                 ├─ dispatch_dokument()
+                 ├─ wenn hat_gutachten_pos:
+                 │    klasse != "gutachten" → korrigiere_klassifikation()
+                 │    gut_betraege befüllen
+                 └─ wenn hat_sv_rechnung_pos + klasse in (rechnung/sv_rechnung):
+                      eakte_cache[nr] aktualisieren (in-memory für selben Aufruf)
 ```
 
-**Verwendet in:**
-- `UebersichtSection` (Zeile ~2073) – `showCheckboxes=false`, `showKlageBadge=true`
-- `KlageSection` Kachel 4 (Zeile ~7967) – `showCheckboxes=false`, `showKlageBadge=false`
-
----
-
-## KlageSection – Kachelstruktur (aktuell)
-
-| Nr | Kachel | Inhalt |
-|---|---|---|
-| 1 | Gericht | Suche + Vorschlag |
-| 2 | Parteien (Rubrum) | Beklagte + Vertreter-Lookup |
-| 3 | Schadenpositionen | Checkboxen + Klagebetrag |
-| **4** | **Regulierungsstand** | **Abrechnungsschreiben-Liste + RegulierungsTabelle + Textbaustein** |
-| 5 | Personenschaden | Schmerzensgeld |
-| 6 | Zinsen und Verzug | Datum + Zinsbeginn |
-| 7 | Rechtsanwaltsgebühren | RVG-Split außergerichtl./gerichtl. |
-
----
-
-## Regulierungsreiter – Neue Architektur
-
-**Positionslogik:**
-- `fahrzeugschaden_netto` ist Frontend-only Key → in `posVorlage` berechnet
-- `POS_KUERZUNG_KATEGORIE` Mapping für kategorisierte Kürzungsarten
-- Gezahlt-Popup: Betrag + Datum + Versicherung + Referenz-Nr.
-- Teilzahlungen: aufklappbar (▶-Button), Datum/Versicherung/Quelle sichtbar
-- HQ: inline editierbar in der Kopfzeile, wird in DB gespeichert
+**Konfidenz-Schwellen:**
+- `domain_match_versicherer`: ~0.92 → Auto-Import ✅
+- `domain_match_sv_buero`: ~0.88 → Auto-Import ✅
+- `domain_match_sv_unklar`: ~0.72 → Auto-Import ❌ (unter Schwelle 0.85)
+- E-Mails/Korrespondenz bleiben unter 0.85 → kein Auto-Import
 
 ---
 
 ## Wichtige Tabellen / Felder
 
 ```sql
+-- dokumente (Migration 24)
+pdf_hash TEXT   -- SHA-256 hex, für Duplikat-Check
+
 -- abrechnungsschreiben
 quelle TEXT  -- 'pdf' | 'manuell' | 'wdm'
 gesamt_kuerzung REAL
 wdm_importiert INTEGER
 referenz_nr TEXT
-
--- regulierung_positionen
-position_label TEXT
--- CHECK-Constraint auf position_key entfernt
-
--- pruefberichte (15 PDF-Felder + Migration 4)
-referenzwerkstatt_plz_ort TEXT  -- separat (nicht in Adresse geklatscht)
 
 -- beteiligte
 vertreter_name TEXT    -- MUSS in Beteiligter-Dataclass stehen!
@@ -167,49 +134,34 @@ vertreter_funktion TEXT
 
 ---
 
-## Fahrzeugschaden-Logik (Backend + Frontend einheitlich)
-
-```
-eff_rep = rep_rechnung_netto > 0 ? rep_rn : rep_gutachten_netto
-
-wenn WBW > 0:
-  netto_fahrzeug = WBW − Restwert
-  wenn eff_rep > 0 AND eff_rep <= netto_fahrzeug → Reparatur mit eff_rep
-  sonst → Totalschaden: WBW − Restwert
-
-wenn WBW = 0 → Reparatur mit eff_rep (oder keine Position)
-
-Frontend-Key fahrzeugschaden_netto → Backend-Mapping beim Speichern:
-  totalschaden → wiederbeschaffung
-  konkret / rep_rechnung_netto > 0 → rep_rechnung_netto
-  fiktiv / sonst → rep_gutachten_netto
-```
-
----
-
-## Geänderte Dateien v17
+## Geänderte Dateien v46
 
 | Datei | Änderung |
 |---|---|
-| `backend/routers/abrechnungsschreiben_routes.py` | _parse_datum, _pruefe_akte, plz_ort-Fix |
-| `backend/models/abrechnungsschreiben.py` | PRAGMA FK=OFF, POSITION_KEYS erweitert, WHERE az=? |
-| `backend/models/schaden.py` | vertreter_name/funktion in Beteiligter-Dataclass |
-| `backend/app.py` | pruefberichte_bp korrekt eingerückt |
-| `frontend/src/App.jsx` | Kompletter Regulierungsreiter-Umbau, RegulierungsTabelle, Klage-Kachel 4, RVG-Split |
+| `backend/parsers/gutachten_parser.py` | Wertminderung 3-Pass-Fix (Reihenfolge: Betrag → Fallback → kein/0) |
+| `backend/routers/belege_routes.py` | hat_sv_rechnung_pos, SHA-256 Duplikat-Check, Konfidenz-Schwelle 0.85, routing_basis in Kandidaten |
+| `backend/routers/pdf_parse_routes.py` | routing_info in parse-Response, Fallback-Logging |
+| `backend/ramicro/eakte_service.py` | Limit 200→500 |
+| `frontend/src/sections/DokumenteSection.jsx` | ladeDokumenteListe(), auto_importiert-Refresh, 👁-Button für lokale PDFs, KandidatenDebugDialog Stats |
 
 ---
 
 ## Docker-Befehle
 
-```powershell
-# Standard-Deploy Frontend
-docker cp frontend/src/App.jsx unfallakten-frontend-dev:/app/src/App.jsx
+```bash
+# Volume-gemountete Dateien: kein docker cp nötig für belege_routes.py, gutachten_parser.py etc.
+# Nur nach Python-Änderungen: docker restart unfallakten-backend-dev
 
-# Standard-Deploy Backend
-docker cp backend/routers/<datei>.py unfallakten-backend-dev:/app/routers/<datei>.py
-docker cp backend/models/<datei>.py unfallakten-backend-dev:/app/models/<datei>.py
+# Frontend (JSX): live via Vite-HMR, kein cp nötig wenn gemountet
+# Falls nicht gemountet:
+docker cp frontend/src/sections/DokumenteSection.jsx unfallakten-frontend-dev:/app/src/sections/DokumenteSection.jsx
+
+# Backend-Restart
 docker restart unfallakten-backend-dev
 
-# Logs prüfen
+# Logs
 docker logs unfallakten-backend-dev --tail 50
+
+# DB direkt
+docker exec unfallakten-backend-dev sqlite3 /app/data/unfallakten.db "SELECT schema_version FROM schema_version;"
 ```
