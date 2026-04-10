@@ -268,9 +268,9 @@ export default function SchmerzensgelDialog({ az, kl_nom, onClose, onUebernehmen
 
                 {fehlend.length > 0 && (
                   <div style={{
-                    background: "#fef3c7", border: "1px solid #f59e0b",
+                    background: T.amberMid, border: "1px solid #f59e0b",
                     borderRadius: 6, padding: "0.5rem 0.75rem",
-                    fontSize: "0.78rem", color: "#92400e", marginBottom: "0.5rem",
+                    fontSize: "0.78rem", color: T.amberText, marginBottom: "0.5rem",
                   }}>
                     ⚠ Fehlende Angaben: <strong>{fehlend.join(", ")}</strong> — bitte im Personenschaden-Tab ergänzen.
                   </div>
@@ -517,7 +517,7 @@ export default function SchmerzensgelDialog({ az, kl_nom, onClose, onUebernehmen
                 <div style={{
                   marginTop: "0.75rem", padding: "0.5rem 0.75rem",
                   background: "#fee2e2", border: "1px solid #f87171",
-                  borderRadius: 6, fontSize: "0.8rem", color: "#991b1b",
+                  borderRadius: 6, fontSize: "0.8rem", color: T.redText,
                 }}>
                   {fehler}
                 </div>

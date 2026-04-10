@@ -29,7 +29,7 @@ function StatistikenView() {
           </div></Card>
           <Card><div style={{ padding:"1rem 1.4rem 0.4rem" }}>
             <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", fontWeight:600, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:"0.8rem" }}>Regulierungen (€) · 6 Monate</div>
-            <ResponsiveContainer width="100%" height={180}><LineChart data={MONATS}><XAxis dataKey="m" tick={{fontSize:11,fontFamily:"'Figtree',sans-serif",fill:T.textMuted}} axisLine={false} tickLine={false}/><YAxis hide/><Tooltip formatter={v=>fmtEuro(v)} contentStyle={{fontFamily:"'Figtree',sans-serif",fontSize:12,borderRadius:8,border:`1px solid ${T.border}`}} cursor={{stroke:`${T.gold}44`}}/><Line type="monotone" dataKey="r" stroke={T.gold} strokeWidth={2.5} dot={{fill:T.gold,r:3}} activeDot={{r:5}}/></LineChart></ResponsiveContainer>
+            <ResponsiveContainer width="100%" height={180}><LineChart data={MONATS}><XAxis dataKey="m" tick={{fontSize:11,fontFamily:"'Figtree',sans-serif",fill:T.textMuted}} axisLine={false} tickLine={false}/><YAxis hide/><Tooltip formatter={v=>fmtEuro(v)} contentStyle={{fontFamily:"'Figtree',sans-serif",fontSize:12,borderRadius:8,border:`1px solid ${T.border}`}} cursor={{stroke:`${T.accent}44`}}/><Line type="monotone" dataKey="r" stroke={T.accent} strokeWidth={2.5} dot={{fill:T.accent,r:3}} activeDot={{r:5}}/></LineChart></ResponsiveContainer>
           </div></Card>
           <Card style={{ padding:"1rem 1.25rem" }}>
             <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", fontWeight:600, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:"0.8rem" }}>Status-Verteilung</div>

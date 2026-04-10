@@ -421,16 +421,16 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
             onDragLeave={() => setDrag(false)}
             onDrop={e => { e.preventDefault(); setDrag(false); fakeUpload([...e.dataTransfer.files]); }}
             onClick={() => !uploading && inputRef.current?.click()}
-            style={{ border:`2px dashed ${dragging?T.gold:T.border}`, borderRadius:12, padding:"2.5rem 1.5rem", textAlign:"center", cursor:uploading?"default":"pointer", background:dragging?T.goldPale:"transparent", transition:"all 0.2s" }}>
+            style={{ border:`2px dashed ${dragging?T.accent:T.border}`, borderRadius:12, padding:"2.5rem 1.5rem", textAlign:"center", cursor:uploading?"default":"pointer", background:dragging?T.accentPale:"transparent", transition:"all 0.2s" }}>
             <input ref={inputRef} type="file" accept=".pdf,.docx,.jpg,.jpeg,.png" style={{ display:"none" }} onChange={e => fakeUpload([...e.target.files])} />
             {uploading ? (
               <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
-                <div style={{ width:32, height:32, border:`3px solid ${T.goldTrim}`, borderTopColor:T.gold, borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
+                <div style={{ width:32, height:32, border:`3px solid ${T.accentTrim}`, borderTopColor:T.accent, borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
                 <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", color:T.textMuted }}>Hochladen und analysieren …</div>
                 {uploadProgress > 0 && uploadProgress < 100 && (
                   <div style={{ width:200 }}>
                     <div style={{ height:4, background:T.border, borderRadius:4, overflow:"hidden" }}>
-                      <div style={{ height:"100%", width:`${uploadProgress}%`, background:`linear-gradient(90deg,${T.gold},${T.goldLight})`, borderRadius:4, transition:"width 0.3s" }}/>
+                      <div style={{ height:"100%", width:`${uploadProgress}%`, background:`linear-gradient(90deg,${T.accent},${T.accentLight})`, borderRadius:4, transition:"width 0.3s" }}/>
                     </div>
                     <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.825rem", color:T.textFaint, textAlign:"center", marginTop:3 }}>{uploadProgress} %</div>
                   </div>
@@ -438,8 +438,8 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
               </div>
             ) : (
               <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}>
-                <span style={{ color:dragging?T.gold:T.textFaint }}>{Ic.upload}</span>
-                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"1.025rem", fontWeight:600, color:dragging?T.gold:T.textMid }}>Datei hier ablegen oder klicken</div>
+                <span style={{ color:dragging?T.accent:T.textFaint }}>{Ic.upload}</span>
+                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"1.025rem", fontWeight:600, color:dragging?T.accent:T.textMid }}>Datei hier ablegen oder klicken</div>
                 <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.905rem", color:T.textFaint }}>PDF, DOCX, JPG, PNG · max. 20 MB · PDFs werden automatisch geparst</div>
               </div>
             )}
@@ -534,7 +534,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                 <iframe src={belegVorschauUrl} style={{ flex:1, border:"none" }} title="Beleg" />
               ) : (
                 <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", color:T.textMuted }}>
-                  <div style={{ width:24, height:24, border:`3px solid ${T.goldTrim}`, borderTopColor:T.gold, borderRadius:"50%", animation:"spin 0.8s linear infinite", marginRight:10 }} />
+                  <div style={{ width:24, height:24, border:`3px solid ${T.accentTrim}`, borderTopColor:T.accent, borderRadius:"50%", animation:"spin 0.8s linear infinite", marginRight:10 }} />
                   PDF wird geladen…
                 </div>
               )}
@@ -564,7 +564,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                       value={d.dokumentenklasse||d.typ||"sonstiges"}
                       disabled={korrekturLading===d.id}
                       onChange={e => korrigiereKlasse(d.id, e.target.value)}
-                      style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", background:korrekturLading===d.id?T.goldPale:T.surface, color:T.textMuted, border:`1px solid ${T.border}`, borderRadius:10, padding:"1px 7px", cursor:"pointer", outline:"none", appearance:"none", WebkitAppearance:"none", paddingRight:16, backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23999'/%3E%3C/svg%3E")`, backgroundRepeat:"no-repeat", backgroundPosition:"right 5px center" }}
+                      style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", background:korrekturLading===d.id?T.accentPale:T.surface, color:T.textMuted, border:`1px solid ${T.border}`, borderRadius:10, padding:"1px 7px", cursor:"pointer", outline:"none", appearance:"none", WebkitAppearance:"none", paddingRight:16, backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23999'/%3E%3C/svg%3E")`, backgroundRepeat:"no-repeat", backgroundPosition:"right 5px center" }}
                     >{DOK_TYPEN.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select>
                     <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.815rem", color:T.textFaint }}>{fmtSize(d.groesse)}</span>
                     {d.hochgeladen_am && (
@@ -595,7 +595,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                     <Btn size="sm" variant="secondary"
                       onClick={() => setBelegVorschau(belegVorschau === d.id ? null : d.id)}
                       title="Vorschau"
-                      style={{ background: belegVorschau === d.id ? T.goldPale : undefined }}>
+                      style={{ background: belegVorschau === d.id ? T.accentPale : undefined }}>
                       👁
                     </Btn>
                   )}
@@ -656,10 +656,10 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                   onClick={toggleEmails}
                   style={{
                     width:36, height:20, borderRadius:10,
-                    background: eakteEmails ? T.gold : T.border,
+                    background: eakteEmails ? T.accent : T.border,
                     position:"relative", cursor:"pointer",
                     transition:"background 0.2s",
-                    boxShadow: eakteEmails ? `0 0 0 1px ${T.gold}33` : "none",
+                    boxShadow: eakteEmails ? `0 0 0 1px ${T.accent}33` : "none",
                   }}>
                   <div style={{
                     width:16, height:16, borderRadius:"50%",
@@ -677,7 +677,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
               <div>
                 {eakteLaden && (
                   <div style={{ padding:"2rem", textAlign:"center", color:T.textMuted }}>
-                    <div style={{ width:24, height:24, border:`3px solid ${T.goldTrim}`, borderTopColor:T.gold, borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto 8px" }} />
+                    <div style={{ width:24, height:24, border:`3px solid ${T.accentTrim}`, borderTopColor:T.accent, borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto 8px" }} />
                     E-Akte wird geladen…
                   </div>
                 )}
@@ -725,19 +725,19 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                     <div style={{ display:"flex", alignItems:"center", padding:"6px 1.4rem", borderBottom:`1px solid ${T.border}`, background:T.surface }}>
                       <div style={{ width:38, flexShrink:0 }} />
                       <div onClick={() => eakteSortKlick("bemerkung")}
-                        style={{ flex:2, fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="bemerkung" ? T.gold : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", paddingLeft:13, cursor:"pointer", userSelect:"none" }}>
+                        style={{ flex:2, fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="bemerkung" ? T.accent : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", paddingLeft:13, cursor:"pointer", userSelect:"none" }}>
                         Dokument{sortPfeil("bemerkung")}
                       </div>
                       <div onClick={() => eakteSortKlick("empfaenger")}
-                        style={{ flex:1, fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="empfaenger" ? T.gold : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", minWidth:120, cursor:"pointer", userSelect:"none" }}>
+                        style={{ flex:1, fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="empfaenger" ? T.accent : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", minWidth:120, cursor:"pointer", userSelect:"none" }}>
                         Absender{sortPfeil("empfaenger")}
                       </div>
                       <div onClick={() => eakteSortKlick("sachbearbeiter")}
-                        style={{ width:50, textAlign:"center", fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="sachbearbeiter" ? T.gold : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", flexShrink:0, cursor:"pointer", userSelect:"none" }}>
+                        style={{ width:50, textAlign:"center", fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="sachbearbeiter" ? T.accent : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", flexShrink:0, cursor:"pointer", userSelect:"none" }}>
                         SB{sortPfeil("sachbearbeiter")}
                       </div>
                       <div onClick={() => eakteSortKlick("version")}
-                        style={{ width:90, textAlign:"right", fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="version" ? T.gold : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", flexShrink:0, paddingRight:8, cursor:"pointer", userSelect:"none" }}>
+                        style={{ width:90, textAlign:"right", fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="version" ? T.accent : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", flexShrink:0, paddingRight:8, cursor:"pointer", userSelect:"none" }}>
                         Datum{sortPfeil("version")}
                       </div>
                       <div style={{ width:140, flexShrink:0 }} />
@@ -748,7 +748,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                       const absenderName = (ed.empfaenger || "").replace(/<[^>]+>/g, "").replace(/"/g, "").trim();
                       return (
                         <div key={ed.nr}>
-                          <div style={{ display:"flex", alignItems:"center", padding:"10px 1.4rem", borderBottom: (!istVorschau && i < eakteSeitenDoks.length-1) ? `1px solid ${T.borderSoft}` : "none", transition:"background 0.1s", cursor:"pointer", background: istVorschau ? T.goldPale : "transparent" }}
+                          <div style={{ display:"flex", alignItems:"center", padding:"10px 1.4rem", borderBottom: (!istVorschau && i < eakteSeitenDoks.length-1) ? `1px solid ${T.borderSoft}` : "none", transition:"background 0.1s", cursor:"pointer", background: istVorschau ? T.accentPale : "transparent" }}
                             onMouseEnter={e => { if (!istVorschau) e.currentTarget.style.background=T.surface; }}
                             onMouseLeave={e => { if (!istVorschau) e.currentTarget.style.background="transparent"; }}
                             onClick={() => setEakteVorschau(istVorschau ? null : ed.nr)}>
@@ -762,7 +762,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                                 {ed.bemerkung || ed.anzeigename}
                               </div>
                               {ed.rubrik && (
-                                <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.72rem", color:T.textFaint, background:T.goldPale, border:`1px solid ${T.goldTrim}`, borderRadius:4, padding:"0 4px", marginTop:2, display:"inline-block" }}>
+                                <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.72rem", color:T.textFaint, background:T.accentPale, border:`1px solid ${T.accentTrim}`, borderRadius:4, padding:"0 4px", marginTop:2, display:"inline-block" }}>
                                   {ed.rubrik}
                                 </span>
                               )}
@@ -824,7 +824,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                             <div style={{ borderBottom:`1px solid ${T.border}`, background:T.offWhite, padding:"12px 1.4rem" }}>
                               {vorschauLaden && (
                                 <div style={{ height:200, display:"flex", alignItems:"center", justifyContent:"center", color:T.textMuted }}>
-                                  <div style={{ width:24, height:24, border:`3px solid ${T.goldTrim}`, borderTopColor:T.gold, borderRadius:"50%", animation:"spin 0.8s linear infinite", marginRight:10 }} />
+                                  <div style={{ width:24, height:24, border:`3px solid ${T.accentTrim}`, borderTopColor:T.accent, borderRadius:"50%", animation:"spin 0.8s linear infinite", marginRight:10 }} />
                                   PDF wird geladen…
                                 </div>
                               )}
@@ -951,7 +951,7 @@ function KandidatenDebugDialog({ kandidaten, onClose }) {
   };
   const ROUTING_COLOR = {
     domain_versicherer:        "#22c55e",
-    rubrik:                    "#3b82f6",
+    rubrik:                    T.blue,
     fallback_kein_signal:      "#f59e0b",
     fallback_domain_unbekannt: "#f59e0b",
   };
@@ -1014,8 +1014,8 @@ function KandidatenDebugDialog({ kandidaten, onClose }) {
                 {/* Gruppen-Header */}
                 <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem",
                   fontWeight:700, textTransform:"uppercase", letterSpacing:"0.07em",
-                  color: isRef ? T.textMuted : T.gold,
-                  borderBottom:`2px solid ${isRef ? T.border : T.gold+"44"}`,
+                  color: isRef ? T.textMuted : T.accent,
+                  borderBottom:`2px solid ${isRef ? T.border : T.accent+"44"}`,
                   paddingBottom:4, marginBottom:6 }}>
                   {posLabel}
                 </div>
@@ -1112,7 +1112,7 @@ function KandidatenDebugDialog({ kandidaten, onClose }) {
           display:"flex", justifyContent:"flex-end" }}>
           <button onClick={onClose} style={{
             fontFamily:"'Figtree',sans-serif", fontWeight:600, fontSize:"0.875rem",
-            background:T.gold, color:"#fff", border:"none", borderRadius:7,
+            background:T.accent, color:"#fff", border:"none", borderRadius:7,
             padding:"7px 20px", cursor:"pointer",
           }}>
             Schließen

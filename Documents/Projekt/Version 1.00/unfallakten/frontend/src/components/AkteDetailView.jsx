@@ -208,7 +208,7 @@ function AkteDetailView({ akte, st, dispatch }) {
 
           {/* ── Links: Icon + AZ + Status-Dropdown ── */}
           <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
-            <div style={{ width:36, height:36, background:T.goldTrim, borderRadius:8,
+            <div style={{ width:36, height:36, background:T.accentTrim, borderRadius:8,
               border:"1px solid rgba(200,168,75,0.3)", display:"flex", alignItems:"center",
               justifyContent:"center", color:T.white, flexShrink:0 }}>{Ic.akte}</div>
             <div>
@@ -241,7 +241,7 @@ function AkteDetailView({ akte, st, dispatch }) {
                     <div onClick={() => setStatusOffen(false)}
                       style={{ position:"fixed", inset:0, zIndex:299 }} />
                     <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0,
-                      background:T.navy, border:`1px solid ${T.goldTrim}`,
+                      background:T.navy, border:`1px solid ${T.accentTrim}`,
                       borderRadius:10, zIndex:300, overflow:"hidden",
                       boxShadow:"0 8px 24px rgba(0,0,0,0.4)", minWidth:160 }}>
                       {["offen","in_regulierung","abgeschlossen","klage"].map(s => {
@@ -285,7 +285,7 @@ function AkteDetailView({ akte, st, dispatch }) {
           {/* ── Mitte: To-Do Aufklapp-Kachel (flex-grow, so weit links wie möglich) ── */}
           {(() => {
             const offeneTodos = headerTodos.filter(t => !t.erledigt);
-            const FARBEN_DOT = { rot:"#ef4444", orange:"#f97316", gelb:"#eab308", grau:"rgba(255,255,255,0.3)" };
+            const FARBEN_DOT = { rot:T.red, orange:"#f97316", gelb:"#eab308", grau:"rgba(255,255,255,0.3)" };
             const heute = new Date(); heute.setHours(0,0,0,0);
             const dring = (todo) => {
               if (todo.faellig_am) {
@@ -331,7 +331,7 @@ function AkteDetailView({ akte, st, dispatch }) {
                       )}
                     </>)}
                   </div>
-                  <span style={{ color:T.gold, fontSize:"0.75rem", flexShrink:0,
+                  <span style={{ color:T.accent, fontSize:"0.75rem", flexShrink:0,
                     transform: todoKlapp ? "rotate(180deg)" : "none",
                     transition:"transform 0.2s", lineHeight:1 }}>▾</span>
                 </button>
@@ -341,7 +341,7 @@ function AkteDetailView({ akte, st, dispatch }) {
                 )}
                 {todoKlapp && (
                   <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0,
-                    width:"100%", background:T.navy, border:`1px solid ${T.goldTrim}`,
+                    width:"100%", background:T.navy, border:`1px solid ${T.accentTrim}`,
                     borderRadius:10, zIndex:200, padding:"10px 14px",
                     boxShadow:"0 8px 32px rgba(0,0,0,0.4)" }}>
                     {sortiert.length === 0 ? (
@@ -379,7 +379,7 @@ function AkteDetailView({ akte, st, dispatch }) {
                     <button onClick={() => { setTodoKlapp(false); setSec("todos"); }}
                       style={{ marginTop:8, width:"100%", background:"rgba(200,168,75,0.15)",
                         border:"1px solid rgba(200,168,75,0.3)", borderRadius:7,
-                        color:T.gold, fontFamily:"'Figtree',sans-serif",
+                        color:T.accent, fontFamily:"'Figtree',sans-serif",
                         fontSize:"0.8rem", padding:"5px 0", cursor:"pointer", fontWeight:600 }}>
                       Alle To-Dos anzeigen →
                     </button>
@@ -422,7 +422,7 @@ function AkteDetailView({ akte, st, dispatch }) {
           {tabs.map(t => (
             <button key={t.id} onClick={() => setSec(t.id)}
               style={{ padding:"8px 16px", background:"transparent", border:"none",
-                borderBottom:sec===t.id?`2px solid ${T.gold}`:"2px solid transparent",
+                borderBottom:sec===t.id?`2px solid ${T.accent}`:"2px solid transparent",
                 color:sec===t.id?T.white:"rgba(255,255,255,0.5)",
                 fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem",
                 fontWeight:sec===t.id?600:400, cursor:"pointer",

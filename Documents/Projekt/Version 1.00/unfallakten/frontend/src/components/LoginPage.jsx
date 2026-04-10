@@ -40,8 +40,8 @@ function LoginPage({ onLogin }) {
       background:"#ffffff", position:"relative", overflow:"hidden" }}>
 
       {/* Dezente Linie oben in Kanzleifarbe */}
-      <div style={{ position:"fixed", top:0, left:0, right:0, height:4,
-        background:`linear-gradient(90deg,${T.navy},${T.gold},${T.navy})` }} />
+      <div style={{ position:"fixed", top:0, left:0, right:0, height:3,
+        background:T.accent }} />
 
       {/* Zentrierte Login-Card */}
       <div style={{ position:"relative", width:"100%", maxWidth:440, padding:"1.5rem",
@@ -121,7 +121,7 @@ function LoginPage({ onLogin }) {
             transition:"opacity 0.15s" }}>
             {loading ? "Anmelden …" : "Anmelden"}
             <div style={{ position:"absolute", bottom:0, left:0, right:0, height:3,
-              background:`linear-gradient(90deg,${T.gold},${T.goldLight},${T.gold})` }} />
+              background:`linear-gradient(90deg,${T.accent},${T.accentLight},${T.accent})` }} />
           </button>
         </div>
 

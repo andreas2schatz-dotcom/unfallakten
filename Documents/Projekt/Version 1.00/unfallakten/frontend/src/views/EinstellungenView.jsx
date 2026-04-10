@@ -146,7 +146,7 @@ function EinstellungenView() {
               style={{ padding:"8px 18px", border:"none", background:"transparent",
                 fontFamily:"'Figtree',sans-serif", fontSize:"0.95rem", fontWeight:600,
                 color: tab===id ? T.navy : T.textMuted, cursor:"pointer",
-                borderBottom: tab===id ? `2px solid ${T.gold}` : "2px solid transparent",
+                borderBottom: tab===id ? `2px solid ${T.accent}` : "2px solid transparent",
                 marginBottom:-1 }}>
               {label}
               {id !== "imap" && id !== "fristen" && id !== "ki" && id !== "zustaendigkeit" && (
@@ -200,7 +200,7 @@ function EinstellungenView() {
                 {[
                   { tageKey:"stufe1_tage", textKey:"stufe1_text", label:"Stufe 1 – Erinnerung",       farbe:"#22c55e", desc:"Freundliche Erinnerung, erste Kontaktaufnahme nach Forderungsschreiben" },
                   { tageKey:"stufe2_tage", textKey:"stufe2_text", label:"Stufe 2 – Mahnung",           farbe:"#f59e0b", desc:"Bestimmte Mahnung nach ausbleibender Antwort auf erste STA" },
-                  { tageKey:"stufe3_tage", textKey:"stufe3_text", label:"Stufe 3 – Klage-Ankündigung", farbe:"#ef4444", desc:"Unmissverständliche Ankündigung gerichtlicher Schritte" },
+                  { tageKey:"stufe3_tage", textKey:"stufe3_text", label:"Stufe 3 – Klage-Ankündigung", farbe:T.red, desc:"Unmissverständliche Ankündigung gerichtlicher Schritte" },
                 ].map(({ tageKey, textKey, label, farbe, desc }, idx, arr) => (
                   <div key={tageKey} style={{ borderBottom: idx < arr.length-1 ? `1px solid ${T.border}` : "none", paddingBottom:"1.25rem" }}>
 
@@ -301,7 +301,7 @@ function EinstellungenView() {
                         <div style={{
                           height:"100%", borderRadius:4,
                           width: `${Math.min(100, Math.round(training.gesamt / training.ziel * 100))}%`,
-                          background: training.bereit ? T.green : T.gold,
+                          background: training.bereit ? T.green : T.accent,
                           transition:"width 0.4s ease",
                         }}/>
                       </div>

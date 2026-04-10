@@ -73,13 +73,13 @@ function RaMicroSachstandsCard({ akte, inGrid = false }) {
               Suche Wiedervorlage …
             </div>
           ) : !wv ? (
-            <div style={{ display:"inline-flex", alignItems:"center", gap:7, background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:8, padding:"7px 13px", fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:"#92400e" }}>
+            <div style={{ display:"inline-flex", alignItems:"center", gap:7, background:T.amberBg, border:"1px solid #fcd34d", borderRadius:8, padding:"7px 13px", fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.amberText }}>
               <span>⚠️</span> Keine offene Wiedervorlage „Stellungnahme Gegner" in RA-Micro für {akte.az}
             </div>
           ) : (
             <div style={{ display:"flex", flexWrap:"wrap", gap:8, alignItems:"center" }}>
               {/* WV-Info-Chips */}
-              <span style={{ background:T.goldPale, border:`1px solid ${T.goldTrim}`, borderRadius:6, padding:"3px 9px", fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textMid }}>
+              <span style={{ background:T.accentPale, border:`1px solid ${T.accentTrim}`, borderRadius:6, padding:"3px 9px", fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textMid }}>
                 Fällig: {wv.datum ? new Date(wv.datum + "T00:00:00").toLocaleDateString("de-DE") : "–"}
               </span>
               {wv.gegner_hv_name && (
@@ -103,7 +103,7 @@ function RaMicroSachstandsCard({ akte, inGrid = false }) {
                 style={{ marginTop:4, display:"flex", alignItems:"center", gap:7,
                   padding:"9px 16px",
                   background: erstellt ? "#f0fdf4" : T.navy,
-                  color:      erstellt ? "#065f46" : T.white,
+                  color:      erstellt ? T.greenText : T.white,
                   border:     erstellt ? "1.5px solid #6ee7b7" : "none",
                   borderRadius:8, fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem", fontWeight:600,
                   cursor: laedt ? "default" : "pointer", opacity: laedt ? 0.7 : 1, transition:"all 0.2s",
@@ -111,7 +111,7 @@ function RaMicroSachstandsCard({ akte, inGrid = false }) {
                 {laedt
                   ? <><div style={{ width:13, height:13, border:"2px solid rgba(255,255,255,0.3)", borderTopColor:"white", borderRadius:"50%", animation:"spin 0.7s linear infinite" }}/> Erstellen …</>
                   : erstellt
-                  ? <><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="7" fill="#10b981"/><path d="M4 7L6 9L10 5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> Erstellt – erneut generieren</>
+                  ? <><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="7" fill=T.green/><path d="M4 7L6 9L10 5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> Erstellt – erneut generieren</>
                   : <>📄 Sachstandsanfrage generieren &amp; herunterladen</>}
               </button>
             </div>

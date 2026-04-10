@@ -2,8 +2,16 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
 
-/* ─── Typographie-Tokens ──────────────────────────────────────── */
+/* ─── Design Tokens ───────────────────────────────────────────── */
 :root {
+  /* Akzent-Palette: Sienna/Terrakotta (OKLCH für perceptual uniformity) */
+  --color-accent:       oklch(55% 0.08 38);   /* #A06B4A – Primär */
+  --color-accent-light: oklch(67% 0.07 38);   /* #C08F6C – Auf Dunkel */
+  --color-accent-pale:  oklch(94% 0.02 38);   /* #F3EAE2 – Hintergrund */
+  --color-accent-dark:  oklch(42% 0.08 38);   /* #7D5038 – Text auf Weiß */
+  --color-navy:         oklch(25% 0.055 255); /* #1B2A4A */
+  --color-surface:      oklch(97% 0.006 80);  /* #FAFAF8 – Pergament */
+
   /* Schriftfamilien */
   --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
   --font-body:    'Figtree', system-ui, sans-serif;

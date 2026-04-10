@@ -29,9 +29,9 @@ const IMAP_CONFIG = {
 const KLAGE_SECTION_COLORS = [
   { bg:"rgba(59,130,246,0.10)",  border:"rgba(59,130,246,0.25)",  text:"#1e40af" },  // 1. Gericht – Blau
   { bg:"rgba(99,102,241,0.10)", border:"rgba(99,102,241,0.25)",  text:"#3730a3" },  // 2. Parteien – Indigo
-  { bg:"rgba(16,185,129,0.10)", border:"rgba(16,185,129,0.25)",  text:"#065f46" },  // 3. Schadenpositionen – Grün
+  { bg:"rgba(16,185,129,0.10)", border:"rgba(16,185,129,0.25)",  text:T.greenText },  // 3. Schadenpositionen – Grün
   { bg:"rgba(236,72,153,0.10)", border:"rgba(236,72,153,0.25)",  text:"#9d174d" },  // 4. Personenschaden – Pink
-  { bg:"rgba(245,158,11,0.10)", border:"rgba(245,158,11,0.25)",  text:"#92400e" },  // 5. Zinsen – Amber
+  { bg:"rgba(245,158,11,0.10)", border:"rgba(245,158,11,0.25)",  text:T.amberText },  // 5. Zinsen – Amber
   { bg:"rgba(139,92,246,0.10)", border:"rgba(139,92,246,0.25)",  text:"#4c1d95" },  // 6. RVG – Violett
 ];
 
@@ -79,7 +79,7 @@ const ROLLEN_C = {
   gegner:            {c:T.red,    bg:T.redBg},
   gericht:           {c:"#7c3aed",bg:"#ede9fe"},
   polizei:           {c:"#0369a1",bg:"#e0f2fe"},
-  staatsanwaltschaft:{c:"#b45309",bg:"#fef3c7"},
+  staatsanwaltschaft:{c:"#b45309",bg:T.amberMid},
   sachverstaendiger: {c:T.green,  bg:T.greenBg},
   sonstiger:         {c:T.textMuted,bg:T.surface},
 };
@@ -211,8 +211,8 @@ const POS_KUERZUNG_KATEGORIE = {
 
 const KATEGORIE_CFG = {
   fahrzeugschaden:    { label: "Fahrzeugschaden",       bg: "#dbeafe", color: "#1e40af" },
-  ersatzbeschaffung:  { label: "Ersatzbeschaffung",     bg: "#d1fae5", color: "#065f46" },
-  sonstiger_schaden:  { label: "Sonstiger Schaden",     bg: "#fef3c7", color: "#92400e" },
+  ersatzbeschaffung:  { label: "Ersatzbeschaffung",     bg: "#d1fae5", color: T.greenText },
+  sonstiger_schaden:  { label: "Sonstiger Schaden",     bg: T.amberMid, color: T.amberText },
   technisch_gutachten:{ label: "Technisch / Gutachten", bg: "#fce7f3", color: "#9d174d" },
 };
 
@@ -256,7 +256,7 @@ const EMAIL_TYP_LABELS = {
   gutachten:             { label:"Gutachten",         color:T.blue,      icon:"📑" },
   regulierungsschreiben: { label:"Regulierung",       color:T.green,     icon:"📄" },
   sachstandsanfrage:     { label:"Sachstandsanfrage", color:"#D97706",   icon:"📋" },
-  neues_mandat:          { label:"Neues Mandat",      color:T.gold,      icon:"⭐" },
+  neues_mandat:          { label:"Neues Mandat",      color:T.accent,      icon:"⭐" },
   sonstiges:             { label:"Sonstiges",         color:T.textMuted, icon:"📧" },
 };
 

@@ -60,7 +60,7 @@ function Btn({ children, variant="primary", onClick, onMouseDown, disabled=false
   const vars = {
     primary:   { background:T.navy,    color:T.white,    border:"none" },
     secondary: { background:T.surface, color:T.textMid,  border:`1px solid ${T.border}` },
-    gold:      { background:T.gold,    color:T.navy,     border:"none" },
+    gold:      { background:T.accent,    color:T.navy,     border:"none" },
     danger:    { background:T.redBg,   color:T.red,      border:`1px solid ${T.red}33` },
   };
   return (
@@ -78,7 +78,7 @@ function FieldInput({ label, value, onChange, type="text", placeholder="", requi
       {label && <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", fontWeight:600, color:T.textMid, letterSpacing:"0.05em", textTransform:"uppercase" }}>{label}{required && <span style={{ color:T.red }}> *</span>}</label>}
       <input type={type} value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)}
         style={{ padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.985rem", color:T.text, background:T.surface, outline:"none" }}
-        onFocus={e => e.target.style.borderColor = T.gold}
+        onFocus={e => e.target.style.borderColor = T.accent}
         onBlur={e  => e.target.style.borderColor = T.border} />
     </div>
   );
@@ -101,8 +101,8 @@ function FieldSelect({ label, value, onChange, options }) {
 function Toast({ msg, onDone }) {
   useEffect(() => { const t = setTimeout(onDone, 2600); return () => clearTimeout(t); }, [onDone]);
   return (
-    <div style={{ position:"fixed", bottom:24, right:24, zIndex:600, background:T.navy, color:T.white, padding:"10px 18px", borderRadius:10, fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", boxShadow:"0 8px 32px rgba(0,0,0,0.25)", borderLeft:`3px solid ${T.gold}`, display:"flex", alignItems:"center", gap:8, animation:"slideUp 0.3s ease-out" }}>
-      <span style={{ color:T.white }}>{Ic.check}</span>{msg}
+    <div style={{ position:"fixed", bottom:24, right:24, zIndex:600, background:T.navy, color:T.white, padding:"10px 18px", borderRadius:10, fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", boxShadow:`0 8px 32px rgba(0,0,0,0.25), 0 0 0 1.5px ${T.accentTrim}`, display:"flex", alignItems:"center", gap:8, animation:"slideUp 0.3s ease-out" }}>
+      <span style={{ color:T.accentLight, flexShrink:0 }}>{Ic.check}</span>{msg}
     </div>
   );
 }
@@ -159,12 +159,12 @@ function BackendBadge({ online }) {
   );
   if (online) return (
     <div style={{ display:"flex", alignItems:"center", gap:5, fontFamily:"'Figtree',sans-serif", fontSize:"0.845rem", color:"rgba(100,220,150,0.9)", padding:"4px 9px", background:"rgba(16,185,129,0.1)", borderRadius:6, border:"1px solid rgba(16,185,129,0.2)" }}>
-      <span style={{ width:6, height:6, borderRadius:"50%", background:"#10b981" }}/>Live-API
+      <span style={{ width:6, height:6, borderRadius:"50%", background:T.green }}/>Live-API
     </div>
   );
   return (
     <div style={{ display:"flex", alignItems:"center", gap:5, fontFamily:"'Figtree',sans-serif", fontSize:"0.845rem", color:"rgba(200,168,75,0.85)", padding:"4px 9px", background:"rgba(200,168,75,0.1)", borderRadius:6, border:"1px solid rgba(200,168,75,0.2)" }}>
-      <span style={{ width:6, height:6, borderRadius:"50%", background:T.gold }}/>Demo-Modus
+      <span style={{ width:6, height:6, borderRadius:"50%", background:T.accent }}/>Demo-Modus
     </div>
   );
 }

@@ -215,13 +215,13 @@ function Fortschrittsbalken({ step, maxStep, onStepChange }) {
                 onClick={klickbar ? () => onStepChange(s.nr) : undefined}
                 style={{
                   width: 32, height: 32, borderRadius: "50%",
-                  background: erledigt ? T.navy : aktiv ? T.gold : T.surface,
-                  border: `2px solid ${erledigt ? T.navy : aktiv ? T.gold : T.border}`,
+                  background: erledigt ? T.navy : aktiv ? T.accent : T.surface,
+                  border: `2px solid ${erledigt ? T.navy : aktiv ? T.accent : T.border}`,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontFamily: MONO, fontSize: "0.8rem", fontWeight: 700,
                   color: (erledigt || aktiv) ? "#fff" : T.textMuted,
                   transition: "all 0.25s",
-                  boxShadow: aktiv ? `0 0 0 4px ${T.gold}28` : "none",
+                  boxShadow: aktiv ? `0 0 0 4px ${T.accent}28` : "none",
                   flexShrink: 0,
                   cursor: klickbar ? "pointer" : "default",
                 }}>
@@ -229,7 +229,7 @@ function Fortschrittsbalken({ step, maxStep, onStepChange }) {
               </div>
               <div style={{
                 fontFamily: PLEX, fontSize: "0.72rem", fontWeight: aktiv ? 700 : 400,
-                color: aktiv ? T.gold : erledigt ? T.navy : T.textMuted,
+                color: aktiv ? T.accent : erledigt ? T.navy : T.textMuted,
                 marginTop: 5, textAlign: "center", whiteSpace: "nowrap",
                 overflow: "hidden", width: "100%",
                 transition: "color 0.25s",
@@ -284,7 +284,7 @@ function DokumentCard({ text, warnung, editText, onEditText }) {
       }}>
         <div style={{ fontSize: "1.75rem" }}>⚠️</div>
         <div style={{ fontFamily: PLEX, fontSize: "0.875rem", fontWeight: 600,
-          color: "#92400e", textAlign: "center", lineHeight: 1.5 }}>
+          color: T.amberText, textAlign: "center", lineHeight: 1.5 }}>
           Aktivlegitimation nicht nachgewiesen
         </div>
         <div style={{ fontFamily: PLEX, fontSize: "0.78rem", color: T.textMuted, textAlign: "center" }}>
@@ -660,7 +660,7 @@ function StepUnfall({ schilderungOriginal, klaeger, unfalltextEdit, onUnfalltext
           <div style={{
             background: `${T.amber}12`, border: `1px solid ${T.amber}50`,
             borderRadius: 8, padding: "0.75rem",
-            fontFamily: PLEX, fontSize: "0.8rem", color: "#92400e",
+            fontFamily: PLEX, fontSize: "0.8rem", color: T.amberText,
           }}>
             ⚠ Keine Unfallschilderung in Unfalldetails hinterlegt. Bitte Text manuell eingeben.
           </div>
@@ -987,7 +987,7 @@ function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, 
             </div>
             <div style={{ fontFamily: PLEX, fontSize: "0.78rem", color: T.textMuted, marginTop: 3 }}>
               {aktiveIds.size > 0
-                ? <><span style={{ color: T.gold, fontWeight: 600 }}>{aktiveIds.size}</span>
+                ? <><span style={{ color: T.accent, fontWeight: 600 }}>{aktiveIds.size}</span>
                     {" "}Kürzung{aktiveIds.size !== 1 ? "en" : ""} aus Regulierungsschreiben vorausgewählt</>
                 : "Keine Kürzungen aus Regulierungsschreiben erfasst – manuelle Auswahl möglich"}
             </div>
@@ -1029,7 +1029,7 @@ function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, 
                       {aktiveIds.has(ka.id) && (
                         <span style={{
                           fontSize: "0.68rem", fontWeight: 700,
-                          background: `${T.gold}22`, color: "#8a5800",
+                          background: `${T.accent}22`, color: "#8a5800",
                           padding: "1px 7px", borderRadius: 10,
                         }}>gekürzt</span>
                       )}
@@ -1186,7 +1186,7 @@ function StepRw({ hq, onHq, hb, onHb, abrechnungen, weiblich,
           style={{
             padding: "9px 12px", borderRadius: 8,
             cursor: kiLaedt ? "wait" : "pointer",
-            border: `1.5px solid ${T.gold}`, background: `${T.gold}12`,
+            border: `1.5px solid ${T.accent}`, background: `${T.accent}12`,
             fontFamily: PLEX, fontSize: "0.85rem", fontWeight: 600, color: "#7a4f00",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             opacity: kiLaedt ? 0.7 : 1,
@@ -1208,7 +1208,7 @@ function StepRw({ hq, onHq, hb, onHb, abrechnungen, weiblich,
         <button onClick={() => setEinwandeOffen(true)}
           style={{
             padding: "9px 12px", borderRadius: 8, cursor: "pointer",
-            border: `1.5px solid ${T.gold}`, background: `${T.gold}10`,
+            border: `1.5px solid ${T.accent}`, background: `${T.accent}10`,
             fontFamily: PLEX, fontSize: "0.85rem", fontWeight: 600, color: "#8a5800",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
           }}>
@@ -1217,7 +1217,7 @@ function StepRw({ hq, onHq, hb, onHb, abrechnungen, weiblich,
             (ab.positionen || []).filter(p => p.kuerzungsart_id != null)
           ).length > 0 && (
             <span style={{
-              background: T.gold, color: "#fff", fontSize: "0.68rem", fontWeight: 700,
+              background: T.accent, color: "#fff", fontSize: "0.68rem", fontWeight: 700,
               padding: "1px 6px", borderRadius: 10,
             }}>
               {new Set((abrechnungen || []).flatMap(ab =>
@@ -1481,7 +1481,7 @@ function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMind,
       <button onClick={onGenerieren} disabled={gesperrt}
         style={{
           width: "100%", padding: "14px 0",
-          background: gesperrt ? T.border : T.gold,
+          background: gesperrt ? T.border : T.accent,
           color: gesperrt ? T.textMuted : "#fff",
           border: "none", borderRadius: 10, cursor: gesperrt ? "not-allowed" : "pointer",
           fontFamily: PLEX, fontSize: "1rem", fontWeight: 700,
@@ -1763,7 +1763,7 @@ function StepAntraege({ positionen, mitSG, sgMind, beklagte, weiblich,
         {hatPlatzhalter ? (
           <div style={{ background: `${T.amber}12`, border: `1px solid ${T.amber}50`,
             borderRadius: 7, padding: "0.5rem 0.75rem",
-            fontFamily: PLEX, fontSize: "0.76rem", color: "#92400e" }}>
+            fontFamily: PLEX, fontSize: "0.76rem", color: T.amberText }}>
             ⏳ RVG-Antrag: Platzhalter aktiv – wird in Schritt 9 ersetzt.
           </div>
         ) : (
@@ -1908,10 +1908,10 @@ function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
 
         {/* ── Modus B: Inline-Assistent (kein gespeicherter Eintrag) ── */}
         {!gespeichertGb && !gbAnalysiert && (
-          <div style={{ background: "#fffbeb", border: `1px solid #f59e0b44`,
+          <div style={{ background: T.amberBg, border: `1px solid #f59e0b44`,
                         borderRadius: 8, padding: "0.75rem 0.85rem",
                         fontFamily: PLEX, fontSize: "0.78rem" }}>
-            <div style={{ fontWeight: 700, color: "#92400e", marginBottom: 6 }}>
+            <div style={{ fontWeight: 700, color: T.amberText, marginBottom: 6 }}>
               Gebühren-Analyse
             </div>
             <div style={{ marginBottom: 8, color: T.textMid }}>

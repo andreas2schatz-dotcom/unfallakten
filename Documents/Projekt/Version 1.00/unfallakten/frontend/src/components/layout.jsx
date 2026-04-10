@@ -7,9 +7,9 @@ import { BackendBadge, StatusBadge } from "./common.jsx";
 function TopNav({ user, onLogout, backendOnline }) {
   const [open, setOpen] = useState(false);
   return (
-    <div style={{ height:56, background:T.navy, borderBottom:`3px solid ${T.gold}`, display:"flex", alignItems:"center", padding:"0 1.5rem", gap:16, flexShrink:0, zIndex:50, position:"relative" }}>
+    <div style={{ height:56, background:T.navy, borderBottom:`3px solid ${T.accent}`, display:"flex", alignItems:"center", padding:"0 1.5rem", gap:16, flexShrink:0, zIndex:50, position:"relative" }}>
       <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-        <div style={{ width:32, height:32, background:T.gold, borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center", color:T.navy }}>{Ic.logo}</div>
+        <div style={{ width:32, height:32, background:T.accent, borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center", color:T.navy }}>{Ic.logo}</div>
         <div>
           <div style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1.025rem", color:T.white }}>Koch, Schatz &amp; Kollegen</div>
           <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.745rem", color:"rgba(255,255,255,0.45)", letterSpacing:"0.1em", textTransform:"uppercase" }}>Unfallakten-System v1.0</div>
@@ -19,7 +19,7 @@ function TopNav({ user, onLogout, backendOnline }) {
       <BackendBadge online={backendOnline} />
       <div style={{ position:"relative" }}>
         <button onClick={() => setOpen(o => !o)} style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:8, padding:"6px 12px", cursor:"pointer", color:T.white, fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem" }}>
-          <div style={{ width:26, height:26, background:T.gold, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", color:T.navy }}>{Ic.user}</div>
+          <div style={{ width:26, height:26, background:T.accent, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", color:T.navy }}>{Ic.user}</div>
           <span style={{ maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.name}</span>
           <span style={{ fontSize:"0.755rem", background:"rgba(200,168,75,0.2)", color:T.white, border:"1px solid rgba(200,168,75,0.3)", padding:"1px 7px", borderRadius:10 }}>Admin</span>
         </button>
@@ -64,8 +64,8 @@ function TabBar({ tabs, active, onActivate, onClose }) {
           const isA = tab.id === active;
           return (
             <div key={tab.id} data-active={isA} onClick={() => onActivate(tab.id)}
-              style={{ display:"flex", alignItems:"center", gap:7, padding:"0 12px", minWidth:140, maxWidth:210, cursor:"pointer", background:isA?"rgba(255,255,255,0.07)":"transparent", borderRight:"1px solid rgba(255,255,255,0.06)", borderBottom:isA?`2px solid ${T.gold}`:"2px solid transparent", transition:"background 0.15s", flexShrink:0, userSelect:"none" }}>
-              <span style={{ color:isA?T.gold:"rgba(255,255,255,0.38)", flexShrink:0, fontSize:"0.85rem" }}>{Ic.akte}</span>
+              style={{ display:"flex", alignItems:"center", gap:7, padding:"0 12px", minWidth:140, maxWidth:210, cursor:"pointer", background:isA?"rgba(255,255,255,0.07)":"transparent", borderRight:"1px solid rgba(255,255,255,0.06)", borderBottom:isA?`2px solid ${T.accent}`:"2px solid transparent", transition:"background 0.15s", flexShrink:0, userSelect:"none" }}>
+              <span style={{ color:isA?T.accent:"rgba(255,255,255,0.38)", flexShrink:0, fontSize:"0.85rem" }}>{Ic.akte}</span>
               <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.885rem", fontWeight:isA?600:400, color:isA?T.white:"rgba(255,255,255,0.52)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>{tab.label}</span>
               {tab.status && <span style={{ width:6, height:6, borderRadius:"50%", background:STATUS_MAP[tab.status]?.color||"#888", flexShrink:0 }} />}
               {tab.aktion_erforderlich && (
@@ -74,7 +74,7 @@ function TabBar({ tabs, active, onActivate, onClose }) {
               )}
               <span onClick={e => { e.stopPropagation(); onClose(tab.id); }}
                 style={{ display:"flex", alignItems:"center", justifyContent:"center", width:16, height:16, borderRadius:3, color:"rgba(255,255,255,0.33)", transition:"all 0.12s", flexShrink:0 }}
-                onMouseEnter={e => { e.currentTarget.style.background="rgba(239,68,68,0.16)"; e.currentTarget.style.color="#ef4444"; }}
+                onMouseEnter={e => { e.currentTarget.style.background="rgba(239,68,68,0.16)"; e.currentTarget.style.color=T.red; }}
                 onMouseLeave={e => { e.currentTarget.style.background="transparent"; e.currentTarget.style.color="rgba(255,255,255,0.33)"; }}>
                 {Ic.x}
               </span>

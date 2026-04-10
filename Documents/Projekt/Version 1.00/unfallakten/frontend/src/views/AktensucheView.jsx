@@ -92,7 +92,7 @@ function AktensucheView({ onOpenAkte }) {
             onKeyDown={e => e.key==="Enter" && suchen("az")}
             placeholder="42/25  ·  Müller"
             style={inpStyle}
-            onFocus={e => e.target.style.borderColor=T.gold}
+            onFocus={e => e.target.style.borderColor=T.accent}
             onBlur={e  => e.target.style.borderColor=T.border}
           />
           <div style={hint}>Mit „/" → Aktenzeichen · Ohne „/" → Mandant &amp; Gegner</div>
@@ -113,7 +113,7 @@ function AktensucheView({ onOpenAkte }) {
             onKeyDown={e => e.key==="Enter" && suchen("kz")}
             placeholder="OF-NM 444"
             style={inpStyle}
-            onFocus={e => e.target.style.borderColor=T.gold}
+            onFocus={e => e.target.style.borderColor=T.accent}
             onBlur={e  => e.target.style.borderColor=T.border}
           />
           <div style={hint}>Sucht via WDM varM-KZ · Teileingabe möglich</div>
@@ -134,7 +134,7 @@ function AktensucheView({ onOpenAkte }) {
             value={tag} onChange={e => setTag(e.target.value)}
             onKeyDown={e => e.key==="Enter" && suchen("tag")}
             style={{ ...inpStyle, fontFamily:"'Figtree',sans-serif" }}
-            onFocus={e => e.target.style.borderColor=T.gold}
+            onFocus={e => e.target.style.borderColor=T.accent}
             onBlur={e  => e.target.style.borderColor=T.border}
           />
           <div style={hint}>Alle Unfälle an diesem Tag · WDM varU-TAG</div>
@@ -174,7 +174,7 @@ function AktensucheView({ onOpenAkte }) {
                     Ergebnisse
                   </span>
                   {suchmodus && (
-                    <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", background:T.goldPale, color:T.navy, border:`1px solid rgba(200,168,75,0.3)`, borderRadius:10, padding:"1px 8px" }}>
+                    <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", background:T.accentPale, color:T.navy, border:`1px solid rgba(200,168,75,0.3)`, borderRadius:10, padding:"1px 8px" }}>
                       {SUCHMODUS_LABEL[suchmodus]}
                     </span>
                   )}
@@ -218,7 +218,7 @@ function AktensucheView({ onOpenAkte }) {
                         )}
                       </td>
                       <td style={{ padding:"10px 14px", whiteSpace:"nowrap" }}>
-                        <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.85rem", background:T.goldPale, color:T.navy, border:`1px solid ${T.goldTrim}`, borderRadius:5, padding:"2px 7px", fontWeight:600 }}>
+                        <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.85rem", background:T.accentPale, color:T.navy, border:`1px solid ${T.accentTrim}`, borderRadius:5, padding:"2px 7px", fontWeight:600 }}>
                           {t.sachbearbeiter || "–"}
                         </span>
                       </td>

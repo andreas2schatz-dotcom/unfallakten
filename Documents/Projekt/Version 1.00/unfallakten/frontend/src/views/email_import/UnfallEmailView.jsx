@@ -239,7 +239,7 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
                 {IMPORT_STEPS[importStep] || "…"}</>
             : <>{Ic.refresh} Jetzt importieren</>}
           <div style={{ position:"absolute", bottom:0, left:0, right:0, height:2,
-            background:`linear-gradient(90deg,${T.gold},${T.goldLight})` }}/>
+            background:`linear-gradient(90deg,${T.accent},${T.accentLight})` }}/>
         </button>
       </div>
 

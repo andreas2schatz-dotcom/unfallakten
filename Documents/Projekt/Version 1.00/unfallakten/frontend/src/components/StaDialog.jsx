@@ -16,7 +16,7 @@ import { apiSta } from "../api.js";
 const STUFEN_LABEL = {
   1: { name: "Erinnerung",        farbe: T.green  || "#22c55e", frist: "14 Tage" },
   2: { name: "Mahnung",           farbe: T.amber  || "#f59e0b", frist: "7 Tage"  },
-  3: { name: "Klage-Ankündigung", farbe: T.red    || "#ef4444", frist: "5 Tage"  },
+  3: { name: "Klage-Ankündigung", farbe: T.red    || T.red, frist: "5 Tage"  },
 };
 
 export default function StaDialog({ az, onClose }) {
@@ -288,11 +288,11 @@ export default function StaDialog({ az, onClose }) {
           {/* Fehler */}
           {fehler && (
             <div style={{
-              background: (T.red || "#ef4444") + "15",
-              border: `1px solid ${T.red || "#ef4444"}44`,
+              background: (T.red || T.red) + "15",
+              border: `1px solid ${T.red || T.red}44`,
               borderRadius: 8, padding: "0.75rem 1rem",
               fontFamily: "'Figtree',sans-serif", fontSize: "0.875rem",
-              color: T.red || "#ef4444",
+              color: T.red || T.red,
             }}>
               ⚠ {fehler}
             </div>
@@ -335,7 +335,7 @@ export default function StaDialog({ az, onClose }) {
               padding: "9px 20px", borderRadius: 7, border: "none",
               background: (generating || loading || !brieftext.trim() || erfolg)
                 ? (T.textFaint || "#9ca3af")
-                : (T.gold || "#c8a84b"),
+                : (T.accent || "#c8a84b"),
               color: "#fff", cursor: (generating || loading || !brieftext.trim() || erfolg) ? "not-allowed" : "pointer",
               fontFamily: "'Bricolage Grotesque',sans-serif",
               fontSize: "0.925rem", fontWeight: 700,

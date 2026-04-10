@@ -117,7 +117,7 @@ function BeteiligteSection({ beteiligte, dispatch, akteId }) {
           <hr style={{ border:"none", borderTop:`1px solid ${T.border}`, margin:"2px 0" }} />
           <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
             <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", fontWeight:600, color:T.textMid, letterSpacing:"0.05em", textTransform:"uppercase" }}>Notizen</label>
-            <textarea value={form.notizen||""} onChange={e => setForm(p => ({...p,notizen:e.target.value}))} rows={3} style={{ padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", color:T.text, background:T.surface, outline:"none", resize:"vertical" }} onFocus={e => e.target.style.borderColor=T.gold} onBlur={e => e.target.style.borderColor=T.border} />
+            <textarea value={form.notizen||""} onChange={e => setForm(p => ({...p,notizen:e.target.value}))} rows={3} style={{ padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", color:T.text, background:T.surface, outline:"none", resize:"vertical" }} onFocus={e => e.target.style.borderColor=T.accent} onBlur={e => e.target.style.borderColor=T.border} />
           </div>
           <div style={{ display:"flex", gap:8, paddingTop:4 }}>
             <Btn variant="primary" onClick={save} disabled={betSaving} style={{ flex:1 }}>

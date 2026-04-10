@@ -113,7 +113,7 @@ function FristenBlock({ fristen, loadingAction, onOpenAkte }) {
             borderRadius: 8, padding: "10px 14px",
             cursor: onOpenAkte ? "pointer" : "default", transition: "background 0.12s",
           }}
-            onMouseEnter={e => onOpenAkte && (e.currentTarget.style.background = T.goldPale)}
+            onMouseEnter={e => onOpenAkte && (e.currentTarget.style.background = T.accentPale)}
             onMouseLeave={e => onOpenAkte && (e.currentTarget.style.background = T.white)}
           >
             {/* Tage-Badge */}
@@ -233,7 +233,7 @@ function RegulierungBlock({ items, loadingAction, onOpenAkte }) {
             borderRadius: 8, padding: "10px 14px",
             cursor: onOpenAkte ? "pointer" : "default", transition: "background 0.12s",
           }}
-            onMouseEnter={e => onOpenAkte && (e.currentTarget.style.background = T.goldPale)}
+            onMouseEnter={e => onOpenAkte && (e.currentTarget.style.background = T.accentPale)}
             onMouseLeave={e => onOpenAkte && (e.currentTarget.style.background = T.white)}
           >
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -295,7 +295,7 @@ function AktenOhneBewegungBlock({ items, loadingAction, onOpenAkte }) {
           transition: "background 0.12s",
         }}
           onClick={() => onOpenAkte && onOpenAkte({ az: a.akte_az })}
-          onMouseEnter={e => onOpenAkte && (e.currentTarget.style.background = T.goldPale)}
+          onMouseEnter={e => onOpenAkte && (e.currentTarget.style.background = T.accentPale)}
           onMouseLeave={e => onOpenAkte && (e.currentTarget.style.background = T.white)}
         >
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -654,7 +654,7 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
                       <button key={s} onClick={() => setFilter(s)} style={{
                         padding: "4px 9px", borderRadius: 20,
                         border: `1px solid ${filter === s ? (sm?.color || T.navy) : T.border}`,
-                        background: filter === s ? (sm?.bg || T.goldPale) : "transparent",
+                        background: filter === s ? (sm?.bg || T.accentPale) : "transparent",
                         color: filter === s ? (sm?.color || T.navy) : T.textMuted,
                         fontFamily: "'Figtree',sans-serif", fontSize: "0.825rem", fontWeight: 600, cursor: "pointer",
                       }}>
@@ -704,7 +704,7 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
                         cursor: "pointer", borderBottom: `1px solid ${T.borderSoft}`,
                         background: i % 2 === 0 ? T.white : T.surface, transition: "background 0.1s",
                       }}
-                        onMouseEnter={e => e.currentTarget.style.background = T.goldPale}
+                        onMouseEnter={e => e.currentTarget.style.background = T.accentPale}
                         onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? T.white : T.surface}
                       >
                         <td style={{ padding: "10px 14px" }}>
@@ -722,7 +722,7 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
                         </td>
                         <td style={{ padding: "10px 14px" }}>
                           {a.sachbearbeiter && (
-                            <span style={{ fontFamily: "ui-monospace,monospace", fontSize: "0.84rem", background: T.goldPale, color: T.navy, border: `1px solid ${T.goldTrim}`, borderRadius: 5, padding: "2px 7px", fontWeight: 600 }}>
+                            <span style={{ fontFamily: "ui-monospace,monospace", fontSize: "0.84rem", background: T.accentPale, color: T.navy, border: `1px solid ${T.accentTrim}`, borderRadius: 5, padding: "2px 7px", fontWeight: 600 }}>
                               {a.sachbearbeiter}
                             </span>
                           )}

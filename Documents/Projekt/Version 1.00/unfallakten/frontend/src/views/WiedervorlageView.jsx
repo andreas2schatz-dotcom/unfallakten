@@ -148,14 +148,14 @@ function WiedervorlageView({ onOpenAkte }) {
   const Marker = ({ erstellt }) => erstellt
     ? <span title="Sachstandsanfrage bereits erstellt" style={{
         display:"inline-flex", alignItems:"center", gap:4,
-        background:"#d1fae5", color:"#065f46",
+        background:"#d1fae5", color:T.greenText,
         border:"1.5px solid #6ee7b7",
         borderRadius:20, padding:"3px 10px 3px 7px",
         fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:600,
         whiteSpace:"nowrap",
       }}>
         <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-          <circle cx="6.5" cy="6.5" r="6.5" fill="#10b981"/>
+          <circle cx="6.5" cy="6.5" r="6.5" fill=T.green/>
           <path d="M3.5 6.5L5.5 8.5L9.5 4.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
         Erstellt
@@ -183,13 +183,13 @@ function WiedervorlageView({ onOpenAkte }) {
     return (
       <div style={{
         display:"flex", alignItems:"center", gap:10,
-        background: isOk ? "#f0fdf4" : isDeak ? "#fffbeb" : "#fff1f2",
-        border: `1px solid ${isOk ? "#86efac" : isDeak ? "#fcd34d" : "#fca5a5"}`,
+        background: isOk ? "#f0fdf4" : isDeak ? T.amberBg : "#fff1f2",
+        border: `1px solid ${isOk ? T.greenLight : isDeak ? "#fcd34d" : T.redLight}`,
         borderRadius:10, padding:"10px 16px", marginBottom:"1.25rem",
         fontFamily:"'Figtree',sans-serif", fontSize:"0.885rem",
       }}>
         <span style={{ fontSize:"1.1rem" }}>{isOk ? "🟢" : isDeak ? "🟡" : "🔴"}</span>
-        <span style={{ color: isOk ? "#065f46" : isDeak ? "#92400e" : "#9f1239", fontWeight:500 }}>
+        <span style={{ color: isOk ? T.greenText : isDeak ? T.amberText : "#9f1239", fontWeight:500 }}>
           {isOk
             ? `RA-Micro verbunden · ${ramicroStatus.host} · DB: ${ramicroStatus.datenbank}`
             : isDeak
@@ -287,7 +287,7 @@ function WiedervorlageView({ onOpenAkte }) {
               📄 Einzeln herunterladen
             </button>
             <button onClick={batchZip} disabled={batchLaeuft}
-              style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 15px", background:T.gold, color:T.navy, border:"none", borderRadius:8, fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem", fontWeight:600, cursor:batchLaeuft?"default":"pointer", opacity:batchLaeuft?0.6:1 }}>
+              style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 15px", background:T.accent, color:T.navy, border:"none", borderRadius:8, fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem", fontWeight:600, cursor:batchLaeuft?"default":"pointer", opacity:batchLaeuft?0.6:1 }}>
               🗜 Als ZIP herunterladen
             </button>
             <button onClick={() => setAusgewaehlt(new Set())}
@@ -334,7 +334,7 @@ function WiedervorlageView({ onOpenAkte }) {
                     <input type="checkbox" checked={alleAusgewaehlt}
                       onChange={toggleAlle}
                       title="Alle auswählen"
-                      style={{ accentColor:T.gold, width:16, height:16, cursor:"pointer" }} />
+                      style={{ accentColor:T.accent, width:16, height:16, cursor:"pointer" }} />
                   </th>
                   {[
                     { label:"Datum",         w:"100px"  },
@@ -375,13 +375,13 @@ function WiedervorlageView({ onOpenAkte }) {
                       <td style={{ padding:"10px 14px" }}>
                         <span style={{
                           fontFamily:"ui-monospace,monospace", fontSize:"0.845rem",
-                          color: istUeberfaellig ? "#b91c1c" : istHeute ? "#065f46" : T.textMid,
+                          color: istUeberfaellig ? "#b91c1c" : istHeute ? T.greenText : T.textMid,
                           fontWeight: (istUeberfaellig || istHeute) ? 600 : 400,
                         }}>
                           {wv.datum ? new Date(wv.datum + "T00:00:00").toLocaleDateString("de-DE") : "–"}
                         </span>
-                        {istUeberfaellig && <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.73rem", color:"#ef4444", fontWeight:600 }}>überfällig</div>}
-                        {istHeute && <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.73rem", color:"#10b981", fontWeight:600 }}>heute</div>}
+                        {istUeberfaellig && <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.73rem", color:T.red, fontWeight:600 }}>überfällig</div>}
+                        {istHeute && <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.73rem", color:T.green, fontWeight:600 }}>heute</div>}
                       </td>
 
                       {/* Aktenzeichen – klickbar */}
@@ -408,7 +408,7 @@ function WiedervorlageView({ onOpenAkte }) {
 
                       {/* Sachbearbeiter */}
                       <td style={{ padding:"10px 14px" }}>
-                        <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.85rem", background:T.goldPale, color:T.navy, border:`1px solid ${T.goldTrim}`, borderRadius:5, padding:"2px 7px", fontWeight:600 }}>
+                        <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.85rem", background:T.accentPale, color:T.navy, border:`1px solid ${T.accentTrim}`, borderRadius:5, padding:"2px 7px", fontWeight:600 }}>
                           {wv.sachbearbeiter || "–"}
                         </span>
                       </td>

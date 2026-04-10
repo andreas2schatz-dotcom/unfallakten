@@ -98,7 +98,7 @@ function AppShell({ user, onLogout }) {
                     color: T.white,
                     fontFamily:"'Figtree',sans-serif", fontSize:"1rem",
                     fontWeight:isA?600:400, textAlign:"left", transition:"all 0.12s", marginBottom:2,
-                    ...(isA ? { boxShadow:`inset 2px 0 0 ${T.gold}` } : {}) }}
+                    ...(isA ? { boxShadow:`inset 2px 0 0 ${T.accent}` } : {}) }}
                   onMouseEnter={e => { if (!isA) e.currentTarget.style.background="rgba(255,255,255,0.06)"; }}
                   onMouseLeave={e => { if (!isA) e.currentTarget.style.background="transparent"; }}>
                   <span style={{ fontSize:"1rem", flexShrink:0 }}>{item.icon}</span>
@@ -120,11 +120,11 @@ function AppShell({ user, onLogout }) {
                   return (
                     <button key={t.id} onClick={() => setActive(t.id)}
                       style={{ width:"100%", display:"flex", alignItems:"center", gap:8, padding:"8px 12px", borderRadius:7, border:"none", cursor:"pointer",
-                        background: isA ? "rgba(200,168,75,0.15)" : "transparent",
+                        background: isA ? "rgba(160,107,74,0.15)" : "transparent",
                         fontFamily:"ui-monospace,monospace", fontSize:"0.855rem",
-                        fontWeight: isA ? 700 : 400, color: isA ? T.gold : "rgba(255,255,255,0.55)",
+                        fontWeight: isA ? 700 : 400, color: isA ? T.accentLight : "rgba(255,255,255,0.55)",
                         textAlign:"left", transition:"all 0.12s", marginBottom:1,
-                        ...(isA ? { boxShadow:`inset 2px 0 0 ${T.gold}` } : {}) }}
+                        ...(isA ? { boxShadow:`inset 2px 0 0 ${T.accentLight}` } : {}) }}
                       onMouseEnter={e => { if (!isA) e.currentTarget.style.background="rgba(255,255,255,0.06)"; }}
                       onMouseLeave={e => { if (!isA) e.currentTarget.style.background="transparent"; }}>
                       <span style={{ fontSize:"0.85rem", flexShrink:0 }}>{Ic.akte}</span>

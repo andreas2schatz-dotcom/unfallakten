@@ -112,7 +112,7 @@ function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertrete
         ) : (
           <div>
             <div style={{ padding:"0.75rem 1rem", background:T.amber+"15", borderRadius:8,
-              border:`1px solid ${T.amber}30`, fontSize:"0.875rem", color:"#92400e", marginBottom:"1rem" }}>
+              border:`1px solid ${T.amber}30`, fontSize:"0.875rem", color:T.amberText, marginBottom:"1rem" }}>
               {daten?.hinweis || "Keine automatischen Daten gefunden. Bitte manuell eintragen:"}
             </div>
             {/* Manuelle Eingabe */}

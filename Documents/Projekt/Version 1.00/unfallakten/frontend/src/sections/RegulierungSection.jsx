@@ -100,7 +100,7 @@ function PositionenTabelle({ positionen, kuerzungsarten, akteId, abid, onUpdate,
                     <button
                       onClick={() => !readOnly && toggleKlage(pos)}
                       title={pos.fuer_klage_vorgemerkt ? "Aus Klage entfernen" : "Für Klage vormerken"}
-                      style={{ background:pos.fuer_klage_vorgemerkt?T.gold:"transparent", border:`1px solid ${pos.fuer_klage_vorgemerkt?T.gold:T.border}`, borderRadius:5, padding:"3px 8px", fontSize:"0.78rem", color:pos.fuer_klage_vorgemerkt?T.white:T.textMuted, cursor:readOnly?"default":"pointer", fontFamily:"'Figtree',sans-serif", fontWeight:600, transition:"all 0.15s" }}
+                      style={{ background:pos.fuer_klage_vorgemerkt?T.accent:"transparent", border:`1px solid ${pos.fuer_klage_vorgemerkt?T.accent:T.border}`, borderRadius:5, padding:"3px 8px", fontSize:"0.78rem", color:pos.fuer_klage_vorgemerkt?T.white:T.textMuted, cursor:readOnly?"default":"pointer", fontFamily:"'Figtree',sans-serif", fontWeight:600, transition:"all 0.15s" }}
                     >
                       {pos.fuer_klage_vorgemerkt ? "✓ Klage" : "Klage"}
                     </button>
@@ -165,7 +165,7 @@ function PdfAuswahlZeile({ dok, akteId, setDn, setPhase, setFehler, setErg, setS
         fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
         color:T.text, cursor:"pointer", textAlign:"left", width:"100%",
         transition:"border-color 0.15s", marginBottom:4 }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = T.gold; e.currentTarget.style.background = T.goldPale; }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = T.accent; e.currentTarget.style.background = T.accentPale; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.white; }}>
       <span style={{ color:T.red, fontSize:"1rem", flexShrink:0 }}>📄</span>
       <div style={{ flex:1, minWidth:0, textAlign:"left" }}>
@@ -323,7 +323,7 @@ function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePrue
       borderRadius: 8, padding: 24, marginBottom: 16,
     }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-        <h3 style={{ margin:0, color:T.gold, fontSize:16, fontWeight:600 }}>
+        <h3 style={{ margin:0, color:T.accent, fontSize:16, fontWeight:600 }}>
           📄 Versicherungs-PDF importieren
         </h3>
         <Btn variant="ghost" size="sm" onClick={onCancel}>✕</Btn>
@@ -367,7 +367,7 @@ function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePrue
               background:"none", border:`1px dashed ${T.border}`, borderRadius:7,
               fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem",
               color:T.textMuted, cursor:"pointer", width:"100%", marginTop:6 }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = T.gold}
+            onMouseEnter={e => e.currentTarget.style.borderColor = T.accent}
             onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
             <span>📂</span> Neue PDF-Datei hochladen
           </button>
@@ -386,7 +386,7 @@ function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePrue
             cursor: "pointer", color: T.textMuted,
             transition: "border-color .2s",
           }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = T.gold}
+          onMouseEnter={e => e.currentTarget.style.borderColor = T.accent}
           onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
         >
           <div style={{ fontSize: 36, marginBottom: 12 }}>📂</div>
@@ -452,7 +452,7 @@ function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePrue
               <span style={{
                 fontSize:12, padding:"2px 8px", borderRadius:4,
                 background:T.surface, border:`1px solid ${T.border}`,
-                color:T.gold, fontWeight:600,
+                color:T.accent, fontWeight:600,
               }}>
                 {ABRECHNUNG_ART_LABEL[ergebnis.abrechnungsart] || ergebnis.abrechnungsart}
               </span>
@@ -568,7 +568,7 @@ function AbrechnungVorschau({ ergebnis, selectedPos, setSelPos }) {
                     type="checkbox"
                     checked={!!selectedPos[i]}
                     onChange={e => setSelPos(s => ({ ...s, [i]: e.target.checked }))}
-                    style={{ accentColor: T.gold }}
+                    style={{ accentColor: T.accent }}
                   />
                 </td>
                 <td style={{ padding:"8px 10px", color:T.text }}>
@@ -593,7 +593,7 @@ function AbrechnungVorschau({ ergebnis, selectedPos, setSelPos }) {
                 <td colSpan={3} style={{ padding:"8px 10px", textAlign:"right", color:T.textMuted, fontWeight:600 }}>
                   Gesamtbetrag:
                 </td>
-                <td style={{ padding:"8px 10px", textAlign:"right", fontFamily:"monospace", fontWeight:700, color:T.gold, fontSize:15 }}>
+                <td style={{ padding:"8px 10px", textAlign:"right", fontFamily:"monospace", fontWeight:700, color:T.accent, fontSize:15 }}>
                   {fmtEuro(ergebnis.gesamtbetrag)}
                 </td>
                 <td />
@@ -877,7 +877,7 @@ function AbrechnungFormular({ schaden, kuerzungsarten, akteId, onSave, onCancel,
 
   return (
     <>
-    <div style={{ background:T.goldPale, border:`1px solid ${T.goldTrim}`, borderRadius:10, padding:"1.25rem 1.4rem", marginBottom:"1rem" }}>
+    <div style={{ background:T.accentPale, border:`1px solid ${T.accentTrim}`, borderRadius:10, padding:"1.25rem 1.4rem", marginBottom:"1rem" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1rem" }}>
         <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", fontWeight:600, color:T.navy, textTransform:"uppercase", letterSpacing:"0.07em" }}>
           Neues Abrechnungsschreiben
@@ -912,7 +912,7 @@ function AbrechnungFormular({ schaden, kuerzungsarten, akteId, onSave, onCancel,
             <input type="number" min={0} max={100} value={form.haftungsquote}
               onChange={e => setForm(p => ({...p,haftungsquote:e.target.value}))}
               style={{ padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:"ui-monospace,monospace", fontSize:"0.985rem", color:T.text, background:T.surface, outline:"none" }}
-              onFocus={e => e.target.style.borderColor=T.gold} onBlur={e => e.target.style.borderColor=T.border} />
+              onFocus={e => e.target.style.borderColor=T.accent} onBlur={e => e.target.style.borderColor=T.border} />
           </div>
         )}
       </div>
@@ -1112,7 +1112,7 @@ function ManuelleAbrechnungFormular({ schaden, kuerzungsarten, akteId, versicher
 
   return (
     <>
-    <div style={{ background:T.goldPale, border:`1px solid ${T.goldTrim}`, borderRadius:10,
+    <div style={{ background:T.accentPale, border:`1px solid ${T.accentTrim}`, borderRadius:10,
                   padding:"1.25rem 1.4rem", marginBottom:"1rem" }}>
 
       {/* Header + Modus-Toggle */}
@@ -1893,7 +1893,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
   if (loading) return (
     <div style={{ display:"flex", alignItems:"center", gap:10, padding:"2rem",
       color:T.textFaint, fontFamily:"'Figtree',sans-serif" }}>
-      <div style={{ width:16, height:16, border:`2px solid ${T.gold}`, borderTopColor:"transparent",
+      <div style={{ width:16, height:16, border:`2px solid ${T.accent}`, borderTopColor:"transparent",
         borderRadius:"50%", animation:"spin 0.7s linear infinite" }}/>
       Lade Regulierungsdaten…
     </div>
@@ -1906,7 +1906,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
 
         {/* ── Verweis-Banner ── */}
         {verweisLaden && (
-          <div style={{ padding:"0.75rem 1.25rem", background:"#eff6ff", borderRadius:8,
+          <div style={{ padding:"0.75rem 1.25rem", background:T.blueBg, borderRadius:8,
             border:"1px solid #bfdbfe", fontFamily:"'Figtree',sans-serif",
             fontSize:"0.875rem", color:"#1d4ed8", display:"flex", alignItems:"center", gap:8 }}>
             <span style={{ animation:"spin 1s linear infinite", display:"inline-block" }}>⟳</span>
@@ -1914,12 +1914,12 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
           </div>
         )}
         {verweis && !verweisLaden && verweis.verweis_gefunden && (
-          <div style={{ background: verweis.unzumutbar ? "#fef2f2" : "#f0fdf4",
-            border:`1.5px solid ${verweis.unzumutbar ? "#fca5a5" : "#86efac"}`,
+          <div style={{ background: verweis.unzumutbar ? T.redBg : "#f0fdf4",
+            border:`1.5px solid ${verweis.unzumutbar ? T.redLight : T.greenLight}`,
             borderRadius:10, padding:"1rem 1.25rem",
             fontFamily:"'Figtree',sans-serif" }}>
             <div style={{ fontWeight:700, fontSize:"0.95rem",
-              color: verweis.unzumutbar ? "#991b1b" : "#166534" }}>
+              color: verweis.unzumutbar ? T.redText : "#166534" }}>
               {verweis.unzumutbar
                 ? `⚠ Verweisbetrieb zu weit – ${verweis.km_echt} km`
                 : `✓ Verweisbetrieb – ${verweis.km_echt} km`}
@@ -1929,7 +1929,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                 style={{ marginTop:8, width:"100%", minHeight:100, padding:"8px 10px",
                   fontSize:"0.84rem", fontFamily:"'Figtree',sans-serif",
                   border:"1px solid #d1d5db", borderRadius:7, resize:"vertical",
-                  boxSizing:"border-box", background:"#fffbeb" }} />
+                  boxSizing:"border-box", background:T.amberBg }} />
             )}
           </div>
         )}
@@ -1993,12 +1993,12 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                       onChange={e => setHqVal(e.target.value)}
                       onKeyDown={e => { if (e.key==="Enter") saveHq(); if (e.key==="Escape") setHqEditing(false); }}
                       autoFocus
-                      style={{ width:56, padding:"2px 6px", border:`1.5px solid ${T.gold}`,
+                      style={{ width:56, padding:"2px 6px", border:`1.5px solid ${T.accent}`,
                         borderRadius:5, fontFamily:"ui-monospace,monospace",
                         fontSize:"0.875rem", outline:"none" }} />
                     <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.875rem" }}>%</span>
                     <button onClick={saveHq} disabled={hqSaving}
-                      style={{ background:T.gold, border:"none", borderRadius:5, padding:"2px 8px",
+                      style={{ background:T.accent, border:"none", borderRadius:5, padding:"2px 8px",
                         cursor:"pointer", color:"#fff", fontSize:"0.8rem", fontWeight:600 }}>
                       {hqSaving ? "…" : "✓"}
                     </button>
@@ -2133,7 +2133,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                       <tr style={{ borderBottom:`1px solid ${T.border}`,
                         background: idx%2===0 ? T.white : T.surface,
                         transition:"background 0.1s" }}
-                        onMouseEnter={e => e.currentTarget.style.background = T.goldPale}
+                        onMouseEnter={e => e.currentTarget.style.background = T.accentPale}
                         onMouseLeave={e => e.currentTarget.style.background = idx%2===0 ? T.white : T.surface}>
 
                         {/* Expand-Button */}
@@ -2174,7 +2174,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                                 style={{ position:"fixed", top:"50%", left:"50%",
                                   transform:"translate(-50%, -50%)",
                                   zIndex:901, background:T.white,
-                                  border:`1.5px solid ${T.gold}`,
+                                  border:`1.5px solid ${T.accent}`,
                                   borderRadius:10, boxShadow:"0 12px 40px rgba(0,0,0,0.2)",
                                   padding:"18px 20px", width:300,
                                   display:"flex", flexDirection:"column", gap:10 }}>
@@ -2194,7 +2194,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                                     onChange={e => setGezahltEdit(p => ({...p, value: e.target.value.replace(/[^\d,.]/g,"")}))}
                                     onKeyDown={e => { if (e.key==="Escape") setGezahltEdit(null); }}
                                     style={{ width:"100%", padding:"5px 8px",
-                                      border:`1.5px solid ${T.gold}`, borderRadius:5,
+                                      border:`1.5px solid ${T.accent}`, borderRadius:5,
                                       fontFamily:"ui-monospace,monospace",
                                       fontSize:"0.975rem", outline:"none",
                                       boxSizing:"border-box" }} />
@@ -2270,7 +2270,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                               </div>
                               {/* Trigger-Anzeige im Feld */}
                               <div style={{ fontFamily:"ui-monospace,monospace",
-                                color:T.gold, fontSize:"0.875rem", textAlign:"right",
+                                color:T.accent, fontSize:"0.875rem", textAlign:"right",
                                 padding:"2px 4px" }}>
                                 {gezahltEdit.value || "—"}
                               </div>
@@ -2429,8 +2429,8 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                           {hatKuerzung ? (
                             <button onClick={() => toggleKlage(pos.key)}
                               title={pos.fuer_klage ? "Klage-Flag entfernen" : "Für Klage vormerken"}
-                              style={{ background: pos.fuer_klage ? T.gold : "transparent",
-                                border:`1px solid ${pos.fuer_klage ? T.gold : T.border}`,
+                              style={{ background: pos.fuer_klage ? T.accent : "transparent",
+                                border:`1px solid ${pos.fuer_klage ? T.accent : T.border}`,
                                 borderRadius:5, padding:"3px 9px", cursor:"pointer",
                                 fontSize:"0.775rem", fontFamily:"'Figtree',sans-serif",
                                 fontWeight: pos.fuer_klage ? 700 : 400,
@@ -2517,7 +2517,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
               {/* Summen-Footer */}
               {allePos.length > 0 && (
                 <tfoot>
-                  <tr style={{ background:T.navyDark, borderTop:`2px solid ${T.gold}44` }}>
+                  <tr style={{ background:T.navyDark, borderTop:`2px solid ${T.accent}44` }}>
                     <td colSpan={2} style={{ padding:"10px 12px",
                       fontFamily:"'Figtree',sans-serif", fontWeight:700,
                       color:T.white, fontSize:"0.875rem" }}>Gesamt</td>
@@ -2526,16 +2526,16 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                       color:T.white }}>{fmtEuro(gesamtGefordert)}</td>
                     <td style={{ padding:"10px 12px", textAlign:"right",
                       fontFamily:"ui-monospace,monospace", fontWeight:700,
-                      color:"#86efac" }}>{fmtEuro(gesamtGezahlt)}</td>
+                      color:T.greenLight }}>{fmtEuro(gesamtGezahlt)}</td>
                     <td style={{ padding:"10px 12px", textAlign:"right",
                       fontFamily:"ui-monospace,monospace", fontWeight:700,
-                      color: gesamtOffen > 0.01 ? "#fca5a5" : "#86efac" }}>
+                      color: gesamtOffen > 0.01 ? T.redLight : T.greenLight }}>
                       {gesamtOffen > 0.01 ? `−${fmtEuro(gesamtOffen)}` : "✓ vollständig"}
                     </td>
                     <td colSpan={3} style={{ padding:"10px 12px" }}>
                       {klagebetrag > 0.01 && (
                         <span style={{ fontFamily:"ui-monospace,monospace",
-                          fontSize:"0.84rem", color:T.gold, fontWeight:600 }}>
+                          fontSize:"0.84rem", color:T.accent, fontWeight:600 }}>
                           🏛 Klage: {fmtEuro(klagebetrag)}
                         </span>
                       )}
@@ -2549,7 +2549,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
 
         {/* ── Klage-Zusammenfassung ── */}
         {klagebetrag > 0.01 && (
-          <Card style={{ borderLeft:`3px solid ${T.gold}` }}>
+          <Card style={{ borderLeft:`3px solid ${T.accent}` }}>
             <CardHead title="Klagegegenstand" />
             <div style={{ padding:"0 1.4rem 1rem" }}>
               {allePos.filter(p => p.fuer_klage && (p.gefordert - (getGezahlt(p)||0)) > 0.01)

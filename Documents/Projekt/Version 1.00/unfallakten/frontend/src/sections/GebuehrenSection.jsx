@@ -30,9 +30,9 @@ const VU_FARBEN = {
   "VU-02": { bg: "#f0fdf4",  text: "#16a34a" },
   "VU-03": { bg: T.amberBg,  text: T.amber  },
   "VU-04": { bg: T.amberBg,  text: T.amber  },
-  "VU-05": { bg: "#fef3c7",  text: "#d97706" },
-  "VU-06": { bg: "#fef3c7",  text: "#d97706" },
-  "VU-07": { bg: "#fef3c7",  text: "#d97706" },
+  "VU-05": { bg: T.amberMid,  text: "#d97706" },
+  "VU-06": { bg: T.amberMid,  text: "#d97706" },
+  "VU-07": { bg: T.amberMid,  text: "#d97706" },
   "VU-07b":{ bg: T.amberBg,  text: T.amber  },
   "VU-08": { bg: T.redBg,    text: T.red    },
   "VU-09": { bg: T.redBg,    text: T.red    },
@@ -239,8 +239,8 @@ export default function GebuehrenSection({ akteId, akte }) {
 
   if (laden) return (
     <div style={{ padding:"3rem", textAlign:"center", color:T.textFaint, fontSize:"0.9rem" }}>
-      <div style={{ width:28, height:28, border:`3px solid ${T.goldTrim}`,
-                    borderTopColor:T.gold, borderRadius:"50%",
+      <div style={{ width:28, height:28, border:`3px solid ${T.accentTrim}`,
+                    borderTopColor:T.accent, borderRadius:"50%",
                     animation:"spin 0.8s linear infinite", margin:"0 auto 12px" }} />
       Gebühren-Analyse läuft …
     </div>
@@ -292,9 +292,9 @@ export default function GebuehrenSection({ akteId, akte }) {
 
       {/* ── Bereich B: Kurzbefragung ────────────────────────────────────── */}
       {!befragungFertig && fehlend.length > 0 && (
-        <div style={{ background:"#fffbeb", border:`1px solid ${T.amber}44`,
+        <div style={{ background:T.amberBg, border:`1px solid ${T.amber}44`,
                       borderRadius:10, padding:"1rem 1.25rem", marginBottom:"1.25rem" }}>
-          <div style={{ fontWeight:700, color:"#92400e", fontSize:"0.9rem", marginBottom:"0.75rem" }}>
+          <div style={{ fontWeight:700, color:T.amberText, fontSize:"0.9rem", marginBottom:"0.75rem" }}>
             Kurzbefragung – noch {fehlend.length} Angabe{fehlend.length !== 1 ? "n" : ""} nötig
           </div>
 

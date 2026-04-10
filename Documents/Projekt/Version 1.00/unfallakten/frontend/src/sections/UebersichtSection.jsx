@@ -145,7 +145,7 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
           {/* Name / Firma */}
           <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.925rem", fontWeight:600, color:T.navy, marginBottom:3 }}>
             {zeigeFirma && b.name ? b.name : b.name || "–"}
-            {b.kennzeichen && <span style={{ marginLeft:8, fontFamily:"ui-monospace,monospace", fontSize:"0.75rem", background:T.goldPale, color:T.navy, border:`1px solid ${T.goldTrim}`, borderRadius:4, padding:"1px 5px" }}>{b.kennzeichen}</span>}
+            {b.kennzeichen && <span style={{ marginLeft:8, fontFamily:"ui-monospace,monospace", fontSize:"0.75rem", background:T.accentPale, color:T.navy, border:`1px solid ${T.accentTrim}`, borderRadius:4, padding:"1px 5px" }}>{b.kennzeichen}</span>}
           </div>
 
           {/* Betreffzeilen (fett) */}
@@ -343,7 +343,7 @@ function RaMicroAkteUebersicht({ azRoh }) {
 
   if (laden) return (
     <div style={{ display:"flex", alignItems:"center", gap:10, padding:"2rem", color:T.textFaint, fontFamily:"'Figtree',sans-serif" }}>
-      <div style={{ width:18, height:18, border:`2px solid ${T.gold}`, borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
+      <div style={{ width:18, height:18, border:`2px solid ${T.accent}`, borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
       Lade RA-Micro Daten …
     </div>
   );
@@ -495,8 +495,8 @@ function ForderungshistorieKarte({ akteId }) {
     gefordert:     { c: T.textMuted,   bg: T.surface,    label: "offen"         },
     teilreguliert: { c: T.amber,       bg: T.amberBg,    label: "teilreg."      },
     vollreguliert: { c: T.green,       bg: T.greenBg,    label: "✓ voll"        },
-    gekuerzt:      { c: "#dc2626",     bg: "#fef2f2",    label: "gekürzt"       },
-    abgelehnt:     { c: "#991b1b",     bg: "#fee2e2",    label: "abgelehnt"     },
+    gekuerzt:      { c: "#dc2626",     bg: T.redBg,    label: "gekürzt"       },
+    abgelehnt:     { c: T.redText,     bg: "#fee2e2",    label: "abgelehnt"     },
   };
 
   if (laden) return (
@@ -562,7 +562,7 @@ function ForderungshistorieKarte({ akteId }) {
                   </span>}
                 {klageCount > 0 &&
                   <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 20,
-                    background: "#fef2f2", color: "#dc2626", fontWeight: 600 }}>
+                    background: T.redBg, color: "#dc2626", fontWeight: 600 }}>
                     {klageCount} Klage
                   </span>}
               </div>
@@ -617,7 +617,7 @@ function ForderungshistorieKarte({ akteId }) {
                               onClick={() => toggleKlage(pos)}
                               title={pos.fuer_klage ? "Klage-Flag entfernen" : "Für Klage vormerken"}
                               style={{ padding: "3px 8px", borderRadius: 8, border: "none",
-                                background: pos.fuer_klage ? "#fef2f2" : T.surface,
+                                background: pos.fuer_klage ? T.redBg : T.surface,
                                 color: pos.fuer_klage ? "#dc2626" : T.textFaint,
                                 cursor: "pointer", fontSize: 13, fontWeight: pos.fuer_klage ? 700 : 400 }}>
                               {pos.fuer_klage ? "🏛 Klage" : "○"}
@@ -753,8 +753,8 @@ function AktenTimeline({ abrechnungen, aktivitaeten, akteId, onAktivitaetenChang
             <button key={f.id} onClick={() => setFilter(f.id)}
               style={{ padding:"4px 12px", borderRadius:20, fontSize:"0.83rem", cursor:"pointer",
                 fontFamily:"'Figtree',sans-serif", fontWeight: filter===f.id ? 600 : 400,
-                border:"1.5px solid " + (filter===f.id ? T.gold : T.border),
-                background: filter===f.id ? T.goldPale : "transparent",
+                border:"1.5px solid " + (filter===f.id ? T.accent : T.border),
+                background: filter===f.id ? T.accentPale : "transparent",
                 color: filter===f.id ? T.navy : T.textMuted, transition:"all 0.12s" }}>
               {f.label}
             </button>
@@ -1127,7 +1127,7 @@ function TodoSection({ akteId, az, onTodoChange }) {
   };
 
   const FARBEN = {
-    rot:    { bg: "#fef2f2", border: "#fca5a5", dot: "#ef4444", label: "Dringend" },
+    rot:    { bg: T.redBg, border: T.redLight, dot: T.red, label: "Dringend" },
     orange: { bg: "#fff7ed", border: "#fdba74", dot: "#f97316", label: "Bald fällig" },
     gelb:   { bg: "#fefce8", border: "#fde047", dot: "#eab308", label: "In Bearbeitung" },
     grau:   { bg: T.surface, border: T.border,  dot: T.textFaint, label: "Neu" },
@@ -1283,8 +1283,8 @@ function TodoSection({ akteId, az, onTodoChange }) {
 
           {/* Formular */}
           {formOffen && (
-            <div style={{ margin:"0 1.4rem 1rem", background:T.goldPale,
-              border:`1px solid ${T.goldTrim}`, borderRadius:10, padding:"1rem 1.25rem" }}>
+            <div style={{ margin:"0 1.4rem 1rem", background:T.accentPale,
+              border:`1px solid ${T.accentTrim}`, borderRadius:10, padding:"1rem 1.25rem" }}>
               <div style={{ marginBottom:"0.75rem" }}>
                 <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
                   fontWeight:600, color:T.textMid, textTransform:"uppercase",
@@ -1300,7 +1300,7 @@ function TodoSection({ akteId, az, onTodoChange }) {
                     borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.925rem",
                     color:T.text, background:T.surface, outline:"none", resize:"vertical",
                     lineHeight:1.5, boxSizing:"border-box" }}
-                  onFocus={e => e.target.style.borderColor=T.gold}
+                  onFocus={e => e.target.style.borderColor=T.accent}
                   onBlur={e => e.target.style.borderColor=T.border}
                 />
               </div>
@@ -1317,7 +1317,7 @@ function TodoSection({ akteId, az, onTodoChange }) {
                     style={{ width:"100%", padding:"7px 10px", border:`1.5px solid ${T.border}`,
                       borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem",
                       color:T.text, background:T.surface, outline:"none", boxSizing:"border-box" }}
-                    onFocus={e => e.target.style.borderColor=T.gold}
+                    onFocus={e => e.target.style.borderColor=T.accent}
                     onBlur={e => e.target.style.borderColor=T.border}
                   />
                 </div>
@@ -1414,7 +1414,7 @@ function TodoKachelKompakt({ az, akteId }) {
   if (loading) return null;
 
   const FARBEN = {
-    rot:    { bg:"#fef2f2", border:"#fca5a5", dot:"#ef4444" },
+    rot:    { bg:T.redBg, border:T.redLight, dot:T.red },
     orange: { bg:"#fff7ed", border:"#fdba74", dot:"#f97316" },
     gelb:   { bg:"#fefce8", border:"#fde047", dot:"#eab308" },
     grau:   { bg:T.surface, border:T.border,  dot:T.textFaint },
@@ -1434,7 +1434,7 @@ function TodoKachelKompakt({ az, akteId }) {
   };
 
   return (
-    <Card style={{ borderLeft: offen.length > 0 ? `3px solid ${T.gold}` : undefined }}>
+    <Card style={{ borderLeft: offen.length > 0 ? `3px solid ${T.accent}` : undefined }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
         padding:"0.85rem 1.4rem 0.5rem" }}>
         <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
@@ -1692,7 +1692,7 @@ function UebersichtSection({ akte, st, dispatch }) {
           <textarea value={notizen} onChange={e => { setNotizen(e.target.value); setNC(true); }} rows={2}
             placeholder="Interne Notizen …"
             style={{ padding:"5px 8px", border:`1.5px solid ${T.border}`, borderRadius:6, fontSize:"0.875rem", color:T.text, background:T.surface, outline:"none", resize:"none" }}
-            onFocus={e => e.target.style.borderColor=T.gold} onBlur={e => e.target.style.borderColor=T.border} />
+            onFocus={e => e.target.style.borderColor=T.accent} onBlur={e => e.target.style.borderColor=T.border} />
           {nChanged && <Btn variant="gold" size="sm" onClick={async () => { dispatch({ type:"SET_NOTIZEN", akteId:akte.id, notizen }); setNC(false); setToast("Notizen gespeichert."); try { await apiAkten.aktualisieren(akte.id, { notizen }); } catch {} }}>{Ic.check} Speichern</Btn>}
         </Card>
 
@@ -1709,7 +1709,7 @@ function UebersichtSection({ akte, st, dispatch }) {
           {hatRegulierung && (
             <div style={{ padding:"0.75rem 1.4rem 1rem" }}>
               <div style={{ height:8, background:T.border, borderRadius:4, overflow:"hidden" }}>
-                <div style={{ height:"100%", width:`${regGrad}%`, background:regGrad>=100?`linear-gradient(90deg,${T.green},#34d399)`:`linear-gradient(90deg,${T.gold},${T.goldLight})`, borderRadius:4, transition:"width 0.8s" }} />
+                <div style={{ height:"100%", width:`${regGrad}%`, background:regGrad>=100?`linear-gradient(90deg,${T.green},#34d399)`:`linear-gradient(90deg,${T.accent},${T.accentLight})`, borderRadius:4, transition:"width 0.8s" }} />
               </div>
               <div style={{ display:"flex", justifyContent:"space-between", marginTop:5, fontSize:"0.84rem", color:T.textMuted }}>
                 <span>{regGrad} % reguliert · {abrechnungen.length} Schreiben</span>

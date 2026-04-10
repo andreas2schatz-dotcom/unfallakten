@@ -58,7 +58,7 @@ function ImapKonfigDialog({ cfg, onClose, onGespeichert }) {
               IMAP-Konfiguration
             </div>
             <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", color:"rgba(255,255,255,0.5)", marginTop:2 }}>
-              Werte werden in der <code style={{ color:T.gold }}>.env</code>-Datei gespeichert
+              Werte werden in der <code style={{ color:T.accent }}>.env</code>-Datei gespeichert
             </div>
           </div>
           <button onClick={onClose} aria-label="Dialog schließen" style={{ background:"none", border:"none", color:"rgba(255,255,255,0.6)", fontSize:"1.4rem", cursor:"pointer", lineHeight:1 }}>×</button>

@@ -128,7 +128,7 @@ function KuerzungskatalogSection() {
 
           {/* Formular */}
           {showForm && (
-            <div style={{ margin:"0 1.4rem 1rem", background:T.goldPale, border:`1px solid ${T.goldTrim}`, borderRadius:10, padding:"1.1rem 1.25rem" }}>
+            <div style={{ margin:"0 1.4rem 1rem", background:T.accentPale, border:`1px solid ${T.accentTrim}`, borderRadius:10, padding:"1.1rem 1.25rem" }}>
               <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", fontWeight:600, color:T.navy, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"1rem" }}>
                 {editItem ? "Kürzungsart bearbeiten" : "Neue Kürzungsart"}
               </div>
@@ -149,7 +149,7 @@ function KuerzungskatalogSection() {
                   rows={3}
                   placeholder="Bewährte Argumentation für den Klage-Generator …"
                   style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.925rem", color:T.text, background:T.surface, outline:"none", resize:"vertical", lineHeight:1.5 }}
-                  onFocus={e => e.target.style.borderColor=T.gold}
+                  onFocus={e => e.target.style.borderColor=T.accent}
                   onBlur={e => e.target.style.borderColor=T.border}
                 />
               </div>
@@ -166,7 +166,7 @@ function KuerzungskatalogSection() {
                   rows={5}
                   placeholder="Ausführlicher briefreifer Text für Stellungnahmen zum Abrechnungsschreiben …"
                   style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.925rem", color:T.text, background:T.surface, outline:"none", resize:"vertical", lineHeight:1.5 }}
-                  onFocus={e => e.target.style.borderColor=T.gold}
+                  onFocus={e => e.target.style.borderColor=T.accent}
                   onBlur={e => e.target.style.borderColor=T.border}
                 />
               </div>

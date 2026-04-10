@@ -54,7 +54,7 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
       <div
         onClick={handleExpand}
         style={{ padding:"11px 14px", cursor:"pointer", transition:"background 0.1s",
-          background: expanded ? T.goldPale : "transparent" }}
+          background: expanded ? T.accentPale : "transparent" }}
         onMouseEnter={ev => { if (!expanded) ev.currentTarget.style.background = T.surface; }}
         onMouseLeave={ev => { if (!expanded) ev.currentTarget.style.background = "transparent"; }}>
 
@@ -121,7 +121,7 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
       </div>
 
       {expanded && (
-        <div style={{ padding:"0 14px 14px 32px", background:T.goldPale,
+        <div style={{ padding:"0 14px 14px 32px", background:T.accentPale,
           borderTop:`1px solid ${T.border}` }}>
 
           {seite === "zugeordnet" && e.akte_az && (
@@ -201,7 +201,7 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
                             cursor:"pointer", fontFamily:"'Figtree',sans-serif",
                             fontSize:"0.925rem", color:T.text, display:"flex",
                             alignItems:"center", gap:10 }}
-                          onMouseEnter={ev => ev.currentTarget.style.background = T.goldPale}
+                          onMouseEnter={ev => ev.currentTarget.style.background = T.accentPale}
                           onMouseLeave={ev => ev.currentTarget.style.background = "transparent"}>
                           <span style={{ fontFamily:"ui-monospace,monospace", fontWeight:700,
                             color:T.navy, flexShrink:0 }}>{a.az}</span>
