@@ -161,7 +161,7 @@ export default function StaDialog({ az, onClose }) {
               <div style={{
                 background: T.navyDark || "#0a0f1e",
                 borderRadius: 10, padding: "0.85rem 1.1rem",
-                border: `1px solid rgba(200,168,75,0.2)`,
+                border: `1px solid ${T.accentTrim}`,
               }}>
                 {kontext.letztes_schreiben ? (
                   <>
@@ -334,8 +334,8 @@ export default function StaDialog({ az, onClose }) {
             style={{
               padding: "9px 20px", borderRadius: 7, border: "none",
               background: (generating || loading || !brieftext.trim() || erfolg)
-                ? (T.textFaint || "#9ca3af")
-                : (T.accent || "#c8a84b"),
+                ? T.textFaint
+                : T.accent,
               color: "#fff", cursor: (generating || loading || !brieftext.trim() || erfolg) ? "not-allowed" : "pointer",
               fontFamily: "'Bricolage Grotesque',sans-serif",
               fontSize: "0.925rem", fontWeight: 700,

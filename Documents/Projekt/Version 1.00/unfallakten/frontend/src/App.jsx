@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useReducer, useMemo } from "react";
+import React, { useState, useCallback, useReducer, useMemo, lazy, Suspense } from "react";
 import { auth as apiAuth, ramicroListe } from "./api.js";
 import T from "./config/theme.js";
 import Ic from "./config/icons.jsx";
@@ -7,14 +7,16 @@ import reducer from "./state/reducer.js";
 import LoginPage from "./components/LoginPage.jsx";
 import { TopNav, TabBar } from "./components/layout.jsx";
 import { useBackend } from "./components/common.jsx";
-import DashboardView from "./views/DashboardView.jsx";
-import StatistikenView from "./views/StatistikenView.jsx";
-import AktensucheView from "./views/AktensucheView.jsx";
-import EmailImportView from "./views/EmailImportView.jsx";
-import WiedervorlageView from "./views/WiedervorlageView.jsx";
-import KuerzungskatalogSection from "./views/KuerzungskatalogView.jsx";
-import EinstellungenView from "./views/EinstellungenView.jsx";
-import AkteDetailView from "./components/AkteDetailView.jsx";
+
+// Lazy-geladene Views — werden erst beim ersten Aufruf heruntergeladen
+const DashboardView        = lazy(() => import("./views/DashboardView.jsx"));
+const StatistikenView      = lazy(() => import("./views/StatistikenView.jsx"));
+const AktensucheView       = lazy(() => import("./views/AktensucheView.jsx"));
+const EmailImportView      = lazy(() => import("./views/EmailImportView.jsx"));
+const WiedervorlageView    = lazy(() => import("./views/WiedervorlageView.jsx"));
+const KuerzungskatalogSection = lazy(() => import("./views/KuerzungskatalogView.jsx"));
+const EinstellungenView    = lazy(() => import("./views/EinstellungenView.jsx"));
+const AkteDetailView       = lazy(() => import("./components/AkteDetailView.jsx"));
 
 function AppShell({ user, onLogout }) {
   const [tabs, setTabs]          = useState([]);
@@ -82,7 +84,7 @@ function AppShell({ user, onLogout }) {
       <div style={{ flex:1, display:"flex", overflow:"hidden" }}>
 
         {/* ── Linke Menüspalte ────────────────────────────────── */}
-        <div style={{ width:210, background:T.navy, borderRight:"1px solid rgba(200,168,75,0.15)", display:"flex", flexDirection:"column", flexShrink:0, zIndex:10 }}>
+        <div style={{ width:210, background:T.navy, borderRight:`1px solid ${T.accentTrim}`, display:"flex", flexDirection:"column", flexShrink:0, zIndex:10 }}>
 
           {/* Navigationseinträge */}
           <div style={{ padding:"0.6rem 0.5rem", flex:1 }}>
@@ -94,7 +96,7 @@ function AppShell({ user, onLogout }) {
               return (
                 <button key={item.id} onClick={() => setActive(item.id)}
                   style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"flex-start", gap:10, padding:"9px 12px", borderRadius:7, border:"none", cursor:"pointer",
-                    background:isA?"rgba(200,168,75,0.15)":"transparent",
+                    background:isA?T.accentTrim:"transparent",
                     color: T.white,
                     fontFamily:"'Figtree',sans-serif", fontSize:"1rem",
                     fontWeight:isA?600:400, textAlign:"left", transition:"all 0.12s", marginBottom:2,
@@ -149,6 +151,11 @@ function AppShell({ user, onLogout }) {
         {/* ── Rechter Bereich: TabBar + Inhalt ────────────────── */}
         <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
           <TabBar tabs={tabsLive} active={active} onActivate={setActive} onClose={closeTab} />
+          <Suspense fallback={
+            <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", background:T.offWhite }}>
+              <div style={{ width:32, height:32, border:`3px solid ${T.accentTrim}`, borderTopColor:T.accent, borderRadius:"50%", animation:"spin 0.7s linear infinite" }} />
+            </div>
+          }>
           <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
             {active==="dashboard"        ? <DashboardView onOpenAkte={openAkte} aktenState={aktenState} onNavigate={setActive} />
             : active==="statistiken"     ? <StatistikenView />
@@ -156,10 +163,11 @@ function AppShell({ user, onLogout }) {
             : active==="email-import"    ? <EmailImportView onOpenAkte={openAkte} dispatch={dispatch} />
             : active==="wiedervorlage"   ? <WiedervorlageView onOpenAkte={openAkte} />
             : active==="kuerzungskatalog"? <KuerzungskatalogSection />
-            : active==="einstellungen"    ? <EinstellungenView />
+            : active==="einstellungen"   ? <EinstellungenView />
             : activeTab?.akte            ? <AkteDetailView akte={activeTab.akte} st={aktenState[activeTab.akte.id]||{}} dispatch={dispatch} />
             : null}
           </div>
+          </Suspense>
         </div>
       </div>
     </div>

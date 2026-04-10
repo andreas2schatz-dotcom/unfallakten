@@ -121,7 +121,7 @@ function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertrete
                 ? {...b, vertreter_name: name, vertreter_funktion: funk}
                 : b
               ));
-              apiFirmen.vertreterSpeichern(id, name, funk).catch(console.warn);
+              apiFirmen.vertreterSpeichern(id, name, funk).catch(() => {});
               setVModal(null);
             }}/>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
 import { STATUS_MAP } from "../config/constants.js";
@@ -14,18 +14,21 @@ import {
   belege as apiBelege,
 } from "../api.js";
 
+// Immer synchron: Default-Tab + kleine Hilfskomponenten
 import UebersichtSection from "../sections/UebersichtSection.jsx";
-import { TodoSection } from '../sections/UebersichtSection.jsx';
-import BeteiligteSection from "../sections/BeteiligteSection.jsx";
-import SchadenSection from "../sections/SchadenSection.jsx";
-import RegulierungSection from "../sections/RegulierungSection.jsx";
-import DokumenteSection from "../sections/DokumenteSection.jsx";
+import { TodoSection } from "../sections/UebersichtSection.jsx";
 import RaMicroSachstandsCard from "../sections/RaMicroSachstandsCard.jsx";
-import WordSection from "../sections/WordSection.jsx";
-import UnfalldetailsSection from "../sections/UnfalldetailsSection.jsx";
-import GebuehrenSection from "../sections/GebuehrenSection.jsx";
-import KlageSection from "../sections/KlageSection.jsx";
 import AktionBadge from "../views/email_import/components/AktionBadge.jsx";
+
+// Lazy: Werden erst beim ersten Tabwechsel geladen
+const BeteiligteSection    = lazy(() => import("../sections/BeteiligteSection.jsx"));
+const SchadenSection       = lazy(() => import("../sections/SchadenSection.jsx"));
+const RegulierungSection   = lazy(() => import("../sections/RegulierungSection.jsx"));
+const DokumenteSection     = lazy(() => import("../sections/DokumenteSection.jsx"));
+const WordSection          = lazy(() => import("../sections/WordSection.jsx"));
+const UnfalldetailsSection = lazy(() => import("../sections/UnfalldetailsSection.jsx"));
+const GebuehrenSection     = lazy(() => import("../sections/GebuehrenSection.jsx"));
+const KlageSection         = lazy(() => import("../sections/KlageSection.jsx"));
 
 function AkteDetailView({ akte, st, dispatch }) {
   const [sec, setSec] = useState("uebersicht");
@@ -153,50 +156,41 @@ function AkteDetailView({ akte, st, dispatch }) {
       .catch(() => {});
   }, [sec]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Live-Schadensumme — identische Formel wie SchadenSection.calcBrutto
-  // Wird immer neu berechnet (gesamt_brutto aus DB ist nur Fallback wenn alle Felder 0)
-  // PRD-14: Brutto aus Backend-Berechnung (Single Source of Truth)
-  const _sd = st.schaden || {};
-  // _sdExtras: aus Store (nach WDM-Übernahme) oder aus wdm_extras_json (nach DB-Reload)
-  const _sdExtras = (() => {
-    if (_sd._extras && _sd._extras.length > 0) return _sd._extras;
-    if (_sd.wdm_extras_json) {
-      try { const p = JSON.parse(_sd.wdm_extras_json); if (Array.isArray(p)) return p; } catch {}
-    }
-    return [];
-  })();
-  const _berechneterBrutto = _sd.abrechnungsberechnung?.gesamt_brutto ?? _sd.gesamt_brutto ?? 0;
-  // liveBrutto: berechneter Wert hat Vorrang; gesamt_brutto als Fallback wenn Felder leer
-  const liveBrutto = _berechneterBrutto > 0 ? _berechneterBrutto
-    : (_sd.gesamt_brutto || akte.brutto || 0);
+  // Live-Schadensumme — PRD-14: Brutto aus Backend-Berechnung (Single Source of Truth)
+  const liveBrutto = useMemo(() => {
+    const _sd = st.schaden || {};
+    const _b  = _sd.abrechnungsberechnung?.gesamt_brutto ?? _sd.gesamt_brutto ?? 0;
+    return _b > 0 ? _b : (_sd.gesamt_brutto || akte.brutto || 0);
+  }, [st.schaden, akte.brutto]);
 
-  // PRD-16: Status-Punkte je Reiter aus geladenen State-Daten ableiten
-  const _todosOffen     = 0; // wird via apiTodos geladen – Placeholder hier, TodoSection zählt selbst
-  const _beteiligteOk   = (st.beteiligte||[]).some(b => b.rolle === "mandant") &&
+  // PRD-16: Status-Punkte je Reiter — memoized, da bei jedem Render neu berechnet
+  const tabs = useMemo(() => {
+    const beteiligteOk  = (st.beteiligte||[]).some(b => b.rolle === "mandant") &&
                           (st.beteiligte||[]).some(b => ["gegner","GHPV","GHV","GBEV"].includes(b.rolle||b.kuerzel||""));
-  const _schadenOk      = (st.schaden?.gesamt_brutto || st.schaden?.abrechnungsberechnung?.gesamt_brutto || 0) > 0;
-  const _dokumenteAnz   = st.dokumente?.length || 0;
-  const _regulierungOk  = (st.regulierungen?.length || 0) > 0 || (st.abrechnungen?.length || 0) > 0;
-  const _klageStatus    = akte.status === "klage";
+    const schadenOk     = (st.schaden?.gesamt_brutto || st.schaden?.abrechnungsberechnung?.gesamt_brutto || 0) > 0;
+    const dokumenteAnz  = st.dokumente?.length || 0;
+    const regulierungOk = (st.regulierungen?.length || 0) > 0 || (st.abrechnungen?.length || 0) > 0;
+    const klageStatus   = akte.status === "klage";
 
-  const _statusPunkt = (ok, fehlt, neutral) => {
-    if (ok)    return { dot: "✅", color: T.green };
-    if (fehlt) return { dot: "⚠️", color: T.amber };
-    return { dot: "⬜", color: T.textFaint };
-  };
+    const sp = (ok, fehlt) => {
+      if (ok)    return { dot: "✅", color: T.green };
+      if (fehlt) return { dot: "⚠️", color: T.amber };
+      return { dot: "⬜", color: T.textFaint };
+    };
 
-  const tabs = [
-    { id:"uebersicht",    label:"Übersicht" },
-    { id:"beteiligte",    label:`👥 Beteiligte`, ..._statusPunkt(_beteiligteOk, !_beteiligteOk && st.beteiligte !== undefined, false) },
-    { id:"unfalldetails", label:"🔍 Unfalldetails" },
-    { id:"schaden",       label:`🚗 Schaden`,    ..._statusPunkt(_schadenOk, !_schadenOk && st.schaden !== undefined, false) },
-    { id:"dokumente",     label:`📄 Dokumente (${_dokumenteAnz})` },
-    { id:"regulierung",   label:`💶 Regulierung`, ..._statusPunkt(_regulierungOk, false, true) },
-    { id:"gebuehren",     label:"⚖️ Gebühren" },
-    { id:"klage",         label:`⚖ Klage`,       ..._statusPunkt(_klageStatus, false, true) },
-    { id:"word",          label:"📝 Word" },
-    { id:"todos",         label:`📋 To-Dos` },
-  ];
+    return [
+      { id:"uebersicht",    label:"Übersicht" },
+      { id:"beteiligte",    label:`👥 Beteiligte`, ...sp(beteiligteOk,  !beteiligteOk  && st.beteiligte  !== undefined) },
+      { id:"unfalldetails", label:"🔍 Unfalldetails" },
+      { id:"schaden",       label:`🚗 Schaden`,    ...sp(schadenOk,     !schadenOk     && st.schaden     !== undefined) },
+      { id:"dokumente",     label:`📄 Dokumente (${dokumenteAnz})` },
+      { id:"regulierung",   label:`💶 Regulierung`, ...sp(regulierungOk, false) },
+      { id:"gebuehren",     label:"⚖️ Gebühren" },
+      { id:"klage",         label:`⚖ Klage`,        ...sp(klageStatus,   false) },
+      { id:"word",          label:"📝 Word" },
+      { id:"todos",         label:`📋 To-Dos` },
+    ];
+  }, [st.beteiligte, st.schaden, st.dokumente, st.regulierungen, st.abrechnungen, akte.status]);
 
   return (
     <>
@@ -209,14 +203,15 @@ function AkteDetailView({ akte, st, dispatch }) {
           {/* ── Links: Icon + AZ + Status-Dropdown ── */}
           <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
             <div style={{ width:36, height:36, background:T.accentTrim, borderRadius:8,
-              border:"1px solid rgba(200,168,75,0.3)", display:"flex", alignItems:"center",
+              border:`1px solid ${T.accentTrim}`, display:"flex", alignItems:"center",
               justifyContent:"center", color:T.white, flexShrink:0 }}>{Ic.akte}</div>
             <div>
-              <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.72rem",
-                color:"rgba(200,168,75,0.65)", letterSpacing:"0.1em", textTransform:"uppercase",
-                lineHeight:1 }}>Aktenzeichen</div>
-              <h1 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1.45rem",
-                fontWeight:700, color:T.white, margin:"2px 0 0", lineHeight:1.1 }}>{akte.az}</h1>
+              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.7rem",
+                color:T.accentLight, letterSpacing:"0.14em", textTransform:"uppercase",
+                lineHeight:1, fontWeight:600 }}>Aktenzeichen</div>
+              <h1 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"2.2rem",
+                fontWeight:800, color:T.white, margin:"2px 0 0", lineHeight:1.05,
+                letterSpacing:"-0.01em" }}>{akte.az}</h1>
             </div>
           {/* ── Status-Dropdown (neben AZ) ── */}
           {(() => {
@@ -303,7 +298,7 @@ function AkteDetailView({ akte, st, dispatch }) {
               <div style={{ flex:"1 1 0", position:"relative", maxWidth:780 }}>
                 <button onClick={() => setTodoKlapp(o => !o)}
                   style={{ width:"100%", background:"rgba(255,255,255,0.07)",
-                    border:`1px solid ${offeneTodos.length > 0 ? "rgba(200,168,75,0.5)" : "rgba(255,255,255,0.12)"}`,
+                    border:`1px solid ${offeneTodos.length > 0 ? "rgba(160,107,74,0.5)" : "rgba(255,255,255,0.12)"}`,
                     borderRadius:10, padding:"6px 14px", cursor:"pointer",
                     display:"flex", alignItems:"center", gap:10,
                     transition:"all 0.15s", textAlign:"left" }}>
@@ -377,8 +372,8 @@ function AkteDetailView({ akte, st, dispatch }) {
                       </div>
                     ))}
                     <button onClick={() => { setTodoKlapp(false); setSec("todos"); }}
-                      style={{ marginTop:8, width:"100%", background:"rgba(200,168,75,0.15)",
-                        border:"1px solid rgba(200,168,75,0.3)", borderRadius:7,
+                      style={{ marginTop:8, width:"100%", background:T.accentTrim,
+                        border:`1px solid rgba(160,107,74,0.3)`, borderRadius:7,
                         color:T.accent, fontFamily:"'Figtree',sans-serif",
                         fontSize:"0.8rem", padding:"5px 0", cursor:"pointer", fontWeight:600 }}>
                       Alle To-Dos anzeigen →
@@ -398,18 +393,19 @@ function AkteDetailView({ akte, st, dispatch }) {
               const reguliert = (st.abrechnungen||[]).reduce((s,ab) => s + (parseFloat(ab.gesamt_reguliert)||0), 0);
               const offen     = Math.max(0, gefordert - reguliert);
               return [
-                { l:"Gefordert", v:fmtEuro(gefordert), farbe: gefordert===0?"#51cf66":"#ffa94d", divider:false },
-                { l:"Reguliert", v:fmtEuro(reguliert), farbe:"#51cf66",                          divider:true },
-                { l:"Offen",     v:fmtEuro(offen),     farbe: offen===0?"#51cf66":"#ff6b6b",     divider:true },
+                { l:"Gefordert", v:fmtEuro(gefordert), farbe: gefordert===0?T.green:T.amber, divider:false },
+                { l:"Reguliert", v:fmtEuro(reguliert), farbe:T.green,                        divider:true  },
+                { l:"Offen",     v:fmtEuro(offen),     farbe: offen===0?T.green:T.red,       divider:true  },
               ].map((s,i) => (
                 <React.Fragment key={i}>
                   {s.divider && <div style={{ width:1, background:"rgba(255,255,255,0.12)",
-                    alignSelf:"stretch", margin:"2px 5px" }} />}
-                  <div style={{ textAlign:"center", padding:"0 4px" }}>
-                    <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"1.0rem",
-                      fontWeight:700, color:s.farbe }}>{s.v}</div>
-                    <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem",
-                      color:"rgba(255,255,255,0.45)", marginTop:2, letterSpacing:"0.04em" }}>{s.l}</div>
+                    alignSelf:"stretch", margin:"2px 6px" }} />}
+                  <div style={{ textAlign:"center", padding:"0 6px" }}>
+                    <div style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1.25rem",
+                      fontWeight:800, color:s.farbe, lineHeight:1 }}>{s.v}</div>
+                    <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.7rem",
+                      color:"rgba(255,255,255,0.45)", marginTop:3, letterSpacing:"0.06em",
+                      textTransform:"uppercase" }}>{s.l}</div>
                   </div>
                 </React.Fragment>
               ));
@@ -421,11 +417,11 @@ function AkteDetailView({ akte, st, dispatch }) {
         <div style={{ display:"flex", overflowX:"auto", scrollbarWidth:"none" }}>
           {tabs.map(t => (
             <button key={t.id} onClick={() => setSec(t.id)}
-              style={{ padding:"8px 16px", background:"transparent", border:"none",
+              style={{ padding:"9px 17px", background:"transparent", border:"none",
                 borderBottom:sec===t.id?`2px solid ${T.accent}`:"2px solid transparent",
-                color:sec===t.id?T.white:"rgba(255,255,255,0.5)",
+                color:sec===t.id?T.white:"rgba(255,255,255,0.48)",
                 fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem",
-                fontWeight:sec===t.id?600:400, cursor:"pointer",
+                fontWeight:sec===t.id?700:400, cursor:"pointer",
                 transition:"all 0.15s", whiteSpace:"nowrap", flexShrink:0,
                 display:"flex", alignItems:"center", gap:5 }}>
               {t.label}
@@ -447,16 +443,24 @@ function AkteDetailView({ akte, st, dispatch }) {
               onErledigt={() => setAktionErledigt(true)}
             />
           ) : null}
-          {sec==="todos"          && <TodoSection akteId={akte.id} az={akte.az} onTodoChange={ladeHeaderTodos} />}
-          {sec==="beteiligte"     && <BeteiligteSection beteiligte={st.beteiligte||[]} dispatch={dispatch} akteId={akte.id} />}
-          {sec==="schaden"        && <SchadenSection schaden={st.schaden||{}} hq={akte.hq} dispatch={dispatch} akteId={akte.id} vorsteuer={(st.beteiligte||[]).find(b=>b.rolle==="mandant")?.vorsteuer==="Y"} dokumente={st.dokumente||[]} belegeKandidaten={st.belegeKandidaten||[]} />}
-          {sec==="dokumente"      && <DokumenteSection dokumente={st.dokumente||[]} dispatch={dispatch} akteId={akte.id} akte={akte} />}
-          {sec==="regulierung"    && <RegulierungSection regulierungen={st.regulierungen||[]} brutto={st.schaden?.gesamt_brutto ?? liveBrutto} hq={akte.hq} dispatch={dispatch} akteId={akte.id} schaden={st.schaden||{}} abrechnungenCached={st.abrechnungen||[]} beteiligte={st.beteiligte||[]} dokumente={st.dokumente||[]} />}
-          {sec==="gebuehren"      && <GebuehrenSection akteId={akte.id} akte={akte} />}
-          {sec==="klage"          && <KlageSection akteId={akte.id} akte={akte} st={st} dispatch={dispatch} />}
-          {sec==="word"           && <WordSection akte={akte} st={st} dispatch={dispatch} />}
-          {sec==="uebersicht"     && <UebersichtSection akte={akte} st={st} dispatch={dispatch} />}
-          {sec==="unfalldetails"  && <UnfalldetailsSection akteId={akte.id} />}
+          {/* Synchron: Übersicht + To-Dos */}
+          {sec==="uebersicht" && <UebersichtSection akte={akte} st={st} dispatch={dispatch} />}
+          {sec==="todos"      && <TodoSection akteId={akte.id} az={akte.az} onTodoChange={ladeHeaderTodos} />}
+          {/* Lazy: alle anderen Sections – werden erst bei erstem Tabwechsel geladen */}
+          <Suspense fallback={
+            <div style={{ display:"flex", justifyContent:"center", padding:"3rem 0" }}>
+              <div style={{ width:28, height:28, border:`2px solid ${T.accentTrim}`, borderTopColor:T.accent, borderRadius:"50%", animation:"spin 0.7s linear infinite" }} />
+            </div>
+          }>
+            {sec==="beteiligte"    && <BeteiligteSection beteiligte={st.beteiligte||[]} dispatch={dispatch} akteId={akte.id} />}
+            {sec==="schaden"       && <SchadenSection schaden={st.schaden||{}} hq={akte.hq} dispatch={dispatch} akteId={akte.id} vorsteuer={(st.beteiligte||[]).find(b=>b.rolle==="mandant")?.vorsteuer==="Y"} dokumente={st.dokumente||[]} belegeKandidaten={st.belegeKandidaten||[]} />}
+            {sec==="dokumente"     && <DokumenteSection dokumente={st.dokumente||[]} dispatch={dispatch} akteId={akte.id} akte={akte} />}
+            {sec==="regulierung"   && <RegulierungSection regulierungen={st.regulierungen||[]} brutto={st.schaden?.gesamt_brutto ?? liveBrutto} hq={akte.hq} dispatch={dispatch} akteId={akte.id} schaden={st.schaden||{}} abrechnungenCached={st.abrechnungen||[]} beteiligte={st.beteiligte||[]} dokumente={st.dokumente||[]} />}
+            {sec==="gebuehren"     && <GebuehrenSection akteId={akte.id} akte={akte} />}
+            {sec==="klage"         && <KlageSection akteId={akte.id} akte={akte} st={st} dispatch={dispatch} />}
+            {sec==="word"          && <WordSection akte={akte} st={st} dispatch={dispatch} />}
+            {sec==="unfalldetails" && <UnfalldetailsSection akteId={akte.id} />}
+          </Suspense>
         </div>
       </div>
     </div>

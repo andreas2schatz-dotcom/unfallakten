@@ -37,22 +37,28 @@ export default defineConfig(({ mode }) => ({
   },
 
   build: {
-    outDir:        'dist',
-    emptyOutDir:   true,
-    sourcemap:     mode === 'development',
+    outDir:      'dist',
+    emptyOutDir: true,
+    sourcemap:   mode === 'development',
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor':    ['react', 'react-dom'],
-          'recharts-vendor': ['recharts'],
+        // Vendor-Chunks explizit trennen; Section-Chunks entstehen automatisch via React.lazy()
+        manualChunks(id) {
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+            return 'react-vendor';
+          }
+          if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-') ||
+              id.includes('node_modules/victory-vendor')) {
+            return 'recharts-vendor';
+          }
         },
-        assetFileNames:  'assets/[name]-[hash][extname]',
-        chunkFileNames:  'assets/[name]-[hash].js',
-        entryFileNames:  'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
       },
     },
-    target: 'es2020',
-    chunkSizeWarningLimit: 1000,
+    target:               'es2020',
+    chunkSizeWarningLimit: 500,  // zurück auf Standard — Code-Splitting löst das Problem
   },
 
   envPrefix: 'VITE_',

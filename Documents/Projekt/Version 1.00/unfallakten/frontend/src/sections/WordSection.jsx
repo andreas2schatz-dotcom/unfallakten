@@ -101,11 +101,11 @@ function WordSection({ akte, st, dispatch }) {
       <div style={{ display:"flex", flexDirection:"column", gap:"1.25rem" }}>
 
         {/* Info-Banner */}
-        <div style={{ background:T.navyDark, borderRadius:12, padding:"1rem 1.4rem", border:"1px solid rgba(200,168,75,0.2)", display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
+        <div style={{ background:T.navyDark, borderRadius:12, padding:"1rem 1.4rem", border:`1px solid ${T.accentTrim}`, display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
           <div style={{ color:T.white }}>{Ic.word}</div>
           <div style={{ flex:1 }}>
             <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.945rem", fontWeight:600, color:T.white }}>Dokumente werden automatisch aus den Aktendaten generiert</div>
-            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:"rgba(255,255,255,0.48)", marginTop:2 }}>Kanzlei-Design (Navy/Gold) · DIN 5008 · Haftungsquote {akte.hq} %</div>
+            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:"rgba(255,255,255,0.48)", marginTop:2 }}>Kanzlei-Design (Navy/Terrakotta) · DIN 5008 · Haftungsquote {akte.hq} %</div>
           </div>
           <div style={{ display:"flex", gap:16, flexShrink:0 }}>
             {[{l:"Forderung",v:fmtEuro(netto)},{l:"Reguliert",v:fmtEuro(gesamtReg)},{l:"Offen",v:fmtEuro(Math.max(0,netto-gesamtReg))}].map((s,i) => (

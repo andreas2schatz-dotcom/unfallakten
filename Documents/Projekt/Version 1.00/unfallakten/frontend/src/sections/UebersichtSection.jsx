@@ -1434,7 +1434,7 @@ function TodoKachelKompakt({ az, akteId }) {
   };
 
   return (
-    <Card style={{ borderLeft: offen.length > 0 ? `3px solid ${T.accent}` : undefined }}>
+    <Card style={ offen.length > 0 ? { border:`1.5px solid ${T.accentTrim}`, background:T.accentPale } : {} }>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
         padding:"0.85rem 1.4rem 0.5rem" }}>
         <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",

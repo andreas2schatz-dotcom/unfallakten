@@ -57,19 +57,19 @@ function VorschlagBadge({ vorschlag }) {
 
 function SectionHeader({ icon, title, count, color }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.85rem" }}>
-      <span style={{ color: color || T.navy, fontSize: "1.05rem" }}>{icon}</span>
+    <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: "1rem" }}>
+      <span style={{ color: color || T.navy, fontSize: "1.1rem", flexShrink: 0 }}>{icon}</span>
       <h3 style={{
-        fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: "1.075rem",
-        fontWeight: 700, color: T.navy, margin: 0,
+        fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: "1.1rem",
+        fontWeight: 700, color: T.navy, margin: 0, letterSpacing: "-0.01em",
       }}>
         {title}
       </h3>
       {count > 0 && (
         <span style={{
-          background: (color || T.navy) + "18", color: color || T.navy,
-          fontFamily: "'Figtree',sans-serif", fontSize: "0.775rem", fontWeight: 700,
-          borderRadius: 20, padding: "2px 9px", marginLeft: 2,
+          background: color || T.navy, color: "#fff",
+          fontFamily: "'Figtree',sans-serif", fontSize: "0.74rem", fontWeight: 700,
+          borderRadius: 20, padding: "2px 8px", marginLeft: 2, flexShrink: 0,
         }}>
           {count}
         </span>
@@ -108,13 +108,12 @@ function FristenBlock({ fristen, loadingAction, onOpenAkte }) {
         return (
           <div key={f.id} onClick={() => onOpenAkte && onOpenAkte({ az: f.akte_az })} style={{
             display: "flex", alignItems: "center", gap: 12,
-            background: T.white, border: `1px solid ${T.border}`,
-            borderLeft: `4px solid ${farbe.border}`,
+            background: farbe.bg, border: `1px solid ${farbe.border}44`,
             borderRadius: 8, padding: "10px 14px",
-            cursor: onOpenAkte ? "pointer" : "default", transition: "background 0.12s",
+            cursor: onOpenAkte ? "pointer" : "default", transition: "filter 0.12s",
           }}
-            onMouseEnter={e => onOpenAkte && (e.currentTarget.style.background = T.accentPale)}
-            onMouseLeave={e => onOpenAkte && (e.currentTarget.style.background = T.white)}
+            onMouseEnter={e => onOpenAkte && (e.currentTarget.style.filter = "brightness(0.96)")}
+            onMouseLeave={e => onOpenAkte && (e.currentTarget.style.filter = "")}
           >
             {/* Tage-Badge */}
             <div style={{
@@ -228,13 +227,12 @@ function RegulierungBlock({ items, loadingAction, onOpenAkte }) {
         return (
           <div key={i} onClick={() => onOpenAkte && onOpenAkte({ az: r.akte_az })} style={{
             display: "flex", alignItems: "center", gap: 12,
-            background: T.white, border: `1px solid ${T.border}`,
-            borderLeft: `4px solid ${farbe.border}`,
+            background: farbe.bg, border: `1px solid ${farbe.border}44`,
             borderRadius: 8, padding: "10px 14px",
-            cursor: onOpenAkte ? "pointer" : "default", transition: "background 0.12s",
+            cursor: onOpenAkte ? "pointer" : "default", transition: "filter 0.12s",
           }}
-            onMouseEnter={e => onOpenAkte && (e.currentTarget.style.background = T.accentPale)}
-            onMouseLeave={e => onOpenAkte && (e.currentTarget.style.background = T.white)}
+            onMouseEnter={e => onOpenAkte && (e.currentTarget.style.filter = "brightness(0.96)")}
+            onMouseLeave={e => onOpenAkte && (e.currentTarget.style.filter = "")}
           >
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -288,15 +286,14 @@ function AktenOhneBewegungBlock({ items, loadingAction, onOpenAkte }) {
       {items.map((a, i) => (
         <div key={i} style={{
           display: "flex", alignItems: "center", gap: 12,
-          background: T.white, border: `1px solid ${T.border}`,
-          borderLeft: `4px solid ${T.textMuted}`,
+          background: T.surface, border: `1px solid ${T.border}`,
           borderRadius: 8, padding: "10px 14px",
           cursor: onOpenAkte ? "pointer" : "default",
-          transition: "background 0.12s",
+          transition: "filter 0.12s",
         }}
           onClick={() => onOpenAkte && onOpenAkte({ az: a.akte_az })}
-          onMouseEnter={e => onOpenAkte && (e.currentTarget.style.background = T.accentPale)}
-          onMouseLeave={e => onOpenAkte && (e.currentTarget.style.background = T.white)}
+          onMouseEnter={e => onOpenAkte && (e.currentTarget.style.filter = "brightness(0.97)")}
+          onMouseLeave={e => onOpenAkte && (e.currentTarget.style.filter = "")}
         >
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -456,21 +453,15 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
 
   return (
     <div style={{ flex: 1, overflowY: "auto", background: T.offWhite }}>
-      <style>{`
-        @keyframes pulse {
-          0%,100% { opacity:1 }
-          50%      { opacity:0.45 }
-        }
-      `}</style>
       <div style={{ maxWidth: 1300, margin: "0 auto", padding: "1.75rem" }}>
 
         {/* ── Seitenkopf ─────────────────────────────────── */}
         <div style={{ marginBottom: "1.25rem", display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
           <div>
-            <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: "2rem", fontWeight: 700, color: T.navy, margin: 0 }}>
-              Dashboard
+            <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: "2.5rem", fontWeight: 800, color: T.navy, margin: 0, letterSpacing: "-0.02em", lineHeight: 1 }}>
+              Tagesübersicht
             </h1>
-            <p style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.955rem", color: T.textMuted, marginTop: 4, marginBottom: 0 }}>
+            <p style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.9rem", color: T.textMuted, marginTop: 5, marginBottom: 0, fontWeight: 500 }}>
               {new Date().toLocaleDateString("de-DE", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
             </p>
           </div>
@@ -616,7 +607,7 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(155px,1fr))", gap: "1rem", marginBottom: "1.25rem" }}>
               {loadingAkten
                 ? Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} style={{ background: T.white, borderRadius: 12, padding: "1rem 1.25rem", border: `1px solid ${T.border}`, borderTop: `3px solid ${T.border}` }}>
+                    <div key={i} style={{ background: T.surface, borderRadius: 12, padding: "1rem 1.25rem", border: `1px solid ${T.border}` }}>
                       <div style={{ background: T.border, borderRadius: 4, height: 10, width: "55%", marginBottom: 10, animation: "pulse 1.5s infinite" }} />
                       <div style={{ background: T.border, borderRadius: 4, height: 30, width: "35%", animation: "pulse 1.5s infinite" }} />
                     </div>
@@ -629,15 +620,15 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
                     { label: "Klage",         v: stats.klage,  c: T.red,   f: "klage"          },
                   ].map((k, i) => (
                     <div key={i} onClick={() => setFilter(k.f)} style={{
-                      background: T.white, borderRadius: 12, padding: "1rem 1.25rem",
-                      border: `1px solid ${T.border}`, borderTop: `3px solid ${k.c}`,
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.04)", cursor: "pointer", transition: "transform 0.15s,box-shadow 0.15s",
+                      background: k.c + "0d", borderRadius: 12, padding: "1rem 1.25rem",
+                      border: `1.5px solid ${k.c}30`,
+                      cursor: "pointer", transition: "filter 0.15s",
                     }}
-                      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.09)"; }}
-                      onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.04)"; }}
+                      onMouseEnter={e => { e.currentTarget.style.filter = "brightness(0.96)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.filter = ""; }}
                     >
-                      <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.805rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: T.textMuted, marginBottom: 8 }}>{k.label}</div>
-                      <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: "2.325rem", fontWeight: 700, color: k.c, lineHeight: 1 }}>{k.v}</div>
+                      <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: k.c, marginBottom: 8, opacity: 0.8 }}>{k.label}</div>
+                      <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: "2.5rem", fontWeight: 800, color: k.c, lineHeight: 1 }}>{k.v}</div>
                     </div>
                   ))}
             </div>

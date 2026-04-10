@@ -174,7 +174,7 @@ function AktensucheView({ onOpenAkte }) {
                     Ergebnisse
                   </span>
                   {suchmodus && (
-                    <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", background:T.accentPale, color:T.navy, border:`1px solid rgba(200,168,75,0.3)`, borderRadius:10, padding:"1px 8px" }}>
+                    <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", background:T.accentPale, color:T.navy, border:`1px solid rgba(160,107,74,0.3)`, borderRadius:10, padding:"1px 8px" }}>
                       {SUCHMODUS_LABEL[suchmodus]}
                     </span>
                   )}

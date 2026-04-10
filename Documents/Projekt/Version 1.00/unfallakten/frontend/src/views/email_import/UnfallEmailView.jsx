@@ -262,13 +262,12 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
           { label:"Nicht zugeordnet", v: nichtZugeordnet.length, c: T.amber },
           { label:"Anhänge",          v: log.reduce((s,e) => s + (e.anhaenge_anzahl||0), 0), c: T.blue },
         ].map((k,i) => (
-          <div key={i} style={{ background:T.white, borderRadius:10, padding:"0.75rem 1.1rem",
-            border:`1px solid ${T.border}`, borderTop:`3px solid ${k.c}`,
-            boxShadow:"0 2px 6px rgba(0,0,0,0.04)", minWidth:120 }}>
-            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", fontWeight:600,
-              letterSpacing:"0.07em", textTransform:"uppercase", color:T.textMuted, marginBottom:5 }}>{k.label}</div>
+          <div key={i} style={{ background:k.c + "0d", borderRadius:10, padding:"0.75rem 1.1rem",
+            border:`1.5px solid ${k.c}30`, minWidth:120 }}>
+            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:700,
+              letterSpacing:"0.1em", textTransform:"uppercase", color:k.c, marginBottom:5, opacity:0.8 }}>{k.label}</div>
             <div style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"2rem",
-              fontWeight:700, color:k.c, lineHeight:1 }}>{k.v}</div>
+              fontWeight:800, color:k.c, lineHeight:1 }}>{k.v}</div>
           </div>
         ))}
       </div>

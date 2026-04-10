@@ -21,7 +21,7 @@ function TopNav({ user, onLogout, backendOnline }) {
         <button onClick={() => setOpen(o => !o)} style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:8, padding:"6px 12px", cursor:"pointer", color:T.white, fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem" }}>
           <div style={{ width:26, height:26, background:T.accent, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", color:T.navy }}>{Ic.user}</div>
           <span style={{ maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.name}</span>
-          <span style={{ fontSize:"0.755rem", background:"rgba(200,168,75,0.2)", color:T.white, border:"1px solid rgba(200,168,75,0.3)", padding:"1px 7px", borderRadius:10 }}>Admin</span>
+          <span style={{ fontSize:"0.755rem", background:T.accentTrim, color:T.accentLight, border:`1px solid rgba(160,107,74,0.35)`, padding:"1px 7px", borderRadius:10 }}>Admin</span>
         </button>
         {open && (
           <div style={{ position:"absolute", top:"calc(100% + 8px)", right:0, background:T.white, border:`1px solid ${T.border}`, borderRadius:10, boxShadow:"0 8px 32px rgba(0,0,0,0.15)", minWidth:200, overflow:"hidden", zIndex:200 }}>
@@ -52,18 +52,21 @@ function TabBar({ tabs, active, onActivate, onClose }) {
   const akteTabs = tabs.filter(t => t.id.startsWith("akte-"));
 
   if (akteTabs.length === 0) return (
-    <div style={{ height:38, background:T.navyDark, borderBottom:"1px solid rgba(200,168,75,0.12)", display:"flex", alignItems:"center", padding:"0 1.2rem" }}>
+    <div style={{ height:38, background:T.navyDark, borderBottom:"1px solid rgba(160,107,74,0.12)", display:"flex", alignItems:"center", padding:"0 1.2rem" }}>
       <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", color:"rgba(255,255,255,0.25)", fontStyle:"italic" }}>Keine Akten geöffnet</span>
     </div>
   );
 
   return (
-    <div style={{ background:T.navyDark, borderBottom:"1px solid rgba(200,168,75,0.18)", display:"flex", alignItems:"stretch", flexShrink:0, height:38 }}>
+    <div style={{ background:T.navyDark, borderBottom:`1px solid ${T.accentTrim}`, display:"flex", alignItems:"stretch", flexShrink:0, height:38 }}>
       <div ref={ref} style={{ display:"flex", alignItems:"stretch", overflowX:"auto", flex:1, scrollbarWidth:"none" }}>
         {akteTabs.map(tab => {
           const isA = tab.id === active;
           return (
-            <div key={tab.id} data-active={isA} onClick={() => onActivate(tab.id)}
+            <div key={tab.id} data-active={isA}
+              role="tab" aria-selected={isA} tabIndex={0}
+              onClick={() => onActivate(tab.id)}
+              onKeyDown={e => { if (e.key==="Enter"||e.key===" ") { e.preventDefault(); onActivate(tab.id); } }}
               style={{ display:"flex", alignItems:"center", gap:7, padding:"0 12px", minWidth:140, maxWidth:210, cursor:"pointer", background:isA?"rgba(255,255,255,0.07)":"transparent", borderRight:"1px solid rgba(255,255,255,0.06)", borderBottom:isA?`2px solid ${T.accent}`:"2px solid transparent", transition:"background 0.15s", flexShrink:0, userSelect:"none" }}>
               <span style={{ color:isA?T.accent:"rgba(255,255,255,0.38)", flexShrink:0, fontSize:"0.85rem" }}>{Ic.akte}</span>
               <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.885rem", fontWeight:isA?600:400, color:isA?T.white:"rgba(255,255,255,0.52)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>{tab.label}</span>
@@ -72,12 +75,13 @@ function TabBar({ tabs, active, onActivate, onClose }) {
                 <span title="Aktion erforderlich"
                   style={{ width:7, height:7, borderRadius:"50%", background:T.amber, flexShrink:0 }} />
               )}
-              <span onClick={e => { e.stopPropagation(); onClose(tab.id); }}
-                style={{ display:"flex", alignItems:"center", justifyContent:"center", width:16, height:16, borderRadius:3, color:"rgba(255,255,255,0.33)", transition:"all 0.12s", flexShrink:0 }}
+              <button onClick={e => { e.stopPropagation(); onClose(tab.id); }}
+                title="Akte schließen"
+                style={{ display:"flex", alignItems:"center", justifyContent:"center", width:16, height:16, borderRadius:3, border:"none", background:"transparent", color:"rgba(255,255,255,0.33)", transition:"all 0.12s", flexShrink:0, cursor:"pointer", padding:0 }}
                 onMouseEnter={e => { e.currentTarget.style.background="rgba(239,68,68,0.16)"; e.currentTarget.style.color=T.red; }}
                 onMouseLeave={e => { e.currentTarget.style.background="transparent"; e.currentTarget.style.color="rgba(255,255,255,0.33)"; }}>
                 {Ic.x}
-              </span>
+              </button>
             </div>
           );
         })}

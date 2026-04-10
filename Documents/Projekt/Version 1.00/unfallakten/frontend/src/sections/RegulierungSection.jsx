@@ -59,7 +59,7 @@ function PositionenTabelle({ positionen, kuerzungsarten, akteId, abid, onUpdate,
             const istAbzug = POSITION_IST_ABZUG[pos.position_key];
             const isLast = i === positionen.length - 1;
             return (
-              <tr key={pos.id ?? i} style={{ borderBottom:isLast?"none":`1px solid ${T.border}`, background:pos.fuer_klage_vorgemerkt?"rgba(200,168,75,0.06)":"transparent" }}>
+              <tr key={pos.id ?? i} style={{ borderBottom:isLast?"none":`1px solid ${T.border}`, background:pos.fuer_klage_vorgemerkt?"rgba(160,107,74,0.06)":"transparent" }}>
                 <td style={{ padding:"8px 12px", color:T.text, fontWeight:500 }}>
                   {POSITION_LABELS_FE[pos.position_key] || pos.position_key}
                   {pos.sv_stellungnahme_ausstehend && (
@@ -1377,8 +1377,8 @@ function PruefberichteGespeichertListe({ pruefberichte, mandantAdresse }) {
         const ergebnis = pbZuErgebnis(pb);
         return (
           <div key={pb.id || i} style={{
-            border:`1px solid ${T.border}`,
-            borderLeft:`3px solid ${T.amber}`,
+            border:`1px solid ${T.amber}44`,
+            background:T.amberBg,
             borderRadius:8, overflow:"hidden",
           }}>
             {/* ── Header-Zeile (immer sichtbar, klickbar) ── */}
@@ -2549,7 +2549,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
 
         {/* ── Klage-Zusammenfassung ── */}
         {klagebetrag > 0.01 && (
-          <Card style={{ borderLeft:`3px solid ${T.accent}` }}>
+          <Card style={{ border:`1.5px solid ${T.accentTrim}`, background:T.accentPale }}>
             <CardHead title="Klagegegenstand" />
             <div style={{ padding:"0 1.4rem 1rem" }}>
               {allePos.filter(p => p.fuer_klage && (p.gefordert - (getGezahlt(p)||0)) > 0.01)

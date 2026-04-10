@@ -24,8 +24,8 @@ function Card({ children, style = {} }) {
 
 function CardHead({ title, action }) {
   return (
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0.9rem 1.4rem", borderBottom:`1px solid ${T.border}` }}>
-      <h3 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1rem", fontWeight:700, color:T.navy, margin:0 }}>{title}</h3>
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"1rem 1.4rem", borderBottom:`1px solid ${T.border}` }}>
+      <h3 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1.05rem", fontWeight:700, color:T.navy, margin:0, letterSpacing:"-0.01em" }}>{title}</h3>
       {action}
     </div>
   );
@@ -112,7 +112,7 @@ function SlidePanel({ open, onClose, title, children }) {
   return (
     <>
       {open && <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(17,29,53,0.45)", zIndex:300, backdropFilter:"blur(2px)" }} />}
-      <div style={{ position:"fixed", top:0, right:0, bottom:0, width:500, background:T.white, boxShadow:"-8px 0 48px rgba(0,0,0,0.18)", zIndex:310, display:"flex", flexDirection:"column", transform:open?"translateX(0)":"translateX(105%)", transition:"transform 0.3s cubic-bezier(0.16,1,0.3,1)" }}>
+      <div style={{ position:"fixed", top:0, right:0, bottom:0, width:"min(500px, calc(100vw - 40px))", background:T.white, boxShadow:"-8px 0 48px rgba(0,0,0,0.18)", zIndex:310, display:"flex", flexDirection:"column", transform:open?"translateX(0)":"translateX(105%)", transition:"transform 0.3s cubic-bezier(0.16,1,0.3,1)" }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"1.1rem 1.5rem", borderBottom:`1px solid ${T.border}`, background:T.navy, flexShrink:0 }}>
           <span style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1.175rem", fontWeight:700, color:T.white }}>{title}</span>
           <button onClick={onClose} style={{ background:"rgba(255,255,255,0.1)", border:"none", borderRadius:6, padding:7, cursor:"pointer", color:T.white, display:"flex" }}>{Ic.x}</button>
@@ -163,8 +163,8 @@ function BackendBadge({ online }) {
     </div>
   );
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:5, fontFamily:"'Figtree',sans-serif", fontSize:"0.845rem", color:"rgba(200,168,75,0.85)", padding:"4px 9px", background:"rgba(200,168,75,0.1)", borderRadius:6, border:"1px solid rgba(200,168,75,0.2)" }}>
-      <span style={{ width:6, height:6, borderRadius:"50%", background:T.accent }}/>Demo-Modus
+    <div style={{ display:"flex", alignItems:"center", gap:5, fontFamily:"'Figtree',sans-serif", fontSize:"0.845rem", color:T.amberText, padding:"4px 9px", background:T.amberBg, borderRadius:6, border:`1px solid ${T.amber}44` }}>
+      <span style={{ width:6, height:6, borderRadius:"50%", background:T.amber }}/>Demo-Modus
     </div>
   );
 }
