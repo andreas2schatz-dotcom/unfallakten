@@ -111,7 +111,7 @@ function RaMicroSachstandsCard({ akte, inGrid = false }) {
                 {laedt
                   ? <><div style={{ width:13, height:13, border:"2px solid rgba(255,255,255,0.3)", borderTopColor:"white", borderRadius:"50%", animation:"spin 0.7s linear infinite" }}/> Erstellen …</>
                   : erstellt
-                  ? <><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="7" fill=T.green/><path d="M4 7L6 9L10 5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> Erstellt – erneut generieren</>
+                  ? <><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="7" fill={T.green}/><path d="M4 7L6 9L10 5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> Erstellt – erneut generieren</>
                   : <>📄 Sachstandsanfrage generieren &amp; herunterladen</>}
               </button>
             </div>
