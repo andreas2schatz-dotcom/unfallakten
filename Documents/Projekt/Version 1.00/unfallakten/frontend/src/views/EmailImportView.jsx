@@ -19,11 +19,11 @@ function EmailImportView({ onOpenAkte, dispatch }) {
 
         {/* Seitenheader */}
         <div style={{ marginBottom:"1.25rem" }}>
-          <h1 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:"2rem",
+          <h1 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"2rem",
             fontWeight:700, color:T.navy, margin:0 }}>
             E-Mail-Import
           </h1>
-          <p style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.955rem",
+          <p style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem",
             color:T.textMuted, marginTop:4, marginBottom:0 }}>
             Automatischer IMAP-Import · Dokumente · Eingang
           </p>
@@ -43,7 +43,7 @@ function EmailImportView({ onOpenAkte, dispatch }) {
                   border:"none",
                   borderBottom: aktiv ? `2px solid ${T.navy}` : "2px solid transparent",
                   marginBottom: -2,
-                  fontFamily:"'IBM Plex Mono',monospace",
+                  fontFamily:"ui-monospace,monospace",
                   fontSize:"0.925rem",
                   fontWeight: aktiv ? 700 : 400,
                   color: aktiv ? T.navy : T.textMuted,

@@ -86,7 +86,7 @@ function AppShell({ user, onLogout }) {
 
           {/* Navigationseinträge */}
           <div style={{ padding:"0.6rem 0.5rem", flex:1 }}>
-            <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.72rem", fontWeight:600, color:"rgba(255,255,255,0.35)", letterSpacing:"0.12em", textTransform:"uppercase", padding:"8px 10px 4px" }}>
+            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem", fontWeight:600, color:"rgba(255,255,255,0.35)", letterSpacing:"0.12em", textTransform:"uppercase", padding:"8px 10px 4px" }}>
               Navigation
             </div>
             {navItems.map(item => {
@@ -96,7 +96,7 @@ function AppShell({ user, onLogout }) {
                   style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"flex-start", gap:10, padding:"9px 12px", borderRadius:7, border:"none", cursor:"pointer",
                     background:isA?"rgba(200,168,75,0.15)":"transparent",
                     color: T.white,
-                    fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"1rem",
+                    fontFamily:"'Figtree',sans-serif", fontSize:"1rem",
                     fontWeight:isA?600:400, textAlign:"left", transition:"all 0.12s", marginBottom:2,
                     ...(isA ? { boxShadow:`inset 2px 0 0 ${T.gold}` } : {}) }}
                   onMouseEnter={e => { if (!isA) e.currentTarget.style.background="rgba(255,255,255,0.06)"; }}
@@ -111,7 +111,7 @@ function AppShell({ user, onLogout }) {
             {tabs.filter(t => t.id.startsWith("akte-")).length > 0 && (
               <>
                 <div style={{ margin:"8px 10px", borderTop:"1px solid rgba(255,255,255,0.08)" }} />
-                <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.72rem", fontWeight:600, color:"rgba(255,255,255,0.35)", letterSpacing:"0.12em", textTransform:"uppercase", padding:"4px 10px 4px" }}>
+                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem", fontWeight:600, color:"rgba(255,255,255,0.35)", letterSpacing:"0.12em", textTransform:"uppercase", padding:"4px 10px 4px" }}>
                   Offene Akten
                 </div>
                 {tabs.filter(t => t.id.startsWith("akte-")).map(t => {
@@ -121,7 +121,7 @@ function AppShell({ user, onLogout }) {
                     <button key={t.id} onClick={() => setActive(t.id)}
                       style={{ width:"100%", display:"flex", alignItems:"center", gap:8, padding:"8px 12px", borderRadius:7, border:"none", cursor:"pointer",
                         background: isA ? "rgba(200,168,75,0.15)" : "transparent",
-                        fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.855rem",
+                        fontFamily:"ui-monospace,monospace", fontSize:"0.855rem",
                         fontWeight: isA ? 700 : 400, color: isA ? T.gold : "rgba(255,255,255,0.55)",
                         textAlign:"left", transition:"all 0.12s", marginBottom:1,
                         ...(isA ? { boxShadow:`inset 2px 0 0 ${T.gold}` } : {}) }}
@@ -141,7 +141,7 @@ function AppShell({ user, onLogout }) {
           </div>
 
           {/* User-Info unten */}
-          <div style={{ padding:"0.75rem 0.75rem", borderTop:"1px solid rgba(255,255,255,0.08)", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem", color:"rgba(255,255,255,0.45)" }}>
+          <div style={{ padding:"0.75rem 0.75rem", borderTop:"1px solid rgba(255,255,255,0.08)", fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", color:"rgba(255,255,255,0.45)" }}>
             <div style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user?.name}</div>
           </div>
         </div>

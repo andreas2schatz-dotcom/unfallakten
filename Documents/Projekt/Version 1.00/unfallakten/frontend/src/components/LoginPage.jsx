@@ -31,7 +31,7 @@ function LoginPage({ onLogin }) {
 
   const inp = {
     width:"100%", padding:"11px 14px", border:`1.5px solid ${T.border}`,
-    borderRadius:8, fontSize:"1.045rem", fontFamily:"'IBM Plex Sans',sans-serif",
+    borderRadius:8, fontSize:"1.045rem", fontFamily:"'Figtree',sans-serif",
     color:T.text, background:T.surface, outline:"none", boxSizing:"border-box",
   };
 
@@ -62,12 +62,12 @@ function LoginPage({ onLogin }) {
           </div>
           {/* Kanzleiname */}
           <div>
-            <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif",
+            <div style={{ fontFamily:"'Bricolage Grotesque',sans-serif",
               fontSize:"22px", fontWeight:700, color:T.navy,
               letterSpacing:"0.01em", lineHeight:1.2 }}>
               Koch, Schatz &amp; Kollegen
             </div>
-            <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem",
+            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
               color:T.textMuted, letterSpacing:"0.1em", textTransform:"uppercase",
               marginTop:3 }}>
               Rechtsanwälte · Offenbach am Main
@@ -78,7 +78,7 @@ function LoginPage({ onLogin }) {
         {/* Card */}
         <div style={{ background:"#ffffff", borderRadius:16, padding:"2.4rem 2.6rem",
           boxShadow:"0 4px 32px rgba(0,0,0,0.08), 0 0 0 1.5px rgba(15,30,64,0.10)" }}>
-          <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"1.1rem",
+          <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"1.1rem",
             fontWeight:600, color:T.navy, marginBottom:"1.6rem",
             paddingBottom:"1rem", borderBottom:`1.5px solid ${T.border}` }}>
             Anmelden
@@ -86,12 +86,12 @@ function LoginPage({ onLogin }) {
           {fehler && (
             <div style={{ background:T.redBg, border:`1px solid ${T.red}55`, borderRadius:8,
               padding:"10px 14px", marginBottom:"1.2rem",
-              fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.955rem", color:T.red }}>
+              fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem", color:T.red }}>
               {fehler}
             </div>
           )}
           <div style={{ marginBottom:"1.2rem" }}>
-            <label style={{ display:"block", fontFamily:"'IBM Plex Sans',sans-serif",
+            <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
               fontSize:"0.82rem", fontWeight:600, color:T.textMid,
               letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:6 }}>
               E-Mail
@@ -102,7 +102,7 @@ function LoginPage({ onLogin }) {
               onBlur={e=>e.target.style.borderColor=T.border} />
           </div>
           <div style={{ marginBottom:"1.6rem" }}>
-            <label style={{ display:"block", fontFamily:"'IBM Plex Sans',sans-serif",
+            <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
               fontSize:"0.82rem", fontWeight:600, color:T.textMid,
               letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:6 }}>
               Passwort
@@ -114,7 +114,7 @@ function LoginPage({ onLogin }) {
           </div>
           <button onClick={submit} disabled={loading} style={{
             width:"100%", padding:"13px", background:T.navy, color:T.white,
-            border:"none", borderRadius:8, fontFamily:"'IBM Plex Sans',sans-serif",
+            border:"none", borderRadius:8, fontFamily:"'Figtree',sans-serif",
             fontSize:"1rem", fontWeight:600, cursor:loading?"default":"pointer",
             position:"relative", overflow:"hidden",
             boxShadow:`0 4px 12px ${T.navy}44`,
@@ -127,7 +127,7 @@ function LoginPage({ onLogin }) {
 
         {/* Footer */}
         <div style={{ textAlign:"center", marginTop:"1.5rem",
-          fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem",
+          fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
           color:T.textFaint }}>
           Unfallakten-Verwaltung · Intern
         </div>

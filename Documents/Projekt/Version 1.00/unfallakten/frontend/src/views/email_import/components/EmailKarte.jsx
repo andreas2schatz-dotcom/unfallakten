@@ -63,7 +63,7 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
             flexShrink:0, marginTop:5 }}/>
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
-              <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.945rem",
+              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.945rem",
                 fontWeight: e.als_gelesen ? 400 : 600, color:T.text,
                 overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:280 }}>
                 {e.von_name || e.absender || e.absender_email || "Unbekannt"}
@@ -73,7 +73,7 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
                   background:`${T.amber}18`, color:T.amber,
                   border:`1px solid ${T.amber}35`, borderRadius:10,
                   padding:"1px 8px", fontSize:"0.785rem", fontWeight:700,
-                  flexShrink:0, fontFamily:"'IBM Plex Mono',monospace" }}>
+                  flexShrink:0, fontFamily:"ui-monospace,monospace" }}>
                   {e.versicherer_kuerzel || e.versicherer_name}
                 </span>
               )}
@@ -93,22 +93,22 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
                 </span>
               )}
               {erkannt && (
-                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.845rem",
+                <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.845rem",
                   fontWeight:600, color:T.navy, flexShrink:0 }}>{erkannt}</span>
               )}
-              <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.825rem",
+              <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.825rem",
                 color:T.textMuted, marginLeft:"auto", flexShrink:0, whiteSpace:"nowrap" }}>
                 {e.empfangen_am ? String(e.empfangen_am).slice(0,16) : ""}
               </span>
             </div>
-            <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.895rem",
+            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem",
               color:T.textMid, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
               {e.betreff || <span style={{ color:T.textMuted, fontStyle:"italic" }}>(kein Betreff)</span>}
             </div>
             {(e.anhaenge_anzahl || 0) > 0 && (
               <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:4 }}>
                 <span style={{ color:T.textFaint, display:"flex" }}>{Ic.attach}</span>
-                <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.845rem",
+                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.845rem",
                   color:T.textMuted }}>{e.anhaenge_anzahl} Anhang</span>
               </div>
             )}
@@ -127,18 +127,18 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
           {seite === "zugeordnet" && e.akte_az && (
             <div style={{ paddingTop:12 }}>
               <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
-                <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem", color:T.textMuted }}>Akte:</span>
-                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.945rem",
+                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.textMuted }}>Akte:</span>
+                <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.945rem",
                   fontWeight:700, color:T.navy }}>{e.akte_az}</span>
                 <button onClick={() => onOpenAkte(e)}
                   style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 12px",
                     background:T.navy, color:T.white, border:"none", borderRadius:6,
-                    fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem",
+                    fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
                     fontWeight:600, cursor:"pointer" }}>
                   {Ic.akte} Akte öffnen
                 </button>
                 {e.manuell_zugeordnet ? (
-                  <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.825rem",
+                  <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
                     color:T.textMuted, fontStyle:"italic" }}>manuell zugeordnet</span>
                 ) : null}
               </div>
@@ -156,14 +156,14 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
                   <button onClick={() => onOeffneZuordnung(e.id)}
                     style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px",
                       background:T.navy, color:T.white, border:"none", borderRadius:6,
-                      fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem",
+                      fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
                       fontWeight:600, cursor:"pointer" }}>
                     {Ic.search} Akte zuordnen
                   </button>
                   <button
                     style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px",
                       background:T.white, color:T.textMuted, border:`1px solid ${T.border}`,
-                      borderRadius:6, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem",
+                      borderRadius:6, fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
                       fontWeight:600, cursor:"not-allowed", opacity:0.5 }}
                     title="Feature in Entwicklung">
                     {Ic.plus} Neue Akte anlegen
@@ -181,7 +181,7 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
                       value={zs?.suche || ""}
                       onChange={ev => onSucheAkten(e.id, ev.target.value)}
                       style={{ flex:1, border:"none", outline:"none", background:"transparent",
-                        fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.945rem", color:T.text }}
+                        fontFamily:"'Figtree',sans-serif", fontSize:"0.945rem", color:T.text }}
                     />
                     {zs?.laedt && (
                       <div style={{ width:12, height:12, border:"2px solid rgba(0,0,0,0.15)",
@@ -198,12 +198,12 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
                           onClick={() => onZuordnen(e, a.az)}
                           style={{ width:"100%", textAlign:"left", padding:"9px 14px",
                             background:"transparent", border:"none", borderBottom:`1px solid ${T.borderSoft}`,
-                            cursor:"pointer", fontFamily:"'IBM Plex Sans',sans-serif",
+                            cursor:"pointer", fontFamily:"'Figtree',sans-serif",
                             fontSize:"0.925rem", color:T.text, display:"flex",
                             alignItems:"center", gap:10 }}
                           onMouseEnter={ev => ev.currentTarget.style.background = T.goldPale}
                           onMouseLeave={ev => ev.currentTarget.style.background = "transparent"}>
-                          <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontWeight:700,
+                          <span style={{ fontFamily:"ui-monospace,monospace", fontWeight:700,
                             color:T.navy, flexShrink:0 }}>{a.az}</span>
                           {a.label !== a.az && (
                             <span style={{ color:T.textMuted, overflow:"hidden",
@@ -215,12 +215,12 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
                       ))}
                     </div>
                   ) : zs?.suche?.length >= 2 && !zs?.laedt ? (
-                    <div style={{ padding:"12px 14px", fontFamily:"'IBM Plex Sans',sans-serif",
+                    <div style={{ padding:"12px 14px", fontFamily:"'Figtree',sans-serif",
                       fontSize:"0.925rem", color:T.textMuted }}>
                       Keine Akte gefunden für „{zs.suche}"
                     </div>
                   ) : (
-                    <div style={{ padding:"10px 14px", fontFamily:"'IBM Plex Sans',sans-serif",
+                    <div style={{ padding:"10px 14px", fontFamily:"'Figtree',sans-serif",
                       fontSize:"0.875rem", color:T.textMuted }}>
                       Mindestens 2 Zeichen eingeben …
                     </div>
@@ -233,7 +233,7 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
           {seite === "zugeordnet" && (e.anhaenge_anzahl || 0) > 0 && (
             <div style={{ marginTop:10, display:"flex", alignItems:"center", gap:8,
               background:T.greenBg, border:`1px solid ${T.green}33`, borderRadius:7,
-              padding:"7px 12px", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem", color:T.green }}>
+              padding:"7px 12px", fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.green }}>
               {Ic.check}
               <span>
                 <strong>{e.anhaenge_anzahl} Anhang{e.anhaenge_anzahl > 1 ? "hänge" : ""}</strong> automatisch in Akte gespeichert
@@ -243,12 +243,12 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
 
           {bodyText && (
             <div style={{ marginTop:12 }}>
-              <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem",
+              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
                 fontWeight:600, color:T.textMuted, textTransform:"uppercase",
                 letterSpacing:"0.06em", marginBottom:6 }}>E-Mail-Text</div>
               <div style={{ background:T.white, border:`1px solid ${T.border}`,
                 borderRadius:7, padding:"10px 12px",
-                fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem",
+                fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
                 color:T.textMid, whiteSpace:"pre-wrap", maxHeight:180,
                 overflowY:"auto", lineHeight:1.5 }}>
                 {bodyText}
@@ -258,13 +258,13 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
 
           {(e.anhaenge_anzahl || 0) > 0 && (
             <div style={{ marginTop:12 }}>
-              <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem", fontWeight:600,
+              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:600,
                 color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:6 }}>
                 Anhänge ({e.anhaenge_anzahl})
               </div>
               {anhLaedt ? (
                 <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 0",
-                  fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem", color:T.textMuted }}>
+                  fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.textMuted }}>
                   <div style={{ width:12, height:12, border:"2px solid rgba(0,0,0,0.15)",
                     borderTopColor:T.navy, borderRadius:"50%", animation:"spin 0.7s linear infinite" }}/>
                   Lade Anhänge …
@@ -296,7 +296,7 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
 
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1rem", marginTop:12 }}>
             <div>
-              <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem", fontWeight:600,
+              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:600,
                 color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:6 }}>
                 E-Mail-Details
               </div>
@@ -306,15 +306,15 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
                 ["Empfangen",e.empfangen_am || "–"],
               ].map(([l,v]) => (
                 <div key={l} style={{ display:"flex", gap:8, marginBottom:5 }}>
-                  <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.825rem",
+                  <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
                     color:T.textMuted, width:70, flexShrink:0 }}>{l}</span>
-                  <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.895rem",
+                  <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem",
                     color:T.text, wordBreak:"break-all" }}>{v}</span>
                 </div>
               ))}
             </div>
             <div>
-              <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem", fontWeight:600,
+              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:600,
                 color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:6 }}>
                 Parser-Ergebnis
               </div>
@@ -324,9 +324,9 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
                 ["Match-Methode",  e.match_methode ? (MATCH_LABELS[e.match_methode]?.label || e.match_methode) : "Kein Match"],
               ].map(([l,v]) => (
                 <div key={l} style={{ display:"flex", gap:8, marginBottom:5 }}>
-                  <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.825rem",
+                  <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
                     color:T.textMuted, width:110, flexShrink:0 }}>{l}</span>
-                  <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.895rem",
+                  <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.895rem",
                     color:T.text, fontWeight: v !== "–" && v !== "Kein Match" ? 600 : 400 }}>{v}</span>
                 </div>
               ))}

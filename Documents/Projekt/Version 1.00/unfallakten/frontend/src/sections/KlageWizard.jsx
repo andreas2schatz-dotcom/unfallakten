@@ -35,8 +35,8 @@ const STEPS = [
   { nr: 10, label: "Generieren"},
 ];
 
-const PLEX = "'IBM Plex Sans', sans-serif";
-const MONO = "'IBM Plex Mono', monospace";
+const PLEX = "'Figtree',sans-serif";
+const MONO = "ui-monospace,monospace";
 
 // ── Hilfsfunktionen ────────────────────────────────────────────────────────────
 

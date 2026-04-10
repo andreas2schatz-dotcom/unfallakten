@@ -220,7 +220,7 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
       <div style={{ display:"flex", gap:10, alignItems:"center", justifyContent:"flex-end", marginBottom:"1.25rem", flexWrap:"wrap" }}>
         <div onClick={() => setShowKonfigDialog(true)}
           style={{ display:"flex", alignItems:"center", gap:7, background:T.white, border:`1px solid ${T.border}`,
-            borderRadius:8, padding:"7px 13px", fontFamily:"'IBM Plex Sans',sans-serif",
+            borderRadius:8, padding:"7px 13px", fontFamily:"'Figtree',sans-serif",
             fontSize:"0.925rem", color:T.textMid, cursor:"pointer" }}>
           <span style={{ width:8, height:8, borderRadius:"50%", background: verbunden ? T.green : T.amber, display:"block",
             boxShadow: verbunden ? `0 0 0 3px ${T.green}22` : `0 0 0 3px ${T.amber}22` }}/>
@@ -230,7 +230,7 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
         <button onClick={startImport} disabled={importing}
           style={{ display:"flex", alignItems:"center", gap:8, padding:"9px 20px",
             background: importing ? T.navyMid : T.navy, color:T.white, border:"none",
-            borderRadius:8, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.975rem",
+            borderRadius:8, fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem",
             fontWeight:600, cursor: importing ? "default" : "pointer",
             position:"relative", overflow:"hidden", minWidth:210 }}>
           {importing
@@ -247,7 +247,7 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
       {importResult && (
         <div style={{ background:T.greenBg, border:`1px solid ${T.green}33`, borderRadius:10,
           padding:"11px 16px", marginBottom:"1.1rem", display:"flex", alignItems:"center",
-          gap:12, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.955rem", color:T.green }}>
+          gap:12, fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem", color:T.green }}>
           {Ic.check}
           <span><strong>{importResult.neu} neue E-Mails</strong> · {importResult.zugeordnet} zugeordnet · {importResult.anhaenge} Anhang</span>
           <button onClick={() => setResult(null)} aria-label="Meldung schließen" style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", color:T.green, display:"flex" }}>{Ic.x}</button>
@@ -265,9 +265,9 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
           <div key={i} style={{ background:T.white, borderRadius:10, padding:"0.75rem 1.1rem",
             border:`1px solid ${T.border}`, borderTop:`3px solid ${k.c}`,
             boxShadow:"0 2px 6px rgba(0,0,0,0.04)", minWidth:120 }}>
-            <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem", fontWeight:600,
+            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", fontWeight:600,
               letterSpacing:"0.07em", textTransform:"uppercase", color:T.textMuted, marginBottom:5 }}>{k.label}</div>
-            <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:"2rem",
+            <div style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"2rem",
               fontWeight:700, color:k.c, lineHeight:1 }}>{k.v}</div>
           </div>
         ))}
@@ -293,14 +293,14 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
               display:"block", boxShadow:`0 0 0 3px ${T.amber}33`, flexShrink:0,
             }}/>
             <span style={{
-              fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.84rem",
+              fontFamily:"'Figtree',sans-serif", fontSize:"0.84rem",
               fontWeight:700, color:T.amber,
               textTransform:"uppercase", letterSpacing:"0.08em",
             }}>Aktionspflichtig</span>
             <span style={{
               background:T.amber, color:T.white, borderRadius:10,
               padding:"1px 8px", fontSize:"0.775rem", fontWeight:700,
-              fontFamily:"'IBM Plex Mono',monospace",
+              fontFamily:"ui-monospace,monospace",
             }}>
               {aktionNichtZugeordnet.length + fragebogenListe.length}
             </span>
@@ -318,19 +318,19 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
             }}>
               <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:"0.65rem" }}>
                 <span style={{
-                  fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem",
+                  fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
                   fontWeight:700, color:T.textMid,
                   textTransform:"uppercase", letterSpacing:"0.07em",
                 }}>Nicht zugeordnet</span>
                 <span style={{
                   background:T.amberBg, color:T.amber, border:`1px solid ${T.amber}33`,
                   borderRadius:10, padding:"1px 7px",
-                  fontSize:"0.775rem", fontWeight:600, fontFamily:"'IBM Plex Mono',monospace",
+                  fontSize:"0.775rem", fontWeight:600, fontFamily:"ui-monospace,monospace",
                 }}>{aktionNichtZugeordnet.length}</span>
               </div>
               {aktionNichtZugeordnet.length === 0 ? (
                 <div style={{
-                  fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.9rem",
+                  fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem",
                   color:T.textMuted, padding:"1.5rem", textAlign:"center",
                   background:T.white, border:`1px solid ${T.border}`, borderRadius:8,
                 }}>
@@ -361,19 +361,19 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
             <div style={{ padding:"1rem 1.1rem" }}>
               <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:"0.65rem" }}>
                 <span style={{
-                  fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem",
+                  fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
                   fontWeight:700, color:T.textMid,
                   textTransform:"uppercase", letterSpacing:"0.07em",
                 }}>Fragebogen-Erstkontakt</span>
                 <span style={{
                   background:T.amberBg, color:T.amber, border:`1px solid ${T.amber}33`,
                   borderRadius:10, padding:"1px 7px",
-                  fontSize:"0.775rem", fontWeight:600, fontFamily:"'IBM Plex Mono',monospace",
+                  fontSize:"0.775rem", fontWeight:600, fontFamily:"ui-monospace,monospace",
                 }}>{fragebogenListe.length}</span>
               </div>
               {fragebogenListe.length === 0 ? (
                 <div style={{
-                  fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.9rem",
+                  fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem",
                   color:T.textMuted, padding:"1.5rem", textAlign:"center",
                   background:T.white, border:`1px solid ${T.border}`, borderRadius:8,
                 }}>
@@ -403,7 +403,7 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
           marginBottom:"1rem", flexWrap:"wrap",
         }}>
           <h2 style={{
-            fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"1rem",
+            fontFamily:"'Figtree',sans-serif", fontSize:"1rem",
             fontWeight:700, color:T.navy, margin:0,
           }}>
             {ansichtsModus === "stream" ? "E-Mail-Stream" : "Akten-Ansicht"}
@@ -432,7 +432,7 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
                   padding:"4px 14px",
                   background: ansichtsModus === m.id ? T.navy : "none",
                   border:"none", borderRadius:18,
-                  fontFamily:"'IBM Plex Mono',monospace",
+                  fontFamily:"ui-monospace,monospace",
                   fontSize:"0.83rem",
                   fontWeight: ansichtsModus === m.id ? 700 : 400,
                   color: ansichtsModus === m.id ? T.white : T.textMuted,
@@ -455,7 +455,7 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
                       background: aktiv ? T.navy : T.white,
                       border:`1px solid ${aktiv ? T.navy : T.border}`,
                       borderRadius:20,
-                      fontFamily:"'IBM Plex Sans',sans-serif",
+                      fontFamily:"'Figtree',sans-serif",
                       fontSize:"0.845rem", fontWeight: aktiv ? 600 : 400,
                       color: aktiv ? T.white : T.textMid,
                       cursor:"pointer",
@@ -484,7 +484,7 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
                   width:"100%", padding:"7px 30px 7px 30px",
                   border:`1.5px solid ${streamSuche ? T.navy : T.border}`,
                   borderRadius:8, outline:"none",
-                  fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.895rem",
+                  fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem",
                   color:T.text, background:T.white, boxSizing:"border-box",
                 }}
               />
@@ -535,12 +535,12 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
               <svg viewBox="0 0 24 24" fill="currentColor" style={{width:40,height:40}}><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
             </div>
             <h3 style={{
-              fontFamily:"'Plus Jakarta Sans',sans-serif",
+              fontFamily:"'Bricolage Grotesque',sans-serif",
               fontSize:"1.2rem", fontWeight:700,
               color:T.navy, margin:"0 0 0.5rem",
             }}>Akten-Ansicht</h3>
             <p style={{
-              fontFamily:"'IBM Plex Sans',sans-serif",
+              fontFamily:"'Figtree',sans-serif",
               fontSize:"0.955rem", color:T.textMuted,
               lineHeight:1.6, maxWidth:460, margin:"0 auto 1.25rem",
             }}>
@@ -553,7 +553,7 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
               textAlign:"left", maxWidth:380, margin:"0 auto",
             }}>
               <div style={{
-                fontFamily:"'IBM Plex Sans',sans-serif",
+                fontFamily:"'Figtree',sans-serif",
                 fontSize:"0.8rem", fontWeight:600,
                 letterSpacing:"0.07em", textTransform:"uppercase",
                 color:T.textMuted, marginBottom:"0.6rem",
@@ -566,7 +566,7 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
               ].map((f, i) => (
                 <div key={i} style={{
                   display:"flex", gap:8, alignItems:"flex-start",
-                  fontFamily:"'IBM Plex Sans',sans-serif",
+                  fontFamily:"'Figtree',sans-serif",
                   fontSize:"0.9rem", color:T.textMid, marginBottom:"0.4rem",
                 }}>
                   <span style={{ color:T.textFaint, flexShrink:0 }}>·</span>
@@ -579,7 +579,7 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
           <div style={{
             background:T.white, border:`1px solid ${T.border}`, borderRadius:10,
             padding:"3rem", textAlign:"center",
-            fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.955rem", color:T.textMuted,
+            fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem", color:T.textMuted,
           }}>
             {streamSuche
               ? `Keine Ergebnisse für „${streamSuche}"`
@@ -594,14 +594,14 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
                 display:"flex", alignItems:"center", gap:10, marginBottom:"0.55rem",
               }}>
                 <span style={{
-                  fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.775rem",
+                  fontFamily:"ui-monospace,monospace", fontSize:"0.775rem",
                   fontWeight:700, color:T.textMuted,
                   letterSpacing:"0.08em", textTransform:"uppercase",
                   flexShrink:0,
                 }}>{gruppe.label}</span>
                 <div style={{ flex:1, height:1, background:T.border }}/>
                 <span style={{
-                  fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.77rem",
+                  fontFamily:"ui-monospace,monospace", fontSize:"0.77rem",
                   color:T.textMuted, flexShrink:0,
                 }}>{gruppe.emails.length}</span>
               </div>

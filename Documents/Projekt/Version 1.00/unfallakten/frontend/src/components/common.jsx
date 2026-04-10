@@ -25,14 +25,14 @@ function Card({ children, style = {} }) {
 function CardHead({ title, action }) {
   return (
     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0.9rem 1.4rem", borderBottom:`1px solid ${T.border}` }}>
-      <h3 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:"1rem", fontWeight:700, color:T.navy, margin:0 }}>{title}</h3>
+      <h3 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1rem", fontWeight:700, color:T.navy, margin:0 }}>{title}</h3>
       {action}
     </div>
   );
 }
 
 
-// Klage-spezifischer CardHead: Arial 16pt, farbige Hintergrundstreifen
+// Klage-spezifischer CardHead: Farbige Hintergrundstreifen (Word-Vorlage: Arial 16pt)
 
 
 function KlageCardHead({ nr, title, action }) {
@@ -44,7 +44,7 @@ function KlageCardHead({ nr, title, action }) {
       borderBottom: `1px solid ${col.border}`,
       borderRadius:"8px 8px 0 0",
     }}>
-      <h3 style={{ fontFamily:"Arial, sans-serif", fontSize:"1rem", fontWeight:700,
+      <h3 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1rem", fontWeight:700,
         color: col.text, margin:0, letterSpacing:"0.01em" }}>
         {nr ? `${nr}. ` : ""}{title}
       </h3>
@@ -65,7 +65,7 @@ function Btn({ children, variant="primary", onClick, onMouseDown, disabled=false
   };
   return (
     <button disabled={disabled} onClick={disabled ? null : onClick} onMouseDown={onMouseDown}
-      style={{ display:"inline-flex", alignItems:"center", gap:6, borderRadius:7, fontFamily:"'IBM Plex Sans',sans-serif", fontWeight:600, cursor:disabled?"default":"pointer", transition:"all 0.15s", opacity:disabled?0.55:1, padding:pad, fontSize:fs, ...vars[variant], ...style }}>
+      style={{ display:"inline-flex", alignItems:"center", gap:6, borderRadius:7, fontFamily:"'Figtree',sans-serif", fontWeight:600, cursor:disabled?"default":"pointer", transition:"all 0.15s", opacity:disabled?0.55:1, padding:pad, fontSize:fs, ...vars[variant], ...style }}>
       {children}
     </button>
   );
@@ -75,9 +75,9 @@ function Btn({ children, variant="primary", onClick, onMouseDown, disabled=false
 function FieldInput({ label, value, onChange, type="text", placeholder="", required=false }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
-      {label && <label style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.825rem", fontWeight:600, color:T.textMid, letterSpacing:"0.05em", textTransform:"uppercase" }}>{label}{required && <span style={{ color:T.red }}> *</span>}</label>}
+      {label && <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", fontWeight:600, color:T.textMid, letterSpacing:"0.05em", textTransform:"uppercase" }}>{label}{required && <span style={{ color:T.red }}> *</span>}</label>}
       <input type={type} value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)}
-        style={{ padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.985rem", color:T.text, background:T.surface, outline:"none" }}
+        style={{ padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.985rem", color:T.text, background:T.surface, outline:"none" }}
         onFocus={e => e.target.style.borderColor = T.gold}
         onBlur={e  => e.target.style.borderColor = T.border} />
     </div>
@@ -88,9 +88,9 @@ function FieldInput({ label, value, onChange, type="text", placeholder="", requi
 function FieldSelect({ label, value, onChange, options }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
-      {label && <label style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.825rem", fontWeight:600, color:T.textMid, letterSpacing:"0.05em", textTransform:"uppercase" }}>{label}</label>}
+      {label && <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", fontWeight:600, color:T.textMid, letterSpacing:"0.05em", textTransform:"uppercase" }}>{label}</label>}
       <select value={value} onChange={e => onChange(e.target.value)}
-        style={{ padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.985rem", color:T.text, background:T.surface, outline:"none", cursor:"pointer" }}>
+        style={{ padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.985rem", color:T.text, background:T.surface, outline:"none", cursor:"pointer" }}>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     </div>
@@ -101,7 +101,7 @@ function FieldSelect({ label, value, onChange, options }) {
 function Toast({ msg, onDone }) {
   useEffect(() => { const t = setTimeout(onDone, 2600); return () => clearTimeout(t); }, [onDone]);
   return (
-    <div style={{ position:"fixed", bottom:24, right:24, zIndex:600, background:T.navy, color:T.white, padding:"10px 18px", borderRadius:10, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.975rem", boxShadow:"0 8px 32px rgba(0,0,0,0.25)", borderLeft:`3px solid ${T.gold}`, display:"flex", alignItems:"center", gap:8, animation:"slideUp 0.3s ease-out" }}>
+    <div style={{ position:"fixed", bottom:24, right:24, zIndex:600, background:T.navy, color:T.white, padding:"10px 18px", borderRadius:10, fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", boxShadow:"0 8px 32px rgba(0,0,0,0.25)", borderLeft:`3px solid ${T.gold}`, display:"flex", alignItems:"center", gap:8, animation:"slideUp 0.3s ease-out" }}>
       <span style={{ color:T.white }}>{Ic.check}</span>{msg}
     </div>
   );
@@ -114,7 +114,7 @@ function SlidePanel({ open, onClose, title, children }) {
       {open && <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(17,29,53,0.45)", zIndex:300, backdropFilter:"blur(2px)" }} />}
       <div style={{ position:"fixed", top:0, right:0, bottom:0, width:500, background:T.white, boxShadow:"-8px 0 48px rgba(0,0,0,0.18)", zIndex:310, display:"flex", flexDirection:"column", transform:open?"translateX(0)":"translateX(105%)", transition:"transform 0.3s cubic-bezier(0.16,1,0.3,1)" }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"1.1rem 1.5rem", borderBottom:`1px solid ${T.border}`, background:T.navy, flexShrink:0 }}>
-          <span style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:"1.175rem", fontWeight:700, color:T.white }}>{title}</span>
+          <span style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1.175rem", fontWeight:700, color:T.white }}>{title}</span>
           <button onClick={onClose} style={{ background:"rgba(255,255,255,0.1)", border:"none", borderRadius:6, padding:7, cursor:"pointer", color:T.white, display:"flex" }}>{Ic.x}</button>
         </div>
         <div style={{ flex:1, overflowY:"auto", padding:"1.4rem" }}>{children}</div>
@@ -153,17 +153,17 @@ function apiErrMsg(err) {
 
 function BackendBadge({ online }) {
   if (online === null) return (
-    <div style={{ display:"flex", alignItems:"center", gap:5, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.845rem", color:"rgba(255,255,255,0.45)", padding:"4px 9px", background:"rgba(255,255,255,0.06)", borderRadius:6, border:"1px solid rgba(255,255,255,0.1)" }}>
+    <div style={{ display:"flex", alignItems:"center", gap:5, fontFamily:"'Figtree',sans-serif", fontSize:"0.845rem", color:"rgba(255,255,255,0.45)", padding:"4px 9px", background:"rgba(255,255,255,0.06)", borderRadius:6, border:"1px solid rgba(255,255,255,0.1)" }}>
       <span style={{ width:6, height:6, borderRadius:"50%", background:"rgba(255,255,255,0.3)" }}/>Verbinde …
     </div>
   );
   if (online) return (
-    <div style={{ display:"flex", alignItems:"center", gap:5, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.845rem", color:"rgba(100,220,150,0.9)", padding:"4px 9px", background:"rgba(16,185,129,0.1)", borderRadius:6, border:"1px solid rgba(16,185,129,0.2)" }}>
+    <div style={{ display:"flex", alignItems:"center", gap:5, fontFamily:"'Figtree',sans-serif", fontSize:"0.845rem", color:"rgba(100,220,150,0.9)", padding:"4px 9px", background:"rgba(16,185,129,0.1)", borderRadius:6, border:"1px solid rgba(16,185,129,0.2)" }}>
       <span style={{ width:6, height:6, borderRadius:"50%", background:"#10b981" }}/>Live-API
     </div>
   );
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:5, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.845rem", color:"rgba(200,168,75,0.85)", padding:"4px 9px", background:"rgba(200,168,75,0.1)", borderRadius:6, border:"1px solid rgba(200,168,75,0.2)" }}>
+    <div style={{ display:"flex", alignItems:"center", gap:5, fontFamily:"'Figtree',sans-serif", fontSize:"0.845rem", color:"rgba(200,168,75,0.85)", padding:"4px 9px", background:"rgba(200,168,75,0.1)", borderRadius:6, border:"1px solid rgba(200,168,75,0.2)" }}>
       <span style={{ width:6, height:6, borderRadius:"50%", background:T.gold }}/>Demo-Modus
     </div>
   );
@@ -180,7 +180,7 @@ function Skeleton({ width="100%", height=18, radius=6, style={} }) {
 function ApiErrorBanner({ error, onRetry }) {
   if (!error) return null;
   return (
-    <div style={{ background:T.redBg, border:`1px solid ${T.red}33`, borderRadius:10, padding:"10px 14px", display:"flex", alignItems:"center", gap:10, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.955rem", color:T.red, marginBottom:"1rem" }}>
+    <div style={{ background:T.redBg, border:`1px solid ${T.red}33`, borderRadius:10, padding:"10px 14px", display:"flex", alignItems:"center", gap:10, fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem", color:T.red, marginBottom:"1rem" }}>
       <span>⚠</span>
       <span style={{ flex:1 }}>{apiErrMsg(error)}</span>
       {onRetry && <Btn variant="danger" size="sm" onClick={onRetry}>Erneut versuchen</Btn>}

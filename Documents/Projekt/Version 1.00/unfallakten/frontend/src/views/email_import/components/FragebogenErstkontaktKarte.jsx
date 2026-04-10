@@ -24,7 +24,7 @@ function FragebogenErstkontaktKarte({ eintrag, onAlsBearbeitet }) {
       {/* Name + Badge */}
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"0.35rem" }}>
         <div style={{
-          fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.945rem",
+          fontFamily:"'Figtree',sans-serif", fontSize:"0.945rem",
           fontWeight:700, color:T.navy, flex:1, minWidth:0,
           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
         }}>
@@ -33,14 +33,14 @@ function FragebogenErstkontaktKarte({ eintrag, onAlsBearbeitet }) {
         <span style={{
           background:T.amberBg, color:T.amber, border:`1px solid ${T.amber}44`,
           borderRadius:10, padding:"2px 8px",
-          fontSize:"0.77rem", fontWeight:700, fontFamily:"'IBM Plex Mono',monospace",
+          fontSize:"0.77rem", fontWeight:700, fontFamily:"ui-monospace,monospace",
           flexShrink:0,
         }}>NEU</span>
       </div>
 
       {/* E-Mail */}
       <div style={{
-        fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.82rem",
+        fontFamily:"ui-monospace,monospace", fontSize:"0.82rem",
         color:T.textMuted, marginBottom:"0.45rem",
         overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
       }}>
@@ -54,7 +54,7 @@ function FragebogenErstkontaktKarte({ eintrag, onAlsBearbeitet }) {
       }}>
         {eintrag.kfz_kennzeichen && (
           <span style={{
-            fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.84rem",
+            fontFamily:"ui-monospace,monospace", fontSize:"0.84rem",
             color:T.navy, fontWeight:600,
             background:"rgba(27,42,74,0.06)", borderRadius:5,
             padding:"2px 7px",
@@ -62,11 +62,11 @@ function FragebogenErstkontaktKarte({ eintrag, onAlsBearbeitet }) {
         )}
         {eintrag.schadentag && (
           <span style={{
-            fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.83rem", color:T.textMid,
+            fontFamily:"'Figtree',sans-serif", fontSize:"0.83rem", color:T.textMid,
           }}>Unfall: {eintrag.schadentag}</span>
         )}
         <span style={{
-          fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem", color:T.textMuted,
+          fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", color:T.textMuted,
           marginLeft:"auto",
         }}>{datum}</span>
       </div>
@@ -77,7 +77,7 @@ function FragebogenErstkontaktKarte({ eintrag, onAlsBearbeitet }) {
           style={{
             padding:"5px 12px", background:"none",
             border:`1px solid ${T.border}`, borderRadius:6,
-            fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.84rem",
+            fontFamily:"'Figtree',sans-serif", fontSize:"0.84rem",
             color:T.textMid, cursor:laedt ? "default" : "pointer",
           }}>
           {laedt ? "…" : "Als bearbeitet"}
@@ -87,7 +87,7 @@ function FragebogenErstkontaktKarte({ eintrag, onAlsBearbeitet }) {
           style={{
             padding:"5px 12px",
             background:T.navy, border:"none", borderRadius:6,
-            fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.84rem",
+            fontFamily:"'Figtree',sans-serif", fontSize:"0.84rem",
             fontWeight:600, color:"rgba(255,255,255,0.35)",
             cursor:"not-allowed",
           }}>

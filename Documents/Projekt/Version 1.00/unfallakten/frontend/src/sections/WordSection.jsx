@@ -104,14 +104,14 @@ function WordSection({ akte, st, dispatch }) {
         <div style={{ background:T.navyDark, borderRadius:12, padding:"1rem 1.4rem", border:"1px solid rgba(200,168,75,0.2)", display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
           <div style={{ color:T.white }}>{Ic.word}</div>
           <div style={{ flex:1 }}>
-            <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.945rem", fontWeight:600, color:T.white }}>Dokumente werden automatisch aus den Aktendaten generiert</div>
-            <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem", color:"rgba(255,255,255,0.48)", marginTop:2 }}>Kanzlei-Design (Navy/Gold) · DIN 5008 · Haftungsquote {akte.hq} %</div>
+            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.945rem", fontWeight:600, color:T.white }}>Dokumente werden automatisch aus den Aktendaten generiert</div>
+            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:"rgba(255,255,255,0.48)", marginTop:2 }}>Kanzlei-Design (Navy/Gold) · DIN 5008 · Haftungsquote {akte.hq} %</div>
           </div>
           <div style={{ display:"flex", gap:16, flexShrink:0 }}>
             {[{l:"Forderung",v:fmtEuro(netto)},{l:"Reguliert",v:fmtEuro(gesamtReg)},{l:"Offen",v:fmtEuro(Math.max(0,netto-gesamtReg))}].map((s,i) => (
               <div key={i} style={{ textAlign:"center" }}>
-                <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"1.025rem", fontWeight:600, color:T.white }}>{s.v}</div>
-                <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.795rem", color:"rgba(255,255,255,0.44)", marginTop:1 }}>{s.l}</div>
+                <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"1.025rem", fontWeight:600, color:T.white }}>{s.v}</div>
+                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.795rem", color:"rgba(255,255,255,0.44)", marginTop:1 }}>{s.l}</div>
               </div>
             ))}
           </div>
@@ -132,25 +132,25 @@ function WordSection({ akte, st, dispatch }) {
                 <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
                   <div style={{ width:44, height:44, borderRadius:10, background:T.navy, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.475rem", flexShrink:0 }}>{doc.icon}</div>
                   <div style={{ flex:1 }}>
-                    <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:"1rem", fontWeight:700, color:T.navy }}>{doc.label}</div>
-                    <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.835rem", color:T.textFaint, marginTop:2 }}>An: {doc.an}</div>
+                    <div style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1rem", fontWeight:700, color:T.navy }}>{doc.label}</div>
+                    <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.835rem", color:T.textFaint, marginTop:2 }}>An: {doc.an}</div>
                   </div>
                   {/* Download-Icon nach erfolgreicher Generierung */}
                   {isD && !err && (
                     <button title={`${doc.label} erneut herunterladen`}
                       onClick={() => download(doc.typ, doc.label)}
-                      style={{ flexShrink:0, display:"flex", alignItems:"center", gap:5, padding:"5px 10px", background:T.greenBg, border:`1px solid ${T.green}44`, borderRadius:7, cursor:"pointer", color:T.green, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", fontWeight:600, whiteSpace:"nowrap" }}>
+                      style={{ flexShrink:0, display:"flex", alignItems:"center", gap:5, padding:"5px 10px", background:T.greenBg, border:`1px solid ${T.green}44`, borderRadius:7, cursor:"pointer", color:T.green, fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", fontWeight:600, whiteSpace:"nowrap" }}>
                       {Ic.download} .docx
                     </button>
                   )}
                 </div>
 
                 {/* Beschreibung */}
-                <p style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.935rem", color:T.textMuted, lineHeight:1.65, margin:0 }}>{doc.desc}</p>
+                <p style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem", color:T.textMuted, lineHeight:1.65, margin:0 }}>{doc.desc}</p>
 
                 {/* Fehlermeldung */}
                 {err && (
-                  <div style={{ background:T.redBg, border:`1px solid ${T.red}33`, borderRadius:7, padding:"8px 12px", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.855rem", color:T.red }}>
+                  <div style={{ background:T.redBg, border:`1px solid ${T.red}33`, borderRadius:7, padding:"8px 12px", fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem", color:T.red }}>
                     ⚠ {err}
                   </div>
                 )}
@@ -158,14 +158,14 @@ function WordSection({ akte, st, dispatch }) {
                 {/* Adressat-Dropdown nur für Forderungsschreiben */}
                 {doc.typ === "forderungsschreiben" && adressatOptionen.length > 0 && (
                   <div>
-                    <label style={{ display:"block", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem", fontWeight:600, color:T.textMuted, marginBottom:5, textTransform:"uppercase", letterSpacing:"0.06em" }}>
+                    <label style={{ display:"block", fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:600, color:T.textMuted, marginBottom:5, textTransform:"uppercase", letterSpacing:"0.06em" }}>
                       Adressat
                     </label>
                     <select
                       value={adressatId ?? ""}
                       onChange={e => setAdressatId(e.target.value ? parseInt(e.target.value) : null)}
                       style={{ width:"100%", padding:"7px 10px", borderRadius:7, border:`1.5px solid ${T.border}`,
-                        background:T.surface, color:T.text, fontFamily:"'IBM Plex Sans',sans-serif",
+                        background:T.surface, color:T.text, fontFamily:"'Figtree',sans-serif",
                         fontSize:"0.875rem", cursor:"pointer", outline:"none" }}>
                       {adressatOptionen.map((b, idx) => {
                         const basis = b.versicherung || b.firma ||
@@ -186,7 +186,7 @@ function WordSection({ akte, st, dispatch }) {
                       background: err ? T.red : isD ? T.greenBg : T.navy,
                       color:      err ? T.white : isD ? T.green : T.white,
                       border:     isD && !err ? `1px solid ${T.green}33` : "none",
-                      borderRadius:8, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.965rem", fontWeight:600,
+                      borderRadius:8, fontFamily:"'Figtree',sans-serif", fontSize:"0.965rem", fontWeight:600,
                       cursor:isL?"default":"pointer", opacity:isL?0.7:1, transition:"all 0.2s" }}>
                     {isL
                       ? <><div style={{ width:13, height:13, border:"2px solid rgba(255,255,255,0.3)", borderTopColor:"white", borderRadius:"50%", animation:"spin 0.7s linear infinite" }}/> Erstelle …</>
@@ -211,11 +211,11 @@ function WordSection({ akte, st, dispatch }) {
             <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
               <div style={{ width:44, height:44, borderRadius:10, background:T.navy, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.3rem", flexShrink:0 }}>⚖️</div>
               <div style={{ flex:1 }}>
-                <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:"1rem", fontWeight:700, color:T.navy }}>Sachstandsanfrage</div>
-                <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.835rem", color:T.textFaint, marginTop:2 }}>Intelligent · Eskalationsstufen</div>
+                <div style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1rem", fontWeight:700, color:T.navy }}>Sachstandsanfrage</div>
+                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.835rem", color:T.textFaint, marginTop:2 }}>Intelligent · Eskalationsstufen</div>
               </div>
             </div>
-            <p style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.935rem", color:T.textMuted, lineHeight:1.65, margin:0 }}>
+            <p style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem", color:T.textMuted, lineHeight:1.65, margin:0 }}>
               Analysiert die Aktenlage automatisch und schlägt die passende Eskalationsstufe vor.
               Text ist vor dem Generieren editierbar.
             </p>
@@ -223,7 +223,7 @@ function WordSection({ akte, st, dispatch }) {
               <button onClick={() => setStaOffen(true)}
                 style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:7, padding:"9px 14px",
                   background:T.navy, color:T.white, border:"none", borderRadius:8,
-                  fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.965rem", fontWeight:600,
+                  fontFamily:"'Figtree',sans-serif", fontSize:"0.965rem", fontWeight:600,
                   cursor:"pointer", transition:"opacity 0.15s" }}
                 onMouseEnter={e => e.currentTarget.style.opacity="0.85"}
                 onMouseLeave={e => e.currentTarget.style.opacity="1"}>

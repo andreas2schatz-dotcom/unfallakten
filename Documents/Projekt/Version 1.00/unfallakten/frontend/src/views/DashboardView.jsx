@@ -44,7 +44,7 @@ function VorschlagBadge({ vorschlag }) {
     <span style={{
       display: "inline-block", padding: "3px 9px", borderRadius: 20,
       background: cfg.bg, color: cfg.color,
-      fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.78rem", fontWeight: 700,
+      fontFamily: "'Figtree',sans-serif", fontSize: "0.78rem", fontWeight: 700,
     }}>
       {cfg.label}
     </span>
@@ -60,7 +60,7 @@ function SectionHeader({ icon, title, count, color }) {
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.85rem" }}>
       <span style={{ color: color || T.navy, fontSize: "1.05rem" }}>{icon}</span>
       <h3 style={{
-        fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: "1.075rem",
+        fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: "1.075rem",
         fontWeight: 700, color: T.navy, margin: 0,
       }}>
         {title}
@@ -68,7 +68,7 @@ function SectionHeader({ icon, title, count, color }) {
       {count > 0 && (
         <span style={{
           background: (color || T.navy) + "18", color: color || T.navy,
-          fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.775rem", fontWeight: 700,
+          fontFamily: "'Figtree',sans-serif", fontSize: "0.775rem", fontWeight: 700,
           borderRadius: 20, padding: "2px 9px", marginLeft: 2,
         }}>
           {count}
@@ -86,7 +86,7 @@ function EmptyHint({ text }) {
   return (
     <div style={{
       textAlign: "center", padding: "1.1rem 1rem",
-      color: T.textFaint, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.875rem",
+      color: T.textFaint, fontFamily: "'Figtree',sans-serif", fontSize: "0.875rem",
     }}>
       {text}
     </div>
@@ -121,10 +121,10 @@ function FristenBlock({ fristen, loadingAction, onOpenAkte }) {
               minWidth: 52, textAlign: "center",
               background: farbe.bg, borderRadius: 7, padding: "4px 6px",
             }}>
-              <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "1.15rem", fontWeight: 800, color: farbe.text, lineHeight: 1 }}>
+              <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "1.15rem", fontWeight: 800, color: farbe.text, lineHeight: 1 }}>
                 {f.ueberfaellig ? "!" : Math.abs(f.tage_bis_faellig)}
               </div>
-              <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.65rem", color: farbe.text, lineHeight: 1, marginTop: 2 }}>
+              <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.65rem", color: farbe.text, lineHeight: 1, marginTop: 2 }}>
                 {f.ueberfaellig ? "ÜBERFÄLLIG" : "Tage"}
               </div>
             </div>
@@ -132,18 +132,18 @@ function FristenBlock({ fristen, loadingAction, onOpenAkte }) {
             {/* Info */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: "0.825rem", fontWeight: 700, color: T.navy }}>{f.akte_az}</span>
-                {f.mandant_name && <span style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.84rem", color: T.textMid }}>· {f.mandant_name}</span>}
+                <span style={{ fontFamily: "ui-monospace,monospace", fontSize: "0.825rem", fontWeight: 700, color: T.navy }}>{f.akte_az}</span>
+                {f.mandant_name && <span style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.84rem", color: T.textMid }}>· {f.mandant_name}</span>}
               </div>
-              <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.875rem", color: T.textMid, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.875rem", color: T.textMid, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {f.text}
               </div>
             </div>
 
             {/* Datum */}
             <div style={{ textAlign: "right", flexShrink: 0 }}>
-              <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.82rem", color: T.textMuted }}>fällig</div>
-              <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: "0.84rem", fontWeight: 700, color: farbe.text }}>{fmtDatum(f.faellig_am)}</div>
+              <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.82rem", color: T.textMuted }}>fällig</div>
+              <div style={{ fontFamily: "ui-monospace,monospace", fontSize: "0.84rem", fontWeight: 700, color: farbe.text }}>{fmtDatum(f.faellig_am)}</div>
             </div>
           </div>
         );
@@ -194,9 +194,9 @@ function EingaengeBlock({ eingaenge, loadingAction, onNavigate }) {
         >
           <span style={{ fontSize: "1.6rem" }}>{k.icon}</span>
           <div>
-            <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.82rem", color: T.textMuted, fontWeight: 600 }}>{k.label}</div>
+            <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.82rem", color: T.textMuted, fontWeight: 600 }}>{k.label}</div>
             <div style={{
-              fontFamily: "'Plus Jakarta Sans',sans-serif",
+              fontFamily: "'Bricolage Grotesque',sans-serif",
               fontSize: "2rem", fontWeight: 700, lineHeight: 1, marginTop: 2,
               color: k.count > 0 ? k.color : T.textFaint,
             }}>
@@ -238,15 +238,15 @@ function RegulierungBlock({ items, loadingAction, onOpenAkte }) {
           >
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: "0.825rem", fontWeight: 700, color: T.navy }}>{r.akte_az}</span>
-                {r.mandant_name && <span style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.84rem", color: T.textMid }}>· {r.mandant_name}</span>}
+                <span style={{ fontFamily: "ui-monospace,monospace", fontSize: "0.825rem", fontWeight: 700, color: T.navy }}>{r.akte_az}</span>
+                {r.mandant_name && <span style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.84rem", color: T.textMid }}>· {r.mandant_name}</span>}
                 {isPflvg && (
-                  <span style={{ background: farbe.bg, color: farbe.text, fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.74rem", fontWeight: 700, borderRadius: 20, padding: "2px 8px" }}>
+                  <span style={{ background: farbe.bg, color: farbe.text, fontFamily: "'Figtree',sans-serif", fontSize: "0.74rem", fontWeight: 700, borderRadius: 20, padding: "2px 8px" }}>
                     §3a PflVG
                   </span>
                 )}
               </div>
-              <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.84rem", color: T.textMuted, marginTop: 3 }}>
+              <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.84rem", color: T.textMuted, marginTop: 3 }}>
                 {isPflvg
                   ? `Frist läuft ab: ${fmtDatum(r.pflvg_faellig)} (noch ${r.pflvg_tage} Tage)`
                   : `Status: ${r.status} · seit ${r.tage_seit_eingang} Tagen`}
@@ -255,8 +255,8 @@ function RegulierungBlock({ items, loadingAction, onOpenAkte }) {
 
             {!isPflvg && r.betrag_differenz != null && (
               <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.78rem", color: T.textMuted }}>offen</div>
-                <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: "0.9rem", fontWeight: 700, color: T.navy }}>
+                <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.78rem", color: T.textMuted }}>offen</div>
+                <div style={{ fontFamily: "ui-monospace,monospace", fontSize: "0.9rem", fontWeight: 700, color: T.navy }}>
                   {fmtEuro(r.betrag_differenz)}
                 </div>
               </div>
@@ -264,8 +264,8 @@ function RegulierungBlock({ items, loadingAction, onOpenAkte }) {
 
             {r.pflvg_tage != null && !isPflvg && (
               <div style={{ background: farbe.bg, borderRadius: 7, padding: "4px 8px", flexShrink: 0, textAlign: "center" }}>
-                <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.7rem", fontWeight: 700, color: farbe.text }}>§3a PflVG</div>
-                <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: "0.9rem", fontWeight: 800, color: farbe.text }}>{r.pflvg_tage}d</div>
+                <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.7rem", fontWeight: 700, color: farbe.text }}>§3a PflVG</div>
+                <div style={{ fontFamily: "ui-monospace,monospace", fontSize: "0.9rem", fontWeight: 800, color: farbe.text }}>{r.pflvg_tage}d</div>
               </div>
             )}
           </div>
@@ -300,10 +300,10 @@ function AktenOhneBewegungBlock({ items, loadingAction, onOpenAkte }) {
         >
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-              <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: "0.825rem", fontWeight: 700, color: T.navy }}>{a.akte_az}</span>
-              {a.mandant_name && <span style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.84rem", color: T.textMid }}>· {a.mandant_name}</span>}
+              <span style={{ fontFamily: "ui-monospace,monospace", fontSize: "0.825rem", fontWeight: 700, color: T.navy }}>{a.akte_az}</span>
+              {a.mandant_name && <span style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.84rem", color: T.textMid }}>· {a.mandant_name}</span>}
             </div>
-            <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.84rem", color: T.textMuted, marginTop: 3 }}>
+            <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.84rem", color: T.textMuted, marginTop: 3 }}>
               {a.tage_ohne_bewegung} Tage ohne Aktivität
               {a.letzte_aktivitaet && ` · zuletzt ${fmtDatum(a.letzte_aktivitaet)}`}
               {a.sta_anzahl > 0 && ` · ${a.sta_anzahl}× STA bereits versandt`}
@@ -467,10 +467,10 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
         {/* ── Seitenkopf ─────────────────────────────────── */}
         <div style={{ marginBottom: "1.25rem", display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
           <div>
-            <h1 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: "2rem", fontWeight: 700, color: T.navy, margin: 0 }}>
+            <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: "2rem", fontWeight: 700, color: T.navy, margin: 0 }}>
               Dashboard
             </h1>
-            <p style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.955rem", color: T.textMuted, marginTop: 4, marginBottom: 0 }}>
+            <p style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.955rem", color: T.textMuted, marginTop: 4, marginBottom: 0 }}>
               {new Date().toLocaleDateString("de-DE", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
             </p>
           </div>
@@ -495,7 +495,7 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
                 border: aktiv ? `1.5px solid ${T.navy}` : `1px solid ${T.border}`,
                 background: aktiv ? T.navy : T.white,
                 color: aktiv ? T.white : T.textMid,
-                fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.9rem", fontWeight: 600,
+                fontFamily: "'Figtree',sans-serif", fontSize: "0.9rem", fontWeight: 600,
                 cursor: "pointer", transition: "all 0.15s",
               }}>
                 {tab.label}
@@ -526,7 +526,7 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
             {/* Zuletzt-aktualisiert Zeile */}
             {actionItems?.generiert_am && (
               <div style={{
-                fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.82rem", color: T.textFaint,
+                fontFamily: "'Figtree',sans-serif", fontSize: "0.82rem", color: T.textFaint,
                 marginBottom: "1rem",
               }}>
                 Zuletzt aktualisiert: {fmtDatum(actionItems.generiert_am)}
@@ -606,7 +606,7 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
               <div style={{
                 background: T.amberBg, border: `1px solid ${T.amber}44`,
                 borderRadius: 8, padding: "10px 14px", marginBottom: "1rem",
-                fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.855rem", color: T.amber,
+                fontFamily: "'Figtree',sans-serif", fontSize: "0.855rem", color: T.amber,
               }}>
                 ℹ RA-Micro nicht verbunden — keine Aktenliste verfügbar. Bitte RAMICRO_AKTIV=true in .env setzen.
               </div>
@@ -636,8 +636,8 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
                       onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.09)"; }}
                       onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.04)"; }}
                     >
-                      <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.805rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: T.textMuted, marginBottom: 8 }}>{k.label}</div>
-                      <div style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: "2.325rem", fontWeight: 700, color: k.c, lineHeight: 1 }}>{k.v}</div>
+                      <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.805rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: T.textMuted, marginBottom: 8 }}>{k.label}</div>
+                      <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: "2.325rem", fontWeight: 700, color: k.c, lineHeight: 1 }}>{k.v}</div>
                     </div>
                   ))}
             </div>
@@ -645,7 +645,7 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
             {/* Tabelle */}
             <Card>
               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0.9rem 1.4rem", borderBottom: `1px solid ${T.border}`, flexWrap: "wrap" }}>
-                <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: "1.35rem", fontWeight: 700, color: T.navy, margin: 0, flex: 1 }}>Akten</h2>
+                <h2 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: "1.35rem", fontWeight: 700, color: T.navy, margin: 0, flex: 1 }}>Akten</h2>
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                   {[["alle", "Alle"], ["offen", "Offen"], ["in_regulierung", "Regulierung"], ["abgeschlossen", "Abgeschlossen"], ["klage", "Klage"]].map(([s, l]) => {
                     const cnt = s === "alle" ? akten.length : akten.filter(a => a.status === s).length;
@@ -656,7 +656,7 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
                         border: `1px solid ${filter === s ? (sm?.color || T.navy) : T.border}`,
                         background: filter === s ? (sm?.bg || T.goldPale) : "transparent",
                         color: filter === s ? (sm?.color || T.navy) : T.textMuted,
-                        fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.825rem", fontWeight: 600, cursor: "pointer",
+                        fontFamily: "'Figtree',sans-serif", fontSize: "0.825rem", fontWeight: 600, cursor: "pointer",
                       }}>
                         {l} ({cnt})
                       </button>
@@ -669,7 +669,7 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
                     placeholder="Az., Mandant, Ort …"
                     value={suche}
                     onChange={e => setSuche(e.target.value)}
-                    style={{ border: "none", background: "transparent", outline: "none", fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.955rem", color: T.text, width: 180 }}
+                    style={{ border: "none", background: "transparent", outline: "none", fontFamily: "'Figtree',sans-serif", fontSize: "0.955rem", color: T.text, width: 180 }}
                   />
                 </div>
               </div>
@@ -688,7 +688,7 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
                       ].map(c => (
                         <th key={c.l} onClick={() => c.k && sortBy(c.k)} style={{
                           padding: "8px 14px", textAlign: "left",
-                          fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.815rem", fontWeight: 600,
+                          fontFamily: "'Figtree',sans-serif", fontSize: "0.815rem", fontWeight: 600,
                           color: T.textMuted, letterSpacing: "0.06em", textTransform: "uppercase",
                           borderBottom: `1px solid ${T.border}`, cursor: c.k ? "pointer" : "default",
                           whiteSpace: "nowrap", userSelect: "none",
@@ -708,21 +708,21 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
                         onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? T.white : T.surface}
                       >
                         <td style={{ padding: "10px 14px" }}>
-                          <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: "0.955rem", fontWeight: 600, color: T.navy }}>{a.az}</span>
+                          <span style={{ fontFamily: "ui-monospace,monospace", fontSize: "0.955rem", fontWeight: 600, color: T.navy }}>{a.az}</span>
                         </td>
                         <td style={{ padding: "10px 14px", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.9rem", fontWeight: 600, color: T.textMid }}>{a.kurzbezeichnung || "–"}</div>
-                          {a.bezeichnung && <div style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.78rem", color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.bezeichnung}</div>}
+                          <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.9rem", fontWeight: 600, color: T.textMid }}>{a.kurzbezeichnung || "–"}</div>
+                          {a.bezeichnung && <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.78rem", color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.bezeichnung}</div>}
                         </td>
-                        <td style={{ padding: "10px 14px", fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.9rem", color: T.textMid }}>{a.mandant || "–"}</td>
+                        <td style={{ padding: "10px 14px", fontFamily: "'Figtree',sans-serif", fontSize: "0.9rem", color: T.textMid }}>{a.mandant || "–"}</td>
                         <td style={{ padding: "10px 14px" }}>
                           {a.kennzeichen
-                            ? <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: "0.84rem", fontWeight: 700, color: T.blue }}>{a.kennzeichen}</span>
+                            ? <span style={{ fontFamily: "ui-monospace,monospace", fontSize: "0.84rem", fontWeight: 700, color: T.blue }}>{a.kennzeichen}</span>
                             : <span style={{ color: T.textFaint }}>–</span>}
                         </td>
                         <td style={{ padding: "10px 14px" }}>
                           {a.sachbearbeiter && (
-                            <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: "0.84rem", background: T.goldPale, color: T.navy, border: `1px solid ${T.goldTrim}`, borderRadius: 5, padding: "2px 7px", fontWeight: 600 }}>
+                            <span style={{ fontFamily: "ui-monospace,monospace", fontSize: "0.84rem", background: T.goldPale, color: T.navy, border: `1px solid ${T.goldTrim}`, borderRadius: 5, padding: "2px 7px", fontWeight: 600 }}>
                               {a.sachbearbeiter}
                             </span>
                           )}
@@ -732,7 +732,7 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
                     ))}
                     {gefiltert.length === 0 && !loadingAkten && (
                       <tr>
-                        <td colSpan={6} style={{ padding: "2rem", textAlign: "center", color: T.textFaint, fontFamily: "'IBM Plex Sans',sans-serif" }}>
+                        <td colSpan={6} style={{ padding: "2rem", textAlign: "center", color: T.textFaint, fontFamily: "'Figtree',sans-serif" }}>
                           Keine Akten gefunden.
                         </td>
                       </tr>
@@ -745,7 +745,7 @@ function DashboardView({ onOpenAkte, aktenState, onNavigate }) {
               <div style={{
                 padding: "8px 1.4rem", borderTop: `1px solid ${T.border}`,
                 display: "flex", justifyContent: "space-between", alignItems: "center",
-                fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.845rem", color: T.textFaint,
+                fontFamily: "'Figtree',sans-serif", fontSize: "0.845rem", color: T.textFaint,
               }}>
                 <span>{gefiltert.length} gefiltert · {gesamt} gesamt in RA-Micro</span>
                 {seiten > 1 && (

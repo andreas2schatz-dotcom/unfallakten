@@ -117,7 +117,7 @@ function EinstellungenView() {
 
   const inputStyle = {
     width:"100%", padding:"7px 10px", border:`1px solid ${T.border}`,
-    borderRadius:7, fontFamily:"'IBM Plex Sans',sans-serif",
+    borderRadius:7, fontFamily:"'Figtree',sans-serif",
     fontSize:"0.945rem", outline:"none", boxSizing:"border-box",
     background:T.white,
   };
@@ -127,7 +127,7 @@ function EinstellungenView() {
       {toast && <Toast msg={toast} onDone={() => setToast("")}/>}
       <div style={{ maxWidth:1000, margin:"0 auto", padding:"1.75rem" }}>
 
-        <h1 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:"2rem",
+        <h1 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"2rem",
           fontWeight:700, color:T.navy, margin:"0 0 1.5rem 0" }}>Einstellungen</h1>
 
         {/* Tab-Leiste */}
@@ -144,7 +144,7 @@ function EinstellungenView() {
           ].map(([id, label]) => (
             <button key={id} onClick={() => { setTab(id); setSuche(""); }}
               style={{ padding:"8px 18px", border:"none", background:"transparent",
-                fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.95rem", fontWeight:600,
+                fontFamily:"'Figtree',sans-serif", fontSize:"0.95rem", fontWeight:600,
                 color: tab===id ? T.navy : T.textMuted, cursor:"pointer",
                 borderBottom: tab===id ? `2px solid ${T.gold}` : "2px solid transparent",
                 marginBottom:-1 }}>
@@ -163,7 +163,7 @@ function EinstellungenView() {
 
         {/* IMAP Tab */}
         {tab === "imap" && (
-          <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.955rem",
+          <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem",
             color:T.textMuted, background:T.white, borderRadius:10, padding:"1.5rem",
             border:`1px solid ${T.border}` }}>
             <p style={{ margin:"0 0 0.75rem" }}>IMAP-Konfiguration ist in der <code>.env</code>-Datei hinterlegt.</p>
@@ -185,7 +185,7 @@ function EinstellungenView() {
 
             {/* Erklärung */}
             <div style={{ background:T.white, borderRadius:10, padding:"1rem 1.25rem",
-              border:`1px solid ${T.border}`, fontFamily:"'IBM Plex Sans',sans-serif",
+              border:`1px solid ${T.border}`, fontFamily:"'Figtree',sans-serif",
               fontSize:"0.915rem", color:T.textMuted, lineHeight:1.6 }}>
               Diese Werte bestimmen die <strong style={{ color:T.text }}>Antwortfrist im Brieftext</strong> der
               Sachstandsanfrage je Eskalationsstufe. Der generierte Text wird beim nächsten Öffnen
@@ -207,24 +207,24 @@ function EinstellungenView() {
                     {/* Stufen-Header */}
                     <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
                       <div style={{ width:10, height:10, borderRadius:"50%", background:farbe, flexShrink:0 }} />
-                      <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.9rem",
+                      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem",
                         fontWeight:700, color:T.text }}>{label}</span>
                     </div>
-                    <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.825rem",
+                    <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
                       color:T.textFaint, marginBottom:10, paddingLeft:20 }}>{desc}</div>
 
                     {/* Frist-Eingabe */}
                     <div style={{ display:"flex", alignItems:"center", gap:10, paddingLeft:20, marginBottom:12 }}>
-                      <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem",
+                      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
                         fontWeight:600, color:T.textMuted, minWidth:50 }}>Frist:</span>
                       <input
                         type="number" min={1} max={365}
                         value={fristen[tageKey] ?? ""}
                         onChange={e => setFristen(p => ({ ...p, [tageKey]: parseInt(e.target.value) || 1 }))}
                         style={{ ...inputStyle, width:80, textAlign:"center",
-                          fontFamily:"'IBM Plex Mono',monospace", fontSize:"1rem", fontWeight:600 }}
+                          fontFamily:"ui-monospace,monospace", fontSize:"1rem", fontWeight:600 }}
                       />
-                      <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem", color:T.textMuted }}>
+                      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.textMuted }}>
                         Tage
                       </span>
                     </div>
@@ -232,11 +232,11 @@ function EinstellungenView() {
                     {/* Brieftext-Vorlage */}
                     <div style={{ paddingLeft:20 }}>
                       <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", marginBottom:5 }}>
-                        <label style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem",
+                        <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
                           fontWeight:600, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.06em" }}>
                           Brieftext-Vorlage
                         </label>
-                        <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.755rem",
+                        <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.755rem",
                           color:T.textFaint, background:T.offWhite, padding:"2px 8px",
                           borderRadius:5, border:`1px solid ${T.border}` }}>
                           {"{Schreiben}"} · {"{Mandant}"} · {"{Frist}"}
@@ -247,7 +247,7 @@ function EinstellungenView() {
                         value={fristen[textKey] ?? ""}
                         onChange={e => setFristen(p => ({ ...p, [textKey]: e.target.value }))}
                         style={{ ...inputStyle, resize:"vertical", lineHeight:1.6,
-                          fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem" }}
+                          fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}
                       />
                     </div>
                   </div>
@@ -276,7 +276,7 @@ function EinstellungenView() {
             <Card>
               <CardHead title="Lernystem – Dokumentenklassifikation" />
               <div style={{ padding:"1rem 1.25rem", display:"flex", flexDirection:"column", gap:"0.85rem" }}>
-                <p style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.895rem",
+                <p style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem",
                   color:T.textMuted, lineHeight:1.6, margin:0 }}>
                   Jede manuelle Korrektur einer Dokumentenklasse wird als Trainingsdatensatz gespeichert.
                   Ab <strong style={{ color:T.text }}>50 Einträgen</strong> kann ein TF-IDF-Modell trainiert werden,
@@ -288,11 +288,11 @@ function EinstellungenView() {
                     {/* Fortschrittsbalken */}
                     <div>
                       <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}>
-                        <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.855rem",
+                        <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem",
                           fontWeight:600, color:T.text }}>
                           Gesammelte Korrekturen
                         </span>
-                        <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.855rem",
+                        <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.855rem",
                           color: training.bereit ? T.green : T.textMuted }}>
                           {training.gesamt} / {training.ziel}
                         </span>
@@ -312,7 +312,7 @@ function EinstellungenView() {
                       padding:"0.65rem 1rem", borderRadius:8,
                       background: training.bereit ? (T.green + "18") : (T.amber + "15"),
                       border: `1px solid ${training.bereit ? T.green : T.amber}44`,
-                      fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.855rem",
+                      fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem",
                       color: training.bereit ? T.green : T.amber, fontWeight:600,
                     }}>
                       {training.bereit
@@ -325,7 +325,7 @@ function EinstellungenView() {
                       <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
                         {training.klassen.map(k => (
                           <span key={k.klasse} style={{
-                            fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.8rem",
+                            fontFamily:"ui-monospace,monospace", fontSize:"0.8rem",
                             padding:"3px 10px", borderRadius:12,
                             background:T.surface, border:`1px solid ${T.border}`,
                             color:T.textMuted,
@@ -348,7 +348,7 @@ function EinstellungenView() {
 
             {/* Info */}
             <div style={{ background:T.white, borderRadius:10, padding:"1rem 1.25rem",
-              border:`1px solid ${T.border}`, fontFamily:"'IBM Plex Sans',sans-serif",
+              border:`1px solid ${T.border}`, fontFamily:"'Figtree',sans-serif",
               fontSize:"0.915rem", color:T.textMuted, lineHeight:1.6 }}>
               Konfiguriert den KI-Vorschlag-Button im Klage-Wizard (Step 7 – Rechtliche Würdigung).
               API-Keys werden in der <code>.env</code>-Datei hinterlegt:
@@ -364,7 +364,7 @@ function EinstellungenView() {
               <div style={{ padding:"1rem 1.25rem", display:"flex", flexDirection:"column", gap:"1rem" }}>
 
                 <div>
-                  <label style={{ display:"block", fontFamily:"'IBM Plex Sans',sans-serif",
+                  <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
                     fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:6 }}>
                     Aktives Modell
                   </label>
@@ -383,20 +383,20 @@ function EinstellungenView() {
 
                 <div>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:5 }}>
-                    <label style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.825rem",
+                    <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
                       fontWeight:600, color:T.textMuted }}>System-Prompt</label>
                   </div>
                   <textarea rows={5} value={ki.system_prompt}
                     onChange={e => setKi(p => ({ ...p, system_prompt: e.target.value }))}
                     style={{ ...inputStyle, resize:"vertical", lineHeight:1.6,
-                      fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem" }} />
+                      fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }} />
                 </div>
 
                 <div>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:5 }}>
-                    <label style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.825rem",
+                    <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
                       fontWeight:600, color:T.textMuted }}>User-Prompt-Vorlage</label>
-                    <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.755rem",
+                    <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.755rem",
                       color:T.textFaint, background:T.offWhite, padding:"2px 8px",
                       borderRadius:5, border:`1px solid ${T.border}` }}>
                       {"{haftung_ctx}"} · {"{schilderung}"}
@@ -405,7 +405,7 @@ function EinstellungenView() {
                   <textarea rows={8} value={ki.user_prompt}
                     onChange={e => setKi(p => ({ ...p, user_prompt: e.target.value }))}
                     style={{ ...inputStyle, resize:"vertical", lineHeight:1.6,
-                      fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem" }} />
+                      fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }} />
                 </div>
 
                 <div style={{ display:"flex", justifyContent:"flex-end", gap:10 }}>
@@ -447,7 +447,7 @@ function EinstellungenView() {
           <div style={{ display:"flex", flexDirection:"column", gap:"1.25rem", maxWidth:520 }}>
 
             <div style={{ background:T.white, borderRadius:10, padding:"1rem 1.25rem",
-              border:`1px solid ${T.border}`, fontFamily:"'IBM Plex Sans',sans-serif",
+              border:`1px solid ${T.border}`, fontFamily:"'Figtree',sans-serif",
               fontSize:"0.915rem", color:T.textMuted, lineHeight:1.6 }}>
               Legt fest, ab welchem Streitwert das <strong style={{ color:T.text }}>Landgericht</strong> zuständig ist.
               Im Klage-Wizard (Step 10) erscheint eine Warnung, wenn das gewählte Gericht ein Amtsgericht ist
@@ -463,11 +463,11 @@ function EinstellungenView() {
               <div style={{ padding:"1rem 1.25rem", display:"flex", flexDirection:"column", gap:"1rem" }}>
 
                 <div>
-                  <label style={{ display:"block", fontFamily:"'IBM Plex Sans',sans-serif",
+                  <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
                     fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:6 }}>
                     LG-Zuständigkeitsgrenze (€)
                   </label>
-                  <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem",
+                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
                     color:T.textFaint, marginBottom:8 }}>
                     Ab diesem Streitwert ist das Landgericht zuständig (§ 23 GVG / § 71 GVG)
                   </div>
@@ -477,9 +477,9 @@ function EinstellungenView() {
                     onChange={e => setLgGrenzwert(parseInt(e.target.value) || 10000)}
                     disabled={lgGrenzwertLaedt}
                     style={{ ...inputStyle, width:160, textAlign:"right",
-                      fontFamily:"'IBM Plex Mono',monospace", fontSize:"1rem", fontWeight:600 }}
+                      fontFamily:"ui-monospace,monospace", fontSize:"1rem", fontWeight:600 }}
                   />
-                  <span style={{ marginLeft:8, fontFamily:"'IBM Plex Sans',sans-serif",
+                  <span style={{ marginLeft:8, fontFamily:"'Figtree',sans-serif",
                     fontSize:"0.875rem", color:T.textMuted }}>€</span>
                 </div>
 
@@ -515,7 +515,7 @@ function EinstellungenView() {
               <div style={{ padding:"1rem 1.25rem",
                 display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"0.75rem", alignItems:"end" }}>
                 <div>
-                  <label style={{ display:"block", fontFamily:"'IBM Plex Sans',sans-serif",
+                  <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
                     fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:4 }}>
                     Name / Organisation *
                   </label>
@@ -525,7 +525,7 @@ function EinstellungenView() {
                     style={inputStyle}/>
                 </div>
                 <div>
-                  <label style={{ display:"block", fontFamily:"'IBM Plex Sans',sans-serif",
+                  <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
                     fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:4 }}>
                     E-Mail-Domain *
                   </label>
@@ -535,7 +535,7 @@ function EinstellungenView() {
                     style={inputStyle}/>
                 </div>
                 <div>
-                  <label style={{ display:"block", fontFamily:"'IBM Plex Sans',sans-serif",
+                  <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
                     fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:4 }}>
                     Kategorie
                   </label>
@@ -547,7 +547,7 @@ function EinstellungenView() {
                 </div>
                 {neuForm.kategorie === "versicherung" && (<>
                   <div>
-                    <label style={{ display:"block", fontFamily:"'IBM Plex Sans',sans-serif",
+                    <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
                       fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:4 }}>
                       Versicherer-Anzeigename
                     </label>
@@ -557,7 +557,7 @@ function EinstellungenView() {
                       style={inputStyle}/>
                   </div>
                   <div>
-                    <label style={{ display:"block", fontFamily:"'IBM Plex Sans',sans-serif",
+                    <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
                       fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:4 }}>
                       Kürzel
                     </label>
@@ -590,7 +590,7 @@ function EinstellungenView() {
               <input value={suche} onChange={e => setSuche(e.target.value)}
                 placeholder="Name, Domain oder Kürzel suchen …"
                 style={{ flex:1, border:"none", outline:"none", background:"transparent",
-                  fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.935rem", color:T.text }}/>
+                  fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem", color:T.text }}/>
               {suche && (
                 <button onClick={() => setSuche("")}
                   style={{ background:"none", border:"none", cursor:"pointer",
@@ -603,10 +603,10 @@ function EinstellungenView() {
               <CardHead title={`${gefiltertVorlagen.length} Einträge${suche ? ` (gefiltert)` : ""}`} />
               {laedt ? (
                 <div style={{ padding:"2rem", textAlign:"center", color:T.textFaint,
-                  fontFamily:"'IBM Plex Sans',sans-serif" }}>Lade …</div>
+                  fontFamily:"'Figtree',sans-serif" }}>Lade …</div>
               ) : gefiltertVorlagen.length === 0 ? (
                 <div style={{ padding:"2rem", textAlign:"center", color:T.textFaint,
-                  fontFamily:"'IBM Plex Sans',sans-serif" }}>
+                  fontFamily:"'Figtree',sans-serif" }}>
                   {suche ? "Keine Treffer." : "Noch keine Einträge."}
                 </div>
               ) : (
@@ -622,7 +622,7 @@ function EinstellungenView() {
                         transition:"opacity 0.15s" }}>
                         {/* Kürzel-Badge */}
                         {v.kuerzel ? (
-                          <span style={{ fontFamily:"'IBM Plex Mono',monospace",
+                          <span style={{ fontFamily:"ui-monospace,monospace",
                             fontSize:"0.755rem", fontWeight:700, background:`${T.amber}18`,
                             color:T.amber, border:`1px solid ${T.amber}30`,
                             borderRadius:6, padding:"2px 7px", flexShrink:0,
@@ -635,16 +635,16 @@ function EinstellungenView() {
                             flexShrink:0 }}>{kat.label}</span>
                         )}
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontFamily:"'IBM Plex Sans',sans-serif",
+                          <div style={{ fontFamily:"'Figtree',sans-serif",
                             fontSize:"0.935rem", fontWeight:600, color:T.text }}>
                             {v.versicherer_name || v.name}
                           </div>
                           <div style={{ display:"flex", gap:8, alignItems:"center",
                             marginTop:1 }}>
-                            <span style={{ fontFamily:"'IBM Plex Mono',monospace",
+                            <span style={{ fontFamily:"ui-monospace,monospace",
                               fontSize:"0.825rem", color:T.textMuted }}>@{v.domain}</span>
                             {v.versicherer_name && v.versicherer_name !== v.name && (
-                              <span style={{ fontFamily:"'IBM Plex Sans',sans-serif",
+                              <span style={{ fontFamily:"'Figtree',sans-serif",
                                 fontSize:"0.815rem", color:T.textFaint }}>{v.name}</span>
                             )}
                           </div>
@@ -652,7 +652,7 @@ function EinstellungenView() {
                         <button onClick={() => toggleAktiv(v)}
                           style={{ padding:"3px 10px", border:`1px solid ${T.border}`,
                             borderRadius:6, background:T.white, cursor:"pointer",
-                            fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.815rem",
+                            fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem",
                             color: v.aktiv ? T.green : T.textMuted, fontWeight:600,
                             flexShrink:0 }}>
                           {v.aktiv ? "✓ Aktiv" : "Inaktiv"}

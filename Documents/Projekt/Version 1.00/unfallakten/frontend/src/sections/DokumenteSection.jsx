@@ -426,21 +426,21 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
             {uploading ? (
               <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
                 <div style={{ width:32, height:32, border:`3px solid ${T.goldTrim}`, borderTopColor:T.gold, borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
-                <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.975rem", color:T.textMuted }}>Hochladen und analysieren …</div>
+                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", color:T.textMuted }}>Hochladen und analysieren …</div>
                 {uploadProgress > 0 && uploadProgress < 100 && (
                   <div style={{ width:200 }}>
                     <div style={{ height:4, background:T.border, borderRadius:4, overflow:"hidden" }}>
                       <div style={{ height:"100%", width:`${uploadProgress}%`, background:`linear-gradient(90deg,${T.gold},${T.goldLight})`, borderRadius:4, transition:"width 0.3s" }}/>
                     </div>
-                    <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.825rem", color:T.textFaint, textAlign:"center", marginTop:3 }}>{uploadProgress} %</div>
+                    <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.825rem", color:T.textFaint, textAlign:"center", marginTop:3 }}>{uploadProgress} %</div>
                   </div>
                 )}
               </div>
             ) : (
               <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}>
                 <span style={{ color:dragging?T.gold:T.textFaint }}>{Ic.upload}</span>
-                <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"1.025rem", fontWeight:600, color:dragging?T.gold:T.textMid }}>Datei hier ablegen oder klicken</div>
-                <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.905rem", color:T.textFaint }}>PDF, DOCX, JPG, PNG · max. 20 MB · PDFs werden automatisch geparst</div>
+                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"1.025rem", fontWeight:600, color:dragging?T.gold:T.textMid }}>Datei hier ablegen oder klicken</div>
+                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.905rem", color:T.textFaint }}>PDF, DOCX, JPG, PNG · max. 20 MB · PDFs werden automatisch geparst</div>
               </div>
             )}
           </div>
@@ -471,7 +471,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
               return (
                 <div key={f.k} style={{ display:"flex", alignItems:"center", gap:10,
                   padding:"6px 0", borderBottom: i < SCHADEN_F.length - 1 ? `1px solid ${T.borderSoft}` : "none" }}>
-                  <div style={{ width:180, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.855rem",
+                  <div style={{ width:180, fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem",
                     fontWeight:500, color: beleg ? T.text : T.textFaint }}>
                     {f.l}
                   </div>
@@ -483,25 +483,25 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                         onMouseEnter={e => e.currentTarget.querySelector("span").style.textDecoration = "underline"}
                         onMouseLeave={e => e.currentTarget.querySelector("span").style.textDecoration = "none"}>
                         <span style={{ color:T.red, fontSize:"0.9rem", flexShrink:0 }}>📄</span>
-                        <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", color:T.blue,
+                        <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.blue,
                           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                           {beleg.dateiname}
                         </span>
                       </button>
                       {beleg.betrag_aus_beleg > 0 && (
-                        <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.82rem",
+                        <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.82rem",
                           color:T.navy, fontWeight:600, flexShrink:0, marginLeft:"auto" }}>
                           {fmtEuro(beleg.betrag_aus_beleg)}
                         </span>
                       )}
-                      <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.7rem",
+                      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.7rem",
                         color:T.green, background:T.greenBg, border:`1px solid ${T.green}33`,
                         borderRadius:10, padding:"1px 6px", flexShrink:0 }}>
                         ✓
                       </span>
                     </div>
                   ) : (
-                    <div style={{ flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", color:T.textFaint, fontStyle:"italic" }}>
+                    <div style={{ flex:1, fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textFaint, fontStyle:"italic" }}>
                       kein Beleg
                     </div>
                   )}
@@ -523,7 +523,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
               display:"flex", flexDirection:"column", overflow:"hidden" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
                 padding:"12px 20px", borderBottom:`1px solid ${T.border}`, background:T.surface }}>
-                <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.9rem", fontWeight:600, color:T.navy,
+                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem", fontWeight:600, color:T.navy,
                   overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"70vw" }}>
                   📄 {dokumente.find(d => d.id === belegVorschau)?.dateiname || "Vorschau"}
                 </span>
@@ -546,7 +546,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
         <Card>
           <CardHead title={`Dokumente (${dokumente.length})`} />
           {dokumente.length === 0 ? (
-            <div style={{ padding:"2rem", textAlign:"center", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.975rem", color:T.textFaint }}>Noch keine Dokumente hochgeladen.</div>
+            <div style={{ padding:"2rem", textAlign:"center", fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", color:T.textFaint }}>Noch keine Dokumente hochgeladen.</div>
           ) : dokumente.map((d, i) => {
             const ps = parseStyle[d.parse_status] || parseStyle.ausstehend;
             const isPdf = d.dateityp === "pdf";
@@ -558,17 +558,17 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                   {isPdf ? Ic.pdf : Ic.word}
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.975rem", fontWeight:600, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{d.dateiname}</div>
+                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", fontWeight:600, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{d.dateiname}</div>
                   <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:3, flexWrap:"wrap" }}>
                     <select
                       value={d.dokumentenklasse||d.typ||"sonstiges"}
                       disabled={korrekturLading===d.id}
                       onChange={e => korrigiereKlasse(d.id, e.target.value)}
-                      style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.825rem", background:korrekturLading===d.id?T.goldPale:T.surface, color:T.textMuted, border:`1px solid ${T.border}`, borderRadius:10, padding:"1px 7px", cursor:"pointer", outline:"none", appearance:"none", WebkitAppearance:"none", paddingRight:16, backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23999'/%3E%3C/svg%3E")`, backgroundRepeat:"no-repeat", backgroundPosition:"right 5px center" }}
+                      style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", background:korrekturLading===d.id?T.goldPale:T.surface, color:T.textMuted, border:`1px solid ${T.border}`, borderRadius:10, padding:"1px 7px", cursor:"pointer", outline:"none", appearance:"none", WebkitAppearance:"none", paddingRight:16, backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23999'/%3E%3C/svg%3E")`, backgroundRepeat:"no-repeat", backgroundPosition:"right 5px center" }}
                     >{DOK_TYPEN.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select>
-                    <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.815rem", color:T.textFaint }}>{fmtSize(d.groesse)}</span>
+                    <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.815rem", color:T.textFaint }}>{fmtSize(d.groesse)}</span>
                     {d.hochgeladen_am && (
-                      <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.815rem", color:T.textFaint }}>
+                      <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.815rem", color:T.textFaint }}>
                         {(() => {
                           try {
                             const dt = new Date(d.hochgeladen_am.replace(" ", "T"));
@@ -587,7 +587,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                         {d.parse_status==="erfolgreich" && Ic.check} {ps.label}
                       </span>
                       {d.parse_konfidenz != null && (
-                        <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.895rem", fontWeight:600, color:d.parse_konfidenz>0.7?T.green:d.parse_konfidenz>0.4?T.amber:T.red }}>{Math.round(d.parse_konfidenz*100)} %</span>
+                        <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.895rem", fontWeight:600, color:d.parse_konfidenz>0.7?T.green:d.parse_konfidenz>0.4?T.amber:T.red }}>{Math.round(d.parse_konfidenz*100)} %</span>
                       )}
                     </>
                   )}
@@ -631,11 +631,11 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
               onMouseLeave={e => e.currentTarget.style.background="transparent"}>
               <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                 <span style={{ transform: eakteOffen ? "rotate(90deg)" : "rotate(0)", transition:"transform 0.15s", display:"inline-flex" }}>{Ic.chevR}</span>
-                <h3 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:"1rem", fontWeight:700, color:T.navy, margin:0 }}>
+                <h3 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1rem", fontWeight:700, color:T.navy, margin:0 }}>
                   E-Akte (RA-Micro)
                 </h3>
                 {eakteGeladen && (
-                  <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.82rem", color:T.textFaint }}>
+                  <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.82rem", color:T.textFaint }}>
                     {eakteFilter ? `${eakteGefiltert.length} / ${eakteDoks.length}` : eakteDoks.length} Dokumente
                   </span>
                 )}
@@ -651,7 +651,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                     {eakteBulkLaden ? "…" : "📥 Alle PDFs"}
                   </Btn>
                 )}
-                <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", color: eakteEmails ? T.text : T.textFaint }}>E-Mails</span>
+                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color: eakteEmails ? T.text : T.textFaint }}>E-Mails</span>
                 <div
                   onClick={toggleEmails}
                   style={{
@@ -683,13 +683,13 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                 )}
 
                 {eakteFehler && (
-                  <div style={{ padding:"1rem 1.4rem", color:T.red, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.9rem" }}>
+                  <div style={{ padding:"1rem 1.4rem", color:T.red, fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem" }}>
                     ⚠ {eakteFehler}
                   </div>
                 )}
 
                 {!eakteLaden && !eakteFehler && eakteDoks.length === 0 && eakteGeladen && (
-                  <div style={{ padding:"2rem", textAlign:"center", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.975rem", color:T.textFaint }}>
+                  <div style={{ padding:"2rem", textAlign:"center", fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", color:T.textFaint }}>
                     Keine E-Akte-Dokumente gefunden.
                   </div>
                 )}
@@ -698,24 +698,24 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                   <>
                     {/* Filter-Leiste */}
                     <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 1.4rem", borderBottom:`1px solid ${T.border}`, background:T.offWhite }}>
-                      <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", color:T.textMuted, flexShrink:0 }}>Filter:</span>
+                      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textMuted, flexShrink:0 }}>Filter:</span>
                       <select
                         value={eakteFilter}
                         onChange={e => { setEakteFilter(e.target.value); setEakteSeite(0); }}
-                        style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", color:T.textMid, border:`1px solid ${T.border}`, borderRadius:6, padding:"3px 8px", background:T.white, maxWidth:280, cursor:"pointer" }}>
+                        style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textMid, border:`1px solid ${T.border}`, borderRadius:6, padding:"3px 8px", background:T.white, maxWidth:280, cursor:"pointer" }}>
                         <option value="">Alle Absender ({eakteDoks.length})</option>
                         {eakteAbsender.map(a => (
                           <option key={a} value={a}>{a.length > 40 ? a.slice(0,40)+"…" : a}</option>
                         ))}
                       </select>
                       {eakteFilter && (
-                        <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.78rem", color:T.textFaint }}>
+                        <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.78rem", color:T.textFaint }}>
                           {eakteGefiltert.length} Treffer
                         </span>
                       )}
                       {eakteFilter && (
                         <span onClick={() => { setEakteFilter(""); setEakteSeite(0); }}
-                          style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem", color:T.red, cursor:"pointer", textDecoration:"underline" }}>
+                          style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", color:T.red, cursor:"pointer", textDecoration:"underline" }}>
                           Filter zurücksetzen
                         </span>
                       )}
@@ -725,19 +725,19 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                     <div style={{ display:"flex", alignItems:"center", padding:"6px 1.4rem", borderBottom:`1px solid ${T.border}`, background:T.surface }}>
                       <div style={{ width:38, flexShrink:0 }} />
                       <div onClick={() => eakteSortKlick("bemerkung")}
-                        style={{ flex:2, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="bemerkung" ? T.gold : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", paddingLeft:13, cursor:"pointer", userSelect:"none" }}>
+                        style={{ flex:2, fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="bemerkung" ? T.gold : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", paddingLeft:13, cursor:"pointer", userSelect:"none" }}>
                         Dokument{sortPfeil("bemerkung")}
                       </div>
                       <div onClick={() => eakteSortKlick("empfaenger")}
-                        style={{ flex:1, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="empfaenger" ? T.gold : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", minWidth:120, cursor:"pointer", userSelect:"none" }}>
+                        style={{ flex:1, fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="empfaenger" ? T.gold : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", minWidth:120, cursor:"pointer", userSelect:"none" }}>
                         Absender{sortPfeil("empfaenger")}
                       </div>
                       <div onClick={() => eakteSortKlick("sachbearbeiter")}
-                        style={{ width:50, textAlign:"center", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="sachbearbeiter" ? T.gold : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", flexShrink:0, cursor:"pointer", userSelect:"none" }}>
+                        style={{ width:50, textAlign:"center", fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="sachbearbeiter" ? T.gold : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", flexShrink:0, cursor:"pointer", userSelect:"none" }}>
                         SB{sortPfeil("sachbearbeiter")}
                       </div>
                       <div onClick={() => eakteSortKlick("version")}
-                        style={{ width:90, textAlign:"right", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="version" ? T.gold : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", flexShrink:0, paddingRight:8, cursor:"pointer", userSelect:"none" }}>
+                        style={{ width:90, textAlign:"right", fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="version" ? T.gold : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", flexShrink:0, paddingRight:8, cursor:"pointer", userSelect:"none" }}>
                         Datum{sortPfeil("version")}
                       </div>
                       <div style={{ width:140, flexShrink:0 }} />
@@ -758,32 +758,32 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                             </div>
                             {/* Dokument */}
                             <div style={{ flex:2, minWidth:0, paddingLeft:13 }}>
-                              <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.93rem", fontWeight:600, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.93rem", fontWeight:600, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                                 {ed.bemerkung || ed.anzeigename}
                               </div>
                               {ed.rubrik && (
-                                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.72rem", color:T.textFaint, background:T.goldPale, border:`1px solid ${T.goldTrim}`, borderRadius:4, padding:"0 4px", marginTop:2, display:"inline-block" }}>
+                                <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.72rem", color:T.textFaint, background:T.goldPale, border:`1px solid ${T.goldTrim}`, borderRadius:4, padding:"0 4px", marginTop:2, display:"inline-block" }}>
                                   {ed.rubrik}
                                 </span>
                               )}
                             </div>
                             {/* Absender */}
                             <div style={{ flex:1, minWidth:120 }}>
-                              <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", color:T.textMuted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"block" }}>
+                              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textMuted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"block" }}>
                                 {absenderName}
                               </span>
                             </div>
                             {/* SB */}
                             <div style={{ width:50, textAlign:"center", flexShrink:0 }}>
                               {ed.sachbearbeiter && (
-                                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.8rem", color:T.textMid, background:T.surface, border:`1px solid ${T.border}`, borderRadius:4, padding:"1px 6px" }}>
+                                <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.8rem", color:T.textMid, background:T.surface, border:`1px solid ${T.border}`, borderRadius:4, padding:"1px 6px" }}>
                                   {ed.sachbearbeiter}
                                 </span>
                               )}
                             </div>
                             {/* Datum */}
                             <div style={{ width:90, textAlign:"right", flexShrink:0, paddingRight:8 }}>
-                              <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.82rem", color:T.textMid }}>
+                              <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.82rem", color:T.textMid }}>
                                 {ed.version ? (() => {
                                   try { return new Date(ed.version).toLocaleDateString("de-DE", { day:"2-digit", month:"2-digit", year:"2-digit" }); }
                                   catch { return ""; }
@@ -793,7 +793,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                             {/* Aktionen */}
                             <div style={{ width:140, display:"flex", alignItems:"center", justifyContent:"flex-end", gap:4, flexShrink:0 }} onClick={e => e.stopPropagation()}>
                               {eakteImportiert.has(ed.nr) ? (
-                                <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.72rem", fontWeight:600, color:T.green, background:T.greenBg, border:`1px solid ${T.green}33`, borderRadius:10, padding:"2px 8px", whiteSpace:"nowrap" }}>
+                                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem", fontWeight:600, color:T.green, background:T.greenBg, border:`1px solid ${T.green}33`, borderRadius:10, padding:"2px 8px", whiteSpace:"nowrap" }}>
                                   ✓ Importiert
                                 </span>
                               ) : ed.dateityp === "pdf" ? (
@@ -836,7 +836,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                                 />
                               )}
                               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
-                                <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", color:T.textFaint }}>
+                                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textFaint }}>
                                   {ed.anzeigename}
                                 </span>
                                 <Btn size="sm" variant="secondary" onClick={() => setEakteVorschau(null)}>Vorschau schließen</Btn>
@@ -854,7 +854,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                           onClick={() => setEakteSeite(s => Math.max(0, s - 1))}>
                           ← Zurück
                         </Btn>
-                        <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.85rem", color:T.textMid }}>
+                        <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem", color:T.textMid }}>
                           Seite {eakteSeiteAktuell + 1} von {eakteGesamtSeiten}
                           <span style={{ color:T.textFaint, marginLeft:8 }}>
                             ({eakteGefiltert.length} Dokumente)
@@ -971,14 +971,14 @@ function KandidatenDebugDialog({ kandidaten, onClose }) {
         {/* Header */}
         <div style={{ padding:"14px 20px", borderBottom:`1px solid ${T.border}` }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-            <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontWeight:700, fontSize:"1rem", color:T.text }}>
+            <div style={{ fontFamily:"'Figtree',sans-serif", fontWeight:700, fontSize:"1rem", color:T.text }}>
               Auto-Parser Debug – Kandidaten
             </div>
             <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer",
               fontSize:"1.3rem", color:T.textMuted, lineHeight:1, padding:"4px 8px" }}>✕</button>
           </div>
           <div style={{ display:"flex", gap:16, flexWrap:"wrap", marginTop:6,
-            fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem" }}>
+            fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem" }}>
             <span style={{ color:T.textMuted }}>
               Gesamt: <strong style={{color:T.text}}>{kandidaten.length}</strong>
             </span>
@@ -1012,7 +1012,7 @@ function KandidatenDebugDialog({ kandidaten, onClose }) {
             return (
               <div key={dk} style={{ marginBottom:16 }}>
                 {/* Gruppen-Header */}
-                <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.75rem",
+                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem",
                   fontWeight:700, textTransform:"uppercase", letterSpacing:"0.07em",
                   color: isRef ? T.textMuted : T.gold,
                   borderBottom:`2px solid ${isRef ? T.border : T.gold+"44"}`,
@@ -1031,7 +1031,7 @@ function KandidatenDebugDialog({ kandidaten, onClose }) {
                       padding:"6px 8px", borderRadius:6, marginBottom:4,
                       background: isWinner ? T.green+"12" : (i%2===0 ? "#fafafa" : "#fff"),
                       border: isWinner ? `1px solid ${T.green}44` : "1px solid transparent",
-                      fontFamily:"'IBM Plex Sans',sans-serif",
+                      fontFamily:"'Figtree',sans-serif",
                       fontWeight: isWinner ? 700 : 400,
                       color: T.text,
                     }}>
@@ -1056,7 +1056,7 @@ function KandidatenDebugDialog({ kandidaten, onClose }) {
                           title={k.grund}>
                           {k.grund}
                         </span>
-                        <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.8rem",
+                        <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.8rem",
                           textAlign:"right", color: k.betrag_vorschlag != null ? T.text : T.textFaint }}>
                           {k.betrag_vorschlag != null ? fmtEuro(k.betrag_vorschlag) : "kein Betrag"}
                         </span>
@@ -1070,7 +1070,7 @@ function KandidatenDebugDialog({ kandidaten, onClose }) {
                           {k.domain && (
                             <span title="Absender-Domain">
                               <span style={{opacity:0.6}}>Domain:</span>{" "}
-                              <span style={{fontFamily:"'IBM Plex Mono',monospace", color:T.text}}>{k.domain}</span>
+                              <span style={{fontFamily:"ui-monospace,monospace", color:T.text}}>{k.domain}</span>
                             </span>
                           )}
                           {k.rubrik && (
@@ -1101,7 +1101,7 @@ function KandidatenDebugDialog({ kandidaten, onClose }) {
           })}
           {kandidaten.length === 0 && (
             <div style={{ textAlign:"center", padding:"2rem", color:T.textMuted,
-              fontFamily:"'IBM Plex Sans',sans-serif" }}>
+              fontFamily:"'Figtree',sans-serif" }}>
               Keine Kandidaten gefunden.
             </div>
           )}
@@ -1111,7 +1111,7 @@ function KandidatenDebugDialog({ kandidaten, onClose }) {
         <div style={{ padding:"10px 20px", borderTop:`1px solid ${T.border}`,
           display:"flex", justifyContent:"flex-end" }}>
           <button onClick={onClose} style={{
-            fontFamily:"'IBM Plex Sans',sans-serif", fontWeight:600, fontSize:"0.875rem",
+            fontFamily:"'Figtree',sans-serif", fontWeight:600, fontSize:"0.875rem",
             background:T.gold, color:"#fff", border:"none", borderRadius:7,
             padding:"7px 20px", cursor:"pointer",
           }}>

@@ -59,7 +59,7 @@ function KriteriumZeile({ label, wert, auto = true }) {
       </span>
       <span style={{ color: T.textMid, flex:1 }}>{label}</span>
       <span style={{ color: ok ? T.text : T.textFaint, fontWeight: ok ? 600 : 400,
-                     fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.82rem" }}>
+                     fontFamily:"ui-monospace,monospace", fontSize:"0.82rem" }}>
         {typeof wert === "boolean" ? (wert ? "Ja" : "Nein")
           : typeof wert === "number" ? wert
           : wert || "–"}
@@ -86,14 +86,14 @@ function RvgTabelle({ rvg }) {
                               padding:"6px 14px", borderBottom:`1px solid ${T.borderSoft}`,
                               fontSize:"0.87rem", color:T.textMid }}>
           <span>{l}</span>
-          <span style={{ fontFamily:"'IBM Plex Mono',monospace" }}>{r}</span>
+          <span style={{ fontFamily:"ui-monospace,monospace" }}>{r}</span>
         </div>
       ))}
       <div style={{ display:"flex", justifyContent:"space-between",
                     padding:"8px 14px", background:T.navy, color:"#fff",
                     fontWeight:700, fontSize:"0.95rem" }}>
         <span>Gesamtbetrag (brutto)</span>
-        <span style={{ fontFamily:"'IBM Plex Mono',monospace" }}>{fmtEuro(rvg.gesamt)}</span>
+        <span style={{ fontFamily:"ui-monospace,monospace" }}>{fmtEuro(rvg.gesamt)}</span>
       </div>
     </div>
   );
@@ -338,7 +338,7 @@ export default function GebuehrenSection({ akteId, akte }) {
               {vuregel}
             </div>
             <div style={{ fontWeight:700, fontSize:"1.4rem", color:T.navy,
-                          fontFamily:"'IBM Plex Sans',sans-serif" }}>
+                          fontFamily:"'Figtree',sans-serif" }}>
               Faktor {fmtFaktor(faktorNumeric)}
             </div>
             <div style={{ color:T.textMuted, fontSize:"0.85rem" }}>
@@ -372,7 +372,7 @@ export default function GebuehrenSection({ akteId, akte }) {
                 onChange={e => setFaktorFinal(e.target.value)}
                 placeholder="z.B. 1,7"
                 style={{ width:70, padding:"4px 8px", border:`1px solid ${T.border}`,
-                         borderRadius:6, fontFamily:"'IBM Plex Mono',monospace",
+                         borderRadius:6, fontFamily:"ui-monospace,monospace",
                          fontSize:"0.88rem", textAlign:"center" }}
               />
             </div>
@@ -397,7 +397,7 @@ export default function GebuehrenSection({ akteId, akte }) {
                        border:`1px solid ${T.border}`, borderRadius:8,
                        fontSize:"0.88rem", lineHeight:1.55, color:T.text,
                        background:T.surface, resize:"vertical",
-                       fontFamily:"'IBM Plex Sans',sans-serif", boxSizing:"border-box" }}
+                       fontFamily:"'Figtree',sans-serif", boxSizing:"border-box" }}
             />
             {vorschlag?.leitentscheidung && (
               <div style={{ marginTop:6, fontSize:"0.8rem", color:T.textMuted, fontStyle:"italic" }}>
@@ -448,5 +448,5 @@ const labelStyle = {
 const optionBtnStyle = {
   padding:"5px 14px", border:`1px solid`, borderRadius:20,
   cursor:"pointer", fontSize:"0.83rem", fontWeight:600,
-  fontFamily:"'IBM Plex Sans',sans-serif", transition:"all 0.12s",
+  fontFamily:"'Figtree',sans-serif", transition:"all 0.12s",
 };

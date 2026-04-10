@@ -46,7 +46,7 @@ function RaMicroSachstandsCard({ akte, inGrid = false }) {
       {!inGrid && (
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"1.1rem" }}>
           <div style={{ flex:1, height:1, background:T.border }} />
-          <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem", color:T.textFaint, fontWeight:500, letterSpacing:"0.08em", textTransform:"uppercase", whiteSpace:"nowrap" }}>
+          <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", color:T.textFaint, fontWeight:500, letterSpacing:"0.08em", textTransform:"uppercase", whiteSpace:"nowrap" }}>
             RA-Micro Integration
           </span>
           <div style={{ flex:1, height:1, background:T.border }} />
@@ -60,41 +60,41 @@ function RaMicroSachstandsCard({ akte, inGrid = false }) {
         </div>
 
         <div style={{ flex:1 }}>
-          <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:"1rem", fontWeight:700, color:T.navy, marginBottom:2 }}>
+          <div style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1rem", fontWeight:700, color:T.navy, marginBottom:2 }}>
             Sachstandsanfrage
           </div>
-          <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.835rem", color:T.textFaint, marginBottom:10 }}>
+          <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.835rem", color:T.textFaint, marginBottom:10 }}>
             Daten aus RA-Micro Wiedervorlage · Kanzlei-Briefformat
           </div>
 
           {ladeWv ? (
-            <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem", color:T.textMuted, display:"flex", alignItems:"center", gap:8 }}>
+            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.textMuted, display:"flex", alignItems:"center", gap:8 }}>
               <div style={{ width:12, height:12, border:`2px solid ${T.border}`, borderTopColor:T.navy, borderRadius:"50%", animation:"spin 0.7s linear infinite" }} />
               Suche Wiedervorlage …
             </div>
           ) : !wv ? (
-            <div style={{ display:"inline-flex", alignItems:"center", gap:7, background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:8, padding:"7px 13px", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem", color:"#92400e" }}>
+            <div style={{ display:"inline-flex", alignItems:"center", gap:7, background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:8, padding:"7px 13px", fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:"#92400e" }}>
               <span>⚠️</span> Keine offene Wiedervorlage „Stellungnahme Gegner" in RA-Micro für {akte.az}
             </div>
           ) : (
             <div style={{ display:"flex", flexWrap:"wrap", gap:8, alignItems:"center" }}>
               {/* WV-Info-Chips */}
-              <span style={{ background:T.goldPale, border:`1px solid ${T.goldTrim}`, borderRadius:6, padding:"3px 9px", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", color:T.textMid }}>
+              <span style={{ background:T.goldPale, border:`1px solid ${T.goldTrim}`, borderRadius:6, padding:"3px 9px", fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textMid }}>
                 Fällig: {wv.datum ? new Date(wv.datum + "T00:00:00").toLocaleDateString("de-DE") : "–"}
               </span>
               {wv.gegner_hv_name && (
-                <span style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:6, padding:"3px 9px", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", color:T.textMid }}>
+                <span style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:6, padding:"3px 9px", fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textMid }}>
                   {wv.gegner_hv_name}
                 </span>
               )}
               {wv.betreff1 && (
-                <span style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:6, padding:"3px 9px", fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.8rem", color:T.textMuted }}>
+                <span style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:6, padding:"3px 9px", fontFamily:"ui-monospace,monospace", fontSize:"0.8rem", color:T.textMuted }}>
                   {wv.betreff1}
                 </span>
               )}
 
               {fehler && (
-                <div style={{ width:"100%", background:"#fff1f2", border:"1px solid #fca5a5", borderRadius:7, padding:"6px 12px", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.85rem", color:"#9f1239" }}>
+                <div style={{ width:"100%", background:"#fff1f2", border:"1px solid #fca5a5", borderRadius:7, padding:"6px 12px", fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem", color:"#9f1239" }}>
                   {fehler}
                 </div>
               )}
@@ -105,7 +105,7 @@ function RaMicroSachstandsCard({ akte, inGrid = false }) {
                   background: erstellt ? "#f0fdf4" : T.navy,
                   color:      erstellt ? "#065f46" : T.white,
                   border:     erstellt ? "1.5px solid #6ee7b7" : "none",
-                  borderRadius:8, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.935rem", fontWeight:600,
+                  borderRadius:8, fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem", fontWeight:600,
                   cursor: laedt ? "default" : "pointer", opacity: laedt ? 0.7 : 1, transition:"all 0.2s",
                 }}>
                 {laedt

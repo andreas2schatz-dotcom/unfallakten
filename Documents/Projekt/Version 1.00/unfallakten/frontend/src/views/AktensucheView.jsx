@@ -49,20 +49,20 @@ function AktensucheView({ onOpenAkte }) {
   };
 
   const labelStyle = {
-    fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem",
+    fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
     fontWeight:600, color:T.textMid, letterSpacing:"0.06em",
     textTransform:"uppercase", display:"block", marginBottom:6,
   };
 
   const inpStyle = {
     width:"100%", padding:"9px 11px", border:`1.5px solid ${T.border}`,
-    borderRadius:7, fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.975rem",
+    borderRadius:7, fontFamily:"ui-monospace,monospace", fontSize:"0.975rem",
     color:T.text, background:T.white, outline:"none",
     boxSizing:"border-box", transition:"border-color 0.15s",
   };
 
   const hint = {
-    marginTop:5, fontFamily:"'IBM Plex Sans',sans-serif",
+    marginTop:5, fontFamily:"'Figtree',sans-serif",
     fontSize:"0.75rem", color:T.textFaint, lineHeight:1.4,
   };
 
@@ -71,10 +71,10 @@ function AktensucheView({ onOpenAkte }) {
 
       {/* Header */}
       <div style={{ background:T.white, borderBottom:`1px solid ${T.border}`, padding:"1.1rem 1.75rem", flexShrink:0 }}>
-        <h1 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:"1.45rem", fontWeight:700, color:T.navy, margin:"0 0 3px" }}>
+        <h1 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1.45rem", fontWeight:700, color:T.navy, margin:"0 0 3px" }}>
           Aktensuche
         </h1>
-        <p style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.855rem", color:T.textMuted, margin:0 }}>
+        <p style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem", color:T.textMuted, margin:0 }}>
           Direktsuche in der RA-Micro Datenbank · Alle aktiven Akten
         </p>
       </div>
@@ -133,7 +133,7 @@ function AktensucheView({ onOpenAkte }) {
             type="date"
             value={tag} onChange={e => setTag(e.target.value)}
             onKeyDown={e => e.key==="Enter" && suchen("tag")}
-            style={{ ...inpStyle, fontFamily:"'IBM Plex Sans',sans-serif" }}
+            style={{ ...inpStyle, fontFamily:"'Figtree',sans-serif" }}
             onFocus={e => e.target.style.borderColor=T.gold}
             onBlur={e  => e.target.style.borderColor=T.border}
           />
@@ -151,7 +151,7 @@ function AktensucheView({ onOpenAkte }) {
         <div style={{ margin:"0 1.75rem 0.75rem", padding:"9px 14px",
           background: ramicroAktiv ? T.redBg : T.amberBg,
           border:`1px solid ${ramicroAktiv ? T.red : T.amber}44`,
-          borderRadius:8, fontFamily:"'IBM Plex Sans',sans-serif",
+          borderRadius:8, fontFamily:"'Figtree',sans-serif",
           fontSize:"0.855rem", color: ramicroAktiv ? T.red : T.amber }}>
           {ramicroAktiv ? "⚠" : "ℹ"} {fehler}
         </div>
@@ -161,7 +161,7 @@ function AktensucheView({ onOpenAkte }) {
       {treffer !== null && (
         <div style={{ flex:1, overflowY:"auto", padding:"0 1.75rem 1.75rem" }}>
           {treffer.length === 0 && !fehler ? (
-            <div style={{ textAlign:"center", padding:"3rem 0", color:T.textFaint, fontFamily:"'IBM Plex Sans',sans-serif" }}>
+            <div style={{ textAlign:"center", padding:"3rem 0", color:T.textFaint, fontFamily:"'Figtree',sans-serif" }}>
               <div style={{ fontSize:"2.5rem", marginBottom:8 }}>🗂</div>
               <div style={{ fontSize:"1rem" }}>Keine aktiven Akten gefunden</div>
               {suchmodus && <div style={{ fontSize:"0.85rem", marginTop:4 }}>Suchmodus: {SUCHMODUS_LABEL[suchmodus]}</div>}
@@ -170,16 +170,16 @@ function AktensucheView({ onOpenAkte }) {
             <Card>
               <div style={{ padding:"0.65rem 1.4rem", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`1px solid ${T.border}` }}>
                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", fontWeight:600, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.08em" }}>
+                  <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", fontWeight:600, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.08em" }}>
                     Ergebnisse
                   </span>
                   {suchmodus && (
-                    <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem", background:T.goldPale, color:T.navy, border:`1px solid rgba(200,168,75,0.3)`, borderRadius:10, padding:"1px 8px" }}>
+                    <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", background:T.goldPale, color:T.navy, border:`1px solid rgba(200,168,75,0.3)`, borderRadius:10, padding:"1px 8px" }}>
                       {SUCHMODUS_LABEL[suchmodus]}
                     </span>
                   )}
                 </div>
-                <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", color:T.textFaint }}>
+                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textFaint }}>
                   {treffer.length} Treffer
                 </span>
               </div>
@@ -187,7 +187,7 @@ function AktensucheView({ onOpenAkte }) {
                 <thead>
                   <tr style={{ background:T.surface }}>
                     {["Aktenzeichen","Bezeichnung","Sachbearb.",""].map((h,i) => (
-                      <th key={i} style={{ padding:"8px 14px", textAlign:"left", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem", fontWeight:600, color:T.textMuted, letterSpacing:"0.06em", textTransform:"uppercase", borderBottom:`1px solid ${T.border}`, whiteSpace:"nowrap" }}>{h}</th>
+                      <th key={i} style={{ padding:"8px 14px", textAlign:"left", fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", fontWeight:600, color:T.textMuted, letterSpacing:"0.06em", textTransform:"uppercase", borderBottom:`1px solid ${T.border}`, whiteSpace:"nowrap" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -199,26 +199,26 @@ function AktensucheView({ onOpenAkte }) {
                       onMouseLeave={e => e.currentTarget.style.background=i%2===0?T.white:"#fafaf8"}>
                       <td style={{ padding:"10px 14px", whiteSpace:"nowrap" }}>
                         <button onClick={() => onOpenAkte({ id:t.az_roh, az:t.az, az_roh:t.az_roh, status:t.status||"offen", unfalldatum:t.unfalldatum||"", unfallort:t.unfallort||"", hq:t.haftungsquote||100, brutto:0 })}
-                          style={{ background:"none", border:"none", padding:0, cursor:"pointer", fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.875rem", fontWeight:600, color:T.navy, textDecoration:"underline", textDecorationColor:"rgba(27,42,74,0.3)" }}>
+                          style={{ background:"none", border:"none", padding:0, cursor:"pointer", fontFamily:"ui-monospace,monospace", fontSize:"0.875rem", fontWeight:600, color:T.navy, textDecoration:"underline", textDecorationColor:"rgba(27,42,74,0.3)" }}>
                           {t.az}
                         </button>
                       </td>
                       <td style={{ padding:"10px 14px", maxWidth:380 }}>
-                        <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem", fontWeight:600, color:T.textMid, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}
+                        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", fontWeight:600, color:T.textMid, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}
                              title={t.kurzbezeichnung}>
                           {t.kurzbezeichnung || t.mandant || "–"}
                         </div>
                         {(t.bezeichnung || t.kennzeichen) && (
-                          <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.795rem", color:T.textMuted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginTop:2 }}
+                          <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.795rem", color:T.textMuted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginTop:2 }}
                                title={[t.bezeichnung, t.kennzeichen].filter(Boolean).join(" · ")}>
                             {t.bezeichnung}
                             {t.bezeichnung && t.kennzeichen && <span style={{ margin:"0 4px", color:T.textFaint }}>·</span>}
-                            {t.kennzeichen && <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.775rem", fontWeight:700, color:T.blue }}>{t.kennzeichen}</span>}
+                            {t.kennzeichen && <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.775rem", fontWeight:700, color:T.blue }}>{t.kennzeichen}</span>}
                           </div>
                         )}
                       </td>
                       <td style={{ padding:"10px 14px", whiteSpace:"nowrap" }}>
-                        <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.85rem", background:T.goldPale, color:T.navy, border:`1px solid ${T.goldTrim}`, borderRadius:5, padding:"2px 7px", fontWeight:600 }}>
+                        <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.85rem", background:T.goldPale, color:T.navy, border:`1px solid ${T.goldTrim}`, borderRadius:5, padding:"2px 7px", fontWeight:600 }}>
                           {t.sachbearbeiter || "–"}
                         </span>
                       </td>
@@ -239,7 +239,7 @@ function AktensucheView({ onOpenAkte }) {
 
       {/* Leerzustand */}
       {treffer === null && !loading && (
-        <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", color:T.textFaint, fontFamily:"'IBM Plex Sans',sans-serif", gap:10 }}>
+        <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", color:T.textFaint, fontFamily:"'Figtree',sans-serif", gap:10 }}>
           <div style={{ fontSize:"3rem" }}>🔍</div>
           <div style={{ fontSize:"1rem" }}>Suchfeld ausfüllen und „Suchen" klicken</div>
           <div style={{ fontSize:"0.83rem", color:T.textFaint, textAlign:"center", maxWidth:380, lineHeight:1.6 }}>

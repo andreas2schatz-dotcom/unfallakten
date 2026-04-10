@@ -212,10 +212,10 @@ function AkteDetailView({ akte, st, dispatch }) {
               border:"1px solid rgba(200,168,75,0.3)", display:"flex", alignItems:"center",
               justifyContent:"center", color:T.white, flexShrink:0 }}>{Ic.akte}</div>
             <div>
-              <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.72rem",
+              <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.72rem",
                 color:"rgba(200,168,75,0.65)", letterSpacing:"0.1em", textTransform:"uppercase",
                 lineHeight:1 }}>Aktenzeichen</div>
-              <h1 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:"1.45rem",
+              <h1 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1.45rem",
                 fontWeight:700, color:T.white, margin:"2px 0 0", lineHeight:1.1 }}>{akte.az}</h1>
             </div>
           {/* ── Status-Dropdown (neben AZ) ── */}
@@ -229,7 +229,7 @@ function AkteDetailView({ akte, st, dispatch }) {
                     padding:"4px 10px 4px 8px", borderRadius:20, cursor:"pointer",
                     border:`1.5px solid ${sm.color}`,
                     background:sm.bg, color:sm.color,
-                    fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem",
+                    fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
                     fontWeight:700, transition:"all 0.15s", whiteSpace:"nowrap" }}>
                   {sm.label}
                   <span style={{ fontSize:"0.65rem", opacity:0.7,
@@ -262,7 +262,7 @@ function AkteDetailView({ akte, st, dispatch }) {
                             padding:"8px 14px", background: isA ? "rgba(255,255,255,0.08)" : "transparent",
                             border:"none", borderBottom:"1px solid rgba(255,255,255,0.07)",
                             color: isA ? smi.color : "rgba(255,255,255,0.7)",
-                            fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.85rem",
+                            fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem",
                             fontWeight: isA ? 700 : 400, cursor:"pointer",
                             transition:"background 0.1s" }}
                             onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.08)"}
@@ -310,7 +310,7 @@ function AkteDetailView({ akte, st, dispatch }) {
                   <span style={{ fontSize:"0.85rem", flexShrink:0 }}>📋</span>
                   <div style={{ flex:1, minWidth:0 }}>
                     {offeneTodos.length === 0 ? (
-                      <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem",
+                      <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
                         color:"rgba(255,255,255,0.4)" }}>Keine To-Do's erfasst</div>
                     ) : (<>
                       {preview.map(t => (
@@ -318,13 +318,13 @@ function AkteDetailView({ akte, st, dispatch }) {
                           marginBottom: preview.length > 1 ? 2 : 0 }}>
                           <span style={{ width:6, height:6, borderRadius:"50%", flexShrink:0,
                             background:FARBEN_DOT[dring(t)], display:"inline-block" }} />
-                          <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem",
+                          <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
                             color:"rgba(255,255,255,0.75)", overflow:"hidden",
                             textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.text}</span>
                         </div>
                       ))}
                       {offeneTodos.length > 2 && (
-                        <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.72rem",
+                        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem",
                           color:"rgba(255,255,255,0.35)", marginTop:1 }}>
                           + {offeneTodos.length - 2} weitere
                         </div>
@@ -345,7 +345,7 @@ function AkteDetailView({ akte, st, dispatch }) {
                     borderRadius:10, zIndex:200, padding:"10px 14px",
                     boxShadow:"0 8px 32px rgba(0,0,0,0.4)" }}>
                     {sortiert.length === 0 ? (
-                      <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.85rem",
+                      <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem",
                         color:"rgba(255,255,255,0.4)", textAlign:"center", padding:"8px 0" }}>
                         Keine To-Do's erfasst
                       </div>
@@ -364,11 +364,11 @@ function AkteDetailView({ akte, st, dispatch }) {
                           onMouseEnter={e => e.currentTarget.style.background=FARBEN_DOT[dring(t)]}
                           onMouseLeave={e => e.currentTarget.style.background="transparent"} />
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.83rem",
+                          <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.83rem",
                             color:"rgba(255,255,255,0.85)", lineHeight:1.4 }}>{t.text}</div>
                           {t.faellig_am && (
                             <div style={{ fontSize:"0.72rem", color:"rgba(255,255,255,0.35)",
-                              fontFamily:"'IBM Plex Mono',monospace", marginTop:1 }}>
+                              fontFamily:"ui-monospace,monospace", marginTop:1 }}>
                               Fällig: {(() => { try { const [y,m,d]=t.faellig_am.split("-"); return `${d}.${m}.${y}`; } catch{return t.faellig_am;}})()}
                               {t.frist_typ==="verjaehrung" && " ⚠️"}
                             </div>
@@ -379,7 +379,7 @@ function AkteDetailView({ akte, st, dispatch }) {
                     <button onClick={() => { setTodoKlapp(false); setSec("todos"); }}
                       style={{ marginTop:8, width:"100%", background:"rgba(200,168,75,0.15)",
                         border:"1px solid rgba(200,168,75,0.3)", borderRadius:7,
-                        color:T.gold, fontFamily:"'IBM Plex Sans',sans-serif",
+                        color:T.gold, fontFamily:"'Figtree',sans-serif",
                         fontSize:"0.8rem", padding:"5px 0", cursor:"pointer", fontWeight:600 }}>
                       Alle To-Dos anzeigen →
                     </button>
@@ -406,9 +406,9 @@ function AkteDetailView({ akte, st, dispatch }) {
                   {s.divider && <div style={{ width:1, background:"rgba(255,255,255,0.12)",
                     alignSelf:"stretch", margin:"2px 5px" }} />}
                   <div style={{ textAlign:"center", padding:"0 4px" }}>
-                    <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"1.0rem",
+                    <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"1.0rem",
                       fontWeight:700, color:s.farbe }}>{s.v}</div>
-                    <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.72rem",
+                    <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem",
                       color:"rgba(255,255,255,0.45)", marginTop:2, letterSpacing:"0.04em" }}>{s.l}</div>
                   </div>
                 </React.Fragment>
@@ -424,7 +424,7 @@ function AkteDetailView({ akte, st, dispatch }) {
               style={{ padding:"8px 16px", background:"transparent", border:"none",
                 borderBottom:sec===t.id?`2px solid ${T.gold}`:"2px solid transparent",
                 color:sec===t.id?T.white:"rgba(255,255,255,0.5)",
-                fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.935rem",
+                fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem",
                 fontWeight:sec===t.id?600:400, cursor:"pointer",
                 transition:"all 0.15s", whiteSpace:"nowrap", flexShrink:0,
                 display:"flex", alignItems:"center", gap:5 }}>

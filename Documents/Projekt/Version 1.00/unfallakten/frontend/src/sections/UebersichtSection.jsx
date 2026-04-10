@@ -17,8 +17,8 @@ function InfoZeile({ label, value, mono=false, bold=false }) {
   if (!value) return null;
   return (
     <div style={{ display:"flex", gap:8, padding:"4px 0", borderBottom:`1px solid ${T.borderSoft}` }}>
-      <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem", color:T.textFaint, width:110, flexShrink:0, paddingTop:1 }}>{label}</span>
-      <span style={{ fontFamily: mono?"'IBM Plex Mono',monospace":"'IBM Plex Sans',sans-serif", fontSize:"0.875rem", color:T.text, fontWeight: bold?600:400 }}>{value}</span>
+      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", color:T.textFaint, width:110, flexShrink:0, paddingTop:1 }}>{label}</span>
+      <span style={{ fontFamily: mono?"ui-monospace,monospace":"'Figtree',sans-serif", fontSize:"0.875rem", color:T.text, fontWeight: bold?600:400 }}>{value}</span>
     </div>
   );
 }
@@ -43,7 +43,7 @@ function RechtsschutzKlappkachel({ beteiligte }) {
           padding:"6px 12px", cursor:"pointer", transition:"all 0.18s",
         }}>
         <span style={{
-          fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem", fontWeight:600,
+          fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", fontWeight:600,
           color: offen ? T.green : T.textMuted,
           textTransform:"uppercase", letterSpacing:"0.08em",
         }}>
@@ -135,42 +135,42 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
       {/* Kachel-Header – wird ausgeblendet wenn kein Titel (z.B. in RechtsschutzKlappkachel) */}
       {titel && <div style={{ background: farbe + "18", borderBottom:`1px solid ${farbe}33`, padding:"8px 14px", display:"flex", alignItems:"center", gap:8 }}>
         <div style={{ width:8, height:8, borderRadius:"50%", background: farbe, flexShrink:0 }} />
-        <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem", fontWeight:600, color: farbe, textTransform:"uppercase", letterSpacing:"0.08em" }}>{titel}</span>
-        {liste.length > 1 && <span style={{ marginLeft:"auto", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem", color:T.textFaint }}>{liste.length} Einträge</span>}
+        <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:600, color: farbe, textTransform:"uppercase", letterSpacing:"0.08em" }}>{titel}</span>
+        {liste.length > 1 && <span style={{ marginLeft:"auto", fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", color:T.textFaint }}>{liste.length} Einträge</span>}
       </div>}
 
       {/* Einträge */}
       {liste.map((b, i) => (
         <div key={i} style={{ padding:"10px 14px", borderBottom: i < liste.length-1 ? `1px solid ${T.borderSoft}` : "none" }}>
           {/* Name / Firma */}
-          <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.925rem", fontWeight:600, color:T.navy, marginBottom:3 }}>
+          <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.925rem", fontWeight:600, color:T.navy, marginBottom:3 }}>
             {zeigeFirma && b.name ? b.name : b.name || "–"}
-            {b.kennzeichen && <span style={{ marginLeft:8, fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.75rem", background:T.goldPale, color:T.navy, border:`1px solid ${T.goldTrim}`, borderRadius:4, padding:"1px 5px" }}>{b.kennzeichen}</span>}
+            {b.kennzeichen && <span style={{ marginLeft:8, fontFamily:"ui-monospace,monospace", fontSize:"0.75rem", background:T.goldPale, color:T.navy, border:`1px solid ${T.goldTrim}`, borderRadius:4, padding:"1px 5px" }}>{b.kennzeichen}</span>}
           </div>
 
           {/* Betreffzeilen (fett) */}
           {zeigeBetreff && (b.betreff1 || b.betreff2 || b.betreff3) && (
-            <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.855rem", fontWeight:600, color:T.textMid, marginBottom:4 }}>
+            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem", fontWeight:600, color:T.textMid, marginBottom:4 }}>
               {[b.betreff1, b.betreff2, b.betreff3].filter(Boolean).join(" · ")}
             </div>
           )}
 
           {/* Aktenzeichen (fett, für Behörden) */}
           {zeigeAktenzeichen && b.betreff1 && (
-            <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.855rem", fontWeight:700, color:T.navy, marginBottom:4 }}>
+            <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.855rem", fontWeight:700, color:T.navy, marginBottom:4 }}>
               {b.betreff1}
             </div>
           )}
 
           {/* Adressdetails */}
           <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
-            {b.strasse && <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", color:T.textMuted }}>{b.strasse}{b.plz || b.ort ? `, ${b.plz} ${b.ort}`.trim() : ""}</span>}
-            {b.telefon  && <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", color:T.textMuted }}>☎ {b.telefon}</span>}
-            {b.telefon2 && <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", color:T.textMuted }}>☎ {b.telefon2}</span>}
-            {b.mobil    && <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", color:T.textMuted }}>📱 {b.mobil}</span>}
-            {b.fax      && <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", color:T.textMuted }}>📠 {b.fax}</span>}
+            {b.strasse && <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textMuted }}>{b.strasse}{b.plz || b.ort ? `, ${b.plz} ${b.ort}`.trim() : ""}</span>}
+            {b.telefon  && <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textMuted }}>☎ {b.telefon}</span>}
+            {b.telefon2 && <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textMuted }}>☎ {b.telefon2}</span>}
+            {b.mobil    && <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textMuted }}>📱 {b.mobil}</span>}
+            {b.fax      && <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textMuted }}>📠 {b.fax}</span>}
             {b.email && (
-              <a href={mailtoLink(b)} style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", color:T.blue, textDecoration:"none" }}
+              <a href={mailtoLink(b)} style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.blue, textDecoration:"none" }}
                  onMouseEnter={e => e.target.style.textDecoration="underline"}
                  onMouseLeave={e => e.target.style.textDecoration="none"}>
                 ✉ {b.email}
@@ -180,11 +180,11 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
             {titel === "Mandant" && (
               <div style={{ marginTop:4, display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
                 {ibanCheck === null ? (
-                  <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem", color:T.textFaint }}>
+                  <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", color:T.textFaint }}>
                     ⟳ IBAN wird geprüft…
                   </span>
                 ) : ibanCheck.iban_vorhanden ? (
-                  <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem",
+                  <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
                     color:"#16a34a", display:"flex", alignItems:"center", gap:4 }}>
                     <span style={{ fontSize:"0.9rem" }}>✅</span>
                     IBAN erfasst
@@ -194,14 +194,14 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
                   </span>
                 ) : ibanCheck.iban_vorhanden === false ? (
                   <span style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-                    <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem",
+                    <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
                       color:T.red, display:"flex", alignItems:"center", gap:4 }}>
                       <span style={{ fontSize:"0.9rem" }}>❌</span>
                       IBAN nicht erfasst
                     </span>
                     {(ibanCheck.mandant_email || b.email) && (
                       <a href={ibanMailtoLink()}
-                        style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.77rem",
+                        style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.77rem",
                           padding:"2px 8px", background:T.blueBg,
                           border:`1px solid ${T.blue}55`, borderRadius:5,
                           color:T.navy, textDecoration:"none", whiteSpace:"nowrap",
@@ -211,7 +211,7 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
                     )}
                   </span>
                 ) : (
-                  <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem", color:T.textFaint }}>
+                  <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", color:T.textFaint }}>
                     ○ IBAN: keine RA-Micro-Verbindung
                   </span>
                 )}
@@ -221,25 +221,25 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
             {titel === "Mandant" && (
               <div style={{ marginTop:4, display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
                 {ibanCheck === null ? (
-                  <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem", color:T.textFaint }}>
+                  <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", color:T.textFaint }}>
                     ⟳ Vollmacht wird geprüft…
                   </span>
                 ) : ibanCheck.vollmacht_vorhanden ? (
-                  <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem",
+                  <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
                     color:"#16a34a", display:"flex", alignItems:"center", gap:4 }}>
                     <span style={{ fontSize:"0.9rem" }}>✅</span>
                     Vollmacht liegt vor
                   </span>
                 ) : ibanCheck.vollmacht_vorhanden === false ? (
                   <span style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-                    <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem",
+                    <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
                       color:T.red, display:"flex", alignItems:"center", gap:4 }}>
                       <span style={{ fontSize:"0.9rem" }}>❌</span>
                       Vollmacht fehlt
                     </span>
                     {(ibanCheck.mandant_email || b.email) && (
                       <a href={vollmachtMailtoLink()}
-                        style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.77rem",
+                        style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.77rem",
                           padding:"2px 8px", background:"#fdf4ff",
                           border:"1px solid #d8b4fe", borderRadius:5,
                           color:"#6b21a8", textDecoration:"none", whiteSpace:"nowrap",
@@ -274,7 +274,7 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
                             setToast(`Vollmacht-Fehler: ${e.message}`);
                           }
                         }}
-                        style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.77rem",
+                        style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.77rem",
                           padding:"2px 8px", background:"#f0fdf4",
                           border:"1px solid #86efac", borderRadius:5,
                           color:"#15803d", cursor:"pointer", fontWeight:600,
@@ -289,7 +289,7 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
             {/* Vorsteuerabzug nur bei Mandanten anzeigen */}
             {titel === "Mandant" && (
               <span style={{
-                fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem",
+                fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
                 color: ["Y","J","JA","1"].includes((b.vorsteuer||"").toUpperCase()) ? T.amber : T.textFaint,
                 marginTop:2, display:"flex", alignItems:"center", gap:4,
               }}>
@@ -313,11 +313,11 @@ function EigeneVersicherungMini({ beteiligte }) {
   if (!beteiligte.length) return null;
   return (
     <div style={{ marginTop:8, background: T.surface, border:`1px solid ${T.border}`, borderRadius:7, padding:"7px 12px" }}>
-      <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.75rem", fontWeight:600, color:T.textFaint, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:5 }}>
+      <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600, color:T.textFaint, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:5 }}>
         Eigene Versicherung
       </div>
       {beteiligte.map((b, i) => (
-        <div key={i} style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.855rem", color:T.textMid, marginBottom: i < beteiligte.length-1 ? 3 : 0 }}>
+        <div key={i} style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem", color:T.textMid, marginBottom: i < beteiligte.length-1 ? 3 : 0 }}>
           <span style={{ fontWeight:600 }}>{b.name || b.firma}</span>
           {b.kennzeichen && <span style={{ marginLeft:6, fontSize:"0.78rem", color:T.textFaint }}>[{b.kennzeichen}]</span>}
           {b.telefon && <span style={{ marginLeft:8, color:T.textFaint, fontSize:"0.8rem" }}>☎ {b.telefon}</span>}
@@ -342,7 +342,7 @@ function RaMicroAkteUebersicht({ azRoh }) {
   }, [azRoh]);
 
   if (laden) return (
-    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"2rem", color:T.textFaint, fontFamily:"'IBM Plex Sans',sans-serif" }}>
+    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"2rem", color:T.textFaint, fontFamily:"'Figtree',sans-serif" }}>
       <div style={{ width:18, height:18, border:`2px solid ${T.gold}`, borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
       Lade RA-Micro Daten …
     </div>
@@ -351,7 +351,7 @@ function RaMicroAkteUebersicht({ azRoh }) {
   if (fehler) return (
     <Card>
       <div style={{ padding:"1rem 1.4rem", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:10 }}>
-        <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem", color:T.amber }}>
+        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.amber }}>
           ℹ RA-Micro Daten konnten nicht geladen werden — {fehler}
         </div>
         <Btn size="sm" variant="secondary" onClick={() => {
@@ -386,13 +386,13 @@ function RaMicroAkteUebersicht({ azRoh }) {
             { l:"Kurzbezeichnung", v:s.kurzbezeichnung                  },
           ].filter(f => f.v).map(f => (
             <div key={f.l} style={{ display:"flex", alignItems:"baseline", gap:5 }}>
-              <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.75rem", color:T.textFaint, whiteSpace:"nowrap" }}>{f.l}</span>
-              <span style={{ fontFamily: f.mono ? "'IBM Plex Mono',monospace" : "'IBM Plex Sans',sans-serif", fontSize:"0.875rem", color:T.text, fontWeight: f.bold ? 700 : 400, whiteSpace:"nowrap" }}>{f.v}</span>
+              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", color:T.textFaint, whiteSpace:"nowrap" }}>{f.l}</span>
+              <span style={{ fontFamily: f.mono ? "ui-monospace,monospace" : "'Figtree',sans-serif", fontSize:"0.875rem", color:T.text, fontWeight: f.bold ? 700 : 400, whiteSpace:"nowrap" }}>{f.v}</span>
             </div>
           ))}
         </div>
         {s.bezeichnung && (
-          <div style={{ padding:"0 1.4rem 0.6rem", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", color:T.textMuted }}>{s.bezeichnung}</div>
+          <div style={{ padding:"0 1.4rem 0.6rem", fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textMuted }}>{s.bezeichnung}</div>
         )}
       </Card>
 
@@ -543,15 +543,15 @@ function ForderungshistorieKarte({ akteId }) {
                 style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
                   background: T.surface, cursor: "pointer", userSelect: "none" }}>
                 <span style={{ fontSize: "0.8rem", color: T.textMuted }}>▶</span>
-                <span style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontWeight: 600,
+                <span style={{ fontFamily: "'Figtree',sans-serif", fontWeight: 600,
                   color: T.navy, fontSize: "0.92rem" }}>
                   Forderungsschreiben Nr. {s.schreiben_nr}
                 </span>
-                <span style={{ fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.82rem",
+                <span style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.82rem",
                   color: T.textFaint }}>
                   {s.datum || "–"}
                 </span>
-                <span style={{ marginLeft: "auto", fontFamily: "'IBM Plex Mono',monospace",
+                <span style={{ marginLeft: "auto", fontFamily: "ui-monospace,monospace",
                   fontSize: "0.88rem", fontWeight: 600, color: T.navy }}>
                   {fmtEuro(s.gesamt_gefordert)}
                 </span>
@@ -592,11 +592,11 @@ function ForderungshistorieKarte({ akteId }) {
                               <span style={{ fontSize: 11, color: T.textFaint, marginLeft: 4 }}>(Abzug)</span>}
                           </td>
                           <td style={{ padding: "8px 12px", textAlign: "right",
-                            fontFamily: "'IBM Plex Mono',monospace", color: T.text }}>
+                            fontFamily: "ui-monospace,monospace", color: T.text }}>
                             {fmtEuro(pos.betrag_gefordert)}
                           </td>
                           <td style={{ padding: "8px 12px", textAlign: "right",
-                            fontFamily: "'IBM Plex Mono',monospace",
+                            fontFamily: "ui-monospace,monospace",
                             color: pos.betrag_reguliert > 0 ? T.green : T.textFaint }}>
                             {pos.betrag_reguliert > 0 ? fmtEuro(pos.betrag_reguliert) : "—"}
                           </td>
@@ -632,11 +632,11 @@ function ForderungshistorieKarte({ akteId }) {
                       <td style={{ padding: "8px 12px", fontWeight: 700, color: T.navy,
                         fontSize: "0.85rem" }}>Summe</td>
                       <td style={{ padding: "8px 12px", textAlign: "right",
-                        fontFamily: "'IBM Plex Mono',monospace", fontWeight: 700, color: T.navy }}>
+                        fontFamily: "ui-monospace,monospace", fontWeight: 700, color: T.navy }}>
                         {fmtEuro(s.gesamt_gefordert)}
                       </td>
                       <td style={{ padding: "8px 12px", textAlign: "right",
-                        fontFamily: "'IBM Plex Mono',monospace", fontWeight: 700, color: T.green }}>
+                        fontFamily: "ui-monospace,monospace", fontWeight: 700, color: T.green }}>
                         {s.gesamt_reguliert > 0 ? fmtEuro(s.gesamt_reguliert) : "—"}
                       </td>
                       <td colSpan={2} />
@@ -752,7 +752,7 @@ function AktenTimeline({ abrechnungen, aktivitaeten, akteId, onAktivitaetenChang
           {TIMELINE_FILTER.map(f => (
             <button key={f.id} onClick={() => setFilter(f.id)}
               style={{ padding:"4px 12px", borderRadius:20, fontSize:"0.83rem", cursor:"pointer",
-                fontFamily:"'IBM Plex Sans',sans-serif", fontWeight: filter===f.id ? 600 : 400,
+                fontFamily:"'Figtree',sans-serif", fontWeight: filter===f.id ? 600 : 400,
                 border:"1.5px solid " + (filter===f.id ? T.gold : T.border),
                 background: filter===f.id ? T.goldPale : "transparent",
                 color: filter===f.id ? T.navy : T.textMuted, transition:"all 0.12s" }}>
@@ -1204,7 +1204,7 @@ function TodoSection({ akteId, az, onTodoChange }) {
         {/* Inhalt */}
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{
-            fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.925rem",
+            fontFamily:"'Figtree',sans-serif", fontSize:"0.925rem",
             color: todo.erledigt ? T.textFaint : T.text,
             textDecoration: todo.erledigt ? "line-through" : "none",
             lineHeight:1.4,
@@ -1219,7 +1219,7 @@ function TodoSection({ akteId, az, onTodoChange }) {
               </span>
             )}
             {todo.faellig_am && (
-              <span style={{ fontSize:"0.72rem", color:T.textMuted, fontFamily:"'IBM Plex Mono',monospace" }}>
+              <span style={{ fontSize:"0.72rem", color:T.textMuted, fontFamily:"ui-monospace,monospace" }}>
                 Fällig: {(() => { try { const [y,m,d] = todo.faellig_am.split("-"); return `${d}.${m}.${y}`; } catch { return todo.faellig_am; } })()}
                 {todo.frist_typ === "verjaehrung" && " ⚠️ Verjährung"}
               </span>
@@ -1228,7 +1228,7 @@ function TodoSection({ akteId, az, onTodoChange }) {
               <span style={{ fontSize:"0.72rem", color:T.textFaint }}>🔒 System</span>
             )}
             {todo.erledigt_am && (
-              <span style={{ fontSize:"0.72rem", color:T.textFaint, fontFamily:"'IBM Plex Mono',monospace" }}>
+              <span style={{ fontSize:"0.72rem", color:T.textFaint, fontFamily:"ui-monospace,monospace" }}>
                 Erledigt: {(() => { try { return todo.erledigt_am.slice(0,10).split("-").reverse().join("."); } catch { return ""; } })()}
               </span>
             )}
@@ -1260,18 +1260,18 @@ function TodoSection({ akteId, az, onTodoChange }) {
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
             padding:"1rem 1.4rem" }}>
             <div>
-              <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:"1.15rem",
+              <div style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1.15rem",
                 fontWeight:700, color:T.navy }}>
                 To-Dos
                 {offen.length > 0 && (
                   <span style={{ marginLeft:8, fontSize:"0.825rem", background:T.redBg,
-                    color:T.red, borderRadius:12, padding:"2px 8px", fontFamily:"'IBM Plex Sans',sans-serif",
+                    color:T.red, borderRadius:12, padding:"2px 8px", fontFamily:"'Figtree',sans-serif",
                     fontWeight:600, verticalAlign:"middle" }}>
                     {offen.length} offen
                   </span>
                 )}
               </div>
-              <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.85rem",
+              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem",
                 color:T.textFaint, marginTop:2 }}>
                 Aufgaben für diese Akte
               </div>
@@ -1286,7 +1286,7 @@ function TodoSection({ akteId, az, onTodoChange }) {
             <div style={{ margin:"0 1.4rem 1rem", background:T.goldPale,
               border:`1px solid ${T.goldTrim}`, borderRadius:10, padding:"1rem 1.25rem" }}>
               <div style={{ marginBottom:"0.75rem" }}>
-                <label style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.825rem",
+                <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
                   fontWeight:600, color:T.textMid, textTransform:"uppercase",
                   letterSpacing:"0.05em", display:"block", marginBottom:4 }}>
                   Aufgabe *
@@ -1297,7 +1297,7 @@ function TodoSection({ akteId, az, onTodoChange }) {
                   rows={2}
                   placeholder="Was ist zu tun?"
                   style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${T.border}`,
-                    borderRadius:7, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.925rem",
+                    borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.925rem",
                     color:T.text, background:T.surface, outline:"none", resize:"vertical",
                     lineHeight:1.5, boxSizing:"border-box" }}
                   onFocus={e => e.target.style.borderColor=T.gold}
@@ -1307,7 +1307,7 @@ function TodoSection({ akteId, az, onTodoChange }) {
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.75rem",
                 marginBottom:"0.75rem" }}>
                 <div>
-                  <label style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.825rem",
+                  <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
                     fontWeight:600, color:T.textMid, textTransform:"uppercase",
                     letterSpacing:"0.05em", display:"block", marginBottom:4 }}>
                     Fällig am (optional)
@@ -1315,21 +1315,21 @@ function TodoSection({ akteId, az, onTodoChange }) {
                   <input type="date" value={neuesFaellig}
                     onChange={e => setNeuesFaellig(e.target.value)}
                     style={{ width:"100%", padding:"7px 10px", border:`1.5px solid ${T.border}`,
-                      borderRadius:7, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.9rem",
+                      borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem",
                       color:T.text, background:T.surface, outline:"none", boxSizing:"border-box" }}
                     onFocus={e => e.target.style.borderColor=T.gold}
                     onBlur={e => e.target.style.borderColor=T.border}
                   />
                 </div>
                 <div>
-                  <label style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.825rem",
+                  <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
                     fontWeight:600, color:T.textMid, textTransform:"uppercase",
                     letterSpacing:"0.05em", display:"block", marginBottom:4 }}>
                     Fristtyp
                   </label>
                   <select value={neueFristTyp} onChange={e => setNeueFristTyp(e.target.value)}
                     style={{ width:"100%", padding:"7px 10px", border:`1.5px solid ${T.border}`,
-                      borderRadius:7, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.9rem",
+                      borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem",
                       color:T.text, background:T.surface, outline:"none", cursor:"pointer",
                       boxSizing:"border-box" }}>
                     <option value="">Kein Fristtyp</option>
@@ -1354,11 +1354,11 @@ function TodoSection({ akteId, az, onTodoChange }) {
         {/* To-Do-Liste */}
         {loading ? (
           <div style={{ padding:"2rem", textAlign:"center", color:T.textFaint,
-            fontFamily:"'IBM Plex Sans',sans-serif" }}>Lade To-Dos …</div>
+            fontFamily:"'Figtree',sans-serif" }}>Lade To-Dos …</div>
         ) : todos.length === 0 ? (
           <Card>
             <div style={{ padding:"2rem", textAlign:"center", color:T.textFaint,
-              fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.925rem" }}>
+              fontFamily:"'Figtree',sans-serif", fontSize:"0.925rem" }}>
               Keine To-Dos für diese Akte.
             </div>
           </Card>
@@ -1367,7 +1367,7 @@ function TodoSection({ akteId, az, onTodoChange }) {
             <div style={{ padding:"1rem 1.4rem" }}>
               {offen.length > 0 && (
                 <>
-                  <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem",
+                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
                     fontWeight:600, color:T.textMuted, textTransform:"uppercase",
                     letterSpacing:"0.08em", marginBottom:8 }}>
                     Offen ({offen.length})
@@ -1377,7 +1377,7 @@ function TodoSection({ akteId, az, onTodoChange }) {
               )}
               {erledigt.length > 0 && (
                 <>
-                  <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem",
+                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
                     fontWeight:600, color:T.textFaint, textTransform:"uppercase",
                     letterSpacing:"0.08em", margin:`${offen.length > 0 ? "1rem" : 0} 0 8px` }}>
                     Erledigt ({erledigt.length})
@@ -1437,7 +1437,7 @@ function TodoKachelKompakt({ az, akteId }) {
     <Card style={{ borderLeft: offen.length > 0 ? `3px solid ${T.gold}` : undefined }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
         padding:"0.85rem 1.4rem 0.5rem" }}>
-        <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.825rem",
+        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
           fontWeight:600, color:T.textMid, textTransform:"uppercase", letterSpacing:"0.08em" }}>
           📋 To-Dos
           {offen.length > 0 && (
@@ -1451,7 +1451,7 @@ function TodoKachelKompakt({ az, akteId }) {
       <div style={{ padding:"0 1.4rem 0.85rem" }}>
         {offen.length === 0 ? (
           <div style={{ fontSize:"0.875rem", color:T.textFaint,
-            fontFamily:"'IBM Plex Sans',sans-serif" }}>
+            fontFamily:"'Figtree',sans-serif" }}>
             ✅ Alle To-Dos erledigt
           </div>
         ) : (
@@ -1466,14 +1466,14 @@ function TodoKachelKompakt({ az, akteId }) {
               }}>
                 <span style={{ width:8, height:8, borderRadius:"50%",
                   background:f.dot, flexShrink:0, display:"inline-block" }} />
-                <span style={{ fontFamily:"'IBM Plex Sans',sans-serif",
+                <span style={{ fontFamily:"'Figtree',sans-serif",
                   fontSize:"0.875rem", color:T.text, flex:1,
                   overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                   {todo.text}
                 </span>
                 {todo.faellig_am && (
                   <span style={{ fontSize:"0.75rem", color:T.textFaint,
-                    fontFamily:"'IBM Plex Mono',monospace", flexShrink:0 }}>
+                    fontFamily:"ui-monospace,monospace", flexShrink:0 }}>
                     {(() => { try { const [y,m,d]=todo.faellig_am.split("-"); return `${d}.${m}.`; } catch{return "";} })()}
                   </span>
                 )}
@@ -1483,7 +1483,7 @@ function TodoKachelKompakt({ az, akteId }) {
         )}
         {offen.length > 4 && (
           <div style={{ fontSize:"0.8rem", color:T.textFaint, marginTop:5,
-            fontFamily:"'IBM Plex Sans',sans-serif" }}>
+            fontFamily:"'Figtree',sans-serif" }}>
             + {offen.length - 4} weitere …
           </div>
         )}

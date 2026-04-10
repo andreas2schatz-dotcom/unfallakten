@@ -23,19 +23,19 @@ function AnhangZeile({ name, groesse, isPdf, isImg, kannOeffnen, onClick }) {
         {isPdf ? Ic.pdf : Ic.attach}
       </span>
       <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.895rem",
+        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem",
           fontWeight:600, color:kannOeffnen?T.navy:T.text,
           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
           textDecoration:kannOeffnen?"underline":"none",
           textDecorationColor:"rgba(27,42,74,0.3)" }}>{name}</div>
-        {groesse && <div style={{ fontFamily:"'IBM Plex Mono',monospace",
+        {groesse && <div style={{ fontFamily:"ui-monospace,monospace",
           fontSize:"0.78rem", color:T.textMuted }}>{fmtSize(groesse)}</div>}
       </div>
       {laedt && <div style={{ width:12, height:12, border:"2px solid rgba(0,0,0,0.15)",
         borderTopColor:T.navy, borderRadius:"50%",
         animation:"spin 0.7s linear infinite", flexShrink:0 }}/>}
       {!laedt && kannOeffnen && <span style={{ fontSize:"0.78rem", color:T.textMuted,
-        fontFamily:"'IBM Plex Sans',sans-serif", flexShrink:0 }}>
+        fontFamily:"'Figtree',sans-serif", flexShrink:0 }}>
         {isPdf ? "PDF öffnen" : isImg ? "Bild öffnen" : "Öffnen"}</span>}
     </div>
   );

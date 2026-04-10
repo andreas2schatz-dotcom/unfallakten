@@ -1,33 +1,70 @@
 /* Globale Styles – Unfallakten-System */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
+
+/* ─── Typographie-Tokens ──────────────────────────────────────── */
+:root {
+  /* Schriftfamilien */
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-body:    'Figtree', system-ui, sans-serif;
+  --font-mono:    ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+
+  /* Typscala (feste rem-Werte für App-UI, keine fluid-Werte) */
+  --text-xs:   0.75rem;     /* 12px – Timestamps, Badges, Kleingedrucktes */
+  --text-sm:   0.8125rem;   /* 13px – Sekundärlabels, Meta-Infos           */
+  --text-base: 0.875rem;    /* 14px – Primärer UI-Text, Formularfelder      */
+  --text-md:   1rem;        /* 16px – Lesbarer Body, Hervorhebungen         */
+  --text-lg:   1.125rem;    /* 18px – Unterabschnitts-Überschriften         */
+  --text-xl:   1.25rem;     /* 20px – Abschnitts-Überschriften              */
+  --text-2xl:  1.5rem;      /* 24px – Seiten-/Modal-Überschriften           */
+
+  /* Schriftgewichte */
+  --weight-normal:   400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  /* Zeilenhöhen */
+  --leading-tight:   1.2;
+  --leading-snug:    1.35;
+  --leading-normal:  1.5;
+  --leading-relaxed: 1.65;
+}
+
 body {
-  font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
   background: #1B2A4A;
   color: #1a1a2e;
+  font-kerning: normal;
+  font-feature-settings: "kern" 1, "liga" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Animationen */
+/* Tabellarische Zahlen für Daten-Alignment */
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* ─── Animationen ─────────────────────────────────────────────── */
 @keyframes spin     { to { transform: rotate(360deg); } }
 @keyframes shimmer  { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
 @keyframes slideUp  { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes boot-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
 
-/* Scrollbar */
+/* ─── Scrollbar ───────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #d4ccbc; border-radius: 3px; }
 input[type=number]::-webkit-inner-spin-button { opacity: 0; }
 
-/* Ladescreen während React initialisiert */
+/* ─── Ladescreen während React initialisiert ──────────────────── */
 #root:empty::before {
   content: '';
   display: block;
   width: 40px; height: 40px;
-  border: 3px solid rgba(200,168,75,0.2);
-  border-top-color: #C8A84B;
+  border: 3px solid rgba(27,42,74,0.15);
+  border-top-color: #1B2A4A;
   border-radius: 50%;
   animation: boot-spin 0.8s linear infinite;
   position: fixed;

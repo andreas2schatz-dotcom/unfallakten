@@ -38,14 +38,14 @@ function PositionenTabelle({ positionen, kuerzungsarten, akteId, abid, onUpdate,
   };
 
   if (!positionen.length) return (
-    <div style={{ padding:"1rem", color:T.textFaint, fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.9rem" }}>
+    <div style={{ padding:"1rem", color:T.textFaint, fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem" }}>
       Keine Positionen erfasst.
     </div>
   );
 
   return (
     <div style={{ overflowX:"auto" }}>
-      <table style={{ width:"100%", borderCollapse:"collapse", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem" }}>
+      <table style={{ width:"100%", borderCollapse:"collapse", fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}>
         <thead>
           <tr style={{ background:T.surface, borderBottom:`1px solid ${T.border}` }}>
             {["Position","Gefordert","Reguliert","Kürzung","Kürzungsart","Klage"].map(h => (
@@ -66,13 +66,13 @@ function PositionenTabelle({ positionen, kuerzungsarten, akteId, abid, onUpdate,
                     <span style={{ marginLeft:6, fontSize:"0.72rem", background:T.amberBg, color:T.amber, borderRadius:4, padding:"1px 5px" }}>SV ausstehend</span>
                   )}
                 </td>
-                <td style={{ padding:"8px 12px", textAlign:"right", fontFamily:"'IBM Plex Mono',monospace", color:T.textMid }}>
+                <td style={{ padding:"8px 12px", textAlign:"right", fontFamily:"ui-monospace,monospace", color:T.textMid }}>
                   {fmtEuro(pos.betrag_gefordert)}
                 </td>
-                <td style={{ padding:"8px 12px", textAlign:"right", fontFamily:"'IBM Plex Mono',monospace", color:T.green, fontWeight:600 }}>
+                <td style={{ padding:"8px 12px", textAlign:"right", fontFamily:"ui-monospace,monospace", color:T.green, fontWeight:600 }}>
                   {fmtEuro(pos.betrag_reguliert)}
                 </td>
-                <td style={{ padding:"8px 12px", textAlign:"right", fontFamily:"'IBM Plex Mono',monospace", color:kuerzung>0?T.red:T.textFaint, fontWeight:kuerzung>0?600:400 }}>
+                <td style={{ padding:"8px 12px", textAlign:"right", fontFamily:"ui-monospace,monospace", color:kuerzung>0?T.red:T.textFaint, fontWeight:kuerzung>0?600:400 }}>
                   {kuerzung > 0
                     ? `${istAbzug ? "+" : "−"}${fmtEuro(kuerzung)}`
                     : "—"}
@@ -100,7 +100,7 @@ function PositionenTabelle({ positionen, kuerzungsarten, akteId, abid, onUpdate,
                     <button
                       onClick={() => !readOnly && toggleKlage(pos)}
                       title={pos.fuer_klage_vorgemerkt ? "Aus Klage entfernen" : "Für Klage vormerken"}
-                      style={{ background:pos.fuer_klage_vorgemerkt?T.gold:"transparent", border:`1px solid ${pos.fuer_klage_vorgemerkt?T.gold:T.border}`, borderRadius:5, padding:"3px 8px", fontSize:"0.78rem", color:pos.fuer_klage_vorgemerkt?T.white:T.textMuted, cursor:readOnly?"default":"pointer", fontFamily:"'IBM Plex Sans',sans-serif", fontWeight:600, transition:"all 0.15s" }}
+                      style={{ background:pos.fuer_klage_vorgemerkt?T.gold:"transparent", border:`1px solid ${pos.fuer_klage_vorgemerkt?T.gold:T.border}`, borderRadius:5, padding:"3px 8px", fontSize:"0.78rem", color:pos.fuer_klage_vorgemerkt?T.white:T.textMuted, cursor:readOnly?"default":"pointer", fontFamily:"'Figtree',sans-serif", fontWeight:600, transition:"all 0.15s" }}
                     >
                       {pos.fuer_klage_vorgemerkt ? "✓ Klage" : "Klage"}
                     </button>
@@ -112,14 +112,14 @@ function PositionenTabelle({ positionen, kuerzungsarten, akteId, abid, onUpdate,
         </tbody>
         <tfoot>
           <tr style={{ background:T.surface, borderTop:`2px solid ${T.border}` }}>
-            <td style={{ padding:"8px 12px", fontWeight:700, color:T.text, fontFamily:"'IBM Plex Sans',sans-serif" }}>Gesamt</td>
-            <td style={{ padding:"8px 12px", textAlign:"right", fontFamily:"'IBM Plex Mono',monospace", fontWeight:700, color:T.text }}>
+            <td style={{ padding:"8px 12px", fontWeight:700, color:T.text, fontFamily:"'Figtree',sans-serif" }}>Gesamt</td>
+            <td style={{ padding:"8px 12px", textAlign:"right", fontFamily:"ui-monospace,monospace", fontWeight:700, color:T.text }}>
               {fmtEuro(positionen.reduce((s,p) => s + p.betrag_gefordert, 0))}
             </td>
-            <td style={{ padding:"8px 12px", textAlign:"right", fontFamily:"'IBM Plex Mono',monospace", fontWeight:700, color:T.green }}>
+            <td style={{ padding:"8px 12px", textAlign:"right", fontFamily:"ui-monospace,monospace", fontWeight:700, color:T.green }}>
               {fmtEuro(positionen.reduce((s,p) => s + p.betrag_reguliert, 0))}
             </td>
-            <td style={{ padding:"8px 12px", textAlign:"right", fontFamily:"'IBM Plex Mono',monospace", fontWeight:700, color:T.red }}>
+            <td style={{ padding:"8px 12px", textAlign:"right", fontFamily:"ui-monospace,monospace", fontWeight:700, color:T.red }}>
               {positionen.reduce((s,p) => s + positionKuerzungBetrag(p), 0) > 0
                 ? `−${fmtEuro(positionen.reduce((s,p) => s + positionKuerzungBetrag(p), 0))}`
                 : "—"}
@@ -162,7 +162,7 @@ function PdfAuswahlZeile({ dok, akteId, setDn, setPhase, setFehler, setErg, setS
     }}
       style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px",
         background:T.white, border:`1px solid ${T.border}`, borderRadius:7,
-        fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem",
+        fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
         color:T.text, cursor:"pointer", textAlign:"left", width:"100%",
         transition:"border-color 0.15s", marginBottom:4 }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = T.gold; e.currentTarget.style.background = T.goldPale; }}
@@ -365,7 +365,7 @@ function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePrue
           <button onClick={() => setPhase("upload")}
             style={{ display:"flex", alignItems:"center", gap:7, padding:"7px 14px",
               background:"none", border:`1px dashed ${T.border}`, borderRadius:7,
-              fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.855rem",
+              fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem",
               color:T.textMuted, cursor:"pointer", width:"100%", marginTop:6 }}
             onMouseEnter={e => e.currentTarget.style.borderColor = T.gold}
             onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
@@ -879,7 +879,7 @@ function AbrechnungFormular({ schaden, kuerzungsarten, akteId, onSave, onCancel,
     <>
     <div style={{ background:T.goldPale, border:`1px solid ${T.goldTrim}`, borderRadius:10, padding:"1.25rem 1.4rem", marginBottom:"1rem" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1rem" }}>
-        <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem", fontWeight:600, color:T.navy, textTransform:"uppercase", letterSpacing:"0.07em" }}>
+        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", fontWeight:600, color:T.navy, textTransform:"uppercase", letterSpacing:"0.07em" }}>
           Neues Abrechnungsschreiben
         </div>
         <Btn size="sm" variant="secondary" onClick={() => setShowPdf(o => !o)}>
@@ -908,10 +908,10 @@ function AbrechnungFormular({ schaden, kuerzungsarten, akteId, onSave, onCancel,
           options={[{value:"vollhaftung",label:"Vollhaftung 100%"},{value:"mithaftung",label:"Mithaftung"},{value:"quote",label:"Quote"},{value:"ablehnung",label:"Ablehnung"}]} />
         {(form.haftungsart === "mithaftung" || form.haftungsart === "quote") && (
           <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
-            <label style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.825rem", fontWeight:600, color:T.textMid, textTransform:"uppercase", letterSpacing:"0.05em" }}>Haftungsquote %</label>
+            <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", fontWeight:600, color:T.textMid, textTransform:"uppercase", letterSpacing:"0.05em" }}>Haftungsquote %</label>
             <input type="number" min={0} max={100} value={form.haftungsquote}
               onChange={e => setForm(p => ({...p,haftungsquote:e.target.value}))}
-              style={{ padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.985rem", color:T.text, background:T.surface, outline:"none" }}
+              style={{ padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:"ui-monospace,monospace", fontSize:"0.985rem", color:T.text, background:T.surface, outline:"none" }}
               onFocus={e => e.target.style.borderColor=T.gold} onBlur={e => e.target.style.borderColor=T.border} />
           </div>
         )}
@@ -919,9 +919,9 @@ function AbrechnungFormular({ schaden, kuerzungsarten, akteId, onSave, onCancel,
 
       {/* Positionen */}
       <div style={{ marginBottom:"1rem" }}>
-        <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.82rem", fontWeight:600, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"0.6rem" }}>Regulierte Positionen</div>
+        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", fontWeight:600, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"0.6rem" }}>Regulierte Positionen</div>
         <div style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:8, overflow:"hidden" }}>
-          <table style={{ width:"100%", borderCollapse:"collapse", fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem" }}>
+          <table style={{ width:"100%", borderCollapse:"collapse", fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}>
             <thead>
               <tr style={{ background:T.surface }}>
                 {["Position","Gefordert (€)","Reguliert (€)","Kürzung"].map(h => (
@@ -939,13 +939,13 @@ function AbrechnungFormular({ schaden, kuerzungsarten, akteId, onSave, onCancel,
                     <td style={{ padding:"6px 10px", color:T.text }}>{POSITION_LABELS_FE[pos.position_key]}</td>
                     <td style={{ padding:"6px 10px", textAlign:"right" }}>
                       <input type="number" step="0.01" min="0" value={pos.betrag_gefordert} onChange={e => updatePos(idx,"betrag_gefordert",e.target.value)}
-                        style={{ width:100, padding:"4px 6px", border:`1px solid ${T.border}`, borderRadius:5, fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.875rem", textAlign:"right", background:T.surface, color:T.text }} />
+                        style={{ width:100, padding:"4px 6px", border:`1px solid ${T.border}`, borderRadius:5, fontFamily:"ui-monospace,monospace", fontSize:"0.875rem", textAlign:"right", background:T.surface, color:T.text }} />
                     </td>
                     <td style={{ padding:"6px 10px", textAlign:"right" }}>
                       <input type="number" step="0.01" min="0" value={pos.betrag_reguliert} onChange={e => updatePos(idx,"betrag_reguliert",e.target.value)}
-                        style={{ width:100, padding:"4px 6px", border:`1px solid ${kuerzung>0?T.red:T.border}`, borderRadius:5, fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.875rem", textAlign:"right", background:T.surface, color:T.text }} />
+                        style={{ width:100, padding:"4px 6px", border:`1px solid ${kuerzung>0?T.red:T.border}`, borderRadius:5, fontFamily:"ui-monospace,monospace", fontSize:"0.875rem", textAlign:"right", background:T.surface, color:T.text }} />
                     </td>
-                    <td style={{ padding:"6px 10px", textAlign:"right", fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.875rem", color:kuerzung>0?T.red:T.textFaint, fontWeight:kuerzung>0?600:400 }}>
+                    <td style={{ padding:"6px 10px", textAlign:"right", fontFamily:"ui-monospace,monospace", fontSize:"0.875rem", color:kuerzung>0?T.red:T.textFaint, fontWeight:kuerzung>0?600:400 }}>
                       {kuerzung > 0 ? `−${fmtEuro(kuerzung)}` : "—"}
                     </td>
                   </tr>
@@ -1102,12 +1102,12 @@ function ManuelleAbrechnungFormular({ schaden, kuerzungsarten, akteId, versicher
   };
 
   // ── Stile ────────────────────────────────────────────────────────────────
-  const sLabel = { fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem", fontWeight:600,
+  const sLabel = { fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", fontWeight:600,
                    color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:3 };
   const sInput = { width:"100%", padding:"7px 10px", border:`1px solid ${T.border}`, borderRadius:6,
-                   fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem",
+                   fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
                    background:T.surface, color:T.text, boxSizing:"border-box" };
-  const sInputMono = { ...sInput, fontFamily:"'IBM Plex Mono',monospace", textAlign:"right" };
+  const sInputMono = { ...sInput, fontFamily:"ui-monospace,monospace", textAlign:"right" };
   const sGrid2 = { display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.75rem" };
 
   return (
@@ -1117,7 +1117,7 @@ function ManuelleAbrechnungFormular({ schaden, kuerzungsarten, akteId, versicher
 
       {/* Header + Modus-Toggle */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1rem" }}>
-        <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem", fontWeight:600,
+        <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", fontWeight:600,
                        color:T.navy, textTransform:"uppercase", letterSpacing:"0.07em" }}>
           {initialData ? "✏️ Abrechnung bearbeiten" : "✏️ Manuelle Erfassung"}
         </span>
@@ -1125,7 +1125,7 @@ function ManuelleAbrechnungFormular({ schaden, kuerzungsarten, akteId, versicher
           {[["schnell","Schnelleingabe"],["vollstaendig","Vollständig"]].map(([v,l]) => (
             <button key={v} onClick={() => setModus(v)}
               style={{ padding:"4px 12px", border:"none", borderRadius:5, cursor:"pointer",
-                       fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.8rem", fontWeight:modus===v?600:400,
+                       fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:modus===v?600:400,
                        background:modus===v?T.surface:"transparent",
                        color:modus===v?T.navy:T.textMuted,
                        boxShadow:modus===v?"0 1px 3px rgba(0,0,0,0.1)":"none" }}>
@@ -1181,11 +1181,11 @@ function ManuelleAbrechnungFormular({ schaden, kuerzungsarten, akteId, versicher
         <div style={{ display:"flex", gap:8, padding:"5px 8px",
                       background:T.navy, borderRadius:"6px 6px 0 0" }}>
           <div style={{ flex:"0 0 auto", width:28 }} />
-          <div style={{ flex:"1 1 auto", fontFamily:"'IBM Plex Sans',sans-serif",
+          <div style={{ flex:"1 1 auto", fontFamily:"'Figtree',sans-serif",
                         fontSize:"0.73rem", fontWeight:600, color:"#fff" }}>Position</div>
-          <div style={{ flex:"0 0 120px", fontFamily:"'IBM Plex Sans',sans-serif",
+          <div style={{ flex:"0 0 120px", fontFamily:"'Figtree',sans-serif",
                         fontSize:"0.73rem", fontWeight:600, color:"#fff", textAlign:"right" }}>Gefordert (€)</div>
-          <div style={{ flex:"0 0 120px", fontFamily:"'IBM Plex Sans',sans-serif",
+          <div style={{ flex:"0 0 120px", fontFamily:"'Figtree',sans-serif",
                         fontSize:"0.73rem", fontWeight:600, color:"#fff", textAlign:"right" }}>Reguliert (€)</div>
           <div style={{ flex:"0 0 28px" }} />
         </div>
@@ -1263,14 +1263,14 @@ function ManuelleAbrechnungFormular({ schaden, kuerzungsarten, akteId, versicher
             <button onClick={() => addPos("dropdown")}
               style={{ background:"none", border:`1px dashed ${T.border}`, borderRadius:6,
                        padding:"4px 12px", cursor:"pointer", fontSize:"0.82rem",
-                       color:T.textMuted, fontFamily:"'IBM Plex Sans',sans-serif" }}>
+                       color:T.textMuted, fontFamily:"'Figtree',sans-serif" }}>
               + Bekannte Position
             </button>
           )}
           <button onClick={() => addPos("freitext")}
             style={{ background:"none", border:`1px dashed ${T.border}`, borderRadius:6,
                      padding:"4px 12px", cursor:"pointer", fontSize:"0.82rem",
-                     color:T.textMuted, fontFamily:"'IBM Plex Sans',sans-serif" }}>
+                     color:T.textMuted, fontFamily:"'Figtree',sans-serif" }}>
             + Freitext
           </button>
         </div>
@@ -1892,7 +1892,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
   // ── Render ────────────────────────────────────────────────────────────────
   if (loading) return (
     <div style={{ display:"flex", alignItems:"center", gap:10, padding:"2rem",
-      color:T.textFaint, fontFamily:"'IBM Plex Sans',sans-serif" }}>
+      color:T.textFaint, fontFamily:"'Figtree',sans-serif" }}>
       <div style={{ width:16, height:16, border:`2px solid ${T.gold}`, borderTopColor:"transparent",
         borderRadius:"50%", animation:"spin 0.7s linear infinite" }}/>
       Lade Regulierungsdaten…
@@ -1907,7 +1907,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
         {/* ── Verweis-Banner ── */}
         {verweisLaden && (
           <div style={{ padding:"0.75rem 1.25rem", background:"#eff6ff", borderRadius:8,
-            border:"1px solid #bfdbfe", fontFamily:"'IBM Plex Sans',sans-serif",
+            border:"1px solid #bfdbfe", fontFamily:"'Figtree',sans-serif",
             fontSize:"0.875rem", color:"#1d4ed8", display:"flex", alignItems:"center", gap:8 }}>
             <span style={{ animation:"spin 1s linear infinite", display:"inline-block" }}>⟳</span>
             Prüfe Verweisbetrieb-Entfernung…
@@ -1917,7 +1917,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
           <div style={{ background: verweis.unzumutbar ? "#fef2f2" : "#f0fdf4",
             border:`1.5px solid ${verweis.unzumutbar ? "#fca5a5" : "#86efac"}`,
             borderRadius:10, padding:"1rem 1.25rem",
-            fontFamily:"'IBM Plex Sans',sans-serif" }}>
+            fontFamily:"'Figtree',sans-serif" }}>
             <div style={{ fontWeight:700, fontSize:"0.95rem",
               color: verweis.unzumutbar ? "#991b1b" : "#166534" }}>
               {verweis.unzumutbar
@@ -1927,7 +1927,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
             {verweisFlag && (
               <textarea value={verweisBaustein} onChange={e => setVerweisBaustein(e.target.value)}
                 style={{ marginTop:8, width:"100%", minHeight:100, padding:"8px 10px",
-                  fontSize:"0.84rem", fontFamily:"'IBM Plex Sans',sans-serif",
+                  fontSize:"0.84rem", fontFamily:"'Figtree',sans-serif",
                   border:"1px solid #d1d5db", borderRadius:7, resize:"vertical",
                   boxSizing:"border-box", background:"#fffbeb" }} />
             )}
@@ -1941,10 +1941,10 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
               <div style={{ flex:1, minWidth:200, padding:"10px 14px", background:T.greenBg, border:`1px solid ${T.green}33`, borderRadius:8, display:"flex", alignItems:"center", gap:10 }}>
                 <span style={{ color:T.green, fontSize:"1.1rem", flexShrink:0 }}>📄</span>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.85rem", fontWeight:600, color:T.green }}>
+                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem", fontWeight:600, color:T.green }}>
                     {abrechnungsDoks.length === 1 ? "1 Abrechnungsschreiben" : `${abrechnungsDoks.length} Abrechnungsschreiben`}
                   </div>
-                  <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem", color:T.textMuted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", color:T.textMuted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                     {abrechnungsDoks.map(d => d.dateiname).join(", ")}
                   </div>
                 </div>
@@ -1954,10 +1954,10 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
               <div style={{ flex:1, minWidth:200, padding:"10px 14px", background:T.blueBg, border:`1px solid ${T.blue}33`, borderRadius:8, display:"flex", alignItems:"center", gap:10 }}>
                 <span style={{ color:T.blue, fontSize:"1.1rem", flexShrink:0 }}>🔍</span>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.85rem", fontWeight:600, color:T.blue }}>
+                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem", fontWeight:600, color:T.blue }}>
                     {pruefberichtDoks.length === 1 ? "1 Prüfbericht" : `${pruefberichtDoks.length} Prüfberichte`}
                   </div>
-                  <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.78rem", color:T.textMuted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", color:T.textMuted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                     {pruefberichtDoks.map(d => d.dateiname).join(", ")}
                   </div>
                 </div>
@@ -1975,16 +1975,16 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
             flexWrap:"wrap", gap:10 }}>
             <div style={{ display:"flex", alignItems:"center", gap:"1.5rem", flexWrap:"wrap" }}>
               {versName && (
-                <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem", color:T.textMid }}>
+                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.textMid }}>
                   <span style={{ color:T.textFaint }}>Versicherung: </span><strong>{versName}</strong>
                 </span>
               )}
               {referenzNr && (
-                <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem", color:T.textMid }}>
+                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.textMid }}>
                   <span style={{ color:T.textFaint }}>Referenz: </span><strong>{referenzNr}</strong>
                 </span>
               )}
-              <span style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem",
+              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
                 color:T.textMid, display:"flex", alignItems:"center", gap:6 }}>
                 <span style={{ color:T.textFaint }}>HQ: </span>
                 {hqEditing ? (
@@ -1994,9 +1994,9 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                       onKeyDown={e => { if (e.key==="Enter") saveHq(); if (e.key==="Escape") setHqEditing(false); }}
                       autoFocus
                       style={{ width:56, padding:"2px 6px", border:`1.5px solid ${T.gold}`,
-                        borderRadius:5, fontFamily:"'IBM Plex Mono',monospace",
+                        borderRadius:5, fontFamily:"ui-monospace,monospace",
                         fontSize:"0.875rem", outline:"none" }} />
-                    <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.875rem" }}>%</span>
+                    <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.875rem" }}>%</span>
                     <button onClick={saveHq} disabled={hqSaving}
                       style={{ background:T.gold, border:"none", borderRadius:5, padding:"2px 8px",
                         cursor:"pointer", color:"#fff", fontSize:"0.8rem", fontWeight:600 }}>
@@ -2008,7 +2008,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                   </>
                 ) : (
                   <>
-                    <strong style={{ fontFamily:"'IBM Plex Mono',monospace" }}>{hqVal} %</strong>
+                    <strong style={{ fontFamily:"ui-monospace,monospace" }}>{hqVal} %</strong>
                     <button onClick={() => setHqEditing(true)}
                       title="Haftungsquote bearbeiten"
                       style={{ background:"none", border:"none", cursor:"pointer",
@@ -2089,7 +2089,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
           {/* Tabelle */}
           <div style={{ overflowX:"auto" }}>
             <table style={{ width:"100%", borderCollapse:"collapse",
-              fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem" }}>
+              fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}>
               <thead>
                 <tr style={{ background:T.navy }}>
                   {[
@@ -2103,7 +2103,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                     { l:"",               w:36,  align:"center" },
                   ].map((col, i) => (
                     <th key={i} style={{ padding:"9px 12px", textAlign:col.align,
-                      fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.775rem",
+                      fontFamily:"'Figtree',sans-serif", fontSize:"0.775rem",
                       fontWeight:600, color:"rgba(255,255,255,0.8)",
                       letterSpacing:"0.06em", textTransform:"uppercase",
                       whiteSpace:"nowrap", ...(col.w ? { width:col.w } : {}) }}>
@@ -2157,7 +2157,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
 
                         {/* Gefordert */}
                         <td style={{ padding:"8px 12px", textAlign:"right",
-                          fontFamily:"'IBM Plex Mono',monospace", color:T.textMid }}>
+                          fontFamily:"ui-monospace,monospace", color:T.textMid }}>
                           {fmtEuro(pos.gefordert)}
                         </td>
 
@@ -2178,13 +2178,13 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                                   borderRadius:10, boxShadow:"0 12px 40px rgba(0,0,0,0.2)",
                                   padding:"18px 20px", width:300,
                                   display:"flex", flexDirection:"column", gap:10 }}>
-                                <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif",
+                                <div style={{ fontFamily:"'Bricolage Grotesque',sans-serif",
                                   fontSize:"0.95rem", fontWeight:700, color:T.navy, marginBottom:2 }}>
                                   Zahlung erfassen · {pos.label}
                                 </div>
                                 {/* Betrag */}
                                 <div>
-                                  <div style={{ fontFamily:"'IBM Plex Sans',sans-serif",
+                                  <div style={{ fontFamily:"'Figtree',sans-serif",
                                     fontSize:"0.75rem", fontWeight:600, color:T.textMuted,
                                     textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:3 }}>
                                     Gezahlt (€)
@@ -2195,13 +2195,13 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                                     onKeyDown={e => { if (e.key==="Escape") setGezahltEdit(null); }}
                                     style={{ width:"100%", padding:"5px 8px",
                                       border:`1.5px solid ${T.gold}`, borderRadius:5,
-                                      fontFamily:"'IBM Plex Mono',monospace",
+                                      fontFamily:"ui-monospace,monospace",
                                       fontSize:"0.975rem", outline:"none",
                                       boxSizing:"border-box" }} />
                                 </div>
                                 {/* Datum */}
                                 <div>
-                                  <div style={{ fontFamily:"'IBM Plex Sans',sans-serif",
+                                  <div style={{ fontFamily:"'Figtree',sans-serif",
                                     fontSize:"0.75rem", fontWeight:600, color:T.textMuted,
                                     textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:3 }}>
                                     Datum Abrechnungsschreiben
@@ -2211,13 +2211,13 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                                     onChange={e => setGezahltEdit(p => ({...p, datum: e.target.value}))}
                                     style={{ width:"100%", padding:"5px 8px",
                                       border:`1px solid ${T.border}`, borderRadius:5,
-                                      fontFamily:"'IBM Plex Sans',sans-serif",
+                                      fontFamily:"'Figtree',sans-serif",
                                       fontSize:"0.875rem", outline:"none",
                                       boxSizing:"border-box" }} />
                                 </div>
                                 {/* Versicherung */}
                                 <div>
-                                  <div style={{ fontFamily:"'IBM Plex Sans',sans-serif",
+                                  <div style={{ fontFamily:"'Figtree',sans-serif",
                                     fontSize:"0.75rem", fontWeight:600, color:T.textMuted,
                                     textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:3 }}>
                                     Versicherung
@@ -2227,13 +2227,13 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                                     onChange={e => setGezahltEdit(p => ({...p, versicherung: e.target.value}))}
                                     style={{ width:"100%", padding:"5px 8px",
                                       border:`1px solid ${T.border}`, borderRadius:5,
-                                      fontFamily:"'IBM Plex Sans',sans-serif",
+                                      fontFamily:"'Figtree',sans-serif",
                                       fontSize:"0.875rem", outline:"none",
                                       boxSizing:"border-box" }} />
                                 </div>
                                 {/* Referenz-Nr */}
                                 <div>
-                                  <div style={{ fontFamily:"'IBM Plex Sans',sans-serif",
+                                  <div style={{ fontFamily:"'Figtree',sans-serif",
                                     fontSize:"0.75rem", fontWeight:600, color:T.textMuted,
                                     textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:3 }}>
                                     Referenz-Nr. (optional)
@@ -2243,7 +2243,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                                     onChange={e => setGezahltEdit(p => ({...p, referenz_nr: e.target.value}))}
                                     style={{ width:"100%", padding:"5px 8px",
                                       border:`1px solid ${T.border}`, borderRadius:5,
-                                      fontFamily:"'IBM Plex Sans',sans-serif",
+                                      fontFamily:"'Figtree',sans-serif",
                                       fontSize:"0.875rem", outline:"none",
                                       boxSizing:"border-box" }} />
                                 </div>
@@ -2269,7 +2269,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                                 </div>
                               </div>
                               {/* Trigger-Anzeige im Feld */}
-                              <div style={{ fontFamily:"'IBM Plex Mono',monospace",
+                              <div style={{ fontFamily:"ui-monospace,monospace",
                                 color:T.gold, fontSize:"0.875rem", textAlign:"right",
                                 padding:"2px 4px" }}>
                                 {gezahltEdit.value || "—"}
@@ -2284,7 +2284,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                               referenz_nr:  referenzNr,
                             })}
                               title="Klicken zum Bearbeiten"
-                              style={{ cursor:"text", fontFamily:"'IBM Plex Mono',monospace",
+                              style={{ cursor:"text", fontFamily:"ui-monospace,monospace",
                                 color: gezahlt !== null ? T.text : T.textFaint,
                                 textAlign:"right", padding:"2px 4px", borderRadius:4,
                                 border:"1px solid transparent", transition:"border-color 0.15s",
@@ -2301,7 +2301,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                         {/* Kürzung */}
                         <td style={{ padding:"8px 12px", textAlign:"right" }}>
                           {gezahlt === null ? (
-                            <span style={{ color:T.textFaint, fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.82rem" }}>—</span>
+                            <span style={{ color:T.textFaint, fontFamily:"ui-monospace,monospace", fontSize:"0.82rem" }}>—</span>
                           ) : beglichen ? (
                             <span style={{ display:"inline-flex", alignItems:"center", gap:4,
                               background:T.greenBg, color:T.green, borderRadius:20,
@@ -2310,7 +2310,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                               ✓ beglichen
                             </span>
                           ) : (
-                            <span style={{ fontFamily:"'IBM Plex Mono',monospace",
+                            <span style={{ fontFamily:"ui-monospace,monospace",
                               fontWeight:700, color:T.red }}>
                               −{fmtEuro(Math.abs(kuerzung))}
                             </span>
@@ -2432,7 +2432,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                               style={{ background: pos.fuer_klage ? T.gold : "transparent",
                                 border:`1px solid ${pos.fuer_klage ? T.gold : T.border}`,
                                 borderRadius:5, padding:"3px 9px", cursor:"pointer",
-                                fontSize:"0.775rem", fontFamily:"'IBM Plex Sans',sans-serif",
+                                fontSize:"0.775rem", fontFamily:"'Figtree',sans-serif",
                                 fontWeight: pos.fuer_klage ? 700 : 400,
                                 color: pos.fuer_klage ? T.white : T.textMuted,
                                 transition:"all 0.15s", whiteSpace:"nowrap" }}>
@@ -2484,7 +2484,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                           </td>
                           <td />
                           <td style={{ padding:"5px 12px", textAlign:"right",
-                            fontFamily:"'IBM Plex Mono',monospace", fontSize:"0.82rem",
+                            fontFamily:"ui-monospace,monospace", fontSize:"0.82rem",
                             color:T.textMid }}>
                             {fmtEuro(z.betrag)}
                           </td>
@@ -2519,22 +2519,22 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                 <tfoot>
                   <tr style={{ background:T.navyDark, borderTop:`2px solid ${T.gold}44` }}>
                     <td colSpan={2} style={{ padding:"10px 12px",
-                      fontFamily:"'IBM Plex Sans',sans-serif", fontWeight:700,
+                      fontFamily:"'Figtree',sans-serif", fontWeight:700,
                       color:T.white, fontSize:"0.875rem" }}>Gesamt</td>
                     <td style={{ padding:"10px 12px", textAlign:"right",
-                      fontFamily:"'IBM Plex Mono',monospace", fontWeight:700,
+                      fontFamily:"ui-monospace,monospace", fontWeight:700,
                       color:T.white }}>{fmtEuro(gesamtGefordert)}</td>
                     <td style={{ padding:"10px 12px", textAlign:"right",
-                      fontFamily:"'IBM Plex Mono',monospace", fontWeight:700,
+                      fontFamily:"ui-monospace,monospace", fontWeight:700,
                       color:"#86efac" }}>{fmtEuro(gesamtGezahlt)}</td>
                     <td style={{ padding:"10px 12px", textAlign:"right",
-                      fontFamily:"'IBM Plex Mono',monospace", fontWeight:700,
+                      fontFamily:"ui-monospace,monospace", fontWeight:700,
                       color: gesamtOffen > 0.01 ? "#fca5a5" : "#86efac" }}>
                       {gesamtOffen > 0.01 ? `−${fmtEuro(gesamtOffen)}` : "✓ vollständig"}
                     </td>
                     <td colSpan={3} style={{ padding:"10px 12px" }}>
                       {klagebetrag > 0.01 && (
-                        <span style={{ fontFamily:"'IBM Plex Mono',monospace",
+                        <span style={{ fontFamily:"ui-monospace,monospace",
                           fontSize:"0.84rem", color:T.gold, fontWeight:600 }}>
                           🏛 Klage: {fmtEuro(klagebetrag)}
                         </span>
@@ -2560,7 +2560,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                     <div key={p.key} style={{ display:"flex", justifyContent:"space-between",
                       alignItems:"center", padding:"7px 0",
                       borderBottom: i < arr.length-1 ? `1px solid ${T.border}` : "none",
-                      fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.875rem" }}>
+                      fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}>
                       <div>
                         <span style={{ color:T.text, fontWeight:500 }}>{p.label}</span>
                         {kIds.length > 0 && (
@@ -2569,14 +2569,14 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                           </span>
                         )}
                       </div>
-                      <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontWeight:700, color:T.red }}>
+                      <span style={{ fontFamily:"ui-monospace,monospace", fontWeight:700, color:T.red }}>
                         −{fmtEuro(offenBetrag)}
                       </span>
                     </div>
                   );
                 })}
               <div style={{ display:"flex", justifyContent:"space-between", padding:"10px 0 0",
-                fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:"1.125rem", fontWeight:700 }}>
+                fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1.125rem", fontWeight:700 }}>
                 <span style={{ color:T.navy }}>Gesamt Klagegegenstand</span>
                 <span style={{ color:T.red }}>{fmtEuro(klagebetrag)}</span>
               </div>
