@@ -23,6 +23,9 @@ const KANDIDAT_DISPLAY_KEY = {
   sv_kosten_netto:       "sv_kosten",
 };
 
+const QUELLE_LABELS = { manuell:"Manuell", gutachten_pdf:"Gutachten (PDF)", abrechnung_pdf:"Abrechnung (PDF)", korrektur:"Korrektur", wdm_ramicro:"RA-Micro (WDM)" };
+const QUELLE_COLORS = { manuell:{c:T.textMuted,bg:T.surface}, gutachten_pdf:{c:T.blue,bg:T.blueBg}, abrechnung_pdf:{c:T.green,bg:T.greenBg}, korrektur:{c:T.amber,bg:T.amberBg}, wdm_ramicro:{c:"#6b21a8",bg:"#f5f3ff"} };
+
 function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, dokumente, belegeKandidaten = [] }) {
   const [form, setForm]         = useState({ ...schaden });
   const [schadenTab, setSchadenTab] = useState("sachschaden");
@@ -244,9 +247,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
     }
   };
 
-  const quelleLabels = { manuell:"Manuell", gutachten_pdf:"Gutachten (PDF)", abrechnung_pdf:"Abrechnung (PDF)", korrektur:"Korrektur", wdm_ramicro:"RA-Micro (WDM)" };
-  const quelleColors = { manuell:{c:T.textMuted,bg:T.surface}, gutachten_pdf:{c:T.blue,bg:T.blueBg}, abrechnung_pdf:{c:T.green,bg:T.greenBg}, korrektur:{c:T.amber,bg:T.amberBg}, wdm_ramicro:{c:"#6b21a8",bg:"#f5f3ff"} };
-  const qc = quelleColors[form.quelle] || quelleColors.manuell;
+  const qc = QUELLE_COLORS[form.quelle] || QUELLE_COLORS.manuell;
 
   // Gutachten-PDF-Import
   const [showGutImport, setShowGutImport] = useState(false);
@@ -805,7 +806,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
           action={
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:qc.bg, color:qc.c, border:`1px solid ${qc.c}33`, borderRadius:12, padding:"2px 8px", fontSize:"0.825rem", fontWeight:600 }}>
-                {quelleLabels[form.quelle]||form.quelle}
+                {QUELLE_LABELS[form.quelle]||form.quelle}
               </span>
               {akteId?.includes("/") && (
                 <Btn size="sm" variant="secondary" onClick={() => {

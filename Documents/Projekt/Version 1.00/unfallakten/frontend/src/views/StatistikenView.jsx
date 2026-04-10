@@ -6,13 +6,15 @@ import { MONATS } from "../config/constants.js";
 import { fmtEuro } from "../config/utils.js";
 import { Card } from "../components/common.jsx";
 
+const PIE_DATA = [
+  { name:"Offen",         value:8,  color:T.blue  },
+  { name:"Regulierung",   value:14, color:T.amber },
+  { name:"Abgeschlossen", value:22, color:T.green },
+  { name:"Klage",         value:3,  color:T.red   },
+];
+
 function StatistikenView() {
-  const pie = [
-    { name:"Offen",         value:8,  color:T.blue  },
-    { name:"Regulierung",   value:14, color:T.amber },
-    { name:"Abgeschlossen", value:22, color:T.green },
-    { name:"Klage",         value:3,  color:T.red   },
-  ];
+  const pie = PIE_DATA;
   return (
     <div style={{ flex:1, overflowY:"auto", background:T.offWhite }}>
       <div style={{ maxWidth:1440, margin:"0 auto", padding:"1.75rem" }}>

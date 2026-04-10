@@ -282,14 +282,17 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
   };
 
   // Gefilterte + sortierte + paginierte Liste
-  const eakteGefiltert = eakteFilter
-    ? eakteDoks.filter(ed => {
-        const suchtext = eakteFilter.toLowerCase();
-        const emp = (ed.empfaenger || "").toLowerCase();
-        const bem = (ed.bemerkung || "").toLowerCase();
-        return emp.includes(suchtext) || bem.includes(suchtext);
-      })
-    : eakteDoks;
+  const eakteGefiltert = React.useMemo(() =>
+    eakteFilter
+      ? eakteDoks.filter(ed => {
+          const suchtext = eakteFilter.toLowerCase();
+          const emp = (ed.empfaenger || "").toLowerCase();
+          const bem = (ed.bemerkung || "").toLowerCase();
+          return emp.includes(suchtext) || bem.includes(suchtext);
+        })
+      : eakteDoks,
+    [eakteDoks, eakteFilter]
+  );
 
   const eakteSortiert = React.useMemo(() => {
     const sorted = [...eakteGefiltert].sort((a, b) => {
@@ -344,13 +347,6 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
     });
     return [...set].sort();
   }, [eakteDoks]);
-
-  const parseStyle = {
-    erfolgreich:        { c:T.green,    bg:T.greenBg,  label:"Geparst"   },
-    fehler:             { c:T.red,      bg:T.redBg,    label:"Fehler"    },
-    ausstehend:         { c:T.textMuted,bg:T.surface,  label:"Ausstehend"},
-    manuell_korrigiert: { c:T.blue,     bg:T.blueBg,   label:"Korrigiert"},
-  };
 
   const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -548,7 +544,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
           {dokumente.length === 0 ? (
             <div style={{ padding:"2rem", textAlign:"center", fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", color:T.textFaint }}>Noch keine Dokumente hochgeladen.</div>
           ) : dokumente.map((d, i) => {
-            const ps = parseStyle[d.parse_status] || parseStyle.ausstehend;
+            const ps = PARSE_STYLE[d.parse_status] || PARSE_STYLE.ausstehend;
             const isPdf = d.dateityp === "pdf";
             return (
               <div key={d.id} style={{ display:"flex", alignItems:"center", gap:13, padding:"11px 1.4rem", borderBottom:i<dokumente.length-1?`1px solid ${T.borderSoft}`:"none", transition:"background 0.1s" }}
@@ -880,6 +876,14 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
     </>
   );
 }
+
+// ── Parse-Status-Styles ──────────────────────────────────────────────────────
+const PARSE_STYLE = {
+  erfolgreich:        { c:T.green,    bg:T.greenBg,  label:"Geparst"   },
+  fehler:             { c:T.red,      bg:T.redBg,    label:"Fehler"    },
+  ausstehend:         { c:T.textMuted,bg:T.surface,  label:"Ausstehend"},
+  manuell_korrigiert: { c:T.blue,     bg:T.blueBg,   label:"Korrigiert"},
+};
 
 // ── Positions-Labels ─────────────────────────────────────────────────────────
 const _POS_LABEL = {
