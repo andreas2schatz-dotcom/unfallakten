@@ -6,7 +6,7 @@ import { fmtEuro, fmtSize } from "../config/utils.js";
 import { ping, ApiError } from "../api.js";
 
 function StatusBadge({ status, map = STATUS_MAP }) {
-  const s = map[status] || { label: status, color: "#888", bg: "#f0f0f0" };
+  const s = map[status] || { label: status, color: T.textMuted, bg: T.surface };
   const bg = s.bg || s.color + "18";
   return (
     <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:bg, color:s.color, border:`1px solid ${s.color}33`, borderRadius:20, padding:"2px 9px", fontSize:"0.845rem", fontWeight:600, whiteSpace:"nowrap" }}>

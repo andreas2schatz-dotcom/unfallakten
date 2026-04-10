@@ -268,7 +268,7 @@ export default function SchmerzensgelDialog({ az, kl_nom, onClose, onUebernehmen
 
                 {fehlend.length > 0 && (
                   <div style={{
-                    background: T.amberMid, border: "1px solid #f59e0b",
+                    background: T.amberMid, border: `1px solid ${T.amber}`,
                     borderRadius: 6, padding: "0.5rem 0.75rem",
                     fontSize: "0.78rem", color: T.amberText, marginBottom: "0.5rem",
                   }}>
@@ -278,7 +278,7 @@ export default function SchmerzensgelDialog({ az, kl_nom, onClose, onUebernehmen
 
                 {hatDaten ? (
                   <div style={{
-                    background: T.surfaceAlt || "#f8f9fa", borderRadius: 8,
+                    background: T.offWhite, borderRadius: 8,
                     padding: "0.75rem 1rem", fontSize: "0.83rem", color: T.text,
                     display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.3rem 1rem",
                   }}>
@@ -339,8 +339,8 @@ export default function SchmerzensgelDialog({ az, kl_nom, onClose, onUebernehmen
                     disabled={ladeRecherche || !hatDaten}
                     style={{
                       padding: "0.4rem 0.9rem", borderRadius: 6, cursor: "pointer",
-                      background: ladeRecherche ? T.surfaceAlt : T.navy,
-                      color: ladeRecherche ? T.textFaint : "#fff",
+                      background: ladeRecherche ? T.surface : T.navy,
+                      color: ladeRecherche ? T.textFaint : T.white,
                       border: "none", fontSize: "0.82rem", fontWeight: 600,
                       opacity: (!hatDaten) ? 0.5 : 1,
                     }}
@@ -354,7 +354,7 @@ export default function SchmerzensgelDialog({ az, kl_nom, onClose, onUebernehmen
                     rel="noreferrer"
                     style={{
                       padding: "0.4rem 0.9rem", borderRadius: 6,
-                      background: T.surfaceAlt || "#f0f0f0",
+                      background: T.surface,
                       color: T.navy, border: `1px solid ${T.border}`,
                       fontSize: "0.82rem", textDecoration: "none", fontWeight: 500,
                       display: "inline-flex", alignItems: "center", gap: "0.3rem",
@@ -379,7 +379,7 @@ export default function SchmerzensgelDialog({ az, kl_nom, onClose, onUebernehmen
                           border: `1px solid ${gewUrteil?.az === u.az ? T.navy : T.border}`,
                           borderRadius: 6, padding: "0.5rem 0.75rem",
                           background: gewUrteil?.az === u.az
-                            ? (T.navyLight || "#eef2ff") : T.surface,
+                            ? (T.blueBg) : T.surface,
                           fontSize: "0.8rem",
                         }}
                       >
@@ -390,7 +390,7 @@ export default function SchmerzensgelDialog({ az, kl_nom, onClose, onUebernehmen
                             </span>
                             {u.az && <span style={{ color: T.textFaint, marginLeft: "0.4rem" }}>– {u.az}</span>}
                           </div>
-                          <span style={{ fontWeight: 700, color: T.green || "#16a34a", whiteSpace: "nowrap", marginLeft: "0.5rem" }}>
+                          <span style={{ fontWeight: 700, color: T.green, whiteSpace: "nowrap", marginLeft: "0.5rem" }}>
                             {_eur(u.betrag)}
                           </span>
                         </div>
@@ -419,7 +419,7 @@ export default function SchmerzensgelDialog({ az, kl_nom, onClose, onUebernehmen
                   <div style={{
                     border: `1px solid ${T.navy}`, borderRadius: 6,
                     padding: "0.5rem 0.75rem", fontSize: "0.8rem",
-                    background: T.navyLight || "#eef2ff",
+                    background: T.blueBg,
                   }}>
                     <span style={{ color: T.textFaint }}>Gespeichertes Urteil: </span>
                     <strong>{gewUrteil.gericht} – {gewUrteil.az}</strong>
@@ -481,8 +481,8 @@ export default function SchmerzensgelDialog({ az, kl_nom, onClose, onUebernehmen
                     disabled={ladeText || !hatDaten}
                     style={{
                       padding: "0.4rem 0.9rem", borderRadius: 6, cursor: "pointer",
-                      background: ladeText ? (T.surfaceAlt || "#e5e7eb") : (T.amber || "#f59e0b"),
-                      color: ladeText ? T.textFaint : "#fff",
+                      background: ladeText ? T.surface : T.amber,
+                      color: ladeText ? T.textFaint : T.white,
                       border: "none", fontSize: "0.82rem", fontWeight: 600,
                       opacity: !hatDaten ? 0.45 : 1,
                     }}

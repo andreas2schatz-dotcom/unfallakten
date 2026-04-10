@@ -1447,7 +1447,7 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
         if (res.beteiligte) { setBeteiligte(res.beteiligte); setBetQuelle("sqlite"); }
         setWdmGespeichert(true);
       })
-      .catch(e => console.error("WDM-Speichern:", e));
+      .catch(() => {});
   }, [betQuelle, beteiligte, wdmGespeichert]);
 
   // WDM-Felder übernehmen (Textfelder + Beteiligte)

@@ -37,7 +37,7 @@ function LoginPage({ onLogin }) {
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center",
-      background:"#ffffff", position:"relative", overflow:"hidden" }}>
+      background:T.white, position:"relative", overflow:"hidden" }}>
 
       {/* Dezente Linie oben in Kanzleifarbe */}
       <div style={{ position:"fixed", top:0, left:0, right:0, height:3,
@@ -76,7 +76,7 @@ function LoginPage({ onLogin }) {
         </div>
 
         {/* Card */}
-        <div style={{ background:"#ffffff", borderRadius:16, padding:"2.4rem 2.6rem",
+        <div style={{ background:T.white, borderRadius:16, padding:"2.4rem 2.6rem",
           boxShadow:"0 4px 32px rgba(0,0,0,0.08), 0 0 0 1.5px rgba(15,30,64,0.10)" }}>
           <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"1.1rem",
             fontWeight:600, color:T.navy, marginBottom:"1.6rem",

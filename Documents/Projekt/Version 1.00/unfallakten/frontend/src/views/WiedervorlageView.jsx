@@ -115,7 +115,7 @@ function WiedervorlageView({ onOpenAkte }) {
         ok++;
         await new Promise(r => setTimeout(r, 350)); // kurze Pause zwischen Downloads
       } catch (e) {
-        console.error("Batch-Fehler:", liste[i].aktenzeichen, e);
+        // Einzelfehler im Batch still ignorieren; Gesamtergebnis im Toast
       }
     }
     setBatchLaeuft(false);

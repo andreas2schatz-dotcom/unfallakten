@@ -98,7 +98,7 @@ function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertrete
                     try {
                       await apiFirmen.vertreterSpeichern(id, v.name, v.funktion);
                     } catch(e) {
-                      console.warn("Vertreter speichern:", e);
+                      // Hintergrundspeicherung – kein toast nötig
                     }
                     setVModal(null);
                   }}
