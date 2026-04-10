@@ -19,7 +19,7 @@ passlib[bcrypt]==1.7.4             # Passwort-Hashing (ersetzt pbkdf2 in Modul 1
 pdfplumber==0.11.1
 PyMuPDF==1.24.3
 openai==1.30.1                 # GPT-4o (Fallback, nicht aktiv)
-anthropic==0.40.0             # Claude Sonnet – KI-Haftungsbegründung
+anthropic==0.49.0             # Claude Sonnet – KI-Haftungsbegründung + web_search (PRD-29)
 google-genai==1.10.0          # Gemini 3.1 Pro – KI-Haftungsbegründung
 
 # ── Word-Generierung (Modul 5) ────────────────────────────────────────────────

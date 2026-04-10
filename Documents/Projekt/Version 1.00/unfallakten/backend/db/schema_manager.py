@@ -263,6 +263,8 @@ VALUES (7, 'Migration 7 – v_regulierungsstatus GROUP BY az');
     32: "-- migration_32_todos_dok_ref_fix",
     33: "-- migration_33_konfiguration",
     34: "-- migration_34_ist_halter",
+    35: "-- migration_35_gebuehren_assistent",
+    36: "-- migration_36_sg_felder",
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -398,6 +400,10 @@ def run_migrations() -> None:
                 _run_migration_33(conn)
             elif version == 34:
                 _run_migration_34(conn)
+            elif version == 35:
+                _run_migration_35(conn)
+            elif version == 36:
+                _run_migration_36(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
@@ -2115,3 +2121,93 @@ def _run_migration_33(conn):
     )
     logger.info("Migration 33: konfiguration angelegt, STA-Fristen-Defaults gesetzt.")
 
+
+def _run_migration_35(conn):
+    # type: (sqlite3.Connection) -> None
+    """
+    Migration 35: Gebührenassistent (PRD-28) – Nr. 2300 VV RVG.
+
+    Erweitert bestehende Tabellen um Felder für die VU-Entscheidungsmatrix
+    und legt die neue Tabelle gebuehren_berechnung an.
+    """
+    # ── unfallakte: Auslandsbezug, Todesfall, Haftung streitig ───────────────
+    vorhandene_akte = {
+        row[1] for row in conn.execute("PRAGMA table_info(unfallakte)").fetchall()
+    }
+    for spalte, typ in [
+        ("auslandsbezug",   "INTEGER NOT NULL DEFAULT 0"),
+        ("todesfall",       "INTEGER NOT NULL DEFAULT 0"),
+        ("haftung_streitig","INTEGER NOT NULL DEFAULT 0"),
+    ]:
+        if spalte not in vorhandene_akte:
+            conn.execute(f"ALTER TABLE unfallakte ADD COLUMN {spalte} {typ}")
+            logger.info("Migration 35: unfallakte.%s hinzugefuegt.", spalte)
+        else:
+            logger.info("Migration 35: unfallakte.%s bereits vorhanden.", spalte)
+
+    # ── personenschaden: Verletzungsgrad, Pflegebedarf ───────────────────────
+    vorhandene_ps = {
+        row[1] for row in conn.execute("PRAGMA table_info(personenschaden)").fetchall()
+    }
+    for spalte, typ in [
+        ("verletzungsgrad", "TEXT"),                         # keine|leicht|schwer|schwerst
+        ("pflegebedarf",    "INTEGER NOT NULL DEFAULT 0"),
+    ]:
+        if spalte not in vorhandene_ps:
+            conn.execute(f"ALTER TABLE personenschaden ADD COLUMN {spalte} {typ}")
+            logger.info("Migration 35: personenschaden.%s hinzugefuegt.", spalte)
+        else:
+            logger.info("Migration 35: personenschaden.%s bereits vorhanden.", spalte)
+
+    # ── Neue Tabelle gebuehren_berechnung ─────────────────────────────────────
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS gebuehren_berechnung (
+            id               INTEGER PRIMARY KEY,
+            akte_id          TEXT NOT NULL REFERENCES unfallakte(az),
+            vuregel_id       TEXT,
+            faktor_vorschlag REAL,
+            faktor_final     REAL,
+            begruendung      TEXT,
+            kriterien_json   TEXT,
+            erfasst_am       TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            erfasst_von      INTEGER REFERENCES benutzer(id),
+            UNIQUE(akte_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_gebuehren_akte
+            ON gebuehren_berechnung(akte_id);
+    """)
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (35, 'Migration 35 - Gebuehrenassistent PRD-28')"
+    )
+    logger.info("Migration 35 abgeschlossen.")
+
+
+def _run_migration_36(conn):
+    # type: (sqlite3.Connection) -> None
+    """
+    Migration 36: Schmerzensgeld-Ermittlungstool (PRD-29).
+
+    Neue Felder in personenschaden für gespeichertes Orientierungsurteil
+    und KI-generierten Klagetext.
+    """
+    vorhandene = {
+        row[1] for row in conn.execute("PRAGMA table_info(personenschaden)").fetchall()
+    }
+    for spalte, typ in [
+        ("sg_mindest",         "REAL"),
+        ("sg_text",            "TEXT"),
+        ("sg_urteil_gericht",  "TEXT"),
+        ("sg_urteil_az",       "TEXT"),
+        ("sg_urteil_betrag",   "REAL"),
+    ]:
+        if spalte not in vorhandene:
+            conn.execute(f"ALTER TABLE personenschaden ADD COLUMN {spalte} {typ}")
+            logger.info("Migration 36: personenschaden.%s hinzugefuegt.", spalte)
+        else:
+            logger.info("Migration 36: personenschaden.%s bereits vorhanden.", spalte)
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (36, 'Migration 36 - Schmerzensgeld-Ermittlungstool PRD-29')"
+    )
+    logger.info("Migration 36 abgeschlossen.")

@@ -5,9 +5,11 @@ import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
 import { fmtEuro } from "../config/utils.js";
 import { Card, KlageCardHead, Btn, Toast } from "../components/common.jsx";
+import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
 import {
   akten as apiAkten,
   apiKlage,
+  apiGebuehren,
   apiFirmen,
   beteiligte as apiBeteiligte,
 } from "../api.js";
@@ -156,6 +158,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [vertreterModal, setVModal]     = useState(null); // {id, name, daten}
   const [mitSG, setMitSG]       = useState(false);
   const [sgMind, setSGMind]     = useState(0);
+  const [showSgAssistent, setShowSgAssistent] = useState(false);
   const [zinsenAb, setZinsenAb] = useState("verzug");
   const [verzug, setVerzug]     = useState("");
   const [rvgOverride, setRvgOv] = useState("");
@@ -189,6 +192,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [wizardRvgAussergData, setWizardRvgAussergData] = useState(null);
   const [wizardRvgAussergOv, setWizardRvgAussergOv]     = useState("");
   const [wizardGebuehrenText, setWizardGebuehrenText]   = useState("");
+  const [gespeichertGb, setGespeichertGb]               = useState(null); // PRD-28: gespeicherte Gebührenberechnung
 
   useEffect(() => {
     (async () => {
@@ -208,6 +212,17 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         if (res.gericht_vorschlag) {
           setGericht(res.gericht_vorschlag);
         }
+        // PRD-28: gespeicherte Gebührenberechnung laden
+        try {
+          const gb = await apiGebuehren.laden(akteId);
+          if (gb.gespeichert) {
+            setGespeichertGb(gb.gespeichert);
+            // Faktor aus Gebühren-Tab vorbelegen
+            if (gb.gespeichert.faktor_final) {
+              setWizardRvgAussergOv(String(gb.gespeichert.faktor_final));
+            }
+          }
+        } catch { /* Gebühren-Tab optional */ }
       } catch (e) {
         setFehler(e?.message || "Fehler beim Laden.");
       }
@@ -537,6 +552,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           wizardRvgAussergData={wizardRvgAussergData} onRvgAussergData={setWizardRvgAussergData}
           wizardRvgAussergOv={wizardRvgAussergOv}     onRvgAussergOv={setWizardRvgAussergOv}
           wizardGebuehrenText={wizardGebuehrenText}   onGebuehrenText={setWizardGebuehrenText}
+          gespeichertGb={gespeichertGb}               onGespeichertGb={setGespeichertGb}
+          wizardAkteId={akteId}
           // Shared
           beklagte={beklagte}
           rvgData={rvgData}
@@ -550,6 +567,22 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           fehler={fehler}
         />
       )}
+      {showSgAssistent && (() => {
+        const kObj  = beklagte.find(b => b.rolle_klage === "klaeger");
+        const klNom = (kObj?.anrede || "").toLowerCase() === "frau" ? "Die Klägerin" : "Der Kläger";
+        return (
+          <SchmerzensgelDialog
+            az={akteId}
+            kl_nom={klNom}
+            onClose={() => setShowSgAssistent(false)}
+            onUebernehmen={({ mitSG: sg, sgMind: mind }) => {
+              setMitSG(sg);
+              setSGMind(mind);
+              setShowSgAssistent(false);
+            }}
+          />
+        );
+      })()}
       {toast && <Toast msg={toast} onDone={() => setToast("")}/>}
       <div style={{ maxWidth:900, margin:"0 auto", padding:"1.75rem",
         display:"flex", flexDirection:"column", gap:"1.25rem" }}>
@@ -985,6 +1018,17 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                   color:T.textMuted }}>€</span>
               </div>
             )}
+            <div style={{ marginTop: 4 }}>
+              <button
+                onClick={() => setShowSgAssistent(true)}
+                style={{
+                  padding: "7px 14px", background: T.navy, color: "#fff",
+                  border: "none", borderRadius: 7, cursor: "pointer",
+                  fontFamily: "'IBM Plex Sans',sans-serif", fontSize: "0.85rem", fontWeight: 600,
+                }}>
+                Schmerzensgeld-Assistent
+              </button>
+            </div>
           </div>
         </Card>
 
@@ -1093,6 +1137,12 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                     <span style={{ color: z.bold ? T.navy : T.text }}>{fmtEuro(z.val)}</span>
                   </div>
                 ))}
+                <div style={{ fontFamily:"'IBM Plex Sans',sans-serif", fontSize:"0.7rem",
+                  color: T.textFaint, marginTop: 6, textAlign: "right" }}>
+                  § 13 RVG Anlage 2 – {rvgData.rvg_version === "2025"
+                    ? "2. KostRMoG (ab 01.06.2025)"
+                    : "KostRÄG 2021 (bis 31.05.2025)"}
+                </div>
               </div>
             )}
             <div style={{ display:"flex", alignItems:"center", gap:12 }}>

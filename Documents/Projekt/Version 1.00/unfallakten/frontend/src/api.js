@@ -294,6 +294,11 @@ export const apiKlage = {
   kiHaftung:       (az, schilderung, hq) => request(`/akten/${az}/klage/ki-haftung`, {
                                          method: 'POST',
                                          body: JSON.stringify({ schilderung, hq }) }),
+  sgAnalyse:       (az)           => request(`/akten/${az}/klage/sg-analyse`),
+  sgRecherche:     (az, profil)   => request(`/akten/${az}/klage/sg-recherche`, {
+                                       method: 'POST', body: JSON.stringify({ profil }) }),
+  sgText:          (az, body)     => request(`/akten/${az}/klage/sg-text`, {
+                                       method: 'POST', body: JSON.stringify(body) }),
   generieren: async (az, klagenConfig, overrides = null) => {
     const token = tokenStore.getAccess();
     const reqBody = { klage_config: klagenConfig, in_db: true };
@@ -316,6 +321,15 @@ export const apiKlage = {
     _triggerDownload(blob, m ? m[1] : `${az}_klageschrift.docx`);
     return { ok: true };
   },
+};
+
+// ─────────────────────────────────────────────────────────────
+// PERSONENSCHADEN
+// ─────────────────────────────────────────────────────────────
+export const apiPersonenschaden = {
+  laden:    (az)       => request(`/akten/${az}/personenschaden`),
+  speichern:(az, daten) => request(`/akten/${az}/personenschaden`, {
+                             method: 'PUT', body: JSON.stringify(daten) }),
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -826,4 +840,16 @@ export const apiSta = {
     _triggerDownload(blob, m ? m[1] : `${azSafe}_sachstandsanfrage_stufe${stufe}.docx`);
     return { ok: true };
   },
+};
+
+// ─────────────────────────────────────────────────────────────
+// GEBÜHRENASSISTENT (PRD-28)
+// ─────────────────────────────────────────────────────────────
+export const apiGebuehren = {
+  laden:      (az)        => request(`/akten/${az}/gebuehren`),
+  analysieren:(az, body)  => request(`/akten/${az}/gebuehren/analysieren`, {
+                               method: 'POST', body: JSON.stringify(body || {}) }),
+  speichern:  (az, body)  => request(`/akten/${az}/gebuehren`, {
+                               method: 'PUT', body: JSON.stringify(body) }),
+  word:       (az)        => request(`/akten/${az}/gebuehren/word`, { method: 'POST' }),
 };

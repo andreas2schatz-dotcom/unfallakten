@@ -17,6 +17,8 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import T from "../config/theme.js";
+import { apiGebuehren } from "../api.js";
+import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
 
 // ── Konstanten ─────────────────────────────────────────────────────────────────
 
@@ -686,7 +688,8 @@ function StepUnfall({ schilderungOriginal, klaeger, unfalltextEdit, onUnfalltext
 
 // ── Step 4: Schadenpositionen ──────────────────────────────────────────────────
 
-function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind, abrechnungen }) {
+function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind, abrechnungen, az, kl_nom }) {
+  const [showSgDialog, setShowSgDialog] = useState(false);
   const klagebetrag = positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag || 0), 0);
 
   // Regulierungsstand pro position_key aggregieren (über alle Abrechnungen)
@@ -822,7 +825,30 @@ function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind
             <span style={{ fontFamily: PLEX, fontSize: "0.85rem", color: T.textMuted }}>€</span>
           </div>
         )}
+        <div style={{ marginTop: "0.75rem" }}>
+          <button
+            onClick={() => setShowSgDialog(true)}
+            style={{
+              padding: "7px 14px", background: T.navy, color: "#fff",
+              border: "none", borderRadius: 7, cursor: "pointer",
+              fontFamily: PLEX, fontSize: "0.85rem", fontWeight: 600,
+            }}>
+            Schmerzensgeld-Assistent
+          </button>
+        </div>
       </div>
+      {showSgDialog && az && (
+        <SchmerzensgelDialog
+          az={az}
+          kl_nom={kl_nom || "Der Kläger"}
+          onClose={() => setShowSgDialog(false)}
+          onUebernehmen={({ mitSG: sg, sgMind: mind }) => {
+            onMitSG(sg);
+            onSGMind(mind);
+            setShowSgDialog(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -1756,17 +1782,77 @@ function StepAntraege({ positionen, mitSG, sgMind, beklagte, weiblich,
 
 // ── Step 9: Außergerichtliche Gebühren ─────────────────────────────────────────
 
+const VG_OPTIONEN = [
+  { value: "keine",    label: "Kein Personenschaden" },
+  { value: "leicht",   label: "Leicht (HWS, AU ≤ 14 Tage)" },
+  { value: "schwer",   label: "Schwer (Knochenbruch, OP)" },
+  { value: "schwerst", label: "Schwerst / Dauerschaden" },
+];
+
 function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
                          rvgAussergOv, onRvgAussergOv,
                          gebuehrenText, onGebuehrenText,
                          beklagte, weiblich,
                          zinsenAb, verzug,
-                         antraegeText, onAntraegeText }) {
+                         antraegeText, onAntraegeText,
+                         gespeichertGb, onGespeichertGb, akteId }) {
   const beklagteGef = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked);
   const nrSuffix    = beklagteGef.length > 1 ? " (zu 1)" : "";
   const kl_akk      = weiblich ? "die Klägerin" : "den Kläger";  // Akkusativ: zahlen an…
   const zinsDat     = zinsenAb === "verzug" && verzug ? `seit dem ${verzug}` : "seit Rechtshängigkeit";
   const rvgGesamt   = rvgAussergOv ? parseFloat(rvgAussergOv) : (rvgAussergData?.gesamt || 0);
+
+  // PRD-28: Inline-Assistent State (Modus B)
+  const [gbAntworten, setGbAntworten]   = useState({});
+  const [gbAnalysiert, setGbAnalysiert] = useState(false);
+  const [gbVorschlag, setGbVorschlag]   = useState(null);
+  const [gbAnalyseLaedt, setGbAnalyseLaedt] = useState(false);
+  const [gbSpeichertLaedt, setGbSpeichertLaedt] = useState(false);
+
+  const gbAnalysieren = async () => {
+    if (!akteId) return;
+    setGbAnalyseLaedt(true);
+    try {
+      const res = await apiGebuehren.analysieren(akteId, {
+        ...gbAntworten,
+        streitwert: swAusserg,
+      });
+      setGbVorschlag(res.vorschlag);
+      const neuerFaktor = res.vorschlag?.faktor ?? 1.3;
+      // RVG mit neuem Faktor vom Backend neu berechnen
+      onRvgAussergData({ ...res.rvg, faktor: neuerFaktor });
+      onRvgAussergOv(String(neuerFaktor));
+      setGbAnalysiert(true);
+    } catch (e) {
+      // Stille Fehlerbehandlung – Anwalt sieht leere Tabelle
+    } finally {
+      setGbAnalyseLaedt(false);
+    }
+  };
+
+  const gbUebernehmen = async () => {
+    if (!akteId || !gbVorschlag) return;
+    setGbSpeichertLaedt(true);
+    try {
+      const faktorFinal = parseFloat(rvgAussergOv) || gbVorschlag.faktor;
+      await apiGebuehren.speichern(akteId, {
+        kriterien:       gbAntworten,
+        vuregel_id:      gbVorschlag.vuregel_id,
+        faktor_vorschlag:gbVorschlag.faktor,
+        faktor_final:    faktorFinal,
+        begruendung:     gbVorschlag.begruendung,
+      });
+      onGespeichertGb && onGespeichertGb({
+        faktor_final: faktorFinal,
+        vuregel_id:   gbVorschlag.vuregel_id,
+        begruendung:  gbVorschlag.begruendung,
+      });
+    } catch {
+      // Nicht kritisch – Wizard läuft weiter
+    } finally {
+      setGbSpeichertLaedt(false);
+    }
+  };
 
   function baueGebuehrenAntrag(betrag) {
     const b = betrag || rvgGesamt;
@@ -1800,6 +1886,87 @@ function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
       <div style={{ flex: "0 0 260px", display: "flex", flexDirection: "column", gap: "0.9rem" }}>
         <AbschnittLabel text="Vorgerichtliche Kosten" />
 
+        {/* ── Modus A: Gebühren-Tab bereits ausgefüllt ── */}
+        {gespeichertGb && (
+          <div style={{ background: T.greenBg, border: `1px solid ${T.green}44`,
+                        borderRadius: 8, padding: "0.6rem 0.85rem",
+                        fontFamily: PLEX, fontSize: "0.78rem" }}>
+            <div style={{ fontWeight: 700, color: T.green, marginBottom: 3 }}>
+              ✓ Aus Gebühren-Tab übernommen
+            </div>
+            <div style={{ color: T.textMid }}>
+              {gespeichertGb.vuregel_id && (
+                <span style={{ fontWeight: 600 }}>{gespeichertGb.vuregel_id} · </span>
+              )}
+              Faktor {String(gespeichertGb.faktor_final || 1.3).replace(".", ",")}
+            </div>
+            <div style={{ color: T.textFaint, marginTop: 3, fontSize: "0.72rem" }}>
+              Zum Ändern: Tab „Gebühren" öffnen
+            </div>
+          </div>
+        )}
+
+        {/* ── Modus B: Inline-Assistent (kein gespeicherter Eintrag) ── */}
+        {!gespeichertGb && !gbAnalysiert && (
+          <div style={{ background: "#fffbeb", border: `1px solid #f59e0b44`,
+                        borderRadius: 8, padding: "0.75rem 0.85rem",
+                        fontFamily: PLEX, fontSize: "0.78rem" }}>
+            <div style={{ fontWeight: 700, color: "#92400e", marginBottom: 6 }}>
+              Gebühren-Analyse
+            </div>
+            <div style={{ marginBottom: 8, color: T.textMid }}>
+              Verletzungsgrad des Mandanten?
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
+              {VG_OPTIONEN.map(o => (
+                <button key={o.value}
+                  onClick={() => setGbAntworten(a => ({ ...a, verletzungsgrad: o.value }))}
+                  style={{
+                    padding: "4px 10px", border: `1px solid`,
+                    borderColor: gbAntworten.verletzungsgrad === o.value ? T.navy : T.border,
+                    borderRadius: 6, cursor: "pointer", fontSize: "0.78rem",
+                    background: gbAntworten.verletzungsgrad === o.value ? T.navy : T.surface,
+                    color: gbAntworten.verletzungsgrad === o.value ? "#fff" : T.textMid,
+                    fontFamily: PLEX, textAlign: "left",
+                  }}>
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={gbAnalysieren}
+              disabled={gbAnalyseLaedt}
+              style={{ width: "100%", padding: "5px 0", background: T.navy, color: "#fff",
+                       border: "none", borderRadius: 6, cursor: "pointer",
+                       fontSize: "0.82rem", fontWeight: 700, fontFamily: PLEX }}>
+              {gbAnalyseLaedt ? "…" : "Analysieren →"}
+            </button>
+          </div>
+        )}
+
+        {/* Ergebnis nach Modus-B-Analyse */}
+        {!gespeichertGb && gbAnalysiert && gbVorschlag && (
+          <div style={{ background: T.surface, border: `1px solid ${T.borderSoft}`,
+                        borderRadius: 8, padding: "0.6rem 0.85rem",
+                        fontFamily: PLEX, fontSize: "0.78rem" }}>
+            <div style={{ fontWeight: 700, color: T.navy, marginBottom: 3 }}>
+              {gbVorschlag.vuregel_id} · Faktor {String(gbVorschlag.faktor).replace(".", ",")}
+            </div>
+            <div style={{ color: T.textFaint, fontSize: "0.72rem", marginBottom: 8,
+                          lineHeight: 1.4 }}>
+              {gbVorschlag.leitentscheidung}
+            </div>
+            <button
+              onClick={gbUebernehmen}
+              disabled={gbSpeichertLaedt}
+              style={{ width: "100%", padding: "4px 0", background: T.green, color: "#fff",
+                       border: "none", borderRadius: 6, cursor: "pointer",
+                       fontSize: "0.78rem", fontWeight: 700, fontFamily: PLEX }}>
+              {gbSpeichertLaedt ? "…" : "✓ Speichern"}
+            </button>
+          </div>
+        )}
+
         <div style={{ background: T.surface, borderRadius: 8, padding: "0.75rem 1rem",
           border: `1px solid ${T.borderSoft}` }}>
           <div style={{ fontFamily: PLEX, fontSize: "0.72rem", fontWeight: 700,
@@ -1832,6 +1999,11 @@ function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
                 <span style={{ fontFamily: MONO, fontSize: "0.8rem", whiteSpace: "nowrap" }}>{fNr(z.v)}</span>
               </div>
             ))}
+            <div style={{ fontSize: "0.68rem", color: T.textFaint, textAlign: "right", marginTop: 5 }}>
+              § 13 RVG – {rvgAussergData.rvg_version === "2025"
+                ? "2. KostRMoG (ab 01.06.2025)"
+                : "KostRÄG 2021 (bis 31.05.2025)"}
+            </div>
           </div>
         )}
 
@@ -1911,6 +2083,8 @@ export default function KlageWizard({
   wizardRvgAussergData, onRvgAussergData,
   wizardRvgAussergOv, onRvgAussergOv,
   wizardGebuehrenText, onGebuehrenText,
+  gespeichertGb, onGespeichertGb,
+  wizardAkteId,
   // Shared
   beklagte, rvgData, rvgOverride, zinsenAb, verzug,
   lgGrenzwert,
@@ -2043,6 +2217,8 @@ export default function KlageWizard({
                 positionen={positionen}   onTogglePos={onTogglePos}
                 mitSG={mitSG}             onMitSG={onMitSG}
                 sgMind={sgMind}           onSGMind={onSGMind}
+                az={wizardAkteId}
+                kl_nom={klaeger}
               />
             )}
 
@@ -2092,6 +2268,8 @@ export default function KlageWizard({
                 beklagte={beklagte}                   weiblich={weiblich}
                 zinsenAb={zinsenAb}                   verzug={verzug}
                 antraegeText={wizardAntraegeText}     onAntraegeText={onAntraegeText}
+                gespeichertGb={gespeichertGb}         onGespeichertGb={onGespeichertGb}
+                akteId={wizardAkteId}
               />
             )}
 

@@ -23,6 +23,7 @@ import DokumenteSection from "../sections/DokumenteSection.jsx";
 import RaMicroSachstandsCard from "../sections/RaMicroSachstandsCard.jsx";
 import WordSection from "../sections/WordSection.jsx";
 import UnfalldetailsSection from "../sections/UnfalldetailsSection.jsx";
+import GebuehrenSection from "../sections/GebuehrenSection.jsx";
 import KlageSection from "../sections/KlageSection.jsx";
 import AktionBadge from "../views/email_import/components/AktionBadge.jsx";
 
@@ -191,6 +192,7 @@ function AkteDetailView({ akte, st, dispatch }) {
     { id:"schaden",       label:`🚗 Schaden`,    ..._statusPunkt(_schadenOk, !_schadenOk && st.schaden !== undefined, false) },
     { id:"dokumente",     label:`📄 Dokumente (${_dokumenteAnz})` },
     { id:"regulierung",   label:`💶 Regulierung`, ..._statusPunkt(_regulierungOk, false, true) },
+    { id:"gebuehren",     label:"⚖️ Gebühren" },
     { id:"klage",         label:`⚖ Klage`,       ..._statusPunkt(_klageStatus, false, true) },
     { id:"word",          label:"📝 Word" },
     { id:"todos",         label:`📋 To-Dos` },
@@ -450,6 +452,7 @@ function AkteDetailView({ akte, st, dispatch }) {
           {sec==="schaden"        && <SchadenSection schaden={st.schaden||{}} hq={akte.hq} dispatch={dispatch} akteId={akte.id} vorsteuer={(st.beteiligte||[]).find(b=>b.rolle==="mandant")?.vorsteuer==="Y"} dokumente={st.dokumente||[]} belegeKandidaten={st.belegeKandidaten||[]} />}
           {sec==="dokumente"      && <DokumenteSection dokumente={st.dokumente||[]} dispatch={dispatch} akteId={akte.id} akte={akte} />}
           {sec==="regulierung"    && <RegulierungSection regulierungen={st.regulierungen||[]} brutto={st.schaden?.gesamt_brutto ?? liveBrutto} hq={akte.hq} dispatch={dispatch} akteId={akte.id} schaden={st.schaden||{}} abrechnungenCached={st.abrechnungen||[]} beteiligte={st.beteiligte||[]} dokumente={st.dokumente||[]} />}
+          {sec==="gebuehren"      && <GebuehrenSection akteId={akte.id} akte={akte} />}
           {sec==="klage"          && <KlageSection akteId={akte.id} akte={akte} st={st} dispatch={dispatch} />}
           {sec==="word"           && <WordSection akte={akte} st={st} dispatch={dispatch} />}
           {sec==="uebersicht"     && <UebersichtSection akte={akte} st={st} dispatch={dispatch} />}

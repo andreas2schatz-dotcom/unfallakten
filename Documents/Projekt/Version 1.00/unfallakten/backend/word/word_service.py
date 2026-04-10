@@ -457,7 +457,22 @@ def _lade_akte_daten(akte_id: int, akte, dok_typ: str = "", variante: str = "aut
         "wdm_roh":          wdm_kontroll,   # Kontrollvars aus WDM (Flags, Grammatik)
         "variante":         ermittelte_variante,
         "mandant_anrede":   (mandant_dict or {}).get("anrede", ""),
+        # PRD-29: personenschaden für Schmerzensgeld-Textbaustein
+        "personenschaden":  _lade_personenschaden(az),
     }
+
+
+def _lade_personenschaden(az: str) -> dict:
+    """Lädt personenschaden-Daten aus SQLite (PRD-29)."""
+    try:
+        from ..db.database import get_connection
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT * FROM personenschaden WHERE akte_id = ?", (az,)
+            ).fetchone()
+            return dict(row) if row else {}
+    except Exception:
+        return {}
 
 
 def _lade_beteiligte_aus_ramicro(az: str) -> dict:
@@ -566,6 +581,11 @@ def _lade_beteiligte_aus_ramicro(az: str) -> dict:
                     lambda m: wdm_dict.get(f"var{m.group(1)}") or
                               wdm_dict.get(f"var{m.group(1).upper()}") or "", text).strip()
 
+            # RA-Micro speichert sAnrede als Code ("1"=Herr, "2"=Frau) oder als Text
+            _anrede_raw = (r.get("sAnrede") or "").strip()
+            _ANREDE_NORM = {"1": "Herr", "2": "Frau"}
+            _anrede = _ANREDE_NORM.get(_anrede_raw, _anrede_raw)
+
             return {
                 "name":        name,
                 "vorname":     vorname,
@@ -575,7 +595,7 @@ def _lade_beteiligte_aus_ramicro(az: str) -> dict:
                 "ort":         (r.get("sOrt")      or "").strip(),
                 "telefon":     (r.get("sTelefon")  or "").strip(),
                 "email":       (r.get("sEMail")    or "").strip(),
-                "anrede":      (r.get("sAnrede")   or "").strip(),
+                "anrede":      _anrede,
                 "briefanrede": (r.get("sBriefanrede") or "").strip(),
                 "versicherung": None,
                 "schaden_nr":  None,

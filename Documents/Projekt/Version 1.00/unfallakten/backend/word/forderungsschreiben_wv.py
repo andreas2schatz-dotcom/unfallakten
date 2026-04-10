@@ -19,6 +19,8 @@ from typing import Optional
 
 # PRD-14: Single Source of Truth
 from ..models.schaden import berechne_abrechnungsart as _berechne_abrechnungsart
+# PRD-29: Gemeinsamer Schmerzensgeld-Textbaustein
+from .sg_text_builder import baue_sg_abschnitt as _baue_sg_abschnitt
 
 logger = logging.getLogger(__name__)
 
@@ -396,7 +398,8 @@ def _generiere(akte_daten: dict) -> bytes:
         einleitung_tabelle = "Wir beziffern den Schaden vorläufig wie folgt:"
     vorsteuer = str(mandant.get("vorsteuer") or "N").strip().upper() in ("Y", "J", "JA", "1", "TRUE")
     tabelle_xml, _ = _baue_tabelle(schaden, bw, einleitung_tabelle, vorsteuer=vorsteuer)
-    verletzung_xml = _baue_verletzungsblock(wdm, gram)
+    ps_data = akte_daten.get("personenschaden") or {}
+    verletzung_xml = _baue_verletzungsblock(wdm, gram, ps_data)
     grussformel_xml = _baue_grussformel_xml(sb["name"], sb["titel"])
 
     # ── Einfache Platzhalter ───────────────────────────────────────────────
@@ -579,7 +582,7 @@ def _baue_grussformel_xml(sb_name: str, sb_titel: str) -> str:
 # VERLETZUNGSBLOCK
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _baue_verletzungsblock(wdm: dict, gram: dict) -> str:
+def _baue_verletzungsblock(wdm: dict, gram: dict, ps_data: dict = None) -> str:
     """Verletzungsblock. Leer wenn ANSPR-SG != Ja."""
     def wv(key: str) -> str:
         v = (wdm.get(f"var{key}") or wdm.get(key) or "").strip()
@@ -680,17 +683,21 @@ def _baue_verletzungsblock(wdm: dict, gram: dict) -> str:
             "zu übersenden, damit wir die ärztlichen Befundberichte einholen können."
         ))
 
-    # Schmerzensgeld
+    # Schmerzensgeld (PRD-29: echte Verletzungsdaten wenn vorhanden)
     schmgeld = wv("SCHMGELD")
-    if schmgeld:
-        absaetze.append(_p_last(
-            f"Angesichts der Schwere der Verletzungen und des damit einhergehenden "
-            f"Leidens halten wir ein Schmerzensgeld von {schmgeld} für angemessen."
-        ))
-    else:
-        absaetze.append(_p_last(
-            "Zur Höhe des Schmerzensgeldes werden wir noch gesondert vortragen."
-        ))
+    sg_mind  = float(schmgeld.replace(".", "").replace(",", ".").replace(" €", "").replace("€", "").strip()) \
+               if schmgeld else 0.0
+    try:
+        sg_mind = float(schmgeld.replace(".", "").replace(",", ".").strip().rstrip("€").strip()) \
+                  if schmgeld else 0.0
+    except Exception:
+        sg_mind = 0.0
+
+    sg_absaetze, _, sg_vgl = _baue_sg_abschnitt(ps_data or {}, gram.get("kl_nom") or "Der Kläger", sg_mind)
+    sg_text = " ".join(sg_absaetze)
+    if sg_vgl:
+        sg_text += f" ({sg_vgl})"
+    absaetze.append(_p_last(sg_text))
 
     return "".join(absaetze)
 

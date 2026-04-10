@@ -576,9 +576,15 @@ def hole_klage_daten(akte_id: str):
     # Beteiligte via Model-Funktion (liefert Objekte mit .kuerzel, .schaden_nr etc.)
     beteiligte_objs = hole_beteiligte_by_akte(az)
 
-    # RA-Micro Fallback: wenn SQLite keine Beteiligte enthält
+    # RA-Micro Fallback: wenn SQLite keinen Mandanten/Gegner enthält.
+    # Wichtig: 'gericht'-Einträge (von speichere_gericht) dürfen den Fallback
+    # nicht unterdrücken – daher Prüfung auf Parteien, nicht auf leere Liste.
     ra_beteiligte = {}
-    if not beteiligte_objs:
+    _hat_parteien = any(
+        getattr(b, "rolle", "") in ("mandant", "gegner")
+        for b in beteiligte_objs
+    )
+    if not _hat_parteien:
         try:
             ra_beteiligte = _lade_beteiligte_aus_ramicro(az) or {}
         except Exception as e:
@@ -732,8 +738,8 @@ def hole_klage_daten(akte_id: str):
 
     alle_bet = [b_dict(b) for b in beteiligte_objs]
 
-    # RA-Micro Fallback: Beteiligte aus RA-Micro als Pseudo-Objekte einbauen
-    if not alle_bet and ra_beteiligte:
+    # RA-Micro Fallback: Parteien aus RA-Micro ergänzen wenn keine in SQLite
+    if not _hat_parteien and ra_beteiligte:
         for rolle_key in ("mandant", "gegner"):
             rb = ra_beteiligte.get(rolle_key)
             if rb and isinstance(rb, dict):
@@ -746,6 +752,7 @@ def hole_klage_daten(akte_id: str):
                     "anschrift":     rb.get("anschrift") or "",
                     "plz":           rb.get("plz") or "",
                     "ort":           rb.get("ort") or "",
+                    "anrede":        rb.get("anrede") or "",
                     "versicherung":  rb.get("versicherung") or "",
                     "schaden_nr":    rb.get("schaden_nr") or "",
                     "kfz_kennzeichen": rb.get("kfz_kennzeichen") or "",
@@ -821,9 +828,12 @@ def hole_klage_daten(akte_id: str):
             except Exception as e:
                 logger.debug("Gericht-Vorschlag: %s", e)
 
+    # Gericht aus Parteien-Liste entfernen (wird separat via gericht_vorschlag behandelt)
+    alle_bet = [b for b in alle_bet if (b.get("rolle") or "").lower() != "gericht"]
+
     # ── RVG-Vorberechnung ─────────────────────────────────────────────────────
     klagebetrag = sum(p["betrag"] for p in pos_definitionen if p["checked"])
-    rvg = berechne_rvg(klagebetrag)
+    rvg = berechne_rvg(klagebetrag, erstellt_am=akte.erstellt_am)
     rvg["streitwert"] = klagebetrag
 
     # ── Aktivlegitimation aus unfalldetails + Fahrer-Ermittlung ──────────────
@@ -896,7 +906,9 @@ def rvg_berechnen(akte_id: str):
         faktor     = float(d.get("faktor") or 1.3)
     except (TypeError, ValueError):
         return _err("streitwert und faktor müssen Zahlen sein.", 422)
-    rvg = berechne_rvg(streitwert, faktor)
+    akte = hole_akte_by_id(akte_id)
+    rvg = berechne_rvg(streitwert, faktor,
+                       erstellt_am=akte.erstellt_am if akte else None)
     rvg["streitwert"] = streitwert
     return _j({"rvg": rvg})
 
@@ -1019,6 +1031,7 @@ def generiere_klage(akte_id: str):
             "unfalldatum":  akte.unfalldatum or _wdm("varU-TAG") or "",
             "unfallort":    (akte.unfallort or "").strip() or _wdm("varU-ORT") or "",
             "haftungsquote": akte.haftungsquote,
+            "erstellt_am":  akte.erstellt_am,
         },
         "mandant":      mandant,
         "kanzlei":      KANZLEI_INFO,
@@ -1078,6 +1091,13 @@ def generiere_klage(akte_id: str):
         "klage_config":  klage_cfg,
         "schaden":      schaden_dict,  # für _baue_tabelle in klage_service
     }
+
+    # PRD-29: personenschaden für Schmerzensgeld-Textbaustein laden
+    with get_connection() as conn:
+        ps_row = conn.execute(
+            "SELECT * FROM personenschaden WHERE akte_id = ?", (az,)
+        ).fetchone()
+    akte_daten["personenschaden"] = dict(ps_row) if ps_row else {}
 
     try:
         doc_bytes = generiere_klageschrift(akte_daten)
@@ -1238,6 +1258,273 @@ def ki_haftung(akte_id: str):
 
     except Exception as e:
         logger.error("KI-Haftung Fehler (%s): %s", modell, e)
+        return jsonify({"fehler": f"KI-Aufruf fehlgeschlagen: {str(e)}"}), 500
+
+
+# ── Schmerzensgeld-Ermittlungstool (PRD-29) ───────────────────────────────────
+
+@klage_bp.route("/sg-analyse", methods=["GET"])
+@login_erforderlich
+def sg_analyse(akte_id: str):
+    """
+    GET /akten/<az>/klage/sg-analyse
+    Liest personenschaden-Daten und gibt strukturiertes Verletzungsprofil zurück.
+    """
+    az = akte_id
+    with get_connection() as conn:
+        ps = conn.execute(
+            "SELECT * FROM personenschaden WHERE akte_id=?", (az,)
+        ).fetchone()
+
+    if not ps:
+        return _j({
+            "profil": None,
+            "fehlende_felder": ["verletzungen_text"],
+            "gespeichert": {},
+        })
+
+    ps = dict(ps)
+
+    from ..word.sg_text_builder import _parse_datum as _pd
+
+    # Krankenhaustage berechnen (unterstützt ISO und deutsches Datumsformat)
+    krankenhaustage = 0
+    kh_von_d = _pd(ps.get("krankenhaus_von") or "")
+    kh_bis_d = _pd(ps.get("krankenhaus_bis") or "")
+    if kh_von_d and kh_bis_d:
+        krankenhaustage = max(0, (kh_bis_d - kh_von_d).days)
+
+    # AU-Tage berechnen
+    au_tage = 0
+    au_von_d = _pd(ps.get("krank_von") or "")
+    au_bis_d = _pd(ps.get("krank_bis") or "")
+    if au_von_d and au_bis_d:
+        au_tage = max(0, (au_bis_d - au_von_d).days)
+
+    fehlende = []
+    if not ps.get("verletzungen_text"):
+        fehlende.append("verletzungen_text")
+    if not ps.get("verletzungsgrad"):
+        fehlende.append("verletzungsgrad")
+
+    return _j({
+        "profil": {
+            "verletzungen_text":   ps.get("verletzungen_text") or "",
+            "verletzungsgrad":     ps.get("verletzungsgrad") or "",
+            "krankenhaustage":     krankenhaustage,
+            "krankenhaus_von":     ps.get("krankenhaus_von") or "",
+            "krankenhaus_bis":     ps.get("krankenhaus_bis") or "",
+            "krankenhaus_name":    ps.get("krankenhaus_name") or "",
+            "au_tage":             au_tage,
+            "krank_von":           ps.get("krank_von") or "",
+            "krank_bis":           ps.get("krank_bis") or "",
+            "dauerfolgen":         bool(ps.get("dauerfolgen")),
+            "dauerfolgen_text":    ps.get("dauerfolgen_text") or "",
+            "physiotherapie_anzahl": ps.get("physiotherapie_anzahl") or 0,
+        },
+        "fehlende_felder": fehlende,
+        "gespeichert": {
+            "sg_mindest":        ps.get("sg_mindest"),
+            "sg_text":           ps.get("sg_text") or "",
+            "sg_urteil_gericht": ps.get("sg_urteil_gericht") or "",
+            "sg_urteil_az":      ps.get("sg_urteil_az") or "",
+            "sg_urteil_betrag":  ps.get("sg_urteil_betrag"),
+        },
+    })
+
+
+@klage_bp.route("/sg-recherche", methods=["POST"])
+@login_erforderlich
+def sg_recherche(akte_id: str):
+    """
+    POST /akten/<az>/klage/sg-recherche
+    Claude mit web_search sucht auf dejure.org, lexetius.com, verkehrslexikon.de
+    nach passenden Schmerzensgeldurteilen.
+    Body: { profil: { verletzungen_text, krankenhaustage, au_tage, dauerfolgen, ... } }
+    """
+    import os
+    daten  = request.get_json(silent=True) or {}
+    profil = daten.get("profil") or {}
+
+    verletzungen    = (profil.get("verletzungen_text") or "").strip()
+    kh_tage         = int(profil.get("krankenhaustage") or 0)
+    au_tage         = int(profil.get("au_tage") or 0)
+    dauerfolgen     = bool(profil.get("dauerfolgen"))
+    dauerfolgen_txt = (profil.get("dauerfolgen_text") or "").strip()
+
+    if not verletzungen:
+        return jsonify({"fehler": "Keine Verletzungsbeschreibung vorhanden. "
+                                  "Bitte im Personenschaden-Tab ergänzen."}), 400
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return jsonify({"fehler": "ANTHROPIC_API_KEY nicht konfiguriert."}), 503
+
+    # Verletzungsprofil als Text
+    profil_zeilen = [f"Verletzungen: {verletzungen}"]
+    if kh_tage:
+        profil_zeilen.append(f"Stationärer Krankenhausaufenthalt: {kh_tage} Tage")
+    if au_tage:
+        profil_zeilen.append(f"Arbeitsunfähigkeit: {au_tage} Tage")
+    if dauerfolgen:
+        df_txt = f" ({dauerfolgen_txt})" if dauerfolgen_txt else ""
+        profil_zeilen.append(f"Dauerfolgen: ja{df_txt}")
+    profil_text = "\n".join(profil_zeilen)
+
+    # vorbereiteter schmerzensgeld.online-Link
+    import urllib.parse
+    sg_link = "https://schmerzensgeld.online/suche?" + urllib.parse.urlencode({
+        "q": verletzungen[:100]
+    })
+
+    user_prompt = (
+        f"Suche nach deutschen Gerichtsurteilen zu Schmerzensgeld bei Verkehrsunfällen "
+        f"mit ähnlichen Verletzungen (exakte Übereinstimmung nicht erforderlich):\n"
+        f"{profil_text}\n\n"
+        f"Gib bis zu 5 real existierende Urteile mit vollständigem Aktenzeichen zurück. "
+        f"Ähnliche oder teilweise übereinstimmende Verletzungsbilder sind ausdrücklich erwünscht. "
+        f"Antworte mit einem JSON-Array:\n"
+        f'[{{"gericht":"OLG Frankfurt","az":"22 U 60/17","datum":"22.03.2018",'
+        f'"betrag":5000,"kurzfassung":"HWS Grad II, 4 Wochen AU"}}]'
+    )
+
+    try:
+        import anthropic as _anthropic
+        client = _anthropic.Anthropic(api_key=api_key)
+
+        # max_uses=2 begrenzt interne Suchanfragen → reduziert Input-Tokens
+        web_search_tool = {
+            "type": "web_search_20250305",
+            "name": "web_search",
+            "max_uses": 2,
+        }
+
+        msg = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=2500,
+            system="Antworte ausschließlich mit dem angeforderten JSON-Array. Kein Fließtext, keine Erklärungen, keine Hinweise.",
+            tool_choice={"type": "any"},
+            tools=[web_search_tool],
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+
+        # Antwort-Text aus allen text-Blöcken zusammensetzen
+        # (Claude kann mehrere text-Blöcke zwischen web_search-Aufrufen ausgeben)
+        text_parts = []
+        for block in msg.content:
+            t = getattr(block, "text", None)
+            if t:
+                text_parts.append(t.strip())
+        antwort_text = " ".join(text_parts)
+
+        # JSON aus der Antwort extrahieren
+        import re as _re
+        treffer = []
+        json_match = _re.search(r"\[[\s\S]*\]", antwort_text)
+        if json_match:
+            try:
+                treffer = json.loads(json_match.group(0))
+            except Exception:
+                treffer = []
+
+        return _j({"treffer": treffer[:10], "sg_link": sg_link})
+
+    except Exception as e:
+        logger.error("SG-Recherche Fehler: %s", e)
+        # Fallback: leere Liste + Link
+        return _j({
+            "treffer": [],
+            "sg_link": sg_link,
+            "fehler": f"Automatische Recherche nicht verfügbar: {str(e)}. "
+                      f"Bitte manuell auf schmerzensgeld.online suchen.",
+        })
+
+
+@klage_bp.route("/sg-text", methods=["POST"])
+@login_erforderlich
+def sg_text_generieren(akte_id: str):
+    """
+    POST /akten/<az>/klage/sg-text
+    Claude generiert einen juristisch formulierten Schmerzensgeld-Abschnitt
+    für die Klageschrift auf Basis der Verletzungsdaten.
+    Body: { profil: {...}, kl_nom: str, sg_mind: float,
+            urteil_gericht: str, urteil_az: str, urteil_betrag: float }
+    """
+    import os
+    daten      = request.get_json(silent=True) or {}
+    profil     = daten.get("profil") or {}
+    kl_nom     = (daten.get("kl_nom") or "Die Klägerin/Der Kläger").strip()
+    sg_mind    = float(daten.get("sg_mind") or 0)
+    urteil_g   = (daten.get("urteil_gericht") or "").strip()
+    urteil_az  = (daten.get("urteil_az") or "").strip()
+    urteil_b   = float(daten.get("urteil_betrag") or 0)
+
+    verletzungen = (profil.get("verletzungen_text") or "").strip()
+    if not verletzungen:
+        return jsonify({"fehler": "Keine Verletzungsbeschreibung vorhanden."}), 400
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return jsonify({"fehler": "ANTHROPIC_API_KEY nicht konfiguriert."}), 503
+
+    kh_von   = profil.get("krankenhaus_von") or ""
+    kh_bis   = profil.get("krankenhaus_bis") or ""
+    kh_name  = profil.get("krankenhaus_name") or ""
+    kh_tage  = int(profil.get("krankenhaustage") or 0)
+    au_von   = profil.get("krank_von") or ""
+    au_bis   = profil.get("krank_bis") or ""
+    au_tage  = int(profil.get("au_tage") or 0)
+    df_bool  = bool(profil.get("dauerfolgen"))
+    df_text  = (profil.get("dauerfolgen_text") or "").strip()
+
+    # Kontext für Claude aufbauen
+    kontext_zeilen = [f"Kläger/in: {kl_nom}", f"Verletzungen: {verletzungen}"]
+    if kh_tage and kh_von and kh_bis:
+        kh_zeile = f"Krankenhausaufenthalt: {kh_tage} Tage ({kh_von} – {kh_bis})"
+        if kh_name:
+            kh_zeile += f" im {kh_name}"
+        kontext_zeilen.append(kh_zeile)
+    if au_tage and au_von and au_bis:
+        kontext_zeilen.append(f"Arbeitsunfähigkeit: {au_tage} Tage ({au_von} – {au_bis})")
+    if df_bool:
+        kontext_zeilen.append(f"Dauerfolgen: {df_text}" if df_text else "Dauerfolgen: ja")
+    if sg_mind > 0:
+        kontext_zeilen.append(f"Mindest-Schmerzensgeld: {sg_mind:,.0f} €".replace(",", "."))
+    if urteil_az:
+        kontext_zeilen.append(f"Orientierungsurteil: {urteil_g} {urteil_az} → {urteil_b:,.0f} €".replace(",", "."))
+
+    kontext = "\n".join(kontext_zeilen)
+
+    user_prompt = f"""Schreibe den Schmerzensgeld-Abschnitt für eine deutsche Klageschrift (Verkehrsunfallsache).
+
+Sachverhalt:
+{kontext}
+
+Anforderungen:
+- Sachlicher, juristischer Stil (kein Pathos)
+- 2–3 kurze Absätze
+- Schildere konkret die Verletzungen und Beeinträchtigungen
+- Begründe die Höhe des Schmerzensgeldes knapp
+- Falls ein Orientierungsurteil angegeben: als Vergleich erwähnen
+- Kein Beweisantritt (wird separat ergänzt)
+- Kein Überschrift-Text (kommt separat)
+- Nur Fließtext, keine Listen"""
+
+    try:
+        import anthropic as _anthropic
+        client = _anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=600,
+            system="Du bist ein erfahrener Rechtsanwalt und formulierst Klageschriften in Deutschland. "
+                   "Schreibe präzise, sachlich und juristisch korrekt.",
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+        text = msg.content[0].text.strip()
+        return _j({"text": text})
+
+    except Exception as e:
+        logger.error("SG-Text Fehler: %s", e)
         return jsonify({"fehler": f"KI-Aufruf fehlgeschlagen: {str(e)}"}), 500
 
 

@@ -1,6 +1,6 @@
 # Projekt-Architektur – Unfallakten-Verwaltungssystem
 # Kanzlei Koch, Schatz & Kollegen
-> Stand: 2026-04-06 | Schema-Version 34
+> Stand: 2026-04-10 | Schema-Version 36
 
 ---
 
@@ -30,6 +30,7 @@ Jeder Tab entspricht einer Section. Reihenfolge = Tab-Reihenfolge.
 | `UnfalldetailsSection.jsx` | Unfalldetails aus WDM/DB lesen + bearbeiten |
 | `SchadenSection.jsx` | Schadenpositionen (Reparatur, Mietwagen, GA-Kosten …) |
 | `DokumenteSection.jsx` | Datei-Upload, Klassifizierung, E-Akte-Viewer |
+| `GebuehrenSection.jsx` | Gebührenassistent Nr. 2300 VV RVG (PRD-28) |
 | `RegulierungSection.jsx` | Abrechnungsschreiben erfassen + Kürzungsanalyse |
 | `KlageSection.jsx` | Klage-Übersicht + Wizard-Einstieg (deprecated: Ein-Klick) |
 | `WordSection.jsx` | Forderungsschreiben, WVB, sonstige Word-Dokumente |
@@ -81,6 +82,7 @@ Alle Blueprints in `backend/app.py → erstelle_app()` registriert.
 | `stellungnahme_routes.py` | `/stellungnahmen` | Stellungnahmen |
 | `sta_routes.py` | `/sta` | Sachstandsanfragen |
 | `eakte_routes.py` | `/eakte` | E-Akte-Integration |
+| `gebuehren_routes.py` | `/gebuehren` | Gebührenassistent Nr. 2300 (PRD-28) |
 | `pdf_parse_routes.py` | `/parse` | PDF-Parser (GA, Abrechnung) |
 | `ramicro_akte_routes.py` | `/ramicro/akte` | RA-MICRO Sync |
 
@@ -102,9 +104,12 @@ Alle Blueprints in `backend/app.py → erstelle_app()` registriert.
 
 | Datei | Zweck |
 |---|---|
-| `klage_service.py` | Klageschrift (DOCX) – Platzhalter-System |
-| `forderungsschreiben_wv.py` | Forderungsschreiben / Wiedervorlage-Brief |
+| `klage_service.py` | Klageschrift (DOCX) – Platzhalter-System + `berechne_rvg()` |
+| `forderungsschreiben_wv.py` | Forderungsschreiben / Wiedervorlage-Brief – `_render_docx()`, `_unterschrift_bytes()`, `_mandant_anrede_nominativ()` |
 | `sachstandsanfrage.py` | Sachstandsanfragen-Dokument |
+| `gebuehren_word.py` | Kostennote Nr. 2300 VV RVG – nutzt `forderungsschreiben_vorlage.docx` + `_render_docx` aus `forderungsschreiben_wv.py` |
+| `abrechnungsuebersicht.py` | Abrechnungsübersicht DOCX |
+| `abrechnungsuebersicht_service.py` | Service für Abrechnungsübersicht |
 
 ---
 
@@ -132,13 +137,14 @@ Alle Blueprints in `backend/app.py → erstelle_app()` registriert.
 | `pruefberichte` | Kfz-Gutachter-Prüfberichte |
 | `kuerzungsarten` | 19 Kürzungsarten (Katalog) |
 | `todos` | Aufgaben je Akte |
-| `personenschaden` | Personenschaden-Positionen |
+| `personenschaden` | Personenschaden-Positionen (+ sg_mindest/sg_text/sg_urteil_* seit Schema 36) |
 | `forderung_positionen` | Extrahierte Forderungspositionen aus PDF |
 | `eakte_klassifikation` | Dokumentklassifizierung (E-Akte) |
 | `email_import_log` | E-Mail-Import-Protokoll |
 | `fragebogen_erstkontakt` | Mandanten-Fragebogen (PRD-22c) |
 | `rechnung_parse_cache` | PDF-Parser-Cache (nur manueller Parse-Endpunkt schreibt hier) |
 | `konfiguration` | App-Einstellungen (Key-Value) |
+| `gebuehren_berechnung` | Gebührenassistent-Ergebnis je Akte (VU-Regel, Faktor, Begründung) |
 
 **Wichtige `dokumente`-Spalten:**
 - `pdf_hash TEXT` (seit Migration 24): SHA-256 hex – vor `registriere_dokument` auf Duplikat prüfen
@@ -166,6 +172,8 @@ Alle Blueprints in `backend/app.py → erstelle_app()` registriert.
 | PRD-25c | Mandantenkommunikation | offen |
 | PRD-25d | Intelligente STA | `sta_routes.py`, `StaDialog.jsx` |
 | PRD-26 | Klage-Wizard Umbau | `KlageWizard.jsx`, `KlageSection.jsx`, `klage_service.py` |
+| PRD-28 | Gebührenassistent Nr. 2300 | `gebuehren_routes.py`, `gebuehren_service.py`, `GebuehrenSection.jsx` |
+| PRD-29 | Schmerzensgeld-Ermittlungstool | `klage_routes.py` (sg-*), `sg_text_builder.py`, `SchmerzensgelDialog.jsx` |
 | Bußgeld | Bußgeld-Feature | separates Projekt (bussgeld@ Strato) |
 
 ---
@@ -182,4 +190,12 @@ WDM-Keys:       sonstiges_wdm_X ≠ extra_wdm_ssX → Remap bei posMap prüfen
 E-Akte-Cache:   rechnung_parse_cache (DB) = nur manueller Parse. Auto-Import → eakte_cache dict (in-memory)
 Auto-Import:    Konfidenz >= 0.85 für E-Akte Auto-Import. Darunter: nur anzeigen, nicht importieren.
 Hash-Dedup:     Vor registriere_dokument immer pdf_hash prüfen (SHA-256, WHERE akte_id+pdf_hash)
+Datumsformat:   personenschaden speichert Daten GEMISCHT (ISO oder DD.MM.YYYY je nach Quelle)
+                → immer _fmt_datum()/_parse_datum() aus sg_text_builder.py verwenden
+sAnrede RM:     RA-MICRO sAnrede ist numerisch: "1"=Herr, "2"=Frau → Mapping _ANREDE_NORM in word_service.py
+sg_text:        sg_text in personenschaden hat Vorrang vor Template-Aufbau in baue_sg_abschnitt()
+Gebühren-NULL:  verletzungsgrad = NULL → "noch nicht beantwortet" (in fehlende_felder). auslandsbezug = 0 (DEFAULT) → "Nein, beantwortet".
+Gebühren-UPSERT: gebuehren_berechnung hat UNIQUE(akte_id) → immer ON CONFLICT(akte_id) DO UPDATE
+Kostennote:     OOXML-Template (forderungsschreiben_vorlage.docx als ZIP), _render_docx aus forderungsschreiben_wv.py, gespeichert als typ='sonstiges' in dokumente
+Gebühren-Anrede: beteiligte.anrede (nicht geschlecht) → _mandant_anrede_nominativ() aus forderungsschreiben_wv.py
 ```

@@ -30,6 +30,7 @@ from .routers.einstellungen_routes import einstellungen_bp
 from .routers.email_routes import email_bp
 from .routers.firmen_routes import firmen_bp
 from .routers.forderung_routes import forderung_bp
+from .routers.gebuehren_routes import gebuehren_bp
 from .routers.klage_routes import klage_bp, unfalldetails_bp
 from .routers.kuerzungsarten_routes import kuerzungsarten_bp
 from .routers.pdf_parse_routes import pdf_parse_bp
@@ -145,6 +146,7 @@ def erstelle_app(test_config: dict = None) -> Flask:
     app.register_blueprint(email_bp)
     app.register_blueprint(firmen_bp)
     app.register_blueprint(forderung_bp)
+    app.register_blueprint(gebuehren_bp)
     app.register_blueprint(klage_bp)
     app.register_blueprint(unfalldetails_bp)
     app.register_blueprint(kuerzungsarten_bp)

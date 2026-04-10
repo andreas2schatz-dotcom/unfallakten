@@ -16,15 +16,6 @@ Kürzungspositionen führen, Gegenargumente auswählen, Word-Export.
 
 ---
 
-### [IDEA] Gebührenoptimierungsassistent
-**Priorität:** mittel
-**Beschreibung:** Modul, das anhand des Aktenverlaufs (E-Mails, Dokumente, Fristen, Kommunikation)
-erkennen soll, ob eine erhöhte Geschäftsgebühr (> 1,3-fach nach Nr. 2300 VV RVG) abgerechnet
-werden kann. Kriterien für eine erhöhte Gebühr (Umfang/Schwierigkeit der Sache) sollen automatisch
-aus dem Akteninhalt extrahiert und begründet werden.
-
----
-
 ## In Entwicklung
 *(aktuell keine)*
 
@@ -37,3 +28,5 @@ aus dem Akteninhalt extrahiert und begründet werden.
 - PRD-25a – Automatische Fristen
 - PRD-25b – Action-Dashboard
 - PRD-26  – Klage-Wizard (10 Steps)
+- PRD-28  – Gebührenassistent Nr. 2300 VV RVG (inkl. Kostennote DOCX)
+- PRD-29  – Schmerzensgeld-Ermittlungstool (Schema 36, sg-analyse/recherche/text, SchmerzensgelDialog, Textvorschlag ohne KI)

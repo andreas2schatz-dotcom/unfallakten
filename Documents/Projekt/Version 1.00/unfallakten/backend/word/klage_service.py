@@ -29,6 +29,8 @@ from typing import Optional
 
 # PRD-14: Single Source of Truth – Abrechnungsart-Berechnung aus schaden.py
 from ..models.schaden import berechne_abrechnungsart
+# PRD-29: Gemeinsamer Schmerzensgeld-Textbaustein
+from .sg_text_builder import baue_sg_abschnitt
 
 logger = logging.getLogger(__name__)
 
@@ -36,48 +38,134 @@ _MODUL_DIR = os.path.dirname(__file__)
 # Klageschrift nutzt dieselbe Vorlage wie Forderungsschreiben
 _VORLAGE_FS = Path(_MODUL_DIR) / "forderungsschreiben_vorlage.docx"  # Forderungsschreiben
 
-# ── RVG Tabelle § 13 RVG – Anlage 2 (KostRÄG 2021, gültig ab 01.01.2021) ─────
-_RVG_TABELLE = [
-    (500,    49.00),
-    (1000,   88.50),
-    (1500,   127.50),
-    (2000,   166.50),
+# ── RVG Tabelle § 13 RVG – Anlage 2 ──────────────────────────────────────────
+# Stichtag: Akten angelegt bis 31.05.2025 → KostRÄG 2021
+#           Akten angelegt ab 01.06.2025  → 2. KostRMoG 2025
+# !! Werte gegen Anlage 2 zu § 13 RVG (BGBl.) prüfen !!
+
+_RVG_STICHTAG_2025 = date(2025, 6, 1)
+
+# KostRÄG 2021 – gültig bis 31.05.2025
+# Quelle: Anlage 2 zu § 13 RVG (Stand bis 31.05.2025)
+_RVG_TABELLE_2021 = [
+    (500,     49.00),
+    (1000,    88.00),
+    (1500,   127.00),
+    (2000,   166.00),
     (3000,   222.00),
-    (4000,   277.50),
-    (5000,   338.00),   # KostRÄG 2021: war 333,00
-    (6000,   390.00),   # KostRÄG 2021: war 388,50  → 390 × 1,3 = 507,00 ✓
-    (7000,   442.00),   # KostRÄG 2021: war 444,00
-    (8000,   494.00),   # KostRÄG 2021: war 499,50
-    (9000,   546.00),   # KostRÄG 2021: war 555,00
-    (10000,  598.00),   # KostRÄG 2021: war 610,50
-    (13000,  668.00),   # KostRÄG 2021: war 679,50
-    (16000,  738.00),   # KostRÄG 2021: war 748,50
-    (19000,  808.00),   # KostRÄG 2021: war 817,50
-    (22000,  878.00),   # KostRÄG 2021: war 886,50
-    (25000,  948.00),   # KostRÄG 2021: war 955,50
-    (30000,  1053.00),  # KostRÄG 2021: war 1059,00
-    (35000,  1158.00),  # KostRÄG 2021: war 1162,50
-    (40000,  1263.00),  # KostRÄG 2021: war 1266,00
-    (45000,  1368.00),  # KostRÄG 2021: war 1369,50
-    (50000,  1473.00),  # unverändert
+    (4000,   278.00),
+    (5000,   334.00),
+    (6000,   390.00),
+    (7000,   446.00),
+    (8000,   502.00),
+    (9000,   558.00),
+    (10000,  614.00),
+    (13000,  666.00),
+    (16000,  718.00),
+    (19000,  770.00),
+    (22000,  822.00),
+    (25000,  874.00),
+    (30000,  955.00),
+    (35000,  1036.00),
+    (40000,  1117.00),
+    (45000,  1198.00),
+    (50000,  1279.00),
+    (65000,  1373.00),
+    (80000,  1467.00),
+    (95000,  1561.00),
+    (110000, 1655.00),
+    (125000, 1749.00),
+    (140000, 1843.00),
+    (155000, 1937.00),
+    (170000, 2031.00),
+    (185000, 2125.00),
+    (200000, 2219.00),
+    (230000, 2351.00),
+    (260000, 2483.00),
+    (290000, 2615.00),
+    (320000, 2747.00),
+    (350000, 2879.00),
+    (380000, 3011.00),
+    (410000, 3143.00),
+    (440000, 3275.00),
+    (470000, 3407.00),
+    (500000, 3539.00),
+]
+
+# 2. KostRMoG – gültig ab 01.06.2025
+# Quelle: Anlage 2 zu § 13 RVG, BGBl. 2025 I Nr. 109
+_RVG_TABELLE_2025 = [
+    (500,     51.50),
+    (1000,    93.00),
+    (1500,   134.50),
+    (2000,   176.00),
+    (3000,   235.50),
+    (4000,   295.00),
+    (5000,   354.50),
+    (6000,   414.00),
+    (7000,   473.50),
+    (8000,   533.00),
+    (9000,   592.50),
+    (10000,  652.00),
+    (13000,  707.00),
+    (16000,  762.00),
+    (19000,  817.00),
+    (22000,  872.00),
+    (25000,  927.00),
+    (30000,  1013.00),
+    (35000,  1099.00),
+    (40000,  1185.00),
+    (45000,  1271.00),
+    (50000,  1357.00),
+    (65000,  1456.50),
+    (80000,  1556.00),
+    (95000,  1655.50),
+    (110000, 1755.00),
+    (125000, 1854.50),
+    (140000, 1954.00),
+    (155000, 2053.50),
+    (170000, 2153.00),
+    (185000, 2252.50),
+    (200000, 2352.00),
+    (230000, 2492.00),
+    (260000, 2632.00),
+    (290000, 2772.00),
+    (320000, 2912.00),
+    (350000, 3052.00),
+    (380000, 3192.00),
+    (410000, 3332.00),
+    (440000, 3472.00),
+    (470000, 3612.00),
+    (500000, 3752.00),
 ]
 
 
-def _rvg_grundgebuehr(streitwert: float) -> float:
+def _rvg_grundgebuehr(streitwert: float, tabelle: list) -> float:
     """Ermittelt die Grundgebühr nach § 13 RVG aus dem Streitwert."""
-    for grenze, gebuehr in _RVG_TABELLE:
+    for grenze, gebuehr in tabelle:
         if streitwert <= grenze:
             return gebuehr
-    # Über 50.000 €: lineare Näherung
-    basis = 1473.00
-    mehrwert = streitwert - 50000
-    basis += (mehrwert // 50000) * 466.50
+    # Über Tabellen-Maximum: lineare Näherung je angefangene 50.000 €
+    if tabelle is _RVG_TABELLE_2025:
+        # Über 500.000 €: je angefangene 30.000 € = 140,00 € (Progression aus Tabelle)
+        basis    = 3752.00
+        mehrwert = streitwert - 500000
+        basis   += (mehrwert // 30000) * 140.00
+    else:
+        # Über 500.000 €: je angefangene 30.000 € = 132,00 € (KostRÄG 2021)
+        basis    = 3539.00
+        mehrwert = streitwert - 500000
+        basis   += (mehrwert // 30000) * 132.00
     return round(basis, 2)
 
 
-def berechne_rvg(streitwert: float, faktor: float = 1.3) -> dict:
+def berechne_rvg(streitwert: float, faktor: float = 1.3,
+                 erstellt_am: str = None) -> dict:
     """
     Berechnet die vorgerichtlichen RVG-Kosten.
+
+    erstellt_am: ISO-Datum der Akte (z.B. "2025-06-15 14:30:00").
+                 Ab 01.06.2025 gilt die 2. KostRMoG-Tabelle.
 
     Returns:
         {
@@ -88,9 +176,20 @@ def berechne_rvg(streitwert: float, faktor: float = 1.3) -> dict:
           "zwischen_netto": 527.00,
           "ust":            100.13,
           "gesamt":         627.13,
+          "rvg_version":    "2025",   # "2021" oder "2025"
         }
     """
-    grundgebuehr   = _rvg_grundgebuehr(streitwert)
+    tabelle = _RVG_TABELLE_2021
+    rvg_version = "2021"
+    if erstellt_am:
+        try:
+            akte_datum = date.fromisoformat(str(erstellt_am)[:10])
+            if akte_datum >= _RVG_STICHTAG_2025:
+                tabelle = _RVG_TABELLE_2025
+                rvg_version = "2025"
+        except (ValueError, TypeError):
+            pass
+    grundgebuehr   = _rvg_grundgebuehr(streitwert, tabelle)
     gebuehr_netto  = round(grundgebuehr * faktor, 2)
     post_pauschale = min(20.00, round(gebuehr_netto * 0.20, 2))
     zwischen_netto = round(gebuehr_netto + post_pauschale, 2)
@@ -104,6 +203,7 @@ def berechne_rvg(streitwert: float, faktor: float = 1.3) -> dict:
         "zwischen_netto": zwischen_netto,
         "ust":            ust,
         "gesamt":         gesamt,
+        "rvg_version":    rvg_version,
     }
 
 
@@ -591,12 +691,13 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
             "Bitte klagevorlage.docx in backend/word/ ablegen."
         )
 
-    akte         = akte_daten.get("akte") or {}
-    mandant      = akte_daten.get("mandant") or {}
-    kanzlei      = akte_daten.get("kanzlei") or {}
-    details      = akte_daten.get("unfalldetails") or {}
-    cfg          = akte_daten.get("klage_config") or {}
-    abrechnungen = akte_daten.get("abrechnungen") or []
+    akte            = akte_daten.get("akte") or {}
+    mandant         = akte_daten.get("mandant") or {}
+    kanzlei         = akte_daten.get("kanzlei") or {}
+    details         = akte_daten.get("unfalldetails") or {}
+    cfg             = akte_daten.get("klage_config") or {}
+    abrechnungen    = akte_daten.get("abrechnungen") or []
+    ps_data         = akte_daten.get("personenschaden") or {}  # PRD-29
 
     # ── Beklagte / GHPV ──────────────────────────────────────────────────────
     beklagte_liste = cfg.get("beklagte") or []
@@ -663,8 +764,10 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     klagebetrag = sum(float(p.get("betrag") or 0) for p in positionen)
 
     # ── RVG ──────────────────────────────────────────────────────────────────
-    rvg_override = cfg.get("rvg_override")
-    rvg          = cfg.get("rvg") or berechne_rvg(klagebetrag)
+    rvg_override     = cfg.get("rvg_override")
+    akte_erstellt_am = akte.get("erstellt_am")
+    rvg              = cfg.get("rvg") or berechne_rvg(klagebetrag,
+                                                       erstellt_am=akte_erstellt_am)
     if rvg_override is not None:
         rvg["gesamt"] = float(rvg_override)
 
@@ -1096,15 +1199,13 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
 
     # ── {{SCHMERZENSGELD}} ────────────────────────────────────────────────
     if mit_sg:
-        sg_xml  = _p("4.) Schmerzensgeld", fett=True)
-        sg_xml += _lz()
-        if sg_mind > 0:
-            sg_xml += _p(f"{kl_nom} hat durch den Unfall Verletzungen erlitten, "
-                         f"die ein Schmerzensgeld von mindestens {_eur_str(sg_mind)} rechtfertigen.")
-        else:
-            sg_xml += _p(f"{kl_nom} hat durch den Unfall Verletzungen erlitten, "
-                         f"die ein angemessenes Schmerzensgeld rechtfertigen.")
-        sg_xml += _p("BEWEIS: Ärztliche Atteste und Befundberichte (Anlage K 2)", einzug=True)
+        sg_xml = _p("4.) Schmerzensgeld", fett=True) + _lz()
+        sg_absaetze, sg_beweis, sg_vgl = baue_sg_abschnitt(ps_data, kl_nom, sg_mind)
+        for absatz in sg_absaetze:
+            sg_xml += _p(absatz)
+        if sg_vgl:
+            sg_xml += _p(sg_vgl, einzug=True)
+        sg_xml += _p(sg_beweis, einzug=True)
     else:
         sg_xml = ""   # leer → Platzhalter verschwindet
 

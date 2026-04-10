@@ -165,6 +165,9 @@ def speichere_personenschaden(akte_id: str):
         "nettoeinkommen_monatlich",
         "physiotherapie", "physiotherapie_anzahl",
         "notizen",
+        # PRD-29: Schmerzensgeld-Ermittlungstool
+        "sg_mindest", "sg_text",
+        "sg_urteil_gericht", "sg_urteil_az", "sg_urteil_betrag",
     ]
 
     with get_connection() as conn:
