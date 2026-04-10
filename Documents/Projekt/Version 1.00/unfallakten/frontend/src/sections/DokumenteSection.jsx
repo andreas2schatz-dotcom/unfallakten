@@ -8,11 +8,12 @@ import {
   dokumente as apiDokumente,
   eakte as apiEakte,
   belege as apiBelege,
+  schaden as apiSchaden,
   tokenStore,
   API_BASE,
 } from "../api.js";
 
-function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
+function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten = [], schaden = {}, vorsteuer = false }) {
   const istVerkehrsunfall = akte?.referat == null || akte?.referat === 4;
   const [dragging, setDrag]   = useState(false);
   const [uploading, setUpl]   = useState(false);
@@ -52,6 +53,32 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
 
   const belegAnzahl = Object.keys(belegMap).length;
   const belegTotal = SCHADEN_F.length;
+
+  // Inline-Beträge für Kandidaten ohne betrag_vorschlag
+  const [uebernehmenLaden, setUebernehmenLaden] = useState(null); // posKey | "__alle__" | null
+  const [inlineBetrag, setInlineBetrag]         = useState({});   // { posKey: "1234.50" }
+
+  // Bester Kandidat je Display-Key (höchste Konfidenz gewinnt)
+  const kandidatMap = useMemo(() => {
+    const DISP = { rep_rechnung_netto:"rep_rechnung_brutto", mietwagenkosten_netto:"mietwagenkosten", abschleppkosten_netto:"abschleppkosten", standkosten_netto:"standkosten", sv_kosten_netto:"sv_kosten" };
+    const map = {};
+    (belegeKandidaten || []).forEach(k => {
+      if (!k.position_key) return;
+      const dk = DISP[k.position_key] || k.position_key;
+      if (!map[dk] || (k.konfidenz || 0) > (map[dk].konfidenz || 0)) map[dk] = k;
+    });
+    return map;
+  }, [belegeKandidaten]);
+
+  // Anzahl sofort nehmbarer Kandidaten (mit Betrag, Konfidenz >= 0.80, noch nicht belegt)
+  const alleNehmbareAnzahl = useMemo(() =>
+    SCHADEN_F.filter(f =>
+      !belegMap[f.k] &&
+      kandidatMap[f.k]?.betrag_vorschlag != null &&
+      (kandidatMap[f.k]?.konfidenz || 0) >= 0.80
+    ).length,
+    [belegMap, kandidatMap]
+  );
 
   useEffect(() => {
     if (!akteId) return;
@@ -348,6 +375,61 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
     return [...set].sort();
   }, [eakteDoks]);
 
+  // Einzelnen Kandidaten annehmen: Beleg zuordnen + Schaden-Feld speichern
+  const handleKandidatAnnehmen = async (posKey, kandidat, betragOverride = null) => {
+    const betrag = parseFloat(betragOverride ?? kandidat.betrag_vorschlag) || 0;
+    if (betrag <= 0) return;
+    setUebernehmenLaden(posKey);
+    try {
+      if (kandidat.dok_id) {
+        await apiBelege.zuordnen(akteId, posKey, kandidat.dok_id, betrag);
+      }
+      const neuerSchaden = { ...schaden, [posKey]: betrag };
+      const res = await apiSchaden.speichern(akteId, neuerSchaden);
+      dispatch({ type:"SAVE_SCHADEN", akteId, schaden: { ...neuerSchaden, gesamt_brutto: res?.schaden?.gesamt_brutto ?? neuerSchaden.gesamt_brutto ?? 0 } });
+      const bRes = await apiBelege.liste(akteId);
+      const newMap = {};
+      (bRes?.belege || []).forEach(b => { newMap[b.position_key] = b; });
+      setBelegMap(newMap);
+      const label = SCHADEN_F.find(f => f.k === posKey)?.l || posKey;
+      setToast(`✓ ${label}: ${new Intl.NumberFormat("de-DE", { style:"currency", currency:"EUR" }).format(betrag)} übernommen`);
+    } catch(e) {
+      setToast("Übernahme fehlgeschlagen: " + (e?.message || ""));
+    } finally {
+      setUebernehmenLaden(null);
+    }
+  };
+
+  // Alle nehmbaren Kandidaten auf einmal übernehmen
+  const handleAlleAnnehmen = async () => {
+    const treffer = SCHADEN_F.filter(f =>
+      !belegMap[f.k] &&
+      kandidatMap[f.k]?.betrag_vorschlag != null &&
+      (kandidatMap[f.k]?.konfidenz || 0) >= 0.80
+    );
+    if (!treffer.length) return;
+    setUebernehmenLaden("__alle__");
+    try {
+      const neuerSchaden = { ...schaden };
+      treffer.forEach(f => { neuerSchaden[f.k] = kandidatMap[f.k].betrag_vorschlag; });
+      await Promise.all(treffer
+        .filter(f => kandidatMap[f.k].dok_id)
+        .map(f => apiBelege.zuordnen(akteId, f.k, kandidatMap[f.k].dok_id, kandidatMap[f.k].betrag_vorschlag).catch(() => {}))
+      );
+      const res = await apiSchaden.speichern(akteId, neuerSchaden);
+      dispatch({ type:"SAVE_SCHADEN", akteId, schaden: { ...neuerSchaden, gesamt_brutto: res?.schaden?.gesamt_brutto ?? 0 } });
+      const bRes = await apiBelege.liste(akteId);
+      const newMap = {};
+      (bRes?.belege || []).forEach(b => { newMap[b.position_key] = b; });
+      setBelegMap(newMap);
+      setToast(`✓ ${treffer.length} Position(en) übernommen und gespeichert`);
+    } catch(e) {
+      setToast("Fehler beim Übernehmen: " + (e?.message || ""));
+    } finally {
+      setUebernehmenLaden(null);
+    }
+  };
+
   const [uploadProgress, setUploadProgress] = useState(0);
 
   const korrigiereKlasse = async (dokId, neueKlasse) => {
@@ -448,6 +530,13 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
             title={`Schadenbelege (${belegAnzahl} von ${belegTotal})`}
             action={
               <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                {alleNehmbareAnzahl > 0 && (
+                  <Btn size="sm" variant="gold" onClick={handleAlleAnnehmen}
+                    disabled={uebernehmenLaden === "__alle__"}
+                    title={`${alleNehmbareAnzahl} Kandidat(en) mit Konfidenz ≥ 80 % übernehmen`}>
+                    {uebernehmenLaden === "__alle__" ? "Speichert …" : `← Alle (${alleNehmbareAnzahl})`}
+                  </Btn>
+                )}
                 <Btn size="sm" variant="secondary" onClick={handleBatchParser} disabled={batchParserLaden}
                   title="Alle Dokumente automatisch klassifizieren und Positionen zuordnen (PRD-23b)">
                   {batchParserLaden ? `${batchParserFortschritt} / ${batchParserTotal || "?"} …` : "🤖 Auto-Zuordnung"}
@@ -464,20 +553,27 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
           <div style={{ padding:"0.5rem 1.4rem 1rem" }}>
             {SCHADEN_F.map((f, i) => {
               const beleg = belegMap[f.k];
+              const kand  = !beleg ? kandidatMap[f.k] : null;
+              const isLoading = uebernehmenLaden === f.k || uebernehmenLaden === "__alle__";
+              const isHigh = (kand?.konfidenz || 0) >= 0.85;
               return (
                 <div key={f.k} style={{ display:"flex", alignItems:"center", gap:10,
-                  padding:"6px 0", borderBottom: i < SCHADEN_F.length - 1 ? `1px solid ${T.borderSoft}` : "none" }}>
-                  <div style={{ width:180, fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem",
-                    fontWeight:500, color: beleg ? T.text : T.textFaint }}>
+                  padding:"7px 0", borderBottom: i < SCHADEN_F.length - 1 ? `1px solid ${T.borderSoft}` : "none" }}>
+
+                  {/* Positions-Label */}
+                  <div style={{ width:178, flexShrink:0, fontFamily:"'Figtree',sans-serif", fontSize:"0.845rem",
+                    fontWeight:500, color: beleg ? T.text : kand ? T.textMid : T.textFaint }}>
                     {f.l}
                   </div>
+
                   {beleg ? (
+                    /* ── Bereits belegt ─────────────────────────────────── */
                     <div style={{ flex:1, display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
                       <button onClick={() => setBelegVorschau(beleg.dokument_id)}
                         style={{ display:"flex", alignItems:"center", gap:5, background:"none", border:"none",
                           cursor:"pointer", padding:"2px 4px", minWidth:0, overflow:"hidden" }}
-                        onMouseEnter={e => e.currentTarget.querySelector("span").style.textDecoration = "underline"}
-                        onMouseLeave={e => e.currentTarget.querySelector("span").style.textDecoration = "none"}>
+                        onMouseEnter={e => e.currentTarget.querySelector("span").style.textDecoration="underline"}
+                        onMouseLeave={e => e.currentTarget.querySelector("span").style.textDecoration="none"}>
                         <span style={{ color:T.red, fontSize:"0.9rem", flexShrink:0 }}>📄</span>
                         <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.blue,
                           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
@@ -490,16 +586,72 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte }) {
                           {fmtEuro(beleg.betrag_aus_beleg)}
                         </span>
                       )}
-                      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.7rem",
-                        color:T.green, background:T.greenBg, border:`1px solid ${T.green}33`,
-                        borderRadius:10, padding:"1px 6px", flexShrink:0 }}>
+                      <span style={{ fontSize:"0.7rem", color:T.green, background:T.greenBg,
+                        border:`1px solid ${T.green}33`, borderRadius:10, padding:"1px 6px", flexShrink:0 }}>
                         ✓
                       </span>
                     </div>
-                  ) : (
-                    <div style={{ flex:1, fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textFaint, fontStyle:"italic" }}>
-                      kein Beleg
+
+                  ) : kand ? (
+                    /* ── Kandidat verfügbar ─────────────────────────────── */
+                    <div style={{ flex:1, display:"flex", alignItems:"center", gap:7, minWidth:0 }}>
+                      {/* Konfidenz-Dot */}
+                      <span style={{ width:7, height:7, borderRadius:"50%", flexShrink:0,
+                        background: isHigh ? T.green : T.amber }} />
+                      {/* Dateiname */}
+                      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", color:T.textMid,
+                        overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1, minWidth:0 }}
+                        title={kand.dateiname}>
+                        {kand.dateiname || kand.lieferant || "Dokument"}
+                      </span>
+                      {/* Mit Betrag: Wert + Annehmen-Button */}
+                      {kand.betrag_vorschlag != null ? (
+                        <>
+                          <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.82rem",
+                            color:T.navy, fontWeight:600, flexShrink:0 }}>
+                            {fmtEuro(kand.betrag_vorschlag)}
+                          </span>
+                          <button
+                            onClick={() => handleKandidatAnnehmen(f.k, kand)}
+                            disabled={isLoading}
+                            style={{ padding:"3px 10px", borderRadius:5, border:"none",
+                              background: isLoading ? T.textFaint : T.accent,
+                              color:T.white, fontFamily:"'Figtree',sans-serif",
+                              fontSize:"0.78rem", fontWeight:600,
+                              cursor: isLoading ? "not-allowed" : "pointer", flexShrink:0,
+                              transition:"background 0.12s" }}>
+                            {isLoading ? "…" : "← Annehmen"}
+                          </button>
+                        </>
+                      ) : (
+                        /* Ohne Betrag: Inline-Eingabe */
+                        <>
+                          <input
+                            type="number" step="0.01" min="0" placeholder="Betrag €"
+                            value={inlineBetrag[f.k] || ""}
+                            onChange={e => setInlineBetrag(p => ({ ...p, [f.k]: e.target.value }))}
+                            style={{ width:88, fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
+                              padding:"3px 7px", border:`1px solid ${T.border}`, borderRadius:5,
+                              outline:"none", color:T.text, background:T.surface, flexShrink:0 }}
+                          />
+                          <button
+                            onClick={() => handleKandidatAnnehmen(f.k, kand, inlineBetrag[f.k])}
+                            disabled={isLoading || !(parseFloat(inlineBetrag[f.k]) > 0)}
+                            style={{ padding:"3px 10px", borderRadius:5, border:"none",
+                              background: T.accent, color:T.white,
+                              fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", fontWeight:600,
+                              cursor:"pointer", flexShrink:0,
+                              opacity: (isLoading || !(parseFloat(inlineBetrag[f.k]) > 0)) ? 0.4 : 1 }}>
+                            {isLoading ? "…" : "Annehmen"}
+                          </button>
+                        </>
+                      )}
                     </div>
+
+                  ) : (
+                    /* ── Kein Kandidat ──────────────────────────────────── */
+                    <div style={{ flex:1, fontFamily:"'Figtree',sans-serif",
+                      fontSize:"0.82rem", color:T.textFaint }}>—</div>
                   )}
                 </div>
               );
