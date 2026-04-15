@@ -677,6 +677,91 @@ class TestWordRouten(unittest.TestCase):
         self.assertIn("25-W5-001", text)
 
 
+class TestBauePosMap(unittest.TestCase):
+    """Unit-Tests für _baue_pos_map (Summierung + Key-Normalisierung)."""
+
+    def setUp(self):
+        from backend.word.abrechnungsuebersicht_service import _baue_pos_map
+        self.fn = _baue_pos_map
+
+    def test_einzelne_abrechnung(self):
+        pm = self.fn([{"positionen": [
+            {"position_key": "sv_kosten", "betrag_reguliert": 450.0},
+        ]}])
+        self.assertEqual(pm["sv_kosten"]["reguliert"], 450.0)
+
+    def test_summe_zweier_abrechnungen(self):
+        """Kernbug: zwei Abrechnungen mit gleicher Position müssen summiert werden."""
+        pm = self.fn([
+            {"positionen": [{"position_key": "sv_kosten", "betrag_reguliert": 300.0}]},
+            {"positionen": [{"position_key": "sv_kosten", "betrag_reguliert": 150.0}]},
+        ])
+        self.assertEqual(pm["sv_kosten"]["reguliert"], 450.0)
+
+    def test_key_normalise_wbw(self):
+        pm = self.fn([{"positionen": [
+            {"position_key": "wbw", "betrag_reguliert": 18500.0},
+        ]}])
+        self.assertIn("wiederbeschaffung", pm)
+        self.assertNotIn("wbw", pm)
+        self.assertEqual(pm["wiederbeschaffung"]["reguliert"], 18500.0)
+
+    def test_key_normalise_reparatur_brutto(self):
+        pm = self.fn([{"positionen": [
+            {"position_key": "reparatur_brutto", "betrag_reguliert": 3000.0},
+        ]}])
+        self.assertIn("rep_gutachten_netto", pm)
+        self.assertNotIn("reparatur_brutto", pm)
+
+    def test_key_normalise_kostenpauschale(self):
+        pm = self.fn([{"positionen": [
+            {"position_key": "kostenpauschale", "betrag_reguliert": 25.0},
+        ]}])
+        self.assertIn("unkostenpauschale", pm)
+        self.assertNotIn("kostenpauschale", pm)
+
+    def test_key_normalise_sonstiges_wdm(self):
+        pm = self.fn([{"positionen": [
+            {"position_key": "sonstiges_wdm_3", "betrag_reguliert": 100.0},
+        ]}])
+        self.assertIn("extra_wdm_ss3", pm)
+        self.assertNotIn("sonstiges_wdm_3", pm)
+
+    def test_mixed_keys_summiert_nach_normalisierung(self):
+        """wbw + wiederbeschaffung aus verschiedenen Abrechnungen = eine Summe."""
+        pm = self.fn([
+            {"positionen": [{"position_key": "wbw", "betrag_reguliert": 10000.0}]},
+            {"positionen": [{"position_key": "wiederbeschaffung", "betrag_reguliert": 5000.0}]},
+        ])
+        self.assertEqual(pm["wiederbeschaffung"]["reguliert"], 15000.0)
+
+    def test_art_wbw_ohne_position_key_normalisiert(self):
+        """art='wbw' ohne position_key (Live-PDF-Import-Pfad) → wiederbeschaffung."""
+        pm = self.fn([{"positionen": [
+            {"art": "wbw", "betrag_reguliert": 18500.0},
+        ]}])
+        self.assertIn("wiederbeschaffung", pm)
+        self.assertNotIn("wbw", pm)
+        self.assertEqual(pm["wiederbeschaffung"]["reguliert"], 18500.0)
+
+    def test_none_reguliert_ignoriert(self):
+        pm = self.fn([{"positionen": [
+            {"position_key": "sv_kosten", "betrag_reguliert": None},
+        ]}])
+        self.assertNotIn("sv_kosten", pm)
+
+    def test_leere_liste(self):
+        self.assertEqual(self.fn([]), {})
+
+    def test_art_fallback(self):
+        """position_key fehlt → art wird verwendet."""
+        pm = self.fn([{"positionen": [
+            {"art": "sv_kosten", "betrag_reguliert": 200.0},
+        ]}])
+        self.assertIn("sv_kosten", pm)
+        self.assertEqual(pm["sv_kosten"]["reguliert"], 200.0)
+
+
 if __name__ == "__main__":
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
@@ -687,6 +772,7 @@ if __name__ == "__main__":
         TestAbrechnungsuebersicht,
         TestWordService,
         TestWordRouten,
+        TestBauePosMap,
     ]:
         suite.addTests(loader.loadTestsFromTestCase(cls))
     runner = unittest.TextTestRunner(verbosity=2)

@@ -144,26 +144,34 @@ def _lade_regulierung_offen(conn):
     pflvg_horizont = (date.today() + timedelta(days=14)).isoformat()
     heute          = date.today().isoformat()
 
-    # Offene Regulierungen
+    # Offene Regulierungen (Option B: aus v_regulierungsstatus + abrechnungsschreiben)
     reg_rows = conn.execute(
         """
         SELECT
-            r.id,
-            r.akte_id       AS akte_az,
-            r.status,
-            r.betrag_gefordert,
-            r.betrag_reguliert,
-            r.erfasst_am,
+            v.akte_id                               AS akte_az,
+            v.betrag_gefordert,
+            v.betrag_reguliert,
+            v.differenz                             AS betrag_differenz,
+            CASE
+                WHEN v.betrag_reguliert > 0 THEN 'teilreguliert'
+                ELSE 'ausstehend'
+            END                                     AS status,
             CAST(julianday('now') - julianday(
-                COALESCE(r.erfasst_am, date('now'))
-            ) AS INTEGER) AS tage_seit_eingang,
-            ROUND(r.betrag_gefordert - COALESCE(r.betrag_reguliert, 0), 2) AS betrag_differenz,
-            (SELECT name FROM beteiligte
-             WHERE akte_id = r.akte_id AND rolle = 'mandant'
-             LIMIT 1) AS mandant_name
-        FROM regulierung r
-        WHERE r.status IN ('ausstehend', 'teilreguliert')
-        ORDER BY r.erfasst_am ASC
+                COALESCE(ab_last.datum, date('now'))
+            ) AS INTEGER)                           AS tage_seit_eingang,
+            (SELECT b.name FROM beteiligte b
+             WHERE b.akte_id = v.akte_id AND b.rolle = 'mandant'
+             LIMIT 1)                               AS mandant_name
+        FROM v_regulierungsstatus v
+        LEFT JOIN abrechnungsschreiben ab_last
+               ON ab_last.id = (
+                   SELECT id FROM abrechnungsschreiben
+                   WHERE akte_id = v.akte_id
+                   ORDER BY datum DESC LIMIT 1
+               )
+        WHERE v.differenz > 0.0
+          AND COALESCE(ab_last.haftungsart, '') != 'ablehnung'
+        ORDER BY tage_seit_eingang DESC
         LIMIT 15
         """,
     ).fetchall()

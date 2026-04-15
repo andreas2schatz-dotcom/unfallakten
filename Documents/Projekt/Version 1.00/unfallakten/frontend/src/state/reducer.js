@@ -18,7 +18,6 @@ function reducer(state, action) {
     case "ADD_ABRECHNUNG":
       return { ...state, [akteId]:{ ...cur,
         abrechnungen: [action.abrechnung, ...(cur.abrechnungen || [])],
-        regulierungen: [action.regulierung, ...(cur.regulierungen || [])],
       }};
     case "UPDATE_ABRECHNUNG":
       return { ...state, [akteId]:{ ...cur,
@@ -30,10 +29,6 @@ function reducer(state, action) {
       return { ...state, [akteId]:{ ...cur,
         abrechnungen: (cur.abrechnungen || []).filter(a => a.id !== action.ab_id),
       }};
-    case "SET_REGULIERUNGEN":
-      return { ...state, [akteId]:{ ...cur, regulierungen: action.regulierungen } };
-    case "ADD_REGULIERUNG":
-      return { ...state, [akteId]:{ ...cur, regulierungen:[...(cur.regulierungen||[]), action.regulierung] } };
     case "ADD_DOKUMENT":
       return { ...state, [akteId]:{ ...cur, dokumente:[...(cur.dokumente||[]), action.dokument] } };
     case "SET_DOKUMENTE":

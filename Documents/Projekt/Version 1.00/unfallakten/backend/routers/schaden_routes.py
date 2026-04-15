@@ -235,13 +235,16 @@ def setze_schaden(akte_id: str):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# REGULIERUNG
+# REGULIERUNG (DEPRECATED)
+# Diese Endpunkte schreiben in die Legacy-Tabelle `regulierung`.
+# Das System nutzt jetzt `abrechnungsschreiben + regulierung_positionen` (Option B).
+# Endpunkte bleiben erhalten bis alle Clients migriert sind — NICHT löschen.
 # ══════════════════════════════════════════════════════════════════════════════
 
 @regulierung_bp.route("", methods=["GET"])
 @login_erforderlich
 def liste_regulierungen(akte_id: str):
-    """GET /akten/<id>/regulierungen — Alle Regulierungsvorgänge."""
+    """GET /akten/<id>/regulierungen — Alle Regulierungsvorgänge. (DEPRECATED)"""
     if not _pruefe_akte(akte_id):
         return _err(f"Akte {akte_id} nicht gefunden.", 404)
     return _j({"regulierungen": [_reg_dict(r) for r in hole_regulierungen_by_akte(akte_id)]})
@@ -250,7 +253,7 @@ def liste_regulierungen(akte_id: str):
 @regulierung_bp.route("", methods=["POST"])
 @login_erforderlich
 def erstelle_reg(akte_id: str):
-    """POST /akten/<id>/regulierungen — Regulierungsvorgang anlegen."""
+    """POST /akten/<id>/regulierungen — Regulierungsvorgang anlegen. (DEPRECATED)"""
     if not _pruefe_akte(akte_id):
         return _err(f"Akte {akte_id} nicht gefunden.", 404)
 
@@ -287,7 +290,7 @@ def erstelle_reg(akte_id: str):
 @regulierung_bp.route("/status", methods=["GET"])
 @login_erforderlich
 def regulierungsstatus(akte_id: str):
-    """GET /akten/<id>/regulierungen/status — Aktueller Regulierungsstand."""
+    """GET /akten/<id>/regulierungen/status — Aktueller Regulierungsstand. (DEPRECATED: nutze v_regulierungsstatus)"""
     if not _pruefe_akte(akte_id):
         return _err(f"Akte {akte_id} nicht gefunden.", 404)
     return _j(hole_regulierungsstatus(akte_id))

@@ -8,7 +8,7 @@ Vorlage: abrechnungsuebersicht_vorlage.docx
 
 Regulierungsdaten kommen aus akte_daten["abrechnungen"] –
 identisch zur Datenstruktur die RegulierungSection / apiAbrechnungen liefert.
-Aggregationslogik ist 1:1 aus App.jsx (posMap-Aufbau).
+Aggregationslogik: Option B – Summe aller Zahlungsinkremente je position_key.
 
 Dateneingabe (akte_daten dict):
   akte:
@@ -135,7 +135,7 @@ def _generiere(akte_daten: dict) -> bytes:
     vorsteuer = str(mandant.get("vorsteuer") or "N").strip().upper() in ("Y", "J", "JA", "1", "TRUE")
 
     # ── Regulierungsstand aus Abrechnungen aggregieren ────────────────────
-    # Logik identisch zu posMap-Aufbau in App.jsx (letzte Abrechnung gewinnt)
+    # Option B: Summe aller Zahlungsinkremente je position_key
     pos_map = _baue_pos_map(abrechnungen)
 
     # ── Letztes Abrechnungsdatum ──────────────────────────────────────────
@@ -213,26 +213,57 @@ def _generiere(akte_daten: dict) -> bytes:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# POS-MAP: Regulierungsstand je position_key
-# Identisch zu App.jsx Zeilen 1618-1627:
-#   abrechnungen.slice().reverse().forEach(ab => {
-#     posMap[key].reguliert = p.betrag_reguliert  (letzte gewinnt)
+# POS-MAP: Regulierungsstand je position_key (Option B: Summierung)
 # ══════════════════════════════════════════════════════════════════════════════
+
+# Parser-art → kanonischer position_key (spiegelt _ART_TO_POS_KEY in constants.js).
+# Notwendig weil der Live-PDF-Import (RegulierungSection) Parser-art-Werte
+# direkt als position_key in die DB schreibt, _schadenpositionen_rows() aber
+# kanonische Keys erwartet.
+_KEY_NORMALISE = {
+    "wbw":               "wiederbeschaffung",
+    "wbw_netto":         "wiederbeschaffung",
+    "wbw_brutto":        "wiederbeschaffung",
+    "wba":               "wiederbeschaffung",
+    "reparatur_netto":   "rep_gutachten_netto",
+    "reparatur_brutto":  "rep_gutachten_netto",
+    "reparatur_fiktiv":  "rep_gutachten_netto",
+    "kostenpauschale":   "unkostenpauschale",
+    "ra_gebuehren":      "sonstiges",
+    # fahrzeugschaden bleibt roh – Ziel-Key (rep_gutachten_netto vs.
+    # rep_rechnung_netto vs. wiederbeschaffung) hängt von Abrechnungsart ab
+    # und kann hier ohne Kontext nicht aufgelöst werden.
+}
+_WDM_RE = re.compile(r"^sonstiges_wdm_(\d+)$")
+
+
+def _normalise_key(raw_key: str) -> str:
+    m = _WDM_RE.match(raw_key)
+    if m:
+        return f"extra_wdm_ss{m.group(1)}"
+    return _KEY_NORMALISE.get(raw_key, raw_key)
+
 
 def _baue_pos_map(abrechnungen: list) -> dict:
     """
     Gibt dict: position_key → { "reguliert": float }
-    Iteriert Abrechnungen in umgekehrter Reihenfolge (jüngste zuerst),
-    sodass die aktuellste Regulierung je Position gewinnt.
+
+    Option B: Jedes Abrechnungsschreiben speichert nur seinen eigenen
+    Zahlungsbetrag (Inkrement). Gesamtregulierung je Position = Summe
+    aller betrag_reguliert über alle Abrechnungen.
     """
     pos_map = {}
-    for ab in reversed(abrechnungen):
+    for ab in abrechnungen:
         for p in (ab.get("positionen") or []):
-            key = p.get("position_key") or p.get("art") or "sonstiges"
-            if key not in pos_map:
-                reg = p.get("betrag_reguliert")
-                if reg is not None:
-                    pos_map[key] = {"reguliert": round(float(reg), 2)}
+            raw = p.get("position_key") or p.get("art") or "sonstiges"
+            key = _normalise_key(raw)
+            reg = p.get("betrag_reguliert")
+            if reg is not None:
+                reg_f = round(float(reg), 2)
+                if key in pos_map:
+                    pos_map[key]["reguliert"] = round(pos_map[key]["reguliert"] + reg_f, 2)
+                else:
+                    pos_map[key] = {"reguliert": reg_f}
     return pos_map
 
 

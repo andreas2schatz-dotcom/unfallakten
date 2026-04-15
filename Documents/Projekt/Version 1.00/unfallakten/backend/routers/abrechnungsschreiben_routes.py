@@ -81,10 +81,12 @@ def liste_abrechnungen(akte_id: str):
 @abrechnung_bp.route("/<int:abid>", methods=["GET"])
 @login_erforderlich
 def hole_abrechnung(akte_id: str, abid: int):
-    if not _pruefe_akte(akte_id):
+    akte_obj = _pruefe_akte(akte_id)
+    if not akte_obj:
         return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    az = akte_obj.aktenzeichen if hasattr(akte_obj, "aktenzeichen") else akte_id
     ab = hole_abrechnungsschreiben_by_id(abid)
-    if not ab or ab.akte_id != akte_id:
+    if not ab or ab.akte_id != az:
         return _err(f"Abrechnungsschreiben {abid} nicht gefunden.", 404)
     return _j({"abrechnung": ab.as_dict()})
 
@@ -146,8 +148,11 @@ def erstelle_abrechnung(akte_id: str):
 @abrechnung_bp.route("/<int:abid>", methods=["DELETE"])
 @login_erforderlich
 def loesche_abrechnung(akte_id: str, abid: int):
-    if not _pruefe_akte(akte_id):
+    # v14c: _pruefe_akte gibt akte-Objekt zurück – az normalisieren, nie rohen URL-Param nutzen
+    akte_obj = _pruefe_akte(akte_id)
+    if not akte_obj:
         return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    az = akte_obj.aktenzeichen if hasattr(akte_obj, "aktenzeichen") else akte_id
     # Direktes sqlite3 ohne get_connection() – garantierter Commit
     from ..db.database import get_db_path
     import sqlite3 as _sqlite3
@@ -157,7 +162,7 @@ def loesche_abrechnung(akte_id: str, abid: int):
     try:
         row = conn.execute(
             "SELECT id FROM abrechnungsschreiben WHERE id=? AND akte_id=?",
-            (abid, akte_id)
+            (abid, az)
         ).fetchone()
         if not row:
             conn.close()

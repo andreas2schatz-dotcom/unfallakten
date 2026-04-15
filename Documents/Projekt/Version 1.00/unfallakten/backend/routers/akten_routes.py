@@ -25,7 +25,7 @@ from ..models.akte import (
 )
 from ..models.schaden import (
     hole_beteiligte_by_akte, hole_schadenpositionen,
-    hole_regulierungen_by_akte, hole_regulierungsstatus
+    hole_regulierungsstatus
 )
 from ..models.dokument import hole_aktivitaeten, hole_dokumente_by_akte
 from ..services.fristen_service import setze_verjaerungs_fristen
@@ -74,7 +74,6 @@ def _akte_komplett(akte_id: str) -> dict:
 
     beteiligte      = hole_beteiligte_by_akte(akte_id)
     schaden         = hole_schadenpositionen(akte_id)
-    regulierungen   = hole_regulierungen_by_akte(akte_id)
     reg_status      = hole_regulierungsstatus(akte_id)
     dokumente       = hole_dokumente_by_akte(akte_id)
 
@@ -92,7 +91,6 @@ def _akte_komplett(akte_id: str) -> dict:
         "geaendert_am":   akte.geaendert_am,
         "beteiligte":     [_beteiligter_dict(b) for b in beteiligte],
         "schaden":        _schaden_dict(schaden) if schaden else None,
-        "regulierungen":  [_regulierung_dict(r) for r in regulierungen],
         "regulierungsstatus": reg_status,
         "dokumente":      [_dokument_dict(d) for d in dokumente],
         "aktion_erforderlich": 1 if aktion.get("aktiv") else 0,
@@ -140,17 +138,6 @@ def _schaden_dict(s) -> dict:
         "sonstiges": s.sonstiges, "sonstiges_beschr": s.sonstiges_beschr,
         "gesamt_brutto": s.gesamt_brutto,
         "quelle": s.quelle, "erfasst_am": s.erfasst_am,
-    }
-
-def _regulierung_dict(r) -> dict:
-    return {
-        "id": r.id, "akte_id": r.akte_id, "datum": r.datum,
-        "betrag_gefordert": r.betrag_gefordert,
-        "betrag_reguliert": r.betrag_reguliert,
-        "differenz": r.differenz, "status": r.status,
-        "vers_referenz": r.vers_referenz,
-        "kuerz_begruendung": r.kuerz_begruendung,
-        "erfasst_am": r.erfasst_am,
     }
 
 def _dokument_dict(d) -> dict:

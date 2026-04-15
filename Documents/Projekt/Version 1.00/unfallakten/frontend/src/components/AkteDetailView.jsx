@@ -64,14 +64,6 @@ function AkteDetailView({ akte, st, dispatch }) {
         })
         .catch(() => {});
     }
-    // Regulierungen laden
-    if (!st.regulierungen) {
-      apiSchaden.regulierungen(id)
-        .then(res => {
-          if (res?.regulierungen) dispatch({ type:"SET_REGULIERUNGEN", akteId:id, regulierungen:res.regulierungen });
-        })
-        .catch(() => {});
-    }
     // Beteiligte laden
     if (!st.beteiligte) {
       apiBeteiligte.liste(id)
@@ -169,7 +161,7 @@ function AkteDetailView({ akte, st, dispatch }) {
                           (st.beteiligte||[]).some(b => ["gegner","GHPV","GHV","GBEV"].includes(b.rolle||b.kuerzel||""));
     const schadenOk     = (st.schaden?.gesamt_brutto || st.schaden?.abrechnungsberechnung?.gesamt_brutto || 0) > 0;
     const dokumenteAnz  = st.dokumente?.length || 0;
-    const regulierungOk = (st.regulierungen?.length || 0) > 0 || (st.abrechnungen?.length || 0) > 0;
+    const regulierungOk = (st.abrechnungen?.length || 0) > 0;
     const klageStatus   = akte.status === "klage";
 
     const sp = (ok, fehlt) => {
@@ -190,7 +182,7 @@ function AkteDetailView({ akte, st, dispatch }) {
       { id:"word",          label:"📝 Word" },
       { id:"todos",         label:`📋 To-Dos` },
     ];
-  }, [st.beteiligte, st.schaden, st.dokumente, st.regulierungen, st.abrechnungen, akte.status]);
+  }, [st.beteiligte, st.schaden, st.dokumente, st.abrechnungen, akte.status]);
 
   return (
     <>
@@ -455,7 +447,7 @@ function AkteDetailView({ akte, st, dispatch }) {
             {sec==="beteiligte"    && <BeteiligteSection beteiligte={st.beteiligte||[]} dispatch={dispatch} akteId={akte.id} />}
             {sec==="schaden"       && <SchadenSection schaden={st.schaden||{}} hq={akte.hq} dispatch={dispatch} akteId={akte.id} vorsteuer={(st.beteiligte||[]).find(b=>b.rolle==="mandant")?.vorsteuer==="Y"} dokumente={st.dokumente||[]} belegeKandidaten={st.belegeKandidaten||[]} />}
             {sec==="dokumente"     && <DokumenteSection dokumente={st.dokumente||[]} dispatch={dispatch} akteId={akte.id} akte={akte} belegeKandidaten={st.belegeKandidaten||[]} schaden={st.schaden||{}} vorsteuer={(st.beteiligte||[]).find(b=>b.rolle==="mandant")?.vorsteuer==="Y"} />}
-            {sec==="regulierung"   && <RegulierungSection regulierungen={st.regulierungen||[]} brutto={st.schaden?.gesamt_brutto ?? liveBrutto} hq={akte.hq} dispatch={dispatch} akteId={akte.id} schaden={st.schaden||{}} abrechnungenCached={st.abrechnungen||[]} beteiligte={st.beteiligte||[]} dokumente={st.dokumente||[]} />}
+            {sec==="regulierung"   && <RegulierungSection brutto={st.schaden?.gesamt_brutto ?? liveBrutto} hq={akte.hq} dispatch={dispatch} akteId={akte.id} schaden={st.schaden||{}} abrechnungenCached={st.abrechnungen||[]} beteiligte={st.beteiligte||[]} dokumente={st.dokumente||[]} />}
             {sec==="gebuehren"     && <GebuehrenSection akteId={akte.id} akte={akte} />}
             {sec==="klage"         && <KlageSection akteId={akte.id} akte={akte} st={st} dispatch={dispatch} />}
             {sec==="word"          && <WordSection akte={akte} st={st} dispatch={dispatch} />}

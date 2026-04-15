@@ -34,10 +34,6 @@ def _err(msg, status=400):
     return jsonify({"fehler": msg}), status
 
 
-def _pruefe_akte(akte_id):
-    return hole_akte_by_id(akte_id) is not None
-
-
 # ── GET /akten/<az>/gebuehren ─────────────────────────────────────────────────
 
 @gebuehren_bp.route("/gebuehren", methods=["GET"])
@@ -47,11 +43,13 @@ def lade_gebuehren(akte_id):
     Lädt auto-analysierte Kriterien aus der Akte + gespeicherte Berechnung (falls vorhanden).
     Berechnet immer einen Vorschlag basierend auf den aktuellen Daten.
     """
-    if not _pruefe_akte(akte_id):
+    akte = hole_akte_by_id(akte_id)
+    if not akte:
         return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    az = akte.aktenzeichen
 
     with get_connection() as conn:
-        kriterien = analysiere_akte(akte_id, conn)
+        kriterien = analysiere_akte(az, conn)
         if kriterien is None:
             return _err("Akte konnte nicht analysiert werden.", 404)
 
@@ -59,13 +57,13 @@ def lade_gebuehren(akte_id):
 
         # Gespeicherte Berechnung laden (falls vorhanden)
         gespeichert = conn.execute(
-            "SELECT * FROM gebuehren_berechnung WHERE akte_id = ?", (akte_id,)
+            "SELECT * FROM gebuehren_berechnung WHERE akte_id = ?", (az,)
         ).fetchone()
 
         # Streitwert aus forderung_positionen
         fw = conn.execute(
             "SELECT SUM(betrag_gefordert) as s FROM forderung_positionen WHERE akte_id = ?",
-            (akte_id,)
+            (az,)
         ).fetchone()
         streitwert = float(fw["s"] or 0) if fw else 0.0
 
@@ -79,7 +77,7 @@ def lade_gebuehren(akte_id):
                           + COALESCE(schmerzensgeld, 0) + COALESCE(verdienstausfall, 0)
                           + COALESCE(unkostenpauschale, 0) as summe
                    FROM schadenpositionen WHERE akte_id = ?""",
-                (akte_id,)
+                (az,)
             ).fetchone()
             if sp:
                 streitwert = float(sp["summe"] or 0)
@@ -105,13 +103,15 @@ def analysiere(akte_id):
     Führt eine frische Analyse durch (optional mit manuell übermittelten Kriterien).
     Speichert NICHT in der DB.
     """
-    if not _pruefe_akte(akte_id):
+    akte = hole_akte_by_id(akte_id)
+    if not akte:
         return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    az = akte.aktenzeichen
 
     daten = request.get_json(silent=True) or {}
 
     with get_connection() as conn:
-        kriterien = analysiere_akte(akte_id, conn)
+        kriterien = analysiere_akte(az, conn)
         if kriterien is None:
             return _err("Akte konnte nicht analysiert werden.", 404)
 
@@ -153,8 +153,10 @@ def speichere_gebuehren(akte_id):
       - personenschaden: verletzungsgrad, pflegebedarf
       - gebuehren_berechnung: UPSERT
     """
-    if not _pruefe_akte(akte_id):
+    akte = hole_akte_by_id(akte_id)
+    if not akte:
         return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    az = akte.aktenzeichen
 
     daten = request.get_json(silent=True) or {}
     kriterien  = daten.get("kriterien", {})
@@ -174,7 +176,7 @@ def speichere_gebuehren(akte_id):
             set_clause = ", ".join(f"{k} = ?" for k in akte_felder)
             conn.execute(
                 f"UPDATE unfallakte SET {set_clause} WHERE az = ?",
-                list(akte_felder.values()) + [akte_id]
+                list(akte_felder.values()) + [az]
             )
 
         # ── personenschaden aktualisieren ─────────────────────────────────
@@ -186,18 +188,18 @@ def speichere_gebuehren(akte_id):
 
         if ps_felder:
             existing = conn.execute(
-                "SELECT id FROM personenschaden WHERE akte_id = ?", (akte_id,)
+                "SELECT id FROM personenschaden WHERE akte_id = ?", (az,)
             ).fetchone()
             if existing:
                 set_clause = ", ".join(f"{k} = ?" for k in ps_felder)
                 conn.execute(
                     f"UPDATE personenschaden SET {set_clause} WHERE akte_id = ?",
-                    list(ps_felder.values()) + [akte_id]
+                    list(ps_felder.values()) + [az]
                 )
             else:
                 # Personenschaden-Zeile anlegen mit Minimal-Daten
                 cols = ["akte_id"] + list(ps_felder.keys())
-                vals = [akte_id] + list(ps_felder.values())
+                vals = [az] + list(ps_felder.values())
                 placeholders = ", ".join("?" for _ in vals)
                 conn.execute(
                     f"INSERT INTO personenschaden ({', '.join(cols)}) VALUES ({placeholders})",
@@ -221,7 +223,7 @@ def speichere_gebuehren(akte_id):
                 erfasst_am       = excluded.erfasst_am,
                 erfasst_von      = excluded.erfasst_von
             """,
-            (akte_id, vuregel_id, faktor_vorschlag, faktor_final,
+            (az, vuregel_id, faktor_vorschlag, faktor_final,
              begruendung, kriterien_json,
              datetime.now().isoformat(timespec="seconds"), benutzer_id)
         )
@@ -235,12 +237,14 @@ def speichere_gebuehren(akte_id):
 @login_erforderlich
 def generiere_word(akte_id):
     """Generiert die Word-Kostennote und speichert sie in dokumente."""
-    if not _pruefe_akte(akte_id):
+    akte = hole_akte_by_id(akte_id)
+    if not akte:
         return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    az = akte.aktenzeichen
 
     with get_connection() as conn:
         gb_row = conn.execute(
-            "SELECT * FROM gebuehren_berechnung WHERE akte_id = ?", (akte_id,)
+            "SELECT * FROM gebuehren_berechnung WHERE akte_id = ?", (az,)
         ).fetchone()
 
     if not gb_row:
@@ -248,7 +252,7 @@ def generiere_word(akte_id):
 
     try:
         from ..word.gebuehren_word import generiere_kostennote
-        result = generiere_kostennote(akte_id, dict(gb_row))
+        result = generiere_kostennote(az, dict(gb_row))
         return _j(result)
     except Exception as e:
         logger.exception("Fehler beim Generieren der Kostennote: %s", e)

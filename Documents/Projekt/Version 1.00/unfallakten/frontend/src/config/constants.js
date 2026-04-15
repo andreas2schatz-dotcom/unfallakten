@@ -134,6 +134,7 @@ const POSITION_LABELS_FE = {
   wbw: "Wiederbeschaffungswert", wbw_netto: "WBW (netto)", wbw_brutto: "WBW (brutto)",
   fahrzeugschaden: "Fahrzeugschaden", fahrzeugschaden_netto: "Fahrzeugschaden", kostenpauschale: "Kostenpauschale",
   ra_gebuehren: "RA-Gebühren", mwst_abzug: "Abzug MwSt.", pruefbericht_abzug: "Abzug Prüfbericht",
+  restkraftstoff: "Restkraftstoff",
   // Fehlende Schaden-Keys (in SCHADEN_POS_MAP aber bisher nicht hier):
   verdienstausfall:  "Verdienstausfall",
   haushalt:          "Haushaltsführungsschaden",
@@ -167,6 +168,7 @@ const ART_LABEL = {
   wbw:                "Wiederbeschaffungswert",
   wbw_netto:          "Wiederbeschaffungswert (netto)",
   wbw_brutto:         "Wiederbeschaffungswert (brutto)",
+  wba:                "Wiederbeschaffungsaufwand",
   restwert:           "Restwert",
   fahrzeugschaden:    "Fahrzeugschaden",
   kostenpauschale:    "Kostenpauschale",
@@ -174,6 +176,9 @@ const ART_LABEL = {
   ra_gebuehren:       "Rechtsanwaltsgebühren",
   mwst_abzug:         "Abzug MwSt.",
   pruefbericht_abzug: "Abzug Prüfbericht",
+  nutzungsausfall:    "Nutzungsausfall",
+  abschleppkosten:    "Abschleppkosten",
+  restkraftstoff:     "Restkraftstoff",
 };
 
 const ABRECHNUNG_ART_LABEL = {
@@ -371,7 +376,7 @@ function ermittleAbrechnungsart(schaden, vorsteuer = false) {
   return null; // Nicht genug Daten
 }
 
-function positionenVorlage(schaden) {
+function positionenVorlage(schaden, { isFollowUp = false } = {}) {
   // Abrechnungsart bestimmt welche Fahrzeugschaden-Positionen relevant sind
   const art = schaden?.abrechnungsart || null;
   const repN  = parseFloat(schaden?.rep_gutachten_netto || schaden?.reparaturkosten || 0);
@@ -421,7 +426,7 @@ function positionenVorlage(schaden) {
   return keys.map(k => ({
     position_key:          k,
     betrag_gefordert:      getBetrag(k),
-    betrag_reguliert:      getBetrag(k),
+    betrag_reguliert:      isFollowUp ? 0 : getBetrag(k),
     kuerzungsart_id:       null,
     kuerzung_freitext:     "",
     fuer_klage_vorgemerkt: false,
@@ -429,13 +434,36 @@ function positionenVorlage(schaden) {
 }
 
 
+// Parser-Art → Formular-Position-Key: damit Gothaer "wbw" korrekt als
+// "wiederbeschaffung" im Regulierungsformular erscheint.
+const _ART_TO_POS_KEY = {
+  wbw:               "wiederbeschaffung",
+  wbw_netto:         "wiederbeschaffung",
+  wbw_brutto:        "wiederbeschaffung",
+  reparatur_netto:   "rep_gutachten_netto",
+  reparatur_brutto:  "rep_gutachten_netto",
+  reparatur_fiktiv:  "rep_gutachten_netto",
+  fahrzeugschaden:   "reparaturkosten",
+  sv_kosten:         "sv_kosten",
+  kostenpauschale:   "unkostenpauschale",
+  nutzungsausfall:   "nutzungsausfall",
+  wertminderung:     "wertminderung",
+  abschleppkosten:   "abschleppkosten",
+  restkraftstoff:    "restkraftstoff",
+  restwert:          "restwert",
+  ra_gebuehren:      "sonstiges",
+};
+
+// Option B: betrag_reguliert = Zahlung DIESES Abrechnungsschreibens (Inkrement,
+// nicht kumuliert). Gesamtregulierung = Summe aller Abrechnungen beim Lesen.
 function _mapPdfPos(pdfPositionen) {
   return pdfPositionen.map(p => {
     const betrag = Number(
       ((p.betrag_netto ?? p.betrag_brutto ?? p.betrag_gefordert ?? 0)).toFixed(2)
     );
+    const position_key = _ART_TO_POS_KEY[p.art] ?? p.art ?? p.position_key ?? "sonstiges";
     return {
-      position_key:          p.art || p.position_key || "sonstiges",
+      position_key,
       betrag_gefordert:      betrag,
       betrag_reguliert:      betrag,
       kuerzungsart_id:       null,
@@ -482,6 +510,16 @@ const apiPS = {
 };
 
 
+// Dokumentenklasse → Schadenposition(en) für Inbox-Zuordnung (PRD-34)
+const KLASSE_TO_POS = {
+  abschlepprechnung:   ["abschleppkosten"],
+  standkostenrechnung: ["standkosten"],
+  mietwagenrechnung:   ["mietwagenkosten"],
+  sv_rechnung:         ["sv_kosten"],
+  reparaturrechnung:   ["rep_rechnung_brutto"],
+  werkstattrechnung:   ["rep_rechnung_netto"],
+};
+
 export {
   STATUS_MAP,
   REG_STATUS,
@@ -504,6 +542,7 @@ export {
   ART_LABEL,
   ABRECHNUNG_ART_LABEL,
   DOK_TYPEN,
+  KLASSE_TO_POS,
   POS_KUERZUNG_KATEGORIE,
   KATEGORIE_CFG,
   DEMO_KUERZUNGSARTEN,

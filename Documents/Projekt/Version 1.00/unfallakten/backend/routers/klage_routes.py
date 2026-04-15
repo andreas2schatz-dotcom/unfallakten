@@ -874,6 +874,29 @@ def hole_klage_daten(akte_id: str):
         row = conn2.execute("SELECT wert FROM konfiguration WHERE schluessel='lg_grenzwert'").fetchone()
         lg_grenzwert = int(row["wert"]) if row else 10000
 
+    # Provenance-Aggregation: welche Abrechnungsschreiben haben pro Position was gezahlt
+    reg_agg = {}
+    for ab_row in abrechnungen:
+        ab_id          = ab_row["id"]
+        ab_datum       = ab_row["datum"] or ""
+        ab_versicherung = ab_row["versicherung"] or ""
+        for p in ab_positionen.get(ab_id, []):
+            key    = p.get("position_key") or "sonstiges"
+            betrag = float(p.get("betrag_reguliert") or 0)
+            if betrag == 0:
+                continue
+            if key not in reg_agg:
+                reg_agg[key] = {"gesamt_reguliert": 0.0, "quellen": []}
+            reg_agg[key]["gesamt_reguliert"] = round(
+                reg_agg[key]["gesamt_reguliert"] + betrag, 2
+            )
+            reg_agg[key]["quellen"].append({
+                "ab_id":        ab_id,
+                "datum":        ab_datum,
+                "versicherung": ab_versicherung,
+                "betrag":       betrag,
+            })
+
     return _j({
         "beteiligte":         alle_bet,
         "positionen":         [p for p in pos_definitionen if p["betrag"] > 0],
@@ -884,6 +907,7 @@ def hole_klage_daten(akte_id: str):
             {**dict(a), "positionen": ab_positionen.get(a["id"], [])}
             for a in abrechnungen
         ],
+        "reg_agg":            reg_agg,
         "schaden":            schaden_dict,
         "gericht_vorschlag":  gericht_vorschlag,
         "gericht_quelle":     gericht_quelle,

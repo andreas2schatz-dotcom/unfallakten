@@ -513,7 +513,7 @@ def _berechne_regulierungsdauer(az, unfalldatum, conn):
         return 0.0
 
     letztes = conn.execute(
-        "SELECT MAX(datum) as d FROM regulierung WHERE akte_id = ?", (az,)
+        "SELECT MAX(datum) as d FROM abrechnungsschreiben WHERE akte_id = ?", (az,)
     ).fetchone()
     ende_str = letztes["d"] if letztes and letztes["d"] else None
 

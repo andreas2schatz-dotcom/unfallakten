@@ -82,7 +82,7 @@ function WordSection({ akte, st, dispatch }) {
     ?? _ws_sd.gesamt_brutto
     ?? 0;
   const netto     = (st.schaden?.gesamt_brutto ?? liveBrutto) * (akte.hq/100);
-  const gesamtReg = st.regulierungen?.reduce((s,r) => s+r.betrag_reguliert, 0) || 0;
+  const gesamtReg = (st.abrechnungen||[]).reduce((s,ab) => s + (parseFloat(ab.gesamt_reguliert)||0), 0);
 
   const docs = [
     { typ:"forderungsschreiben",  label:"Forderungsschreiben",  icon:"⚖️", an:gegner?.versicherung||"Versicherung",  desc:"Schadensersatzforderung an den Haftpflichtversicherer gemäß §§ 7, 17, 18 StVG, § 115 VVG mit vollständiger Schadensaufstellung." },

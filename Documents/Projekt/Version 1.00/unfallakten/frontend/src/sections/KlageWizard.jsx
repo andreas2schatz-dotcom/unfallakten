@@ -692,12 +692,20 @@ function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind
   const [showSgDialog, setShowSgDialog] = useState(false);
   const klagebetrag = positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag || 0), 0);
 
-  // Regulierungsstand pro position_key aggregieren (über alle Abrechnungen)
-  const regMap = {};
+  // Provenance-Map: position_key → { gesamt, quellen[] }
+  const provenanceMap = {};
   (abrechnungen || []).forEach(ab => {
     (ab.positionen || []).forEach(rp => {
-      const k = rp.position_key;
-      if (k) regMap[k] = (regMap[k] || 0) + (parseFloat(rp.betrag_reguliert) || 0);
+      const k      = rp.position_key;
+      const betrag = parseFloat(rp.betrag_reguliert) || 0;
+      if (!k || betrag === 0) return;
+      if (!provenanceMap[k]) provenanceMap[k] = { gesamt: 0, quellen: [] };
+      provenanceMap[k].gesamt = Math.round((provenanceMap[k].gesamt + betrag) * 100) / 100;
+      provenanceMap[k].quellen.push({
+        datum:        ab.datum       || "",
+        versicherung: ab.versicherung || "",
+        betrag,
+      });
     });
   });
 
@@ -736,9 +744,11 @@ function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind
           Klagepositionen – angehakt = eingeklagt
         </div>
         {positionen.map(p => {
-          const reg   = regMap[p.key] || 0;
-          const offen = (p.betrag || 0) - reg;
-          const vollReg = reg > 0 && offen <= 0.005;
+          const prov      = provenanceMap[p.key];
+          const reg       = prov?.gesamt || 0;
+          // p.betrag ist bereits der offene Betrag (oeffneWizard subtrahiert reguliert)
+          const vollReg   = reg > 0 && (p.betrag || 0) <= 0.005;
+          const gefordert = (p.betrag || 0) + reg; // ursprünglicher Forderungsbetrag
           return (
             <label key={p.key} style={{
               display: "flex", alignItems: "flex-start", gap: 10,
@@ -762,7 +772,16 @@ function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind
                 )}
                 {!vollReg && reg > 0 && (
                   <div style={{ fontFamily: MONO, fontSize: "0.72rem", color: T.textMuted, marginTop: 1 }}>
-                    reguliert {fmtEur(reg)} · offen {fmtEur(offen)}
+                    <span>gefordert {fmtEur(gefordert)} · reguliert {fmtEur(reg)}</span>
+                    {(prov?.quellen?.length || 0) > 1 && (
+                      <div style={{ marginTop: 2 }}>
+                        {prov.quellen.map((q, i) => (
+                          <div key={i} style={{ paddingLeft: 8, fontSize: "0.65rem", color: T.textMuted }}>
+                            {q.datum} · {q.versicherung || "?"} · {fmtEur(q.betrag)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

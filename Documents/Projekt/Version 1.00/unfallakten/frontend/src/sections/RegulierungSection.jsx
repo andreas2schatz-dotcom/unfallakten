@@ -12,6 +12,7 @@ import {
   parsePdf as apiParsePdf,
   apiDistanz,
   apiStellungnahme,
+  tokenStore,
   request,
 } from "../api.js";
 
@@ -134,31 +135,44 @@ function PositionenTabelle({ positionen, kuerzungsarten, akteId, abid, onUpdate,
 
 
 
-function PdfAuswahlZeile({ dok, akteId, setDn, setPhase, setFehler, setErg, setSelPos, dispatch }) {
+function PdfAuswahlZeile({ dok, akteId, setDn, setPhase, setFehler, setErg, setSelPos, setLlmWahl, setSchritte, dispatch }) {
   const quelleLabel = dok.quelle === "eakte" ? "E-Akte" : "Hochgeladen";
   return (
-    <button onClick={async () => {
+    <button onClick={() => {
       setDn(dok.dateiname);
       setPhase("loading");
       setFehler("");
-      try {
-        const res = await apiParsePdf.parseVorhandenes(akteId, dok.id);
-        setErg({...res.ergebnis, _dok_id: res.dokument_id || dok.id});
-        const sel = {};
-        (res.ergebnis?.positionen || []).forEach((p, i) => { sel[i] = true; });
-        setSelPos(sel);
-        setPhase("preview");
-        if (dispatch) {
-          try {
-            const aktData = await apiAkten.aktivitaeten(akteId);
-            if (aktData?.aktivitaeten)
-              dispatch({ type:"SET_AKTIVITAETEN", akteId, aktivitaeten:aktData.aktivitaeten });
-          } catch {}
+      setSchritte([]);
+      apiParsePdf.parseStream(akteId, dok.id, (data) => {
+        if (data.schritt === "ocr") {
+          setSchritte(prev => {
+            const filtered = prev.filter(s => s.schritt !== "ocr");
+            return [...filtered, data];
+          });
+        } else if (data.schritt === "parsen") {
+          setSchritte(prev => {
+            const filtered = prev.filter(s => s.schritt !== "parsen");
+            return [...filtered, data];
+          });
+        } else if (data.schritt === "fertig") {
+          const ergebnis = data.ergebnis || {};
+          setErg({...ergebnis, _dok_id: data.dokument_id || dok.id});
+          const sel = {};
+          (ergebnis.positionen || []).forEach((p, i) => { sel[i] = true; });
+          setSelPos(sel);
+          setLlmWahl({});
+          setPhase("preview");
+          if (dispatch) {
+            apiAkten.aktivitaeten(akteId).then(aktData => {
+              if (aktData?.aktivitaeten)
+                dispatch({ type:"SET_AKTIVITAETEN", akteId, aktivitaeten:aktData.aktivitaeten });
+            }).catch(() => {});
+          }
+        } else if (data.schritt === "fehler") {
+          setFehler(data.meldung || "Unbekannter Fehler");
+          setPhase("error");
         }
-      } catch (e) {
-        setFehler(e.message || "Unbekannter Fehler");
-        setPhase("error");
-      }
+      });
     }}
       style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px",
         background:T.white, border:`1px solid ${T.border}`, borderRadius:7,
@@ -187,11 +201,13 @@ function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePrue
     !(d.dokumentenklasse === "pruefbericht" || d.typ === "pruefbericht"));
   const startPhase = vorhandenePdfs.length > 0 ? "auswahl" : "upload";
 
-  const [phase, setPhase]     = useState(startPhase);
-  const [ergebnis, setErg]    = useState(null);
-  const [fehler, setFehler]   = useState("");
-  const [dateiname, setDn]    = useState("");
-  const fileRef               = useRef();
+  const [phase, setPhase]         = useState(startPhase);
+  const [ergebnis, setErg]        = useState(null);
+  const [fehler, setFehler]       = useState("");
+  const [dateiname, setDn]        = useState("");
+  const [parseSchritte, setSchritte] = useState([]);
+  const [llmWahl, setLlmWahl] = useState({});  // { posIndex: 'ki' } – PRD-31
+  const fileRef                   = useRef();
 
   // Übernahme-State: welche Positionen soll das Formular vorab ausfüllen?
   const [selectedPos, setSelPos] = useState({});
@@ -207,6 +223,7 @@ function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePrue
     setDn(datei.name);
     setPhase("loading");
     setFehler("");
+    setLlmWahl({});
     try {
       const res = await apiParsePdf.parse(akteId, datei);
       setErg({...res.ergebnis, _dok_id: res.dokument?.id});
@@ -287,13 +304,26 @@ function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePrue
 
   const handleUebernehmen = () => {
     if (!ergebnis) return;
-    const rawPos = (ergebnis.positionen || []).filter((_, i) => selectedPos[i]);
+    const llmMap = {};
+    (ergebnis.llm_positionen || []).forEach(p => {
+      if (p.art && !(p.art in llmMap)) llmMap[p.art] = p.betrag_netto ?? p.betrag_brutto ?? null;
+    });
+    const rawPos = (ergebnis.positionen || [])
+      .map((p, i) => ({ p, i }))
+      .filter(({ i }) => selectedPos[i])
+      .map(({ p, i }) => {
+        const kiWert = llmMap[p.art] ?? null;
+        if (llmWahl[i] === 'ki' && kiWert != null) {
+          return { ...p, betrag_netto: kiWert, betrag_brutto: null, hinweis: "KI-Parsing" };
+        }
+        return p;
+      });
     onImport({
-      versicherung: ergebnis.versicherer      || "",
-      referenz_nr:  ergebnis.schadennummer    || "",
-      datum:        ergebnis.schreibdatum     || "",
-      positionen:   rawPos,   // _mapPdfPos macht das Mapping im AbrechnungFormular
-      _dok_id:      ergebnis._dok_id          || null,
+      versicherung: ergebnis.versicherer   || "",
+      referenz_nr:  ergebnis.schadennummer || "",
+      datum:        ergebnis.schreibdatum  || "",
+      positionen:   rawPos,
+      _dok_id:      ergebnis._dok_id       || null,
     });
   };
 
@@ -307,6 +337,7 @@ function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePrue
       wbw_netto:         "wiederbeschaffungswert",
       wbw_brutto:        "wiederbeschaffungswert",
       restwert:          "restwert",
+      wba:               "wba",
       fahrzeugschaden:   "fahrzeugschaden",
       kostenpauschale:   "kostenpauschale",
       wertminderung:     "wertminderung",
@@ -338,7 +369,7 @@ function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePrue
                 Abrechnungsschreiben ({abrDoks.length})
               </div>
               {abrDoks.map(dok => (
-                <PdfAuswahlZeile key={dok.id} dok={dok} akteId={akteId} setDn={setDn} setPhase={setPhase} setFehler={setFehler} setErg={setErg} setSelPos={setSelPos} dispatch={dispatch} />
+                <PdfAuswahlZeile key={dok.id} dok={dok} akteId={akteId} setDn={setDn} setPhase={setPhase} setFehler={setFehler} setErg={setErg} setSelPos={setSelPos} setLlmWahl={setLlmWahl} setSchritte={setSchritte} dispatch={dispatch} />
               ))}
             </div>
           )}
@@ -348,7 +379,7 @@ function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePrue
                 Prüfberichte ({pbDoks.length})
               </div>
               {pbDoks.map(dok => (
-                <PdfAuswahlZeile key={dok.id} dok={dok} akteId={akteId} setDn={setDn} setPhase={setPhase} setFehler={setFehler} setErg={setErg} setSelPos={setSelPos} dispatch={dispatch} />
+                <PdfAuswahlZeile key={dok.id} dok={dok} akteId={akteId} setDn={setDn} setPhase={setPhase} setFehler={setFehler} setErg={setErg} setSelPos={setSelPos} setLlmWahl={setLlmWahl} setSchritte={setSchritte} dispatch={dispatch} />
               ))}
             </div>
           )}
@@ -358,7 +389,7 @@ function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePrue
                 {(abrDoks.length > 0 || pbDoks.length > 0) ? "Weitere PDFs" : "Vorhandene PDFs"} ({sonstigeDoks.length})
               </div>
               {sonstigeDoks.map(dok => (
-                <PdfAuswahlZeile key={dok.id} dok={dok} akteId={akteId} setDn={setDn} setPhase={setPhase} setFehler={setFehler} setErg={setErg} setSelPos={setSelPos} dispatch={dispatch} />
+                <PdfAuswahlZeile key={dok.id} dok={dok} akteId={akteId} setDn={setDn} setPhase={setPhase} setFehler={setFehler} setErg={setErg} setSelPos={setSelPos} setLlmWahl={setLlmWahl} setSchritte={setSchritte} dispatch={dispatch} />
               ))}
             </div>
           )}
@@ -406,10 +437,37 @@ function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePrue
 
       {/* ── Phase: Laden ── */}
       {phase === "loading" && (
-        <div style={{ textAlign:"center", padding:"40px 0", color:T.textMuted }}>
-          <div style={{ fontSize:32, marginBottom:12 }}>⏳</div>
-          <div style={{ fontWeight:600, color:T.text }}>{dateiname}</div>
-          <div style={{ marginTop:8 }}>Analysiere PDF…</div>
+        <div style={{ textAlign:"center", padding:"32px 0", color:T.textMuted }}>
+          <div style={{ fontSize:28, marginBottom:10 }}>⏳</div>
+          <div style={{ fontWeight:600, color:T.text, marginBottom:16 }}>{dateiname}</div>
+          {parseSchritte.length === 0 ? (
+            <div style={{ color:T.textMuted, fontSize:"0.9rem" }}>Analysiere PDF…</div>
+          ) : (
+            <div style={{
+              display:"inline-flex", flexDirection:"column", gap:6,
+              textAlign:"left", minWidth:220,
+            }}>
+              {parseSchritte.map((s, i) => {
+                const fertig = s.status === "fertig";
+                const fehler = s.status === "fehler" || s.status === "nicht_verfuegbar";
+                const label = {
+                  ocr:    fertig ? `OCR abgeschlossen (${(s.zeichen||0).toLocaleString("de-DE")} Zeichen)` : fehler ? "OCR fehlgeschlagen" : "OCR läuft…",
+                  parsen: fertig ? `Geparst: ${s.klasse || "unbekannt"}` : "Dokument analysieren…",
+                }[s.schritt] || s.schritt;
+                return (
+                  <div key={i} style={{
+                    display:"flex", alignItems:"center", gap:8,
+                    fontSize:"0.875rem", color: fehler ? T.red : fertig ? T.green : T.textMid,
+                  }}>
+                    <span style={{ flexShrink:0, fontSize:"1rem" }}>
+                      {fehler ? "✗" : fertig ? "✓" : "⟳"}
+                    </span>
+                    <span>{label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -457,8 +515,49 @@ function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePrue
                 {ABRECHNUNG_ART_LABEL[ergebnis.abrechnungsart] || ergebnis.abrechnungsart}
               </span>
             )}
-            <span style={{ marginLeft:"auto", fontSize:12, color:konfidenzFarbe(ergebnis.parse_konfidenz) }}>
-              Konfidenz: {Math.round((ergebnis.parse_konfidenz || 0) * 100)}%
+            <span style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:8 }}>
+              {ergebnis._dok_id && (() => {
+                const token = tokenStore.getAccess() || "";
+                const url = `/akten/${akteId}/dokumente/${ergebnis._dok_id}/datei${token ? "?token=" + encodeURIComponent(token) : ""}`;
+                return (
+                  <a href={url} target="_blank" rel="noopener noreferrer" style={{
+                    display:"inline-flex", alignItems:"center", gap:4,
+                    padding:"3px 9px", borderRadius:4, fontSize:11, fontWeight:600,
+                    background:T.surface, border:`1px solid ${T.border}`,
+                    color:T.textMid, textDecoration:"none", letterSpacing:"0.02em",
+                    transition:"border-color .15s, color .15s",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = T.accent; e.currentTarget.style.color = T.accent; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textMid; }}
+                  title="PDF in neuem Tab öffnen">
+                    ↗ PDF
+                  </a>
+                );
+              })()}
+              {ergebnis.llm_verwendet && !ergebnis.llm_konflikt && (
+                <span title="Gemma stimmt mit Regex-Parser überein" style={{
+                  background: "rgba(139,92,246,0.18)",
+                  color: "#c4b5fd",
+                  border: "1px solid rgba(139,92,246,0.35)",
+                  borderRadius: 4, fontSize: 11, fontWeight: 600,
+                  padding: "2px 7px", letterSpacing: "0.03em",
+                }}>
+                  ✦ Gemma ✓
+                </span>
+              )}
+              {ergebnis.llm_verwendet && ergebnis.llm_konflikt && (
+                <span style={{
+                  background: "rgba(245,158,11,0.15)", color: "#f59e0b",
+                  border: "1px solid rgba(245,158,11,0.4)",
+                  borderRadius: 4, fontSize: 11, fontWeight: 600,
+                  padding: "2px 7px",
+                }}>
+                  ⚠ KI-Konflikt – wähle pro Position
+                </span>
+              )}
+              <span style={{ fontSize:12, color:konfidenzFarbe(ergebnis.parse_konfidenz) }}>
+                Konfidenz: {Math.round((ergebnis.parse_konfidenz || 0) * 100)}%
+              </span>
             </span>
           </div>
 
@@ -475,6 +574,8 @@ function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePrue
               ergebnis={ergebnis}
               selectedPos={selectedPos}
               setSelPos={setSelPos}
+              llmWahl={llmWahl}
+              setLlmWahl={setLlmWahl}
             />
           )}
           {ergebnis.dokumenttyp === "pruefbericht" && (
@@ -542,64 +643,137 @@ function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePrue
 }
 
 
-function AbrechnungVorschau({ ergebnis, selectedPos, setSelPos }) {
-  const positionen = ergebnis.positionen || [];
-  const zahlungen  = ergebnis.zahlungen  || [];
+function AbrechnungVorschau({ ergebnis, selectedPos, setSelPos, llmWahl, setLlmWahl }) {
+  const positionen    = ergebnis.positionen    || [];
+  const zahlungen     = ergebnis.zahlungen     || [];
+  const llmPositionen = ergebnis.llm_positionen || [];
+  const hatKI         = ergebnis.llm_verwendet && llmPositionen.length > 0;
+  const hatKonflikt   = hatKI && !!ergebnis.llm_konflikt;
+
+  // KI-Lookup: art → erster passender Betrag (netto bevorzugt)
+  const llmMap = {};
+  llmPositionen.forEach(p => {
+    if (p.art && !(p.art in llmMap)) {
+      llmMap[p.art] = p.betrag_netto ?? p.betrag_brutto ?? null;
+    }
+  });
+
+  const thStyle = { padding:"7px 10px", textAlign:"right", color:T.textMuted, fontWeight:500, fontSize:12, whiteSpace:"nowrap" };
+  const tdMono  = { padding:"7px 10px", textAlign:"right", fontFamily:"monospace", fontSize:13 };
 
   return (
     <div>
-      {/* Positionen */}
       {positionen.length > 0 ? (
         <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13, marginBottom:12 }}>
           <thead>
             <tr style={{ background:T.surface }}>
-              <th style={{ padding:"8px 10px", textAlign:"left", color:T.textMuted, fontWeight:500, width:32 }}></th>
-              <th style={{ padding:"8px 10px", textAlign:"left", color:T.textMuted, fontWeight:500 }}>Position</th>
-              <th style={{ padding:"8px 10px", textAlign:"right", color:T.textMuted, fontWeight:500 }}>Brutto</th>
-              <th style={{ padding:"8px 10px", textAlign:"right", color:T.textMuted, fontWeight:500 }}>Netto</th>
-              <th style={{ padding:"8px 10px", textAlign:"left", color:T.textMuted, fontWeight:500 }}>Hinweis</th>
+              <th style={{ padding:"7px 10px", textAlign:"left", color:T.textMuted, fontWeight:500, width:32 }}></th>
+              <th style={{ padding:"7px 10px", textAlign:"left", color:T.textMuted, fontWeight:500, fontSize:12 }}>Position</th>
+              {hatKI && (
+                <th style={{ ...thStyle, color:"#a78bfa" }} title="Qwen KI-Erkennung">
+                  ✦ KI
+                </th>
+              )}
+              <th style={thStyle}>Regex</th>
+              <th style={{ ...thStyle, color:T.accent }}>Vorschlag</th>
+              <th style={{ padding:"7px 10px", textAlign:"left", color:T.textMuted, fontWeight:500, fontSize:12 }}>Hinweis</th>
+              {hatKonflikt && (
+                <th style={{ ...thStyle, color:"#f59e0b" }}>Wählen</th>
+              )}
             </tr>
           </thead>
           <tbody>
-            {positionen.map((p, i) => (
-              <tr key={i} style={{ borderTop:`1px solid ${T.border}` }}>
-                <td style={{ padding:"8px 10px" }}>
-                  <input
-                    type="checkbox"
-                    checked={!!selectedPos[i]}
-                    onChange={e => setSelPos(s => ({ ...s, [i]: e.target.checked }))}
-                    style={{ accentColor: T.accent }}
-                  />
-                </td>
-                <td style={{ padding:"8px 10px", color:T.text }}>
-                  {ART_LABEL[p.art] || p.art}
-                </td>
-                <td style={{ padding:"8px 10px", textAlign:"right", fontFamily:"monospace", color:T.textMuted }}>
-                  {p.betrag_brutto != null ? fmtEuro(p.betrag_brutto) : "—"}
-                </td>
-                <td style={{ padding:"8px 10px", textAlign:"right", fontFamily:"monospace", fontWeight:600, color:T.text }}>
-                  {p.betrag_netto != null ? fmtEuro(p.betrag_netto) : "—"}
-                </td>
-                <td style={{ padding:"8px 10px", color:T.textMuted, fontSize:12 }}>
-                  {p.hinweis || ""}
-                  {p.pruefbericht_abzug ? ` (PB-Abzug: −${fmtEuro(p.pruefbericht_abzug)})` : ""}
-                </td>
-              </tr>
-            ))}
+            {positionen.map((p, i) => {
+              const regexBetrag   = p.betrag_netto ?? p.betrag_brutto ?? null;
+              const llmBetrag     = llmMap[p.art] ?? null;
+              const abweichung    = hatKI && llmBetrag != null && regexBetrag != null
+                ? Math.abs(llmBetrag - regexBetrag) > 1.0
+                : false;
+              const kiGew = abweichung && llmWahl && llmWahl[i] === 'ki';
+              const vorschlag = kiGew ? llmBetrag : regexBetrag;
+              return (
+                <tr key={i} style={{ borderTop:`1px solid ${T.border}` }}>
+                  <td style={{ padding:"7px 10px" }}>
+                    <input
+                      type="checkbox"
+                      checked={!!selectedPos[i]}
+                      onChange={e => setSelPos(s => ({ ...s, [i]: e.target.checked }))}
+                      style={{ accentColor: T.accent }}
+                    />
+                  </td>
+                  <td style={{ padding:"7px 10px", color:T.text }}>
+                    {ART_LABEL[p.art] || p.art}
+                  </td>
+                  {hatKI && (
+                    <td style={{ ...tdMono, color: abweichung ? "#f59e0b" : "#a78bfa" }}
+                        title={abweichung ? "Abweichung zum Regex-Wert" : "Übereinstimmung"}>
+                      {llmBetrag != null ? fmtEuro(llmBetrag) : "—"}
+                    </td>
+                  )}
+                  <td style={{ ...tdMono, color:T.textMuted }}>
+                    {regexBetrag != null ? fmtEuro(regexBetrag) : "—"}
+                  </td>
+                  <td style={{ ...tdMono, fontWeight:600, color: kiGew ? "#a78bfa" : T.accent }}>
+                    {vorschlag != null ? fmtEuro(vorschlag) : "—"}
+                  </td>
+                  <td style={{ padding:"7px 10px", color:T.textMuted, fontSize:12 }}>
+                    {p.hinweis || ""}
+                    {p.pruefbericht_abzug ? ` (PB-Abzug: −${fmtEuro(p.pruefbericht_abzug)})` : ""}
+                  </td>
+                  {hatKonflikt && (
+                    <td style={{ padding:"5px 8px", whiteSpace:"nowrap" }}>
+                      {abweichung ? (
+                        <>
+                          <button
+                            onClick={() => setLlmWahl(w => { const nw = {...w}; delete nw[i]; return nw; })}
+                            style={{
+                              padding:"2px 7px", fontSize:11, fontWeight:600, borderRadius:4,
+                              cursor:"pointer", background:"transparent",
+                              border: !kiGew ? `1.5px solid ${T.green}` : `1px solid ${T.border}`,
+                              color: !kiGew ? T.green : T.textMid,
+                            }}
+                          >Regex</button>
+                          {' '}
+                          <button
+                            onClick={() => setLlmWahl(w => ({ ...w, [i]: 'ki' }))}
+                            style={{
+                              padding:"2px 7px", fontSize:11, fontWeight:600, borderRadius:4,
+                              cursor:"pointer", background:"transparent",
+                              border: kiGew ? `1.5px solid #a78bfa` : `1px solid ${T.border}`,
+                              color: kiGew ? "#a78bfa" : T.textMid,
+                            }}
+                          >KI</button>
+                        </>
+                      ) : (
+                        <span style={{ color:T.textFaint, fontSize:11 }}>—</span>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
-          {ergebnis.gesamtbetrag && (
-            <tfoot>
-              <tr style={{ borderTop:`2px solid ${T.border}` }}>
-                <td colSpan={3} style={{ padding:"8px 10px", textAlign:"right", color:T.textMuted, fontWeight:600 }}>
-                  Gesamtbetrag:
+          <tfoot>
+            <tr style={{ borderTop:`2px solid ${T.border}` }}>
+              <td colSpan={2} style={{ padding:"7px 10px", textAlign:"right", color:T.textMuted, fontWeight:600, fontSize:12 }}>
+                Gesamtbetrag:
+              </td>
+              {hatKI && (
+                <td style={{ ...tdMono, color: ergebnis.llm_konflikt ? "#f59e0b" : "#a78bfa", fontWeight:700 }}
+                    title={ergebnis.llm_konflikt ? "Abweichung zum Regex-Gesamtbetrag" : "Übereinstimmung"}>
+                  {ergebnis.llm_gesamtbetrag != null ? fmtEuro(ergebnis.llm_gesamtbetrag) : "—"}
                 </td>
-                <td style={{ padding:"8px 10px", textAlign:"right", fontFamily:"monospace", fontWeight:700, color:T.accent, fontSize:15 }}>
-                  {fmtEuro(ergebnis.gesamtbetrag)}
-                </td>
-                <td />
-              </tr>
-            </tfoot>
-          )}
+              )}
+              <td style={{ ...tdMono, color:T.textMuted, fontWeight:600 }}>
+                {ergebnis.gesamtbetrag != null ? fmtEuro(ergebnis.gesamtbetrag) : "—"}
+              </td>
+              <td style={{ ...tdMono, fontWeight:700, color:T.accent, fontSize:15 }}>
+                {ergebnis.gesamtbetrag != null ? fmtEuro(ergebnis.gesamtbetrag) : "—"}
+              </td>
+              <td />
+              {hatKonflikt && <td />}
+            </tr>
+          </tfoot>
         </table>
       ) : (
         <div style={{ color:T.textMuted, padding:12, textAlign:"center", fontSize:13 }}>
@@ -1459,7 +1633,7 @@ function PruefberichteGespeichertListe({ pruefberichte, mandantAdresse }) {
 
 
 
-function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schaden, abrechnungenCached, beteiligte, dokumente }) {
+function RegulierungSection({ brutto, hq, dispatch, akteId, schaden, abrechnungenCached, beteiligte, dokumente }) {
   const [abrechnungen, setAbrechnungen]   = useState([]);
   const [kuerzungsarten, setKuerzungsarten] = useState([]);
   const [pruefberichte, setPruefberichte] = useState([]);
@@ -1669,7 +1843,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
     const ALLE_FZG_KEYS = new Set([
       "wiederbeschaffung","restwert","rep_gutachten_netto",
       "rep_rechnung_netto","rep_rechnung_brutto","reparaturkosten",
-      "fahrzeugschaden","fahrzeugschaden_netto","wbw","wbw_netto","wbw_brutto",
+      "fahrzeugschaden","fahrzeugschaden_netto","wbw","wbw_netto","wbw_brutto","wba",
       "reparatur_brutto","reparatur_netto","reparatur_fiktiv",
     ]);
     const erlaubteFzgKeys = new Set(posVorlage.map(p => p.position_key));
@@ -1685,6 +1859,16 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
       };
     });
 
+    // Reverse-Map: Extra-Label (lowercase) → Extra-position_key
+    // z.B. "restkraftstoff" → "extra_1" wenn Restkraftstoff als Sonstiger Schaden erfasst ist
+    const extraLabelToKey = {};
+    posVorlage.forEach(p => {
+      if (p.position_key.startsWith("extra_")) {
+        const lbl = (p._label || "").toLowerCase().trim();
+        if (lbl) extraLabelToKey[lbl] = p.position_key;
+      }
+    });
+
     // Zahlungen aus allen Abrechnungen eintragen
     abrechnungen.forEach(ab => {
       (ab.positionen || []).forEach(p => {
@@ -1694,6 +1878,13 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
         // Remap sonstiges_wdm_X → extra_wdm_ssX (gleicher Key wie posVorlage-Extras)
         const _wm = /^sonstiges_wdm_(\d+)$/.exec(key);
         if (_wm) key = `extra_wdm_ss${_wm[1]}`;
+        // Remap Parser-Art-Keys → Schaden-Tab-Keys (für alte Abrechnungen ohne _ART_TO_POS_KEY-Mapping)
+        if (key === "kostenpauschale") key = "unkostenpauschale";
+        // Remap Parser-Art-Key → Extra-Schaden-Key wenn Label übereinstimmt
+        // z.B. "restkraftstoff" → "extra_1" wenn der Nutzer "Restkraftstoff" als Sonstiger Schaden erfasst hat
+        if (!ALLE_FZG_KEYS.has(key) && extraLabelToKey[key.toLowerCase()]) {
+          key = extraLabelToKey[key.toLowerCase()];
+        }
         // Fahrzeugschadenkeys nur übernehmen wenn fahrzeugschaden_netto in posVorlage ist
         if (key === "fahrzeugschaden_netto" && !erlaubteFzgKeys.has("fahrzeugschaden_netto")) return;
         if (!map[key]) {
@@ -1755,6 +1946,18 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
     setGezahltSaving(true);
     const pos = posMap[posKey];
     try {
+      // Wenn eine bestehende Position vorhanden → PATCH (überschreiben, nicht addieren)
+      if (gezahltEdit?.ab_id && gezahltEdit?.pos_id) {
+        await apiAbrechnungen.updatePos(akteId, gezahltEdit.ab_id, gezahltEdit.pos_id, {
+          betrag_reguliert: betrag,
+        });
+        setToast("Zahlung aktualisiert.");
+        ladeAlles();
+        return;
+      }
+
+      // Keine bestehende Position → neue Abrechnung anlegen
+      const hatVorherigeZahlungen = (pos?.zahlungen?.length || 0) > 0;
       // fahrzeugschaden_netto → echten position_key je Abrechnungsart
       const art = schaden?.abrechnungsart || null;
       const repRN = parseFloat(schaden?.rep_rechnung_netto || 0);
@@ -1782,7 +1985,9 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
         }],
       };
       await apiAbrechnungen.erstelle(akteId, payload);
-      setToast("Zahlung gespeichert.");
+      setToast(hatVorherigeZahlungen
+        ? "Neue Abrechnung angelegt – Betrag = Zahlung dieses Schreibens."
+        : "Neue Abrechnung angelegt.");
       ladeAlles();
     } catch (e) {
       setToast("Fehler: " + (e?.message || String(e)));
@@ -2125,7 +2330,7 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                   const beglichen    = kuerzung !== null && kuerzung <= 0.005;
                   const isExpanded   = expanded.has(pos.key);
                   const isEditing    = gezahltEdit?.posKey === pos.key;
-                  const mehrZahlungen = pos.zahlungen.length > 1;
+                  const mehrZahlungen = pos.zahlungen.length >= 1;
                   const kIds = kuerzungMap[pos.key] || [];
 
                   return (
@@ -2146,7 +2351,16 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                             })} style={{ background:"none", border:"none", cursor:"pointer",
                               color:T.textFaint, padding:2, fontSize:"0.75rem",
                               transform: isExpanded ? "rotate(90deg)" : "none",
-                              transition:"transform 0.15s", lineHeight:1 }}>▶</button>
+                              transition:"transform 0.15s", lineHeight:1,
+                              display:"flex", flexDirection:"column", alignItems:"center", gap:1 }}
+                              title={`${pos.zahlungen.length} Zahlung${pos.zahlungen.length !== 1 ? "en" : ""}`}>
+                              <span>▶</span>
+                              {pos.zahlungen.length > 1 && (
+                                <span style={{ fontSize:"0.6rem", color:T.textFaint, lineHeight:1 }}>
+                                  {pos.zahlungen.length}×
+                                </span>
+                              )}
+                            </button>
                           ) : <span style={{ display:"inline-block", width:14 }}/>}
                         </td>
 
@@ -2276,13 +2490,22 @@ function RegulierungSection({ regulierungen, brutto, hq, dispatch, akteId, schad
                               </div>
                             </>
                           ) : (
-                            <div onClick={() => setGezahltEdit({
-                              posKey:      pos.key,
-                              value:       gezahlt !== null ? String(gezahlt).replace(".",",") : "",
-                              datum:       new Date().toISOString().slice(0,10),
-                              versicherung: versicherungDefault,
-                              referenz_nr:  referenzNr,
-                            })}
+                            <div onClick={() => {
+                              // Letzte manuell editierbare Zahlung für Update-Pfad merken
+                              const letzteZ = pos.zahlungen.length > 0
+                                ? pos.zahlungen[pos.zahlungen.length - 1]
+                                : null;
+                              setGezahltEdit({
+                                posKey:      pos.key,
+                                value:       gezahlt !== null ? String(gezahlt).replace(".",",") : "",
+                                datum:       letzteZ?.datum || new Date().toISOString().slice(0,10),
+                                versicherung: letzteZ?.versicherung || versicherungDefault,
+                                referenz_nr:  referenzNr,
+                                // Wenn genau eine Zahlung existiert: direkt updaten statt neue anlegen
+                                ab_id:  pos.zahlungen.length === 1 ? letzteZ.ab_id  : null,
+                                pos_id: pos.zahlungen.length === 1 ? letzteZ.pos_id : null,
+                              });
+                            }}
                               title="Klicken zum Bearbeiten"
                               style={{ cursor:"text", fontFamily:"ui-monospace,monospace",
                                 color: gezahlt !== null ? T.text : T.textFaint,

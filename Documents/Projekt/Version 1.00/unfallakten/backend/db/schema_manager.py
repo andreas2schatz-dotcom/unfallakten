@@ -265,6 +265,30 @@ VALUES (7, 'Migration 7 – v_regulierungsstatus GROUP BY az');
     34: "-- migration_34_ist_halter",
     35: "-- migration_35_gebuehren_assistent",
     36: "-- migration_36_sg_felder",
+    # Migration 37: v_regulierungsstatus auf abrechnungsschreiben/regulierung_positionen
+    37: """
+DROP VIEW IF EXISTS v_regulierungsstatus;
+CREATE VIEW IF NOT EXISTS v_regulierungsstatus AS
+SELECT
+    a.az AS akte_id,
+    a.az AS aktenzeichen,
+    COALESCE(s.gesamt_brutto, 0.0)      AS betrag_gefordert,
+    COALESCE(rp_sum.total, 0.0)         AS betrag_reguliert,
+    COALESCE(s.gesamt_brutto, 0.0)
+      - COALESCE(rp_sum.total, 0.0)     AS differenz,
+    a.status AS akte_status
+FROM unfallakte a
+LEFT JOIN v_schadensummen s ON s.akte_id = a.az
+LEFT JOIN (
+    SELECT ab.akte_id, SUM(rp.betrag_reguliert) AS total
+    FROM abrechnungsschreiben ab
+    JOIN regulierung_positionen rp ON rp.abrechnungsschreiben_id = ab.id
+    GROUP BY ab.akte_id
+) rp_sum ON rp_sum.akte_id = a.az
+GROUP BY a.az;
+INSERT OR IGNORE INTO schema_version (version, beschreibung)
+VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regulierung_positionen');
+    """,
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -578,14 +602,19 @@ def _run_migration_5(conn: sqlite3.Connection) -> None:
         SELECT
             a.az AS akte_id,
             a.az AS aktenzeichen,
-            COALESCE(s.gesamt_brutto, 0.0)          AS betrag_gefordert,
-            COALESCE(SUM(r.betrag_reguliert), 0.0)  AS betrag_reguliert,
+            COALESCE(s.gesamt_brutto, 0.0)      AS betrag_gefordert,
+            COALESCE(rp_sum.total, 0.0)         AS betrag_reguliert,
             COALESCE(s.gesamt_brutto, 0.0)
-              - COALESCE(SUM(r.betrag_reguliert), 0.0) AS differenz,
+              - COALESCE(rp_sum.total, 0.0)     AS differenz,
             a.status AS akte_status
         FROM unfallakte a
         LEFT JOIN v_schadensummen s ON s.akte_id = a.az
-        LEFT JOIN regulierung r     ON r.akte_id = a.az
+        LEFT JOIN (
+            SELECT ab.akte_id, SUM(rp.betrag_reguliert) AS total
+            FROM abrechnungsschreiben ab
+            JOIN regulierung_positionen rp ON rp.abrechnungsschreiben_id = ab.id
+            GROUP BY ab.akte_id
+        ) rp_sum ON rp_sum.akte_id = a.az
         GROUP BY a.az;
 
         INSERT OR IGNORE INTO schema_version (version, beschreibung)
