@@ -368,6 +368,7 @@ def aktualisiere(akte_id: str):
         except Exception as exc:
             logger.warning("portal_flag fehlgeschlagen (Akte %s): %s", akte_id, exc)
 
+        # aktualisiere_akte() hat bereits committed; zweite Verbindung liest korrekte Daten.
         if felder["status"] == "abgeschlossen":
             _erzeuge_abschluss_summary(akte_id)
 

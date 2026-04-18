@@ -23,6 +23,7 @@ _POSITIONEN_LABELS = {
     "mietwagenkosten":   "Mietwagenkosten",
     "sv_kosten":         "Sachverstaendigenkosten",
     "abschleppkosten":   "Abschleppkosten",
+    "anabmeldekosten":   "An-/Abmeldekosten",
     "standkosten":       "Standkosten",
     "schmerzensgeld":    "Schmerzensgeld",
     "sonstiges":         "Sonstige Kosten",
@@ -94,7 +95,8 @@ def generiere_abschluss_summary(conn, akte_id):
             sp[k] or 0.0
             for k in ("reparaturkosten", "wiederbeschaffung", "wertminderung",
                       "nutzungsausfall", "mietwagenkosten", "sv_kosten",
-                      "abschleppkosten", "standkosten", "schmerzensgeld", "sonstiges")
+                      "abschleppkosten", "anabmeldekosten", "standkosten",
+                      "schmerzensgeld", "sonstiges")
         ) - float(sp["restwert"] or 0.0))
 
     gesamt_reguliert = float(reg_gesamt["total"]) if reg_gesamt else 0.0
