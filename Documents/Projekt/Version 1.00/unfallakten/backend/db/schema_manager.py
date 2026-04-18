@@ -289,6 +289,7 @@ GROUP BY a.az;
 INSERT OR IGNORE INTO schema_version (version, beschreibung)
 VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regulierung_positionen');
     """,
+    38: "-- migration_38_portal_sync",  # Handled by _run_migration_38
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -428,6 +429,8 @@ def run_migrations() -> None:
                 _run_migration_35(conn)
             elif version == 36:
                 _run_migration_36(conn)
+            elif version == 38:
+                _run_migration_38(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
@@ -2240,3 +2243,59 @@ def _run_migration_36(conn):
         "VALUES (36, 'Migration 36 - Schmerzensgeld-Ermittlungstool PRD-29')"
     )
     logger.info("Migration 36 abgeschlossen.")
+
+
+def _run_migration_38(conn):
+    # type: (sqlite3.Connection) -> None
+    """Portal-Sync-Spalten + Hilfstabellen."""
+    vorhanden_ua = {r[1] for r in conn.execute("PRAGMA table_info(unfallakte)").fetchall()}
+    for spalte, typ in [
+        ("portal_aktiv",        "INTEGER NOT NULL DEFAULT 0"),
+        ("portal_sync_pending", "INTEGER NOT NULL DEFAULT 0"),
+        ("portal_last_sync",    "TEXT"),
+    ]:
+        if spalte not in vorhanden_ua:
+            conn.execute("ALTER TABLE unfallakte ADD COLUMN {} {}".format(spalte, typ))
+            logger.info("Migration 38: unfallakte.%s hinzugefuegt.", spalte)
+
+    vorhanden_dok = {r[1] for r in conn.execute("PRAGMA table_info(dokumente)").fetchall()}
+    if "portal_sichtbar" not in vorhanden_dok:
+        conn.execute(
+            "ALTER TABLE dokumente ADD COLUMN portal_sichtbar INTEGER NOT NULL DEFAULT 0"
+        )
+        logger.info("Migration 38: dokumente.portal_sichtbar hinzugefuegt.")
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS portal_sync_queue (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            akte_id      TEXT    NOT NULL,  -- kein FK: Queue-Einträge bleiben auch nach Akten-Löschung erhalten
+            sync_version INTEGER NOT NULL,
+            status       TEXT    DEFAULT 'pending'
+                         CHECK(status IN ('pending','sending','confirmed','failed')),
+            created_at   TEXT    DEFAULT (datetime('now','localtime')),
+            sent_at      TEXT,
+            retry_count  INTEGER DEFAULT 0,
+            last_error   TEXT
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS portal_einladungen (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            akte_id        TEXT    NOT NULL REFERENCES unfallakte(az) ON DELETE CASCADE,
+            beteiligter_id INTEGER NOT NULL REFERENCES beteiligte(id) ON DELETE CASCADE,
+            email          TEXT    NOT NULL,
+            rolle          TEXT    NOT NULL
+                           CHECK(rolle IN ('sachverstaendiger','privatmandant')),
+            status         TEXT    DEFAULT 'ausstehend'
+                           CHECK(status IN ('ausstehend','gesendet','angenommen')),
+            eingeladen_am  TEXT    DEFAULT (datetime('now','localtime')),
+            eingeladen_von INTEGER REFERENCES benutzer(id)
+        )
+    """)
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
+        (38, "Migration 38 - portal_aktiv, portal_sync_pending, portal_sync_queue, portal_einladungen"),
+    )
+    logger.info("Migration 38 abgeschlossen.")
