@@ -1,6 +1,6 @@
 # Projekt-Architektur – Unfallakten-Verwaltungssystem
 # Kanzlei Koch, Schatz & Kollegen
-> Stand: 2026-04-10 | Schema-Version 36
+> Stand: 2026-04-18 | Schema-Version 37
 
 ---
 
@@ -123,7 +123,7 @@ Alle Blueprints in `backend/app.py → erstelle_app()` registriert.
 | `unfallakte` | Hauptakte (az, status, hq, unfalldatum …) |
 | `beteiligte` | Alle Parteien (mandant/gegner/zeuge/sonstiger) + Klage-Rollen |
 | `schadenpositionen` | Einzelpositionen (reparatur, mietwagen, nutzungsausfall …) |
-| `regulierung` | Regulierungsschreiben (gefordert vs. reguliert) |
+| `regulierung` | Regulierungsschreiben (DEPRECATED seit Schema 37 – kein neuer Code schreibt hier) |
 | `regulierung_positionen` | Positions-genaue Regulierung + Kürzungen |
 | `dokumente` | Uploads + generierte Dateien |
 | `aktivitaeten` | Audit-Log aller Änderungen |
@@ -197,5 +197,8 @@ sg_text:        sg_text in personenschaden hat Vorrang vor Template-Aufbau in ba
 Gebühren-NULL:  verletzungsgrad = NULL → "noch nicht beantwortet" (in fehlende_felder). auslandsbezug = 0 (DEFAULT) → "Nein, beantwortet".
 Gebühren-UPSERT: gebuehren_berechnung hat UNIQUE(akte_id) → immer ON CONFLICT(akte_id) DO UPDATE
 Kostennote:     OOXML-Template (forderungsschreiben_vorlage.docx als ZIP), _render_docx aus forderungsschreiben_wv.py, gespeichert als typ='sonstiges' in dokumente
+Regulierung-Option-B: jedes AB speichert nur eigene Zahlung (Inkrement). Summierung via v_regulierungsstatus (SUM regulierung_positionen). regulierung-Tabelle deprecated.
+Key-Normalisierung: Parser-Art-Werte (wbw, kostenpauschale) → _normalise_key() in abrechnungsuebersicht_service.py für kanonische Keys.
+_pruefe_akte-Pattern: Rückgabewert IMMER nutzen → az = akte_obj.aktenzeichen if hasattr(...) else akte_id (v14c)
 Gebühren-Anrede: beteiligte.anrede (nicht geschlecht) → _mandant_anrede_nominativ() aus forderungsschreiben_wv.py
 ```
