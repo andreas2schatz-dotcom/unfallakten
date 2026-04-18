@@ -43,6 +43,7 @@ from .routers.stellungnahme_routes import stellungnahme_bp
 from .routers.todos_routes import todos_bp
 from .routers.wiedervorlage_routes import wiedervorlage_bp
 from .routers.word_routes import word_bp
+from .routers.portal_routes import portal_bp
 
 
 logging.basicConfig(
@@ -169,6 +170,7 @@ def erstelle_app(test_config: dict = None) -> Flask:
     app.register_blueprint(todos_bp)
     app.register_blueprint(wiedervorlage_bp)
     app.register_blueprint(word_bp)
+    app.register_blueprint(portal_bp)
     logger.info("Alle Blueprints registriert.")
 
     @app.cli.command("sync-portal")
