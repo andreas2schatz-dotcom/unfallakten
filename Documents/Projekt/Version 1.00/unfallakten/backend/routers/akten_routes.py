@@ -368,6 +368,9 @@ def aktualisiere(akte_id: str):
         except Exception as exc:
             logger.warning("portal_flag fehlgeschlagen (Akte %s): %s", akte_id, exc)
 
+        if felder["status"] == "abgeschlossen":
+            _erzeuge_abschluss_summary(akte_id)
+
     return _j(_akte_komplett(akte_id))
 
 
@@ -446,3 +449,41 @@ def aktivitaet_loeschen(akte_id: str, aktivitaet_id: int):
             return _err("Aktivitätseintrag nicht gefunden.", 404)
 
     return _j({"ok": True})
+
+
+# ── Hilfsfunktion: Abschluss-Summary ─────────────────────────────────────────
+
+def _erzeuge_abschluss_summary(az):
+    import hashlib
+    import os
+    from ..word.abschluss_summary import generiere_abschluss_summary
+    from ..db.database import get_connection as _gc
+
+    try:
+        with _gc() as conn:
+            docx_bytes = generiere_abschluss_summary(conn, az)
+            uploads_dir = os.path.join(
+                os.path.dirname(__file__), "..", "..", "uploads",
+                az.replace("/", "_")
+            )
+            os.makedirs(uploads_dir, exist_ok=True)
+            fname = "abschluss_summary_{}.docx".format(az.replace("/", "_"))
+            fpath = os.path.join(uploads_dir, fname)
+            with open(fpath, "wb") as fh:
+                fh.write(docx_bytes)
+            pdf_hash = hashlib.sha256(docx_bytes).hexdigest()
+            existing = conn.execute(
+                "SELECT id FROM dokumente WHERE akte_id = ? AND pdf_hash = ?", (az, pdf_hash)
+            ).fetchone()
+            if not existing:
+                rel_path = os.path.join(az.replace("/", "_"), fname)
+                conn.execute("""
+                    INSERT INTO dokumente
+                        (akte_id, typ, dateiname, dateipfad, dateityp, dateigroesse,
+                         pdf_hash, portal_sichtbar)
+                    VALUES (?, 'sonstiges', ?, ?, 'docx', ?, ?, 1)
+                """, (az, fname, rel_path, len(docx_bytes), pdf_hash))
+            from ..services.portal_sync import _portal_flag
+            _portal_flag(conn, az)
+    except Exception as exc:
+        logger.error("Abschluss-Summary fuer %s fehlgeschlagen: %s", az, exc)
