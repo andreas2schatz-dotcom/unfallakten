@@ -365,8 +365,8 @@ def aktualisiere(akte_id: str):
             from ..db.database import get_connection
             with get_connection() as conn:
                 _portal_flag(conn, akte_id)
-        except Exception:
-            pass  # Portal-Sync nicht-fatal
+        except Exception as exc:
+            logger.warning("portal_flag fehlgeschlagen (Akte %s): %s", akte_id, exc)
 
     return _j(_akte_komplett(akte_id))
 

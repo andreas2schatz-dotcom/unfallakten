@@ -165,8 +165,8 @@ def upload(akte_id: str):
     try:
         with get_connection() as conn:
             _portal_flag(conn, akte_id)
-    except Exception:
-        pass  # Portal-Sync nicht-fatal
+    except Exception as exc:
+        logger.warning("portal_flag fehlgeschlagen (Akte %s): %s", akte_id, exc)
 
     return _j(ergebnis, 201)
 
@@ -632,9 +632,11 @@ def setze_portal_sichtbar(akte_id: str, dok_id: int):
     data = request.get_json(silent=True) or {}
     sichtbar = 1 if data.get("portal_sichtbar", False) else 0
     with get_connection() as conn:
-        conn.execute(
+        result = conn.execute(
             "UPDATE dokumente SET portal_sichtbar = ? WHERE id = ? AND akte_id = ?",
             (sichtbar, dok_id, az)
         )
+        if result.rowcount == 0:
+            return _err("Dokument nicht gefunden.", 404)
         _portal_flag(conn, az)
     return jsonify({"status": "ok", "portal_sichtbar": bool(sichtbar)})

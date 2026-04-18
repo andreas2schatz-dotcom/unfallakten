@@ -142,8 +142,8 @@ def erstelle_abrechnung(akte_id: str):
                 (quelle, wdm_importiert, ab.id)
             )
             _portal_flag(conn, akte_id)
-    except Exception:
-        pass  # Spalten noch nicht vorhanden → ignorieren
+    except Exception as exc:
+        logger.warning("portal_flag oder quelle-Update fehlgeschlagen (AB %s): %s", akte_id, exc)
     return _j({"abrechnung": ab.as_dict()}, 201)
 
 
