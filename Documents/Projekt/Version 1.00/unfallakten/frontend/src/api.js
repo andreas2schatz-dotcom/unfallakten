@@ -213,6 +213,11 @@ export const dokumente = {
     _triggerDownload(blob, dateiname);
   },
 
+  parse:    (aId, id) => request(`/akten/${aId}/dokumente/${id}/parse`),
+  korrektur: (aId, id, body) => request(`/akten/${aId}/dokumente/${id}/korrektur`, {
+    method: 'POST', body: JSON.stringify(body),
+  }),
+
   // PDF im Browser-Tab oeffnen (statt Download)
   oeffnen: async (aId, id, dateiname) => {
     const token = tokenStore.getAccess();
@@ -636,6 +641,39 @@ export const parsePdf = {
   /** Parst ein bereits vorhandenes PDF aus dem Dokumenten-Tab (kein Upload nötig). */
   parseVorhandenes: (akteId, dokId, typ) =>
     request(`/akten/${akteId}/dokumente/${dokId}/parsen${typ ? '?typ=' + typ : ''}`, { method: "POST" }),
+
+  /**
+   * Streaming-Parse via Server-Sent Events (PRD-30).
+   * Ruft onEvent(data) für jeden SSE-Frame auf.
+   * Gibt eine Funktion zurück, mit der der Stream abgebrochen werden kann.
+   *
+   * Event-Daten:
+   *   { schritt: "ocr",    status: "laeuft" }
+   *   { schritt: "ocr",    status: "fertig", zeichen: 2840 }
+   *   { schritt: "parsen", status: "laeuft" }
+   *   { schritt: "parsen", status: "fertig", klasse: "abrechnungsschreiben" }
+   *   { schritt: "fertig", ergebnis: {...}, dokument_id: 123, dateiname: "..." }
+   *   { schritt: "fehler", meldung: "..." }
+   */
+  parseStream: (akteId, dokId, onEvent) => {
+    const token = tokenStore.getAccess() || "";
+    const url = `${API_BASE}/akten/${akteId}/dokumente/${dokId}/parsen-stream`;
+    const es = new EventSource(
+      token ? `${url}?token=${encodeURIComponent(token)}` : url
+    );
+    es.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        onEvent(data);
+        if (data.schritt === "fertig" || data.schritt === "fehler") es.close();
+      } catch { /* ignorieren */ }
+    };
+    es.onerror = () => {
+      onEvent({ schritt: "fehler", meldung: "Verbindung zum Server unterbrochen." });
+      es.close();
+    };
+    return () => es.close();
+  },
 };
 
 export const belege = {
@@ -810,6 +848,16 @@ export const apiEinstellungen = {
   lgGrenzwertSpeichern:   (wert)  => request('/einstellungen/lg-grenzwert', {
     method: 'PUT', body: JSON.stringify({ lg_grenzwert: wert }),
   }),
+  llmStatus:      ()           => request('/einstellungen/llm-status'),
+  llmAktivieren:  (aktiviert)  => request('/einstellungen/llm-aktivieren', {
+    method: 'PUT', body: JSON.stringify({ aktiviert }),
+  }),
+  llmTest:        (prompt)     => request('/einstellungen/llm-test', {
+    method: 'POST', body: JSON.stringify({ prompt }),
+  }),
+  llmModellSetzen: (modell)   => request('/einstellungen/llm-modell', {
+    method: 'PUT', body: JSON.stringify({ modell }),
+  }),
 };
 
 // ── PRD-25d: Intelligente Sachstandsanfrage ───────────────────────────────────
@@ -841,6 +889,30 @@ export const apiSta = {
     return { ok: true };
   },
 };
+
+// ─────────────────────────────────────────────────────────────
+// PORTAL (PORTAL-A1)
+// ─────────────────────────────────────────────────────────────
+export const portalAkteAktivieren = (az, aktiv) =>
+  request(`/portal/akten/${encodeURIComponent(az)}/aktivieren`, {
+    method: "POST",
+    body: JSON.stringify({ aktiv }),
+  });
+
+export const portalEinladen = (az, data) =>
+  request(`/portal/akten/${encodeURIComponent(az)}/einladen`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const portalSyncStatus = () =>
+  request("/portal/status");
+
+export const setzePortalSichtbar = (az, dokId, sichtbar) =>
+  request(`/akten/${encodeURIComponent(az)}/dokumente/${dokId}/portal-sichtbar`, {
+    method: "PATCH",
+    body: JSON.stringify({ portal_sichtbar: sichtbar }),
+  });
 
 // ─────────────────────────────────────────────────────────────
 // GEBÜHRENASSISTENT (PRD-28)

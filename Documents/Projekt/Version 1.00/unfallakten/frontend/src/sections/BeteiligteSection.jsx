@@ -5,6 +5,7 @@ import { ROLLEN, ROLLEN_MIT_AZ, ROLLEN_C } from "../config/constants.js";
 import { Card, CardHead, Btn, FieldInput, FieldSelect, Toast, SlidePanel } from "../components/common.jsx";
 import {
   beteiligte as apiBeteiligte,
+  portalEinladen,
 } from "../api.js";
 
 function BeteiligteSection({ beteiligte, dispatch, akteId }) {
@@ -36,6 +37,23 @@ function BeteiligteSection({ beteiligte, dispatch, akteId }) {
     setBetSaving(false);
     setPOpen(false);
     setToast(editItem ? "Beteiligter gespeichert." : "Beteiligter hinzugefügt.");
+  };
+
+  const handlePortalEinladen = async (beteiligter) => {
+    if (!beteiligter.email) {
+      setToast("Keine E-Mail-Adresse hinterlegt");
+      return;
+    }
+    try {
+      await portalEinladen(akteId, {
+        beteiligter_id: beteiligter.id,
+        email: beteiligter.email,
+        rolle: beteiligter.rolle,
+      });
+      setToast(`Einladung für ${beteiligter.name} gespeichert`);
+    } catch {
+      setToast("Einladung fehlgeschlagen");
+    }
   };
 
   return (
@@ -78,12 +96,22 @@ function BeteiligteSection({ beteiligte, dispatch, akteId }) {
                         {b.schaden_nr && <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.845rem", color:T.textFaint }}>SN: {b.schaden_nr}</div>}
                       </td>
                       <td style={{ padding:"10px 14px" }}>
-                        <div style={{ display:"flex", gap:4 }}>
-                          <Btn size="sm" variant="secondary" onClick={() => { setEdit(b); setForm({...b}); setPOpen(true); }}>{Ic.edit}</Btn>
-                          <Btn size="sm" variant="danger"    onClick={async () => { if (confirm("Beteiligten entfernen?")) {
-                          try { await apiBeteiligte.loeschen(akteId, b.id); } catch { /* Demo */ }
-                          dispatch({ type:"DELETE_BETEILIGTER", akteId, id:b.id });
-                        }; }}>{Ic.trash}</Btn>
+                        <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                          <div style={{ display:"flex", gap:4 }}>
+                            <Btn size="sm" variant="secondary" onClick={() => { setEdit(b); setForm({...b}); setPOpen(true); }}>{Ic.edit}</Btn>
+                            <Btn size="sm" variant="danger"    onClick={async () => { if (confirm("Beteiligten entfernen?")) {
+                            try { await apiBeteiligte.loeschen(akteId, b.id); } catch { /* Demo */ }
+                            dispatch({ type:"DELETE_BETEILIGTER", akteId, id:b.id });
+                          }; }}>{Ic.trash}</Btn>
+                          </div>
+                          {(b.rolle === "sachverstaendiger" || b.rolle === "mandant") && b.email && (
+                            <button
+                              className="text-xs px-2 py-1 rounded border border-blue-400 text-blue-600 hover:bg-blue-50 mt-1"
+                              onClick={() => handlePortalEinladen(b)}
+                            >
+                              Portal einladen
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
