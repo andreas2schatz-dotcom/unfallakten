@@ -48,10 +48,11 @@ function BeteiligteSection({ beteiligte, dispatch, akteId }) {
       await portalEinladen(akteId, {
         beteiligter_id: beteiligter.id,
         email: beteiligter.email,
-        rolle: beteiligter.rolle,
+        rolle: beteiligter.rolle === "mandant" ? "privatmandant" : beteiligter.rolle,
       });
       setToast(`Einladung für ${beteiligter.name} gespeichert`);
-    } catch {
+    } catch (err) {
+      console.error("Portal-Einladung fehlgeschlagen:", err);
       setToast("Einladung fehlgeschlagen");
     }
   };
@@ -105,12 +106,9 @@ function BeteiligteSection({ beteiligte, dispatch, akteId }) {
                           }; }}>{Ic.trash}</Btn>
                           </div>
                           {(b.rolle === "sachverstaendiger" || b.rolle === "mandant") && b.email && (
-                            <button
-                              className="text-xs px-2 py-1 rounded border border-blue-400 text-blue-600 hover:bg-blue-50 mt-1"
-                              onClick={() => handlePortalEinladen(b)}
-                            >
+                            <Btn size="sm" variant="secondary" onClick={() => handlePortalEinladen(b)}>
                               Portal einladen
-                            </button>
+                            </Btn>
                           )}
                         </div>
                       </td>
