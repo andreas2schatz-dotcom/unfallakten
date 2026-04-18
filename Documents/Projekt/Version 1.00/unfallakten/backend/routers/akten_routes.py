@@ -19,6 +19,7 @@ DELETE erfordert Admin-Rolle (@nur_admin).
 import logging
 from flask import Blueprint, request, jsonify, g
 from ..auth.middleware import login_erforderlich, nur_admin
+from ..db.database import get_connection
 from ..models.akte import (
     erstelle_akte, erstelle_oder_hole_akte, hole_akte_by_id, hole_akte_by_aktenzeichen,
     liste_akten, aktualisiere_akte, loesche_akte, zaehle_akten_by_status
@@ -79,6 +80,22 @@ def _akte_komplett(akte_id: str) -> dict:
     dokumente       = hole_dokumente_by_akte(akte_id)
 
     aktion = _hole_akte_aktion(akte_id)
+
+    # Portal-Felder nachladen (nicht im Unfallakte-Dataclass)
+    portal_aktiv = 0
+    portal_last_sync = None
+    try:
+        with get_connection() as conn:
+            portal_row = conn.execute(
+                "SELECT portal_aktiv, portal_last_sync FROM unfallakte WHERE az = ?",
+                (akte.az,)
+            ).fetchone()
+        if portal_row:
+            portal_aktiv = portal_row["portal_aktiv"]
+            portal_last_sync = portal_row["portal_last_sync"]
+    except Exception:
+        pass  # Portal-Felder sind nicht-fatal
+
     return {
         "id":             akte.az,
         "az":             akte.az,
@@ -97,6 +114,8 @@ def _akte_komplett(akte_id: str) -> dict:
         "aktion_erforderlich": 1 if aktion.get("aktiv") else 0,
         "aktion_typ":          aktion.get("typ"),
         "aktion_seit":         aktion.get("seit"),
+        "portal_aktiv":        portal_aktiv,
+        "portal_last_sync":    portal_last_sync,
     }
 
 def _akte_liste_dict(akte) -> dict:

@@ -202,9 +202,25 @@ def _send_to_portal(payload):
 def process_queue(conn, max_batch=10):
     # type: (sqlite3.Connection, int) -> int
     """Verarbeitet ausstehende Sync-Eintraege. Gibt Anzahl Erfolge zurueck."""
+    # Akten mit zu vielen Fehlversuchen deaktivieren
+    stuck = conn.execute("""
+        SELECT DISTINCT akte_id FROM portal_sync_queue
+        WHERE status = 'failed' AND retry_count >= 5
+    """).fetchall()
+    for s in stuck:
+        logger.warning("Portal-Sync: %s hat >= 5 Fehlversuche, setze portal_sync_pending=0", s["akte_id"])
+        conn.execute(
+            "UPDATE unfallakte SET portal_sync_pending = 0 WHERE az = ?", (s["akte_id"],)
+        )
+    conn.commit()
+
     pending = conn.execute("""
         SELECT az FROM unfallakte
         WHERE portal_sync_pending = 1 AND portal_aktiv = 1
+        AND az NOT IN (
+            SELECT akte_id FROM portal_sync_queue
+            WHERE status = 'failed' AND retry_count >= 5
+        )
         LIMIT ?
     """, (max_batch,)).fetchall()
 
@@ -246,9 +262,10 @@ def process_queue(conn, max_batch=10):
         else:
             conn.execute("""
                 UPDATE portal_sync_queue
-                SET status = 'failed', retry_count = retry_count + 1, last_error = 'send_failed'
+                SET status = 'failed', retry_count = retry_count + 1,
+                    last_error = ?
                 WHERE akte_id = ? AND sync_version = ?
-            """, (akte_id, sv))
+            """, ("send_failed@{}".format(now), akte_id, sv))
         conn.commit()
 
     return synced
