@@ -29,6 +29,7 @@ from ..models.schaden import (
 )
 from ..models.dokument import hole_aktivitaeten, hole_dokumente_by_akte
 from ..services.fristen_service import setze_verjaerungs_fristen
+from ..services.portal_sync import _portal_flag
 
 logger = logging.getLogger(__name__)
 akten_bp = Blueprint("akten", __name__, url_prefix="/akten")
@@ -357,6 +358,15 @@ def aktualisiere(akte_id: str):
                 akte_id=akte_id, benutzer_id=g.benutzer_id)
     except Exception:
         pass  # Logging nicht-fatal
+
+    # Portal-Sync Flagge setzen wenn Status geändert
+    if "status" in felder:
+        try:
+            from ..db.database import get_connection
+            with get_connection() as conn:
+                _portal_flag(conn, akte_id)
+        except Exception:
+            pass  # Portal-Sync nicht-fatal
 
     return _j(_akte_komplett(akte_id))
 

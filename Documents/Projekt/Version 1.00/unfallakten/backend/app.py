@@ -128,6 +128,13 @@ def erstelle_app(test_config: dict = None) -> Flask:
         init_db()
         logger.info("Datenbank initialisiert.")
 
+        # ── LLM-Modell aus DB laden (damit nicht "qwen" als Default bleibt) ──
+        try:
+            from .services.llm_service import init_from_db as _llm_init
+            _llm_init()
+        except Exception as _e:
+            logger.warning("LLM-Init übersprungen: %s", _e)
+
         # ── Initialen Admin anlegen falls keine Benutzer vorhanden ────────────
         _ensure_admin_exists(app)
 
@@ -163,6 +170,15 @@ def erstelle_app(test_config: dict = None) -> Flask:
     app.register_blueprint(wiedervorlage_bp)
     app.register_blueprint(word_bp)
     logger.info("Alle Blueprints registriert.")
+
+    @app.cli.command("sync-portal")
+    def sync_portal_cmd():
+        """Pusht ausstehende Portal-Sync-Eintraege (max 10 pro Aufruf)."""
+        from .db.database import get_connection
+        from .services.portal_sync import process_queue as _portal_process_queue
+        with get_connection() as conn:
+            n = _portal_process_queue(conn)
+            print("Portal-Sync: {} Akte(n) synchronisiert.".format(n))
 
     # ── CORS-Header (für React-Frontend) ──────────────────────────────────────
     @app.after_request

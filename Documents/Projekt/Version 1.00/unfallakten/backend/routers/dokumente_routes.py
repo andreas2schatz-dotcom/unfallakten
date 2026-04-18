@@ -28,6 +28,7 @@ from ..pdf.upload_service import (
     UploadFehler, _dok_dict
 )
 from ..db.database import get_connection
+from ..services.portal_sync import _portal_flag
 import io
 
 logger = logging.getLogger(__name__)
@@ -159,6 +160,13 @@ def upload(akte_id: str):
         except Exception as e:
             # Dispatcher darf Upload NIE blockieren!
             logger.warning('Dispatcher fehlgeschlagen: %s', e)
+
+    # Portal-Sync Flagge setzen
+    try:
+        with get_connection() as conn:
+            _portal_flag(conn, akte_id)
+    except Exception:
+        pass  # Portal-Sync nicht-fatal
 
     return _j(ergebnis, 201)
 
@@ -435,6 +443,141 @@ def vorhandenes_parsen(akte_id, dokument_id):
     })
 
 
+# ── Streaming-Parser mit OCR-Fortschritt (PRD-30) ─────────────────────────────
+
+@dokumente_bp.route("/<int:dokument_id>/parsen-stream", methods=["GET"])
+@login_erforderlich
+def vorhandenes_parsen_stream(akte_id: str, dokument_id: int):
+    """
+    GET /akten/<az>/dokumente/<did>/parsen-stream
+
+    Server-Sent Events (SSE) – liefert Live-Fortschritt während des Parsens.
+    Besonders nützlich für Bild-PDFs (Generali etc.) wo OCR mehrere Sekunden dauert.
+
+    Event-Format:
+      data: {"schritt": "ocr",    "status": "laeuft"}
+      data: {"schritt": "ocr",    "status": "fertig", "zeichen": 2840}
+      data: {"schritt": "parsen", "status": "laeuft"}
+      data: {"schritt": "parsen", "status": "fertig", "klasse": "abrechnungsschreiben"}
+      data: {"schritt": "fertig", "ergebnis": {...}, "dokument_id": 123, "dateiname": "..."}
+      data: {"schritt": "fehler", "meldung": "..."}
+
+    Kein POST-Body nötig – Dokument wird anhand dok_id aus DB geladen.
+    """
+    import json as _json
+    import os as _os
+    import tempfile as _tempfile
+    from flask import Response, stream_with_context
+
+    if not _pruefe_akte(akte_id):
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+
+    row = _hole_dok_row(dokument_id)
+    if not row or row["akte_id"] != akte_id:
+        return _err(f"Dokument {dokument_id} nicht gefunden.", 404)
+
+    if row["dateityp"] != "pdf":
+        return _err("Nur PDFs koennen geparst werden.", 422)
+
+    dateipfad = row["dateipfad"]
+    if not dateipfad or not _os.path.exists(dateipfad):
+        return _err(f"Datei nicht gefunden: {dateipfad or 'kein Pfad'}", 404)
+
+    dateiname = row["dateiname"]
+    benutzer_id = getattr(g, "benutzer_id", None)
+
+    def _sse(data: dict) -> str:
+        return "data: " + _json.dumps(data, ensure_ascii=False) + "\n\n"
+
+    def generate():
+        from ..parsers.pdf_utils import extract_text_from_pdf, normalize_text
+        from ..services.ocr_service import ist_bild_pdf, ocr_text as _ocr_text, ocr_verfuegbar
+        from ..workflow.dispatcher import dispatch_dokument
+
+        # PDF-Bytes laden
+        try:
+            with open(dateipfad, "rb") as f:
+                datei_bytes = f.read()
+        except OSError as e:
+            yield _sse({"schritt": "fehler", "meldung": f"Datei nicht lesbar: {e}"})
+            return
+
+        # Text extrahieren
+        ocr_text_override = None
+        try:
+            with _tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                tmp.write(datei_bytes)
+                tmp_pfad = tmp.name
+            try:
+                full_text, _pages, has_image_pages = extract_text_from_pdf(tmp_pfad)
+            finally:
+                try:
+                    _os.unlink(tmp_pfad)
+                except OSError:
+                    pass
+
+            norm_text = normalize_text(full_text)
+        except Exception as e:
+            yield _sse({"schritt": "fehler", "meldung": f"Textextraktion fehlgeschlagen: {e}"})
+            return
+
+        # OCR wenn Bild-PDF
+        if ist_bild_pdf(has_image_pages, len(norm_text.strip())):
+            if ocr_verfuegbar():
+                yield _sse({"schritt": "ocr", "status": "laeuft"})
+                try:
+                    ocr_roh = _ocr_text(datei_bytes)
+                    ocr_text_override = ocr_roh
+                    zeichen = len(normalize_text(ocr_roh).strip())
+                    yield _sse({"schritt": "ocr", "status": "fertig", "zeichen": zeichen})
+                    logger.info(
+                        "SSE-OCR Dok %d: %d Zeichen erkannt.", dokument_id, zeichen
+                    )
+                except Exception as e:
+                    logger.warning("SSE-OCR Dok %d: %s", dokument_id, e)
+                    yield _sse({"schritt": "ocr", "status": "fehler", "meldung": str(e)})
+                    # Weiter ohne OCR-Text – Dispatcher versucht OCR-Fallback selbst
+            else:
+                yield _sse({
+                    "schritt": "ocr",
+                    "status": "nicht_verfuegbar",
+                    "meldung": "Tesseract nicht installiert.",
+                })
+
+        # Dispatcher
+        yield _sse({"schritt": "parsen", "status": "laeuft"})
+        try:
+            dispatch_erg = dispatch_dokument(
+                dok_id=dokument_id,
+                akte_az=akte_id,
+                dateipfad=dateipfad,
+                benutzer_id=benutzer_id,
+                absender_domain=None,
+                ocr_text_override=ocr_text_override,
+            )
+            klasse = dispatch_erg.get("klasse") or "unbekannt"
+            yield _sse({"schritt": "parsen", "status": "fertig", "klasse": klasse})
+            yield _sse({
+                "schritt": "fertig",
+                "ergebnis": dispatch_erg.get("parse_ergebnis"),
+                "klasse": klasse,
+                "dokument_id": dokument_id,
+                "dateiname": dateiname,
+            })
+        except Exception as e:
+            logger.error("SSE-Dispatcher Dok %d: %s", dokument_id, e, exc_info=True)
+            yield _sse({"schritt": "fehler", "meldung": f"Parsen fehlgeschlagen: {e}"})
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # Nginx Buffering deaktivieren
+        },
+    )
+
+
 # ── Löschen ───────────────────────────────────────────────────────────────────
 
 @dokumente_bp.route("/<int:dokument_id>", methods=["DELETE"])
@@ -467,3 +610,31 @@ def loesche(akte_id: str, dokument_id: int):
     )
 
     return _j({"nachricht": f"Dokument {dokument_id} ({dateiname}) gelöscht."})
+
+
+# ── Portal-Sichtbarkeit ───────────────────────────────────────────────────────
+
+@dokumente_bp.route("/<int:dok_id>/portal-sichtbar", methods=["PATCH"])
+@login_erforderlich
+def setze_portal_sichtbar(akte_id: str, dok_id: int):
+    """
+    PATCH /akten/<az>/dokumente/<did>/portal-sichtbar
+    Setzt portal_sichtbar-Flag eines Dokuments und flaggt die Akte für Portal-Sync.
+
+    Body: { "portal_sichtbar": true|false }
+
+    Response 200: { "status": "ok", "portal_sichtbar": true|false }
+    """
+    akte_obj = _pruefe_akte(akte_id)
+    if not akte_obj:
+        return _err("Akte nicht gefunden", 404)
+    az = akte_obj.aktenzeichen if hasattr(akte_obj, "aktenzeichen") else akte_id
+    data = request.get_json(silent=True) or {}
+    sichtbar = 1 if data.get("portal_sichtbar", False) else 0
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE dokumente SET portal_sichtbar = ? WHERE id = ? AND akte_id = ?",
+            (sichtbar, dok_id, az)
+        )
+        _portal_flag(conn, az)
+    return jsonify({"status": "ok", "portal_sichtbar": bool(sichtbar)})

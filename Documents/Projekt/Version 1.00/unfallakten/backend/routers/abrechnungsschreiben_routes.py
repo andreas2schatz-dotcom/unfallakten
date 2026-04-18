@@ -14,6 +14,7 @@ try:
 except ImportError:
     _WDM_VERFUEGBAR = False
 from ..models.akte import hole_akte_by_id
+from ..services.portal_sync import _portal_flag
 from ..models.abrechnungsschreiben import (
     hole_abrechnungsschreiben_by_akte, hole_abrechnungsschreiben_by_id,
     erstelle_abrechnungsschreiben, loesche_abrechnungsschreiben,
@@ -140,6 +141,7 @@ def erstelle_abrechnung(akte_id: str):
                 "UPDATE abrechnungsschreiben SET quelle=?, wdm_importiert=? WHERE id=?",
                 (quelle, wdm_importiert, ab.id)
             )
+            _portal_flag(conn, akte_id)
     except Exception:
         pass  # Spalten noch nicht vorhanden → ignorieren
     return _j({"abrechnung": ab.as_dict()}, 201)
