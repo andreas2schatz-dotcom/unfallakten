@@ -173,8 +173,8 @@ def _sign(payload_json):
 
 def _send_to_portal(payload):
     # type: (dict) -> bool
-    if not PORTAL_API_URL or not PORTAL_API_KEY:
-        logger.debug("PORTAL_API_URL/KEY nicht konfiguriert – Sync uebersprungen.")
+    if not PORTAL_API_URL or not PORTAL_API_KEY or not PORTAL_HMAC_SECRET:
+        logger.debug("PORTAL_API_URL/KEY/HMAC_SECRET nicht konfiguriert – Sync uebersprungen.")
         return False
     payload_json = json.dumps(payload, ensure_ascii=False, default=str)
     try:
@@ -194,7 +194,7 @@ def _send_to_portal(payload):
                 payload.get("akte", {}).get("az"), resp.status_code
             )
         return resp.status_code == 200
-    except Exception as exc:
+    except requests.exceptions.RequestException as exc:
         logger.error("Portal-Push fehlgeschlagen: %s", exc)
         return False
 
@@ -213,6 +213,11 @@ def process_queue(conn, max_batch=10):
         akte_id = row["az"]
         payload = _build_payload(conn, akte_id)
         if not payload:
+            logger.warning("_build_payload leer für %s – setze pending=0", akte_id)
+            conn.execute(
+                "UPDATE unfallakte SET portal_sync_pending = 0 WHERE az = ?", (akte_id,)
+            )
+            conn.commit()
             continue
 
         sv = payload["sync_version"]
@@ -220,6 +225,9 @@ def process_queue(conn, max_batch=10):
             "INSERT INTO portal_sync_queue (akte_id, sync_version, status) VALUES (?, ?, 'sending')",
             (akte_id, sv),
         )
+        # Commit 1: 'sending'-Zeile dauerhaft machen, bevor HTTP-Push startet.
+        # Bei Crash zw. Commit 1 und 2 bleibt status='sending' → naechster
+        # Lauf versucht erneuten Push (at-least-once). Portal-Receiver muss idempotent sein.
         conn.commit()
 
         ok = _send_to_portal(payload)

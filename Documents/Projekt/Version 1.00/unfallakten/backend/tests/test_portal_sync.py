@@ -2,7 +2,7 @@ import sqlite3
 import pytest
 from unittest.mock import patch
 from backend.services.portal_sync import (
-    _berechne_ampel, _portal_flag, queue_sync, _build_payload, process_queue
+    _berechne_ampel, _portal_flag, queue_sync, _build_payload, process_queue, _send_to_portal
 )
 
 
@@ -130,3 +130,29 @@ def test_process_queue_mit_mock(db):
     assert n == 1
     row = db.execute("SELECT portal_sync_pending FROM unfallakte WHERE az = 'TEST/001'").fetchone()
     assert row["portal_sync_pending"] == 0
+
+
+def test_process_queue_failed_send(db):
+    db.execute("UPDATE unfallakte SET portal_sync_pending = 1 WHERE az = 'TEST/001'")
+    with patch("backend.services.portal_sync._send_to_portal", return_value=False):
+        n = process_queue(db)
+    assert n == 0
+    row = db.execute("SELECT portal_sync_pending FROM unfallakte WHERE az = 'TEST/001'").fetchone()
+    assert row["portal_sync_pending"] == 1
+    queue_row = db.execute(
+        "SELECT status, retry_count FROM portal_sync_queue WHERE akte_id = 'TEST/001'"
+    ).fetchone()
+    assert queue_row["status"] == "failed"
+    assert queue_row["retry_count"] == 1
+
+
+def test_build_payload_leer_fuer_unbekannte_akte(db):
+    payload = _build_payload(db, "UNBEKANNT/999")
+    assert payload == {}
+
+
+def test_ampel_gutachten_beauftragt(db):
+    db.execute("INSERT INTO beteiligte (akte_id, rolle, name) VALUES ('TEST/001', 'sachverstaendiger', 'Müller')")
+    r = _berechne_ampel(db, "TEST/001")
+    assert r["status"] == "gutachten_beauftragt"
+    assert r["farbe"] == "grau"
