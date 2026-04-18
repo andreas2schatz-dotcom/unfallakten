@@ -1,7 +1,7 @@
 """Portal-Admin-Routen: Akte aktivieren, Stakeholder einladen, Sync-Status."""
 import logging
-from flask import Blueprint, jsonify, request
-from ..auth.middleware import login_erforderlich, nur_admin
+from flask import Blueprint, g, jsonify, request
+from ..auth.middleware import nur_admin
 from ..db.database import get_connection
 from ..services.portal_sync import queue_sync
 
@@ -14,7 +14,6 @@ def _err(msg, code=400):
 
 
 @portal_bp.route("/akten/<path:az>/aktivieren", methods=["POST"])
-@login_erforderlich
 @nur_admin
 def aktiviere_portal_fuer_akte(az):
     data = request.get_json(silent=True) or {}
@@ -30,7 +29,6 @@ def aktiviere_portal_fuer_akte(az):
 
 
 @portal_bp.route("/akten/<path:az>/einladen", methods=["POST"])
-@login_erforderlich
 @nur_admin
 def einladen(az):
     data = request.get_json(silent=True) or {}
@@ -46,14 +44,13 @@ def einladen(az):
         if not row:
             return _err("Beteiligter gehoert nicht zu dieser Akte", 404)
         conn.execute("""
-            INSERT INTO portal_einladungen (akte_id, beteiligter_id, email, rolle, status)
-            VALUES (?, ?, ?, ?, 'ausstehend')
-        """, (az, beteiligter_id, email, rolle))
+            INSERT INTO portal_einladungen (akte_id, beteiligter_id, email, rolle, status, eingeladen_von)
+            VALUES (?, ?, ?, ?, 'ausstehend', ?)
+        """, (az, beteiligter_id, email, rolle, g.benutzer_id))
     return jsonify({"status": "einladung_gespeichert"})
 
 
 @portal_bp.route("/status", methods=["GET"])
-@login_erforderlich
 @nur_admin
 def sync_status():
     with get_connection() as conn:
