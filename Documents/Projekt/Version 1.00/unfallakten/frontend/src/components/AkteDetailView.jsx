@@ -12,6 +12,7 @@ import {
   request,
   ramicroWdm,
   belege as apiBelege,
+  portalAkteAktivieren,
 } from "../api.js";
 
 // Immer synchron: Default-Tab + kleine Hilfskomponenten
@@ -40,6 +41,23 @@ function AkteDetailView({ akte, st, dispatch }) {
 
   const [headerTodos, setHeaderTodos] = useState([]);
   const [headerTodosLoaded, setHeaderTodosLoaded] = useState(false);
+
+  // Portal-aktiv Toggle (lokaler State, da kein SET_AKTE im Reducer)
+  const [portalAktiv, setPortalAktiv] = useState(false);
+  React.useEffect(() => {
+    if (akte?.portal_aktiv !== undefined) setPortalAktiv(!!akte.portal_aktiv);
+  }, [akte?.portal_aktiv]);
+
+  const handlePortalToggle = async (aktiv) => {
+    try {
+      await portalAkteAktivieren(akte.az, aktiv);
+      setPortalAktiv(aktiv);
+      setToast(aktiv ? "Portal aktiviert" : "Portal deaktiviert");
+    } catch (err) {
+      console.error("Portal-Toggle fehlgeschlagen:", err);
+      setToast("Portal-Toggle fehlgeschlagen: " + (err?.message || String(err)));
+    }
+  };
 
   // To-Dos für Header laden + Reload-Funktion für Live-Sync
   const ladeHeaderTodos = React.useCallback(() => {
@@ -375,6 +393,28 @@ function AkteDetailView({ akte, st, dispatch }) {
               </div>
             );
           })()}
+
+          {/* ── Portal-aktiv Toggle ── */}
+          <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+            <label style={{ display:"flex", alignItems:"center", gap:5, cursor:"pointer" }}>
+              <input
+                type="checkbox"
+                checked={portalAktiv}
+                onChange={(e) => handlePortalToggle(e.target.checked)}
+                style={{ width:15, height:15, accentColor:T.accent, cursor:"pointer" }}
+              />
+              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
+                color:"rgba(255,255,255,0.55)", letterSpacing:"0.04em" }}>Portal</span>
+            </label>
+            {akte?.portal_last_sync && (
+              <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.7rem",
+                color:"rgba(255,255,255,0.35)" }}>
+                ↑ {new Date(akte.portal_last_sync).toLocaleString("de-DE", {
+                  day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"
+                })}
+              </span>
+            )}
+          </div>
 
           {/* ── Rechts: KPI rechtsbündig ── */}
           <div style={{ display:"flex", gap:10, background:"rgba(255,255,255,0.05)",
