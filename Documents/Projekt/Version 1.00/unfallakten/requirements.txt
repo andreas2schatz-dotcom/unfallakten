@@ -36,6 +36,14 @@ pytest-cov==6.1.0
 # ─────────────────────────────────────────────────────────────────────────────
 pymssql==2.3.1
 
+# ── OCR für gescannte PDFs (PRD-30) ──────────────────────────────────────────
+pytesseract>=0.3.10           # Python-Wrapper für Tesseract OCR
+pdf2image>=1.17.0             # PDF-Seiten → PIL-Images (nutzt Poppler)
+
 # ── KI-Integration (Modul PRD-26) ────────────────────────────────────────────
 anthropic==0.40.0             # Claude Sonnet – KI-Haftungsbegründung
 google-genai==1.10.0          # Gemini 3.1 Pro – KI-Haftungsbegründung
+openai==1.30.1                # LLM-Service (LM Studio / Gemma via OpenAI-kompatibler API)
+
+# ── HTTP-Client für Portal-Sync ──
+requests==2.32.3
