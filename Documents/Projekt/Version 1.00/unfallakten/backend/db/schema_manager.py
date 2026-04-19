@@ -290,6 +290,7 @@ INSERT OR IGNORE INTO schema_version (version, beschreibung)
 VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regulierung_positionen');
     """,
     38: "-- migration_38_portal_sync",  # Handled by _run_migration_38
+    39: "-- migration_39_gutachten_nr",  # Handled by _run_migration_39
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -431,6 +432,8 @@ def run_migrations() -> None:
                 _run_migration_36(conn)
             elif version == 38:
                 _run_migration_38(conn)
+            elif version == 39:
+                _run_migration_39(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
@@ -2299,3 +2302,17 @@ def _run_migration_38(conn):
         (38, "Migration 38 - portal_aktiv, portal_sync_pending, portal_sync_queue, portal_einladungen"),
     )
     logger.info("Migration 38 abgeschlossen.")
+
+
+def _run_migration_39(conn):
+    # type: (sqlite3.Connection) -> None
+    """PORTAL-A2: gutachten_nr in beteiligte für Sachverständigen-Auftragsnummer."""
+    vorhanden = {r[1] for r in conn.execute("PRAGMA table_info(beteiligte)").fetchall()}
+    if "gutachten_nr" not in vorhanden:
+        conn.execute("ALTER TABLE beteiligte ADD COLUMN gutachten_nr TEXT")
+        logger.info("Migration 39: beteiligte.gutachten_nr hinzugefuegt.")
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
+        (39, "Migration 39 - beteiligte.gutachten_nr fuer Portal-A2"),
+    )
+    logger.info("Migration 39 abgeschlossen.")

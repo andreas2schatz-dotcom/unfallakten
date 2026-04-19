@@ -52,6 +52,35 @@ def _hole_dok_row(dokument_id: int):
         ).fetchone()
 
 
+def _schreibe_gutachten_nr(conn, akte_id, dispatch_ergebnis):
+    """PORTAL-A2: Schreibt auftragsnummer aus Gutachten-Parse in beteiligte.gutachten_nr.
+
+    Nur wenn: Dokumenttyp=gutachten, auftragsnummer vorhanden, genau ein SV in beteiligte.
+    Stiller Fehler – darf Upload nie blockieren.
+    """
+    try:
+        if not dispatch_ergebnis:
+            return
+        pe = dispatch_ergebnis.get("parse_ergebnis") or {}
+        auftragsnummer = pe.get("auftragsnummer") or ""
+        if not auftragsnummer:
+            return
+        if dispatch_ergebnis.get("klasse") != "gutachten":
+            return
+        svs = conn.execute(
+            "SELECT id FROM beteiligte WHERE akte_id = ? AND rolle = 'sachverstaendiger'",
+            (akte_id,)
+        ).fetchall()
+        if len(svs) == 1:
+            conn.execute(
+                "UPDATE beteiligte SET gutachten_nr = ? WHERE id = ?",
+                (auftragsnummer, svs[0]["id"])
+            )
+            logger.info("PORTAL-A2: gutachten_nr=%r → beteiligte.id=%s", auftragsnummer, svs[0]["id"])
+    except Exception as exc:
+        logger.warning("_schreibe_gutachten_nr fehlgeschlagen (Akte %s): %s", akte_id, exc)
+
+
 # ── Liste ──────────────────────────────────────────────────────────────────────
 
 @dokumente_bp.route("", methods=["GET"])
@@ -157,6 +186,8 @@ def upload(akte_id: str):
                     )
                     ergebnis["dispatch"] = dispatch_ergebnis
                     ergebnis["parse_ergebnis"] = dispatch_ergebnis.get("parse_ergebnis")
+                    # PORTAL-A2: auftragsnummer → beteiligte.gutachten_nr
+                    _schreibe_gutachten_nr(conn, akte_id, dispatch_ergebnis)
         except Exception as e:
             # Dispatcher darf Upload NIE blockieren!
             logger.warning('Dispatcher fehlgeschlagen: %s', e)
@@ -424,6 +455,10 @@ def vorhandenes_parsen(akte_id, dokument_id):
 
     klasse = dispatch_erg.get("klasse", "")
     parse_ergebnis = dispatch_erg.get("parse_ergebnis")
+
+    # PORTAL-A2: auftragsnummer → beteiligte.gutachten_nr
+    with get_connection() as conn:
+        _schreibe_gutachten_nr(conn, akte_id, dispatch_erg)
 
     # Typenpruefung wenn gewuenscht
     if erwarteter_typ and klasse != erwarteter_typ:

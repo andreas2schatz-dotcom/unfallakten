@@ -108,7 +108,7 @@ def _build_payload(conn, akte_id):
     ampel = _berechne_ampel(conn, akte_id)
 
     beteiligte = conn.execute("""
-        SELECT id, rolle, name, vorname, firma, email
+        SELECT id, rolle, name, vorname, firma, email, gutachten_nr
         FROM beteiligte WHERE akte_id = ?
     """, (akte_id,)).fetchall()
 
@@ -146,7 +146,8 @@ def _build_payload(conn, akte_id):
         },
         "beteiligte": [
             {"id": b["id"], "rolle": b["rolle"], "name": b["name"],
-             "vorname": b["vorname"], "firma": b["firma"], "email": b["email"]}
+             "vorname": b["vorname"], "firma": b["firma"], "email": b["email"],
+             "gutachten_nr": b["gutachten_nr"]}
             for b in beteiligte
         ],
         "schaden": dict(sp) if sp else {},
