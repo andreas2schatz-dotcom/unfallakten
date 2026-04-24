@@ -444,6 +444,8 @@ function RaMicroAkteUebersicht({ azRoh }) {
                   beteiligte={b.mandant} nurEiner
                   zeigeBetreff zeigeAktenzeichen={false}
                   akteId={azRoh}
+                  ausklappbar={true}
+                  localStorageKey={`uebersicht-kachel-mandant-${azRoh}`}
                 />
                 <EigeneVersicherungMini beteiligte={b.eigene_versicherung} />
                 {b.rechtsschutz.length > 0 && (
@@ -455,6 +457,8 @@ function RaMicroAkteUebersicht({ azRoh }) {
                       titel="Weitere Beteiligte" farbe={T.textMuted}
                       beteiligte={b.weitere}
                       zeigeFirma zeigeBetreff
+                      ausklappbar={true}
+                      localStorageKey={`uebersicht-kachel-weitere-${azRoh}`}
                     />
                   </div>
                 )}
@@ -468,6 +472,8 @@ function RaMicroAkteUebersicht({ azRoh }) {
           titel="Gegner" farbe={T.red}
           beteiligte={b.gegner}
           zeigeBetreff zeigeAktenzeichen={false}
+          ausklappbar={true}
+          localStorageKey={`uebersicht-kachel-gegner-${azRoh}`}
         />
 
         {/* Behörden / Gerichte */}
@@ -475,6 +481,8 @@ function RaMicroAkteUebersicht({ azRoh }) {
           titel="Behörden / Gerichte" farbe={T.amber}
           beteiligte={b.behoerde}
           zeigeAktenzeichen zeigeBetreff={false}
+          ausklappbar={true}
+          localStorageKey={`uebersicht-kachel-behoerde-${azRoh}`}
         />
 
       </div>
