@@ -161,8 +161,8 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               <div style={{ width:8, height:8, borderRadius:"50%", background:farbe, flexShrink:0 }} />
               <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:600, color:farbe, textTransform:"uppercase", letterSpacing:"0.08em" }}>{titel}</span>
-              {liste.length > 1 && <span style={{ marginLeft:"auto", fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", color:T.textFaint }}>{liste.length} Einträge</span>}
             </div>
+            {liste.length > 1 && <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", color:T.textFaint }}>{liste.length} Einträge</span>}
             <span style={{ fontSize:"0.9rem", color:farbe, transform: offen ? "rotate(180deg)" : "none", transition:"transform 0.2s", lineHeight:1 }}>⌄</span>
           </button>
         ) : (
@@ -1556,7 +1556,7 @@ function TodoKachelKompakt({ az, akteId, azRoh }) {
         </div>
 
         {/* Trennlinie */}
-        {hatWv && <div style={{ background:T.border, margin:"0 0" }} />}
+        {hatWv && <div style={{ background:T.border, width:1, alignSelf:"stretch" }} />}
 
         {/* Wiedervorlage-Spalte */}
         {hatWv && (
