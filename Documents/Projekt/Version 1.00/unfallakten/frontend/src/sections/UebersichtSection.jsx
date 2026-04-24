@@ -1439,28 +1439,34 @@ function TodoSection({ akteId, az, onTodoChange }) {
 // ── PRD-16: To-Do-Kachel kompakt für Übersicht ─────────────────────────────
 
 
-function TodoKachelKompakt({ az, akteId }) {
+function TodoKachelKompakt({ az, akteId, azRoh }) {
   const [todos, setTodos]     = useState([]);
+  const [wvListe, setWvListe] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Timeout")), 8000)
-    );
-    Promise.race([apiTodos.liste(az), timeout])
-      .then(r => setTodos(r?.todos || []))
-      .catch(() => setTodos([]))
+    const todoCall = apiTodos.liste(az).catch(() => ({ todos: [] }));
+    const wvCall = azRoh && azRoh.includes("/")
+      ? request(`/wiedervorlage/?az=${encodeURIComponent(azRoh)}&alle_gruende=true&limit=10`)
+          .then(r => r?.wiedervorlagen || [])
+          .catch(() => [])
+      : Promise.resolve([]);
+
+    Promise.all([todoCall, wvCall])
+      .then(([todoRes, wvRes]) => {
+        setTodos(todoRes?.todos || []);
+        setWvListe(wvRes);
+      })
       .finally(() => setLoading(false));
-  }, [az]);
+  }, [az, azRoh]);
 
   const offen = todos.filter(t => !t.erledigt);
-  if (loading) return null;
 
   const FARBEN = {
-    rot:    { bg:T.redBg, border:T.redLight, dot:T.red },
-    orange: { bg:"#fff7ed", border:"#fdba74", dot:"#f97316" },
-    gelb:   { bg:"#fefce8", border:"#fde047", dot:"#eab308" },
-    grau:   { bg:T.surface, border:T.border,  dot:T.textFaint },
+    rot:    { dot: T.red },
+    orange: { dot: "#f97316" },
+    gelb:   { dot: "#eab308" },
+    grau:   { dot: T.textFaint },
   };
 
   const dringlichkeit = (todo) => {
@@ -1476,58 +1482,97 @@ function TodoKachelKompakt({ az, akteId }) {
     return alter >= 15 ? "rot" : alter >= 8 ? "orange" : alter >= 4 ? "gelb" : "grau";
   };
 
+  const fmtWvDatum = (iso) => {
+    if (!iso) return "";
+    try { const [y,m,d] = iso.split("-"); return `${d}.${m}.${y}`; } catch { return iso; }
+  };
+
+  if (loading) return null;
+
+  const hatWv = wvListe.length > 0;
+
   return (
     <Card style={ offen.length > 0 ? { border:`1.5px solid ${T.accentTrim}`, background:T.accentPale } : {} }>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
-        padding:"0.85rem 1.4rem 0.5rem" }}>
-        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
-          fontWeight:600, color:T.textMid, textTransform:"uppercase", letterSpacing:"0.08em" }}>
-          📋 To-Dos
+      {/* Header */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.85rem 1.4rem 0.5rem", flexWrap:"wrap", gap:8 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", fontWeight:600, color:T.textMid, textTransform:"uppercase", letterSpacing:"0.08em" }}>
+            📋 To-Dos
+          </span>
           {offen.length > 0 && (
-            <span style={{ marginLeft:8, background:T.redBg, color:T.red,
-              borderRadius:10, padding:"1px 7px", fontSize:"0.78rem" }}>
+            <span style={{ background:T.redBg, color:T.red, borderRadius:10, padding:"1px 7px", fontSize:"0.78rem", fontWeight:600 }}>
               {offen.length} offen
             </span>
           )}
         </div>
-      </div>
-      <div style={{ padding:"0 1.4rem 0.85rem" }}>
-        {offen.length === 0 ? (
-          <div style={{ fontSize:"0.875rem", color:T.textFaint,
-            fontFamily:"'Figtree',sans-serif" }}>
-            ✅ Alle To-Dos erledigt
+        {hatWv && (
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", fontWeight:600, color:T.textMid, textTransform:"uppercase", letterSpacing:"0.08em" }}>
+              📅 Wiedervorlagen
+            </span>
+            <span style={{ background:"#fef9c3", color:"#92400e", borderRadius:10, padding:"1px 7px", fontSize:"0.78rem", fontWeight:600 }}>
+              {wvListe.length} fällig
+            </span>
           </div>
-        ) : (
-          offen.slice(0, 4).map(todo => {
-            const d = dringlichkeit(todo);
-            const f = FARBEN[d];
-            return (
-              <div key={todo.id} style={{
-                display:"flex", alignItems:"center", gap:8,
-                padding:"5px 0",
-                borderBottom:`1px solid ${T.borderSoft}`,
-              }}>
-                <span style={{ width:8, height:8, borderRadius:"50%",
-                  background:f.dot, flexShrink:0, display:"inline-block" }} />
-                <span style={{ fontFamily:"'Figtree',sans-serif",
-                  fontSize:"0.875rem", color:T.text, flex:1,
-                  overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {todo.text}
-                </span>
-                {todo.faellig_am && (
-                  <span style={{ fontSize:"0.75rem", color:T.textFaint,
-                    fontFamily:"ui-monospace,monospace", flexShrink:0 }}>
-                    {(() => { try { const [y,m,d]=todo.faellig_am.split("-"); return `${d}.${m}.`; } catch{return "";} })()}
-                  </span>
-                )}
-              </div>
-            );
-          })
         )}
-        {offen.length > 4 && (
-          <div style={{ fontSize:"0.8rem", color:T.textFaint, marginTop:5,
-            fontFamily:"'Figtree',sans-serif" }}>
-            + {offen.length - 4} weitere …
+      </div>
+
+      {/* Body */}
+      <div style={{ display:"grid", gridTemplateColumns: hatWv ? "1fr 1px 1fr" : "1fr", padding:"0 1.4rem 0.85rem", gap:0 }}>
+
+        {/* To-Do-Spalte */}
+        <div style={{ paddingRight: hatWv ? 12 : 0 }}>
+          {offen.length === 0 ? (
+            <div style={{ fontSize:"0.875rem", color:T.textFaint, fontFamily:"'Figtree',sans-serif" }}>
+              ✅ Alle To-Dos erledigt
+            </div>
+          ) : (
+            offen.slice(0, 4).map(todo => {
+              const d = dringlichkeit(todo);
+              const f = FARBEN[d];
+              return (
+                <div key={todo.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 0", borderBottom:`1px solid ${T.borderSoft}` }}>
+                  <span style={{ width:8, height:8, borderRadius:"50%", background:f.dot, flexShrink:0, display:"inline-block" }} />
+                  <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.text, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                    {todo.text}
+                  </span>
+                  {todo.faellig_am && (
+                    <span style={{ fontSize:"0.75rem", color:T.textFaint, fontFamily:"ui-monospace,monospace", flexShrink:0 }}>
+                      {(() => { try { const [y,m,d]=todo.faellig_am.split("-"); return `${d}.${m}.`; } catch{return "";} })()}
+                    </span>
+                  )}
+                </div>
+              );
+            })
+          )}
+          {offen.length > 4 && (
+            <div style={{ fontSize:"0.8rem", color:T.textFaint, marginTop:5, fontFamily:"'Figtree',sans-serif" }}>
+              + {offen.length - 4} weitere …
+            </div>
+          )}
+        </div>
+
+        {/* Trennlinie */}
+        {hatWv && <div style={{ background:T.border, margin:"0 0" }} />}
+
+        {/* Wiedervorlage-Spalte */}
+        {hatWv && (
+          <div style={{ paddingLeft:12, display:"flex", flexDirection:"column", gap:6 }}>
+            {wvListe.slice(0, 3).map((wv, i) => (
+              <div key={i} style={{ background:"#fef9c3", border:"1px solid #fde047", borderRadius:6, padding:"6px 10px" }}>
+                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:700, color:"#78350f", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {wv.grund || "Wiedervorlage"}
+                </div>
+                <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.75rem", color:"#92400e", marginTop:2 }}>
+                  fällig: {fmtWvDatum(wv.datum)}
+                </div>
+              </div>
+            ))}
+            {wvListe.length > 3 && (
+              <div style={{ fontSize:"0.78rem", color:T.textFaint, fontFamily:"'Figtree',sans-serif" }}>
+                + {wvListe.length - 3} weitere → WVL-Tab
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1778,7 +1823,7 @@ function UebersichtSection({ akte, st, dispatch }) {
         />
 
         {/* ── To-Do-Kachel (kompakt, nur offene) ── */}
-        <TodoKachelKompakt az={akte.az} akteId={akte.id} />
+        <TodoKachelKompakt az={akte.az} akteId={akte.id} azRoh={akte.az_roh || akte.az} />
 
       </div>
     </>
