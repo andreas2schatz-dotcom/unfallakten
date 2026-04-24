@@ -19,6 +19,7 @@ Filter-Strategie für Stellungnahmen:
 """
 
 import logging
+import re
 from datetime import date
 from typing import Optional
 from .connector import get_ramicro_connection
@@ -118,7 +119,9 @@ def hole_faellige_wiedervorlagen(
     )
 
     sb_filter = "AND w.sWiedervorlageSachbearbeiter = %(sb)s" if sachbearbeiter else ""
-    az_filter = "AND a.sAktenNummer = %(az)s" if aktenzeichen else ""
+    # RA-Micro speichert sAktenNummer ohne SB-Kürzel ("285/26", nicht "285/26AS")
+    az_clean = re.sub(r'[A-Za-z]+$', '', aktenzeichen).strip() if aktenzeichen else None
+    az_filter = "AND a.sAktenNummer = %(az)s" if az_clean else ""
 
     if grund_filter:
         grund_sql = "AND w.sWiedervorlagegrund = %(grund)s"
@@ -214,8 +217,8 @@ def hole_faellige_wiedervorlagen(
         params["sb"] = sachbearbeiter
     if grund_filter:
         params["grund"] = grund_filter
-    if aktenzeichen:
-        params["az"] = aktenzeichen
+    if az_clean:
+        params["az"] = az_clean
 
     with get_ramicro_connection() as conn:
         cur = conn.cursor()

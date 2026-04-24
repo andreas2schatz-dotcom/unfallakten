@@ -1584,6 +1584,43 @@ function TodoKachelKompakt({ az, akteId, azRoh }) {
 }
 
 
+function KlappAbschnitt({ titel, lsKey, children, standardOffen = true }) {
+  const [offen, setOffen] = useState(() => {
+    try {
+      const v = localStorage.getItem(lsKey);
+      return v !== null ? v === "true" : standardOffen;
+    } catch { return standardOffen; }
+  });
+  const toggle = () => {
+    const neu = !offen;
+    setOffen(neu);
+    try { localStorage.setItem(lsKey, String(neu)); } catch {}
+  };
+  return (
+    <div>
+      <button
+        onClick={toggle}
+        style={{
+          width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
+          background:"transparent", border:"none", padding:"0 0 6px 0",
+          cursor:"pointer", marginBottom: offen ? 0 : 0,
+        }}
+      >
+        <span style={{
+          fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", fontWeight:600,
+          color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.08em",
+        }}>{titel}</span>
+        <span style={{
+          fontSize:"1rem", color:T.textFaint, lineHeight:1,
+          transform: offen ? "rotate(180deg)" : "none",
+          transition:"transform 0.2s",
+        }}>⌄</span>
+      </button>
+      {offen && children}
+    </div>
+  );
+}
+
 function UebersichtSection({ akte, st, dispatch }) {
   const [notizen, setNotizen] = useState(st.notizen || "");
   const [nChanged, setNC]     = useState(false);
@@ -1767,6 +1804,8 @@ function UebersichtSection({ akte, st, dispatch }) {
     </div>
   ) : null;
 
+  const azKlappKey = (akte.az_roh || akte.az || "").replace(/\//g, "-");
+
   return (
     <>
       {toast && <Toast msg={toast} onDone={() => setToast("")} />}
@@ -1777,56 +1816,64 @@ function UebersichtSection({ akte, st, dispatch }) {
           <RaMicroAkteUebersicht azRoh={akte.az_roh || akte.az} />
         )}
 
-        {/* ── Zeile 2: Notizen (volle Breite – Status jetzt im Header) ── */}
-        <Card style={{ padding:"0.6rem 1rem", display:"flex", flexDirection:"column", gap:5 }}>
-          <div style={{ fontSize:"0.75rem", fontWeight:600, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.08em" }}>Notizen</div>
-          <textarea value={notizen} onChange={e => { setNotizen(e.target.value); setNC(true); }} rows={2}
-            placeholder="Interne Notizen …"
-            style={{ padding:"5px 8px", border:`1.5px solid ${T.border}`, borderRadius:6, fontSize:"0.875rem", color:T.text, background:T.surface, outline:"none", resize:"none" }}
-            onFocus={e => e.target.style.borderColor=T.accent} onBlur={e => e.target.style.borderColor=T.border} />
-          {nChanged && <Btn variant="gold" size="sm" onClick={async () => { dispatch({ type:"SET_NOTIZEN", akteId:akte.id, notizen }); setNC(false); setToast("Notizen gespeichert."); try { await apiAkten.aktualisieren(akte.id, { notizen }); } catch {} }}>{Ic.check} Speichern</Btn>}
-        </Card>
+        {/* ── Notizen ── */}
+        <KlappAbschnitt titel="Notizen" lsKey={`uebersicht-notizen-${azKlappKey}`}>
+          <Card style={{ padding:"0.6rem 1rem", display:"flex", flexDirection:"column", gap:5 }}>
+            <textarea value={notizen} onChange={e => { setNotizen(e.target.value); setNC(true); }} rows={2}
+              placeholder="Interne Notizen …"
+              style={{ padding:"5px 8px", border:`1.5px solid ${T.border}`, borderRadius:6, fontSize:"0.875rem", color:T.text, background:T.surface, outline:"none", resize:"none" }}
+              onFocus={e => e.target.style.borderColor=T.accent} onBlur={e => e.target.style.borderColor=T.border} />
+            {nChanged && <Btn variant="gold" size="sm" onClick={async () => { dispatch({ type:"SET_NOTIZEN", akteId:akte.id, notizen }); setNC(false); setToast("Notizen gespeichert."); try { await apiAkten.aktualisieren(akte.id, { notizen }); } catch {} }}>{Ic.check} Speichern</Btn>}
+          </Card>
+        </KlappAbschnitt>
 
-        {/* ── Zeile 3: Positions-Gegenüberstellung ── */}
-        <Card style={{ background:"rgba(84,136,212,0.06)", border:"1px solid rgba(84,136,212,0.25)" }}>
-          <CardHead title="Forderung vs. Regulierung – Positionsübersicht" />
-          <RegulierungsTabelle
-            schaden={schaden}
+        {/* ── Forderung vs. Regulierung ── */}
+        <KlappAbschnitt titel="Forderung vs. Regulierung" lsKey={`uebersicht-forderung-${azKlappKey}`}>
+          <Card style={{ background:"rgba(84,136,212,0.06)", border:"1px solid rgba(84,136,212,0.25)" }}>
+            <CardHead title="Forderung vs. Regulierung – Positionsübersicht" />
+            <RegulierungsTabelle
+              schaden={schaden}
+              abrechnungen={abrechnungen}
+              showCheckboxes={false}
+              showKlageBadge={true}
+            />
+            {hatRegulierung && (
+              <div style={{ padding:"0.75rem 1.4rem 1rem" }}>
+                <div style={{ height:8, background:T.border, borderRadius:4, overflow:"hidden" }}>
+                  <div style={{ height:"100%", width:`${regGrad}%`, background:regGrad>=100?`linear-gradient(90deg,${T.green},#34d399)`:`linear-gradient(90deg,${T.accent},${T.accentLight})`, borderRadius:4, transition:"width 0.8s" }} />
+                </div>
+                <div style={{ display:"flex", justifyContent:"space-between", marginTop:5, fontSize:"0.84rem", color:T.textMuted }}>
+                  <span>{regGrad} % reguliert · {abrechnungen.length} Schreiben</span>
+                  {klageSumme > 0 && <span style={{ color:T.red, fontWeight:600 }}>Klagepotential: {fmtEuro(klageSumme)}</span>}
+                </div>
+              </div>
+            )}
+          </Card>
+        </KlappAbschnitt>
+
+        {/* ── Forderungshistorie ── */}
+        <KlappAbschnitt titel="Forderungshistorie" lsKey={`uebersicht-historie-${azKlappKey}`}>
+          <ForderungshistorieKarte akteId={akte.id} />
+        </KlappAbschnitt>
+
+        {/* ── Akten-Chronik ── */}
+        <KlappAbschnitt titel="Akten-Chronik" lsKey={`uebersicht-chronik-${azKlappKey}`}>
+          <AktenTimeline
             abrechnungen={abrechnungen}
-            showCheckboxes={false}
-            showKlageBadge={true}
+            aktivitaeten={st.aktivitaeten || []}
+            akteId={akte.id}
+            onAktivitaetenChange={async () => {
+              const data = await apiAkten.aktivitaeten(akte.id);
+              if (data?.aktivitaeten)
+                dispatch({ type:"SET_AKTIVITAETEN", akteId: akte.id, aktivitaeten: data.aktivitaeten });
+            }}
           />
-          {/* Regulierungsgrad-Balken */}
-          {hatRegulierung && (
-            <div style={{ padding:"0.75rem 1.4rem 1rem" }}>
-              <div style={{ height:8, background:T.border, borderRadius:4, overflow:"hidden" }}>
-                <div style={{ height:"100%", width:`${regGrad}%`, background:regGrad>=100?`linear-gradient(90deg,${T.green},#34d399)`:`linear-gradient(90deg,${T.accent},${T.accentLight})`, borderRadius:4, transition:"width 0.8s" }} />
-              </div>
-              <div style={{ display:"flex", justifyContent:"space-between", marginTop:5, fontSize:"0.84rem", color:T.textMuted }}>
-                <span>{regGrad} % reguliert · {abrechnungen.length} Schreiben</span>
-                {klageSumme > 0 && <span style={{ color:T.red, fontWeight:600 }}>Klagepotential: {fmtEuro(klageSumme)}</span>}
-              </div>
-            </div>
-          )}
-        </Card>
+        </KlappAbschnitt>
 
-        {/* ── Zeile 4: Forderungshistorie ── */}
-        <ForderungshistorieKarte akteId={akte.id} />
-
-        {/* ── Zeile 5: Kombinierte Verlaufs-Timeline ── */}
-        <AktenTimeline
-          abrechnungen={abrechnungen}
-          aktivitaeten={st.aktivitaeten || []}
-          akteId={akte.id}
-          onAktivitaetenChange={async () => {
-            const data = await apiAkten.aktivitaeten(akte.id);
-            if (data?.aktivitaeten)
-              dispatch({ type:"SET_AKTIVITAETEN", akteId: akte.id, aktivitaeten: data.aktivitaeten });
-          }}
-        />
-
-        {/* ── To-Do-Kachel (kompakt, nur offene) ── */}
-        <TodoKachelKompakt az={akte.az} akteId={akte.id} azRoh={akte.az_roh || akte.az} />
+        {/* ── To-Dos & Wiedervorlagen ── */}
+        <KlappAbschnitt titel="To-Dos & Wiedervorlagen" lsKey={`uebersicht-todos-${azKlappKey}`}>
+          <TodoKachelKompakt az={akte.az} akteId={akte.id} azRoh={akte.az_roh || akte.az} />
+        </KlappAbschnitt>
 
       </div>
     </>
