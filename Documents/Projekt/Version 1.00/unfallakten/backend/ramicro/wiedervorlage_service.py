@@ -96,6 +96,7 @@ def hole_faellige_wiedervorlagen(
     limit: int = 200,
     nur_stellungnahme: bool = True,
     grund_filter: Optional[str] = None,
+    aktenzeichen: Optional[str] = None,
 ) -> list[dict]:
     """
     Gibt fällige Wiedervorlagen zurück, inklusive Akten- und Adressdaten.
@@ -116,7 +117,7 @@ def hole_faellige_wiedervorlagen(
     )
 
     sb_filter = "AND w.sWiedervorlageSachbearbeiter = %(sb)s" if sachbearbeiter else ""
-
+    az_filter = "AND a.sAktenNummer = %(az)s" if aktenzeichen else ""
 
     if grund_filter:
         grund_sql = "AND w.sWiedervorlagegrund = %(grund)s"
@@ -198,18 +199,22 @@ def hole_faellige_wiedervorlagen(
         WHERE DATUM_FILTER
           GRUND_FILTER
           SB_FILTER
+          AZ_FILTER
           AND (a.dtAblage IS NULL OR CAST(a.dtAblage AS DATE) = '1899-12-30')
 
         ORDER BY w.dtWiedervorlage ASC, a.sAktenNummer ASC
     """.replace("DATUM_FILTER", datum_filter) \
        .replace("GRUND_FILTER", grund_sql) \
-       .replace("SB_FILTER", sb_filter)
+       .replace("SB_FILTER", sb_filter) \
+       .replace("AZ_FILTER", az_filter)
 
     params = {"limit": limit}
     if sachbearbeiter:
         params["sb"] = sachbearbeiter
     if grund_filter:
         params["grund"] = grund_filter
+    if aktenzeichen:
+        params["az"] = aktenzeichen
 
     with get_ramicro_connection() as conn:
         cur = conn.cursor()
