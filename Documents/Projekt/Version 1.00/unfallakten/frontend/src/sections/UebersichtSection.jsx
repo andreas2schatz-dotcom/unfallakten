@@ -79,7 +79,6 @@ function RechtsschutzKlappkachel({ beteiligte }) {
 
 function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBetreff=false, zeigeAktenzeichen=false, nurEiner=false, akteId=null, ausklappbar=false, standardOffen=true, localStorageKey=null }) {
   const liste = nurEiner ? beteiligte.slice(0,1) : beteiligte;
-  if (!liste.length) return null;
 
   const [offen, setOffen] = useState(() => {
     if (!ausklappbar) return true;
@@ -105,6 +104,8 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
       .then(d => setIbanCheck(d))
       .catch(() => setIbanCheck({ iban_vorhanden: null }));
   }, [akteId, titel]);
+
+  if (!liste.length) return null;
 
   const ibanMailtoLink = () => {
     const mandant = liste[0];
@@ -160,7 +161,7 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               <div style={{ width:8, height:8, borderRadius:"50%", background:farbe, flexShrink:0 }} />
               <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:600, color:farbe, textTransform:"uppercase", letterSpacing:"0.08em" }}>{titel}</span>
-              {liste.length > 1 && <span style={{ marginLeft:8, fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", color:T.textFaint }}>{liste.length} Einträge</span>}
+              {liste.length > 1 && <span style={{ marginLeft:"auto", fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", color:T.textFaint }}>{liste.length} Einträge</span>}
             </div>
             <span style={{ fontSize:"0.9rem", color:farbe, transform: offen ? "rotate(180deg)" : "none", transition:"transform 0.2s", lineHeight:1 }}>⌄</span>
           </button>
