@@ -150,6 +150,7 @@ def liste_wiedervorlagen():
     alle_gruende   = request.args.get("alle_gruende", "false").lower() == "true"
     sb             = request.args.get("sb") or None
     grund_filter   = request.args.get("grund") or None
+    az             = request.args.get("az") or None
     try:
         limit = min(int(request.args.get("limit", "200")), 500)
     except ValueError:
@@ -162,6 +163,7 @@ def liste_wiedervorlagen():
             limit=limit,
             nur_stellungnahme=not alle_gruende,
             grund_filter=grund_filter,
+            aktenzeichen=az,
         )
     except Exception as e:
         return _ramicro_fehler_antwort(e)
