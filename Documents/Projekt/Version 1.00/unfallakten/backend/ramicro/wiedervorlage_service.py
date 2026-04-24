@@ -107,6 +107,7 @@ def hole_faellige_wiedervorlagen(
         limit:            Max. Anzahl Ergebnisse (max. 500)
         nur_stellungnahme: True = nur '%nahme%' Gründe, False = alle Gründe
         grund_filter:     Exakter WV-Grund als Filter, None = alle
+        aktenzeichen:     Aktenzeichen filtern (z.B. "285/26TB"), None = alle
     """
     limit = min(int(limit), 500)
 
