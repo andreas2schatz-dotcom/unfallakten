@@ -77,9 +77,24 @@ function RechtsschutzKlappkachel({ beteiligte }) {
 }
 
 
-function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBetreff=false, zeigeAktenzeichen=false, nurEiner=false, akteId=null }) {
+function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBetreff=false, zeigeAktenzeichen=false, nurEiner=false, akteId=null, ausklappbar=false, standardOffen=true, localStorageKey=null }) {
   const liste = nurEiner ? beteiligte.slice(0,1) : beteiligte;
   if (!liste.length) return null;
+
+  const [offen, setOffen] = useState(() => {
+    if (!ausklappbar) return true;
+    if (localStorageKey) {
+      const saved = localStorage.getItem(localStorageKey);
+      if (saved !== null) return saved === "true";
+    }
+    return standardOffen;
+  });
+
+  const toggle = () => {
+    const neu = !offen;
+    setOffen(neu);
+    if (localStorageKey) localStorage.setItem(localStorageKey, String(neu));
+  };
 
   // IBAN-Check: nur für Mandantenkachel
   const [ibanCheck, setIbanCheck] = useState(null); // null=lädt, {iban_vorhanden, mandant_email, ...}
@@ -133,14 +148,33 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
     <>
     <div style={{ background:T.white, border: titel ? `1px solid ${T.border}` : "none", borderRadius: titel ? 10 : 0, overflow:"hidden", boxShadow: titel ? "0 1px 4px rgba(0,0,0,0.04)" : "none" }}>
       {/* Kachel-Header – wird ausgeblendet wenn kein Titel (z.B. in RechtsschutzKlappkachel) */}
-      {titel && <div style={{ background: farbe + "18", borderBottom:`1px solid ${farbe}33`, padding:"8px 14px", display:"flex", alignItems:"center", gap:8 }}>
-        <div style={{ width:8, height:8, borderRadius:"50%", background: farbe, flexShrink:0 }} />
-        <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:600, color: farbe, textTransform:"uppercase", letterSpacing:"0.08em" }}>{titel}</span>
-        {liste.length > 1 && <span style={{ marginLeft:"auto", fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", color:T.textFaint }}>{liste.length} Einträge</span>}
-      </div>}
+      {titel && (
+        ausklappbar ? (
+          <button
+            onClick={toggle}
+            style={{
+              width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
+              background: farbe + "18", borderBottom: offen ? `1px solid ${farbe}33` : "none",
+              padding:"8px 14px", cursor:"pointer", border:"none", textAlign:"left",
+            }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <div style={{ width:8, height:8, borderRadius:"50%", background:farbe, flexShrink:0 }} />
+              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:600, color:farbe, textTransform:"uppercase", letterSpacing:"0.08em" }}>{titel}</span>
+              {liste.length > 1 && <span style={{ marginLeft:8, fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", color:T.textFaint }}>{liste.length} Einträge</span>}
+            </div>
+            <span style={{ fontSize:"0.9rem", color:farbe, transform: offen ? "rotate(180deg)" : "none", transition:"transform 0.2s", lineHeight:1 }}>⌄</span>
+          </button>
+        ) : (
+          <div style={{ background: farbe + "18", borderBottom:`1px solid ${farbe}33`, padding:"8px 14px", display:"flex", alignItems:"center", gap:8 }}>
+            <div style={{ width:8, height:8, borderRadius:"50%", background:farbe, flexShrink:0 }} />
+            <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:600, color:farbe, textTransform:"uppercase", letterSpacing:"0.08em" }}>{titel}</span>
+            {liste.length > 1 && <span style={{ marginLeft:"auto", fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", color:T.textFaint }}>{liste.length} Einträge</span>}
+          </div>
+        )
+      )}
 
       {/* Einträge */}
-      {liste.map((b, i) => (
+      {(!ausklappbar || offen) && liste.map((b, i) => (
         <div key={i} style={{ padding:"10px 14px", borderBottom: i < liste.length-1 ? `1px solid ${T.borderSoft}` : "none" }}>
           {/* Name / Firma */}
           <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.925rem", fontWeight:600, color:T.navy, marginBottom:3 }}>
