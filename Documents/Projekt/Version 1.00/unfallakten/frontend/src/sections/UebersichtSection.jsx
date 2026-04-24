@@ -1445,7 +1445,10 @@ function TodoKachelKompakt({ az, akteId, azRoh }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const todoCall = apiTodos.liste(az).catch(() => ({ todos: [] }));
+    const todoCall = Promise.race([
+      apiTodos.liste(az),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
+    ]).catch(() => ({ todos: [] }));
     const wvCall = azRoh && azRoh.includes("/")
       ? request(`/wiedervorlage/?az=${encodeURIComponent(azRoh)}&alle_gruende=true&limit=10`)
           .then(r => r?.wiedervorlagen || [])
@@ -1558,8 +1561,8 @@ function TodoKachelKompakt({ az, akteId, azRoh }) {
         {/* Wiedervorlage-Spalte */}
         {hatWv && (
           <div style={{ paddingLeft:12, display:"flex", flexDirection:"column", gap:6 }}>
-            {wvListe.slice(0, 3).map((wv, i) => (
-              <div key={i} style={{ background:"#fef9c3", border:"1px solid #fde047", borderRadius:6, padding:"6px 10px" }}>
+            {wvListe.slice(0, 3).map((wv) => (
+              <div key={wv.guid || wv.datum + wv.grund} style={{ background:"#fef9c3", border:"1px solid #fde047", borderRadius:6, padding:"6px 10px" }}>
                 <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:700, color:"#78350f", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                   {wv.grund || "Wiedervorlage"}
                 </div>
