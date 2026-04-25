@@ -46,9 +46,25 @@ DB_PATH     = Path(os.environ.get("DB_PATH", DEFAULT_DB))
 # Wert: id aus kuerzungsarten-Tabelle (1-19)
 
 MAPPING: dict[str, int] = {
-    # Beispiele - nach Dry-Run anpassen:
-    # "stundenverrechnungssaetze": 1,
-    # "nutzungsausfall":           2,
+    "verweis":                            1,   # Stundenverrechnungssätze
+    "wertminderung":                      2,   # Wertminderung
+    "ghpfupe":                            3,   # Ersatzteilaufschläge / UPE
+    "verbringungskosten rechtsprechung":  4,   # Verbringungskosten
+    "beilackierung":                      5,   # Beilackierung
+    "werkstattrisiko":                    6,   # Kürzung Reparaturrechnung
+    "tank":                               7,   # Tankrest
+    "ghpfbatterie":                       8,   # Batteriestützbetrieb
+    "ghpffehlerspeicher":                 9,   # Fehlerspeicher auslesen
+    "ghpfkleinteile":                    10,   # Kleinteilpauschale
+    # 11 Technische Kürzungen: kein Textbaustein (SV-Stellungnahme)
+    "ghpfzulassungsdienst":              12,   # Zulassungsdienst
+    "ghpvkz":                            13,   # Kennzeichen / Schilderkosten
+    # 14 Wunschkennzeichen: kein Textbaustein
+    "ghpfup":                            15,   # Unkostenpauschale
+    "ghpfnagewerbe":                     16,   # Nutzungsausfall
+    "ghpfsvkosten":                      17,   # Kürzung Sachverständigenrechnung
+    # 18 Mietwagenrechnung: kein Textbaustein
+    # 19 Verdienstausfall: kein Textbaustein
 }
 
 
@@ -107,10 +123,8 @@ def run(schreiben: bool) -> None:
         sys.exit(f"Ordner nicht gefunden: {DOCX_DIR}")
 
     dateien = sorted(
-        list(DOCX_DIR.glob("*.docx")) +
-        list(DOCX_DIR.glob("*.DOCX")) +
-        list(DOCX_DIR.glob("*.rtf")) +
-        list(DOCX_DIR.glob("*.RTF"))
+        [p for p in DOCX_DIR.iterdir() if p.suffix.lower() in (".docx", ".rtf")],
+        key=lambda p: p.name.lower(),
     )
     if not dateien:
         sys.exit(f"Keine .docx- oder .rtf-Dateien in {DOCX_DIR}")
@@ -120,6 +134,12 @@ def run(schreiben: bool) -> None:
 
     conn = sqlite3.connect(str(DB_PATH))
     try:
+        # textbaustein-Spalte anlegen falls noch nicht vorhanden
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(kuerzungsarten)").fetchall()]
+        if "textbaustein" not in cols:
+            conn.execute("ALTER TABLE kuerzungsarten ADD COLUMN textbaustein TEXT")
+            conn.commit()
+
         kuerzungsarten = _lade_kuerzungsarten(conn)
 
         print(f"\n{'='*60}")

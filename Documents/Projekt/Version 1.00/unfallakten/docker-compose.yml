@@ -47,6 +47,7 @@ services:
         required: false
     volumes:
       - ./backend:/app/backend
+      - ./tools:/app/tools
       - dev-data:/app/data
       - dev-uploads:/app/uploads
       - /mnt/eakte:/mnt/eakte:ro
