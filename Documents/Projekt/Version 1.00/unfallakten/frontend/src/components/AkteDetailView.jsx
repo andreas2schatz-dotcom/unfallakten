@@ -17,7 +17,7 @@ import {
 
 // Immer synchron: Default-Tab + kleine Hilfskomponenten
 import UebersichtSection from "../sections/UebersichtSection.jsx";
-import { TodoSection } from "../sections/UebersichtSection.jsx";
+import { TodoSection, PwaNachrichtModal, StaDialog } from "../sections/UebersichtSection.jsx";
 import RaMicroSachstandsCard from "../sections/RaMicroSachstandsCard.jsx";
 import AktionBadge from "../views/email_import/components/AktionBadge.jsx";
 
@@ -34,13 +34,19 @@ const KlageSection         = lazy(() => import("../sections/KlageSection.jsx"));
 function AkteDetailView({ akte, st, dispatch }) {
   const [sec, setSec] = useState("uebersicht");
   const [aktionErledigt, setAktionErledigt] = useState(false);
-  const [todoKlapp, setTodoKlapp] = useState(false);
-  const [statusOffen, setStatusOffen] = useState(false);
-  const [statusSpeichert, setStatusSpeichert] = useState(false);
   const [toast, setToast] = useState("");
 
-  const [headerTodos, setHeaderTodos] = useState([]);
-  const [headerTodosLoaded, setHeaderTodosLoaded] = useState(false);
+  // Action-Buttons im Haupt-Header
+  const [zeigePwModal, setZeigePwModal] = useState(false);
+  const [zeigeStaDialog, setZeigeStaDialog] = useState(false);
+  const mandantName = useMemo(
+    () => (st.beteiligte || []).find(b => b.rolle === "mandant")?.name || "",
+    [st.beteiligte]
+  );
+
+  // RA-MICRO Bezeichnungen für Header-Zeile
+  const [raInfo, setRaInfo] = useState(null);
+  const azRoh = akte.az_roh || akte.az || "";
 
   // Portal-aktiv Toggle (lokaler State, da kein SET_AKTE im Reducer)
   const [portalAktiv, setPortalAktiv] = useState(false);
@@ -59,17 +65,13 @@ function AkteDetailView({ akte, st, dispatch }) {
     }
   };
 
-  // To-Dos für Header laden + Reload-Funktion für Live-Sync
-  const ladeHeaderTodos = React.useCallback(() => {
-    if (!akte.az) return;
-    const timeout = new Promise((_, reject) => setTimeout(() => reject(), 8000));
-    Promise.race([apiTodos.liste(akte.az), timeout])
-      .then(r => setHeaderTodos(r?.todos || []))
-      .catch(() => setHeaderTodos([]))
-      .finally(() => setHeaderTodosLoaded(true));
-  }, [akte.az]);
-
-  React.useEffect(() => { ladeHeaderTodos(); }, [ladeHeaderTodos]);
+  // RA-MICRO Kurz-/Langbezeichnung + Checks für Header
+  React.useEffect(() => {
+    if (!azRoh.includes("/")) return;
+    request(`/ramicro/akte/mandant-checks?az=${encodeURIComponent(azRoh)}`)
+      .then(d => setRaInfo(d))
+      .catch(() => {});
+  }, [azRoh]);
 
   // Beim ersten Öffnen: Schaden, Regulierungen, Beteiligte und Dokumente aus DB laden
   useEffect(() => {
@@ -239,190 +241,52 @@ function AkteDetailView({ akte, st, dispatch }) {
       <div style={{ background:T.navy, padding:"0.85rem 1.75rem 0", flexShrink:0 }}>
         <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:"0.75rem", flexWrap:"nowrap" }}>
 
-          {/* ── Links: Icon + AZ + Status-Dropdown ── */}
-          <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
-            <div style={{ width:36, height:36, background:T.accentTrim, borderRadius:8,
-              border:`1px solid ${T.accentTrim}`, display:"flex", alignItems:"center",
-              justifyContent:"center", color:T.white, flexShrink:0 }}>{Ic.akte}</div>
-            <div>
-              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.7rem",
-                color:T.accentLight, letterSpacing:"0.14em", textTransform:"uppercase",
-                lineHeight:1, fontWeight:600 }}>Aktenzeichen</div>
-              <h1 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"2.2rem",
-                fontWeight:800, color:T.white, margin:"2px 0 0", lineHeight:1.05,
-                letterSpacing:"-0.01em" }}>{akte.az}</h1>
-            </div>
-          {/* ── Status-Dropdown (neben AZ) ── */}
+          {/* ── Links: Icon + AZ + Bezeichnungen + Metazeile ── */}
           {(() => {
-            const aktStatus = st.status || akte.status || "offen";
-            const sm = STATUS_MAP[aktStatus] || STATUS_MAP["offen"];
+            const kurz = akte.kurzbezeichnung || raInfo?.kurzbezeichnung || "";
+            const lang = raInfo?.bezeichnung || "";
+            const sb   = akte.sachbearbeiter || "";
+            const mKfz = (st.beteiligte || []).find(b => b.rolle === "mandant")?.kfz_kennzeichen || "";
+            const gKfz = (st.beteiligte || []).find(b =>
+              ["gegner","GHPV","GHV","GBEV"].includes(b.rolle || b.kuerzel || "")
+            )?.kfz_kennzeichen || "";
+            const metaTeile = [
+              sb   && `SB: ${sb}`,
+              mKfz && `M: ${mKfz}`,
+              gKfz && `G: ${gKfz}`,
+            ].filter(Boolean);
             return (
-              <div style={{ position:"relative", flexShrink:0 }}>
-                <button onClick={() => setStatusOffen(o => !o)}
-                  style={{ display:"flex", alignItems:"center", gap:5,
-                    padding:"4px 10px 4px 8px", borderRadius:20, cursor:"pointer",
-                    border:`1.5px solid ${sm.color}`,
-                    background:sm.bg, color:sm.color,
-                    fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
-                    fontWeight:700, transition:"all 0.15s", whiteSpace:"nowrap" }}>
-                  {sm.label}
-                  <span style={{ fontSize:"0.65rem", opacity:0.7,
-                    transform: statusOffen ? "rotate(180deg)" : "none",
-                    transition:"transform 0.2s", lineHeight:1 }}>▾</span>
-                </button>
-                {statusOffen && (
-                  <>
-                    <div onClick={() => setStatusOffen(false)}
-                      style={{ position:"fixed", inset:0, zIndex:299 }} />
-                    <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0,
-                      background:T.navy, border:`1px solid ${T.accentTrim}`,
-                      borderRadius:10, zIndex:300, overflow:"hidden",
-                      boxShadow:"0 8px 24px rgba(0,0,0,0.4)", minWidth:160 }}>
-                      {["offen","in_regulierung","abgeschlossen","klage"].map(s => {
-                        const smi = STATUS_MAP[s];
-                        const isA = aktStatus === s;
-                        return (
-                          <button key={s} onClick={async () => {
-                            setStatusOffen(false);
-                            dispatch({ type:"SET_STATUS", akteId:akte.id, status:s });
-                            try {
-                              await apiAkten.aktualisieren(akte.id, { status: s });
-                            } catch(e) {
-                              dispatch({ type:"SET_STATUS", akteId:akte.id, status:aktStatus });
-                              setToast("Status konnte nicht gespeichert werden: " + (e?.message || String(e)));
-                            }
-                          }} style={{
-                            display:"block", width:"100%", textAlign:"left",
-                            padding:"8px 14px", background: isA ? "rgba(255,255,255,0.08)" : "transparent",
-                            border:"none", borderBottom:"1px solid rgba(255,255,255,0.07)",
-                            color: isA ? smi.color : "rgba(255,255,255,0.7)",
-                            fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem",
-                            fontWeight: isA ? 700 : 400, cursor:"pointer",
-                            transition:"background 0.1s" }}
-                            onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.08)"}
-                            onMouseLeave={e => e.currentTarget.style.background=isA?"rgba(255,255,255,0.08)":"transparent"}>
-                            <span style={{ display:"inline-block", width:8, height:8,
-                              borderRadius:"50%", background:smi.color,
-                              marginRight:7, verticalAlign:"middle" }} />
-                            {smi.label}
-                          </button>
-                        );
-                      })}
+              <div style={{ display:"flex", alignItems:"flex-start", gap:10, flexShrink:0 }}>
+                <div style={{ width:36, height:36, background:T.accentTrim, borderRadius:8,
+                  border:`1px solid ${T.accentTrim}`, display:"flex", alignItems:"center",
+                  justifyContent:"center", color:T.white, flexShrink:0, marginTop:4 }}>{Ic.akte}</div>
+                <div>
+                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.7rem",
+                    color:T.accentLight, letterSpacing:"0.14em", textTransform:"uppercase",
+                    lineHeight:1, fontWeight:600 }}>Aktenzeichen</div>
+                  <div style={{ display:"flex", alignItems:"baseline", gap:12, flexWrap:"wrap" }}>
+                    <h1 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"2.2rem",
+                      fontWeight:800, color:T.white, margin:"2px 0 0", lineHeight:1.05,
+                      letterSpacing:"-0.01em" }}>{akte.az}</h1>
+                    {(kurz || lang) && (
+                      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.95rem",
+                        fontWeight:500, color:"rgba(255,255,255,0.65)", whiteSpace:"nowrap" }}>
+                        {kurz}{kurz && lang ? " – " : ""}{lang}
+                      </span>
+                    )}
+                  </div>
+                  {metaTeile.length > 0 && (
+                    <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem",
+                      color:"rgba(255,255,255,0.38)", marginTop:3, letterSpacing:"0.03em" }}>
+                      {metaTeile.join("  ·  ")}
                     </div>
-                  </>
-                )}
+                  )}
+                </div>
               </div>
             );
           })()}
-          </div>
 
           {/* ── Mitte: To-Do Aufklapp-Kachel (flex-grow, so weit links wie möglich) ── */}
-          {(() => {
-            const offeneTodos = headerTodos.filter(t => !t.erledigt);
-            const FARBEN_DOT = { rot:T.red, orange:"#f97316", gelb:"#eab308", grau:"rgba(255,255,255,0.3)" };
-            const heute = new Date(); heute.setHours(0,0,0,0);
-            const dring = (todo) => {
-              if (todo.faellig_am) {
-                const tage = Math.round((new Date(todo.faellig_am) - heute) / 86400000);
-                return tage < 3 ? "rot" : tage < 7 ? "orange" : tage < 14 ? "gelb" : "grau";
-              }
-              const alter = Math.round((heute - new Date(todo.erstellt_am)) / 86400000);
-              return alter >= 15 ? "rot" : alter >= 8 ? "orange" : alter >= 4 ? "gelb" : "grau";
-            };
-            const sortiert = [...offeneTodos].sort((a,b) =>
-              ({rot:0,orange:1,gelb:2,grau:3}[dring(a)]||3) - ({rot:0,orange:1,gelb:2,grau:3}[dring(b)]||3)
-            );
-            const preview = sortiert.slice(0, 2);
-            return (
-              <div style={{ flex:"1 1 0", position:"relative", maxWidth:780 }}>
-                <button onClick={() => setTodoKlapp(o => !o)}
-                  style={{ width:"100%", background:"rgba(255,255,255,0.07)",
-                    border:`1px solid ${offeneTodos.length > 0 ? "rgba(160,107,74,0.5)" : "rgba(255,255,255,0.12)"}`,
-                    borderRadius:10, padding:"6px 14px", cursor:"pointer",
-                    display:"flex", alignItems:"center", gap:10,
-                    transition:"all 0.15s", textAlign:"left" }}>
-                  <span style={{ fontSize:"0.85rem", flexShrink:0 }}>📋</span>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    {offeneTodos.length === 0 ? (
-                      <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
-                        color:"rgba(255,255,255,0.4)" }}>Keine To-Do's erfasst</div>
-                    ) : (<>
-                      {preview.map(t => (
-                        <div key={t.id} style={{ display:"flex", alignItems:"center", gap:6,
-                          marginBottom: preview.length > 1 ? 2 : 0 }}>
-                          <span style={{ width:6, height:6, borderRadius:"50%", flexShrink:0,
-                            background:FARBEN_DOT[dring(t)], display:"inline-block" }} />
-                          <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
-                            color:"rgba(255,255,255,0.75)", overflow:"hidden",
-                            textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.text}</span>
-                        </div>
-                      ))}
-                      {offeneTodos.length > 2 && (
-                        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem",
-                          color:"rgba(255,255,255,0.35)", marginTop:1 }}>
-                          + {offeneTodos.length - 2} weitere
-                        </div>
-                      )}
-                    </>)}
-                  </div>
-                  <span style={{ color:T.accent, fontSize:"0.75rem", flexShrink:0,
-                    transform: todoKlapp ? "rotate(180deg)" : "none",
-                    transition:"transform 0.2s", lineHeight:1 }}>▾</span>
-                </button>
-                {todoKlapp && (
-                  <div onClick={() => setTodoKlapp(false)}
-                    style={{ position:"fixed", inset:0, zIndex:199 }} />
-                )}
-                {todoKlapp && (
-                  <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0,
-                    width:"100%", background:T.navy, border:`1px solid ${T.accentTrim}`,
-                    borderRadius:10, zIndex:200, padding:"10px 14px",
-                    boxShadow:"0 8px 32px rgba(0,0,0,0.4)" }}>
-                    {sortiert.length === 0 ? (
-                      <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem",
-                        color:"rgba(255,255,255,0.4)", textAlign:"center", padding:"8px 0" }}>
-                        Keine To-Do's erfasst
-                      </div>
-                    ) : sortiert.map(t => (
-                      <div key={t.id} style={{ display:"flex", alignItems:"flex-start", gap:7,
-                        padding:"6px 0", borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
-                        <button onClick={async () => {
-                          try {
-                            const r = await apiTodos.update(akte.az, t.id, { erledigt: true });
-                            setHeaderTodos(prev => prev.map(x => x.id === t.id ? r.todo : x));
-                          } catch {}
-                        }} title="Als erledigt markieren"
-                          style={{ flexShrink:0, width:16, height:16, borderRadius:"50%",
-                            border:`2px solid ${FARBEN_DOT[dring(t)]}`, background:"transparent",
-                            cursor:"pointer", marginTop:3, padding:0, transition:"all 0.15s" }}
-                          onMouseEnter={e => e.currentTarget.style.background=FARBEN_DOT[dring(t)]}
-                          onMouseLeave={e => e.currentTarget.style.background="transparent"} />
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.83rem",
-                            color:"rgba(255,255,255,0.85)", lineHeight:1.4 }}>{t.text}</div>
-                          {t.faellig_am && (
-                            <div style={{ fontSize:"0.72rem", color:"rgba(255,255,255,0.35)",
-                              fontFamily:"ui-monospace,monospace", marginTop:1 }}>
-                              Fällig: {(() => { try { const [y,m,d]=t.faellig_am.split("-"); return `${d}.${m}.${y}`; } catch{return t.faellig_am;}})()}
-                              {t.frist_typ==="verjaehrung" && " ⚠️"}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    <button onClick={() => { setTodoKlapp(false); setSec("todos"); }}
-                      style={{ marginTop:8, width:"100%", background:T.accentTrim,
-                        border:`1px solid rgba(160,107,74,0.3)`, borderRadius:7,
-                        color:T.accent, fontFamily:"'Figtree',sans-serif",
-                        fontSize:"0.8rem", padding:"5px 0", cursor:"pointer", fontWeight:600 }}>
-                      Alle To-Dos anzeigen →
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
           {/* ── Portal-aktiv Toggle ── */}
           <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
             <label style={{ display:"flex", alignItems:"center", gap:5, cursor:"pointer" }}>
@@ -473,6 +337,31 @@ function AkteDetailView({ akte, st, dispatch }) {
             })()}
           </div>
 
+        </div>
+
+        {/* ── Action-Buttons (Option C: zwischen KPI-Zeile und Tabs) ── */}
+        <div style={{ display:"flex", gap:6, padding:"6px 1.75rem 8px", flexWrap:"wrap" }}>
+          {[
+            { label:"💬 Nachricht → Mandant", stil:"primary", onClick:() => setZeigePwModal(true) },
+            { label:"📤 STA senden",          stil:"warn",    onClick:() => setZeigeStaDialog(true) },
+            { label:"+ Todo",                 stil:"ghost",   onClick:() => setSec("todos") },
+            { label:"📄 Word",                stil:"ghost",   onClick:() => setSec("word") },
+            { label:"⚖ Klage",               stil:"dimmed",  onClick:() => setSec("klage") },
+          ].map(({ label, stil, onClick }) => {
+            const s = {
+              primary: { background:T.accent,                color:"white",      border:"none" },
+              warn:    { background:"#f59e0b",               color:"#1a1a00",    border:"none" },
+              ghost:   { background:"rgba(255,255,255,.12)", color:"white",      border:"1px solid rgba(255,255,255,.22)" },
+              dimmed:  { background:"rgba(255,255,255,.07)", color:"rgba(255,255,255,.5)", border:"1px solid rgba(255,255,255,.1)" },
+            }[stil];
+            return (
+              <button key={label} onClick={onClick} style={{
+                ...s, fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem", fontWeight:600,
+                padding:"4px 11px", borderRadius:6, cursor:"pointer",
+                display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap",
+              }}>{label}</button>
+            );
+          })}
         </div>
 
         <div style={{ display:"flex", overflowX:"auto", scrollbarWidth:"none" }}>
@@ -535,6 +424,19 @@ function AkteDetailView({ akte, st, dispatch }) {
       </div>
     </div>
     {toast && <Toast msg={toast} onDone={() => setToast("")} />}
+    {zeigePwModal && (
+      <PwaNachrichtModal
+        az={akte.az_roh || akte.az}
+        mandantName={mandantName}
+        onClose={() => setZeigePwModal(false)}
+      />
+    )}
+    {zeigeStaDialog && (
+      <StaDialog
+        az={akte.az_roh || akte.az}
+        onClose={() => setZeigeStaDialog(false)}
+      />
+    )}
     </>
   );
 }

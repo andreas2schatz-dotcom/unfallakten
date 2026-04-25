@@ -107,6 +107,7 @@ def _akte_komplett(akte_id: str) -> dict:
         "bearbeiter_id":    akte.bearbeiter_id,
         "notizen":          akte.notizen,
         "kurzbezeichnung":  akte.kurzbezeichnung,
+        "sachbearbeiter":   akte.sachbearbeiter,
         "erstellt_am":      akte.erstellt_am,
         "geaendert_am":     akte.geaendert_am,
         "beteiligte":     [_beteiligter_dict(b) for b in beteiligte],

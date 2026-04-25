@@ -2372,14 +2372,6 @@ function UebersichtSection({ akte, st, dispatch, onNavigate }) {
       {/* ── Action Board ── */}
       <div style={{ border:`1px solid ${T.border}`, borderRadius:10, overflow:"hidden", marginBottom:"1.25rem", boxShadow:"0 1px 4px rgba(0,0,0,.05)" }}>
 
-        <AkteActionBoardHeader
-          akte={akte}
-          azRoh={azRoh}
-          mandantName={mandantName}
-          onNavigate={onNavigate}
-          ibanCheck={ibanCheck}
-        />
-
         <StatusBand
           ibanCheck={ibanCheck}
           todos={todosState}
@@ -2464,5 +2456,5 @@ function UebersichtSection({ akte, st, dispatch, onNavigate }) {
 }
 
 
-export { RegulierungsTabelle, TodoSection };
+export { RegulierungsTabelle, TodoSection, PwaNachrichtModal, StaDialog };
 export default UebersichtSection;
