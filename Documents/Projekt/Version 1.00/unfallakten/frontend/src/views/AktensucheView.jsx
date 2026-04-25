@@ -2,10 +2,11 @@ import React, { useState, useRef, useEffect } from "react";
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
 import { SUCHMODUS_LABEL } from "../config/constants.js";
-import { Card, Btn } from "../components/common.jsx";
+import { Card, Btn, Toast } from "../components/common.jsx";
 import {
   aktensuche as apiAktensuche,
   emailImport,
+  akten as apiAkten,
 } from "../api.js";
 
 // ── Autocomplete-Input ────────────────────────────────────────────────────────
@@ -131,6 +132,132 @@ function AutocompleteInput({ value, onChange, onSearch, onOpenAkte, placeholder,
   );
 }
 
+// ── Neue-Akte-Modal ───────────────────────────────────────────────────────────
+function NeueAkteModal({ onClose, onAkteErstellt }) {
+  const INIT = { aktenzeichen: "", unfalldatum: "", unfallort: "", notizen: "" };
+  const [felder, setFelder]   = useState(INIT);
+  const [speichert, setSpeich] = useState(false);
+  const [fehler, setFehler]   = useState({});
+
+  const set = (k, v) => setFelder(f => ({ ...f, [k]: v }));
+
+  const validiere = () => {
+    const e = {};
+    const azTrim = felder.aktenzeichen.trim();
+    if (!azTrim) e.aktenzeichen = "Pflichtfeld";
+    else if (!/^\d+\/\d{2}([A-Z]{2})?$/.test(azTrim))
+      e.aktenzeichen = "Format: ####/JJ oder ####/JJSB (z.B. 42/26 oder 42/26AS)";
+    if (!felder.unfalldatum.trim()) e.unfalldatum = "Pflichtfeld";
+    return e;
+  };
+
+  const erstellen = async () => {
+    const errs = validiere();
+    if (Object.keys(errs).length) { setFehler(errs); return; }
+    setSpeich(true); setFehler({});
+    try {
+      const res = await apiAkten.erstellen({
+        aktenzeichen: felder.aktenzeichen.trim(),
+        unfalldatum:  felder.unfalldatum.trim(),
+        unfallort:    felder.unfallort.trim() || undefined,
+        notizen:      felder.notizen.trim()   || undefined,
+      });
+      const akte = res?.akte || res;
+      onAkteErstellt({ id: akte.az || akte.aktenzeichen, az: akte.az || akte.aktenzeichen,
+        az_roh: akte.az || akte.aktenzeichen, status: "offen",
+        unfalldatum: felder.unfalldatum, unfallort: felder.unfallort, hq: 100, brutto: 0 });
+    } catch (e) {
+      setFehler({ allgemein: e?.message || "Fehler beim Anlegen der Akte." });
+    } finally {
+      setSpeich(false);
+    }
+  };
+
+  const inp = (label, key, placeholder, hint, required) => (
+    <div style={{ marginBottom: "1rem" }}>
+      <label style={{ display: "block", fontFamily: "'Figtree',sans-serif",
+        fontSize: "0.78rem", fontWeight: 600, color: T.textMid,
+        letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 5 }}>
+        {label}{required && <span style={{ color: T.red, marginLeft: 2 }}>*</span>}
+      </label>
+      <input
+        type={key === "unfalldatum" ? "date" : "text"}
+        value={felder[key]}
+        onChange={e => set(key, e.target.value)}
+        placeholder={placeholder}
+        style={{ width: "100%", padding: "9px 11px", border: `1.5px solid ${fehler[key] ? T.red : T.border}`,
+          borderRadius: 7, fontFamily: "'Figtree',sans-serif", fontSize: "0.95rem",
+          color: T.text, background: T.white, outline: "none", boxSizing: "border-box" }}
+        onFocus={e => e.target.style.borderColor = fehler[key] ? T.red : T.accent}
+        onBlur={e  => e.target.style.borderColor = fehler[key] ? T.red : T.border}
+      />
+      {fehler[key] && <div style={{ marginTop: 4, fontSize: "0.78rem", color: T.red,
+        fontFamily: "'Figtree',sans-serif" }}>{fehler[key]}</div>}
+      {hint && !fehler[key] && <div style={{ marginTop: 4, fontSize: "0.75rem",
+        color: T.textFaint, fontFamily: "'Figtree',sans-serif", lineHeight: 1.4 }}>{hint}</div>}
+    </div>
+  );
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+      zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: T.white, borderRadius: 12, boxShadow: "0 8px 40px rgba(0,0,0,0.22)",
+        padding: "1.75rem", width: "100%", maxWidth: 440, maxHeight: "90vh", overflowY: "auto" }}>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
+          marginBottom: "1.25rem" }}>
+          <h2 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: "1.25rem",
+            fontWeight: 700, color: T.navy, margin: 0 }}>Neue Akte anlegen</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none",
+            fontSize: "1.3rem", cursor: "pointer", color: T.textMuted, lineHeight: 1 }}>✕</button>
+        </div>
+
+        <div style={{ background: T.amberBg, border: `1px solid ${T.amber}44`,
+          borderRadius: 8, padding: "9px 13px", marginBottom: "1.25rem",
+          fontFamily: "'Figtree',sans-serif", fontSize: "0.825rem", color: T.amber }}>
+          ℹ Das Aktenzeichen muss mit dem RA-Micro-AZ übereinstimmen (z.B. <code style={{ fontFamily: "ui-monospace,monospace" }}>42/26</code>).
+        </div>
+
+        {inp("Aktenzeichen", "aktenzeichen", "42/26", "Format: Nummer/Jahr (ggf. + SB-Kürzel)", true)}
+        {inp("Unfalldatum", "unfalldatum", "", null, true)}
+        {inp("Unfallort", "unfallort", "Offenbach, Berliner Str. 12", null, false)}
+
+        <div style={{ marginBottom: "1rem" }}>
+          <label style={{ display: "block", fontFamily: "'Figtree',sans-serif",
+            fontSize: "0.78rem", fontWeight: 600, color: T.textMid,
+            letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 5 }}>
+            Notizen
+          </label>
+          <textarea value={felder.notizen} onChange={e => set("notizen", e.target.value)}
+            rows={2} placeholder="Erstnotiz (optional)"
+            style={{ width: "100%", padding: "9px 11px", border: `1.5px solid ${T.border}`,
+              borderRadius: 7, fontFamily: "'Figtree',sans-serif", fontSize: "0.95rem",
+              color: T.text, background: T.white, outline: "none", boxSizing: "border-box",
+              resize: "vertical" }}
+            onFocus={e => e.target.style.borderColor = T.accent}
+            onBlur={e  => e.target.style.borderColor = T.border} />
+        </div>
+
+        {fehler.allgemein && (
+          <div style={{ background: T.redBg, border: `1px solid ${T.red}44`, borderRadius: 8,
+            padding: "9px 13px", marginBottom: "1rem", fontFamily: "'Figtree',sans-serif",
+            fontSize: "0.825rem", color: T.red }}>
+            ⚠ {fehler.allgemein}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <Btn variant="secondary" onClick={onClose} disabled={speichert}>Abbrechen</Btn>
+          <Btn variant="gold" onClick={erstellen} disabled={speichert}>
+            {speichert ? "Wird angelegt …" : "Akte anlegen"}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Hauptkomponente ───────────────────────────────────────────────────────────
 function AktensucheView({ onOpenAkte }) {
   const [az, setAz]         = useState("");
@@ -141,6 +268,8 @@ function AktensucheView({ onOpenAkte }) {
   const [suchmodus, setMod] = useState("");
   const [fehler, setFeh]    = useState("");
   const [ramicroAktiv, setRA] = useState(true);
+  const [neueAkteOffen, setNeueAkteOffen] = useState(false);
+  const [toast, setToast]   = useState("");
 
   const suchen = async (feld) => {
     const azQ = az.trim(), kzQ = kz.trim(), tagQ = tag.trim();
@@ -179,16 +308,24 @@ function AktensucheView({ onOpenAkte }) {
   };
 
   return (
+    <>
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: T.offWhite }}>
 
       {/* Header */}
-      <div style={{ background: T.white, borderBottom: `1px solid ${T.border}`, padding: "1.1rem 1.75rem", flexShrink: 0 }}>
-        <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: "1.45rem", fontWeight: 700, color: T.navy, margin: "0 0 3px" }}>
-          Aktensuche
-        </h1>
-        <p style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.855rem", color: T.textMuted, margin: 0 }}>
-          Direktsuche in der RA-Micro Datenbank · Alle aktiven Akten
-        </p>
+      <div style={{ background: T.white, borderBottom: `1px solid ${T.border}`,
+        padding: "1.1rem 1.75rem", flexShrink: 0,
+        display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: "1.45rem", fontWeight: 700, color: T.navy, margin: "0 0 3px" }}>
+            Aktensuche
+          </h1>
+          <p style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.855rem", color: T.textMuted, margin: 0 }}>
+            Direktsuche in der RA-Micro Datenbank · Alle aktiven Akten
+          </p>
+        </div>
+        <Btn variant="gold" size="sm" onClick={() => setNeueAkteOffen(true)}>
+          + Neue Akte
+        </Btn>
       </div>
 
       {/* Drei Suchkacheln */}
@@ -363,6 +500,19 @@ function AktensucheView({ onOpenAkte }) {
         </div>
       )}
     </div>
+
+    {neueAkteOffen && (
+      <NeueAkteModal
+        onClose={() => setNeueAkteOffen(false)}
+        onAkteErstellt={(akte) => {
+          setNeueAkteOffen(false);
+          setToast(`Akte ${akte.az} angelegt`);
+          onOpenAkte(akte);
+        }}
+      />
+    )}
+    {toast && <Toast msg={toast} onDone={() => setToast("")} />}
+    </>
   );
 }
 

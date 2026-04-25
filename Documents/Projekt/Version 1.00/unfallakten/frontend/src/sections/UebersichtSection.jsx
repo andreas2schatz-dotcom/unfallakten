@@ -2158,7 +2158,7 @@ function UebersichtSection({ akte, st, dispatch, onNavigate }) {
   const [nChanged, setNC]     = useState(false);
   const [toast, setToast]     = useState("");
   const [ibanCheck,   setIbanCheck]   = useState(null);
-  const [stripOffene, setStripOffene] = useState([]);
+  const [stripOffene, setStripOffene] = useState(["regulierung"]);
   const [todosState,  setTodosState]  = useState([]);
 
   const azRoh = akte.az_roh || akte.az || "";

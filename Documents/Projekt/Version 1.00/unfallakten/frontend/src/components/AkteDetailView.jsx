@@ -270,15 +270,15 @@ function AkteDetailView({ akte, st, dispatch }) {
                       letterSpacing:"-0.01em" }}>{akte.az}</h1>
                     {(kurz || lang) && (
                       <span style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"2.2rem",
-                        fontWeight:400, color:"rgba(255,255,255,0.55)", whiteSpace:"nowrap",
+                        fontWeight:400, color:"rgba(255,255,255,0.78)", whiteSpace:"nowrap",
                         letterSpacing:"-0.01em", lineHeight:1.05 }}>
                         {kurz}{kurz && lang ? " – " : ""}{lang}
                       </span>
                     )}
                   </div>
                   {metaTeile.length > 0 && (
-                    <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem",
-                      color:"rgba(255,255,255,0.38)", marginTop:3, letterSpacing:"0.03em" }}>
+                    <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.87rem",
+                      color:"rgba(255,255,255,0.60)", marginTop:3, letterSpacing:"0.03em" }}>
                       {metaTeile.join("  ·  ")}
                     </div>
                   )}

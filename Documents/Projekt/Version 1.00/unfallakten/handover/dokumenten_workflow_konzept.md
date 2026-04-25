@@ -1,8 +1,7 @@
-# Dokumenten-Workflow-System & Produktplanung
+# Produktplanung & Workflow-Konzept
 # Kanzlei Koch, Schatz & Kollegen – Unfallakten-Verwaltungssystem
-> Version 3 – Session v18, 27. März 2026
-> Trennung: PRD-## = Modulentwicklung | B-## = Bugfixing
-> Ergänzt um: UX-Kritik, Tagesstart, Reiter-Ablauf, Single Source of Truth Abrechnungsart
+> Version 4 – Session v54, 25. April 2026
+> Grundstruktur: Onboarding → Außergerichtliche Regulierung → Klage
 
 ---
 
@@ -10,849 +9,432 @@
 
 | Präfix | Bedeutung |
 |---|---|
-| `PRD-##` | Product Requirement – neues Modul oder Feature |
-| `B-##` | Bug – Fehler in bestehendem Code |
+| `PRD-##` | Product Requirement – Feature oder Modul |
+| `B-##`   | Bug – Fehler in bestehendem Code |
+| `IMP-##` | Implementierungsdetail aus Code-Review |
 | ⬜ | Offen |
 | 🔄 | In Arbeit |
 | ✅ | Erledigt |
+| 🔴 | Kritisch |
+| 🟡 | Mittel |
+| 🟢 | Niedrig |
+
+---
+
+## Die zwei Kernphasen des Kanzlei-Workflows
+
+Das System bedient zwei Hauptphasen. Alle PRDs sind diesen Phasen zugeordnet.
+
+### Phase 1: Onboarding (Mandantenaufnahme)
+Von Erstkontakt bis vollständig aufgenommene Akte mit Erstforderung.
+
+| Schritt | System-Status | Lücke |
+|---|---|---|
+| Erstkontakt via E-Mail (unfall@) | ✅ E-Mail-Import-View | – |
+| Akte anlegen | ⚠️ Kein „+ Neue Akte"-Button im UI (Stub in v54) | Kein Onboarding-Wizard |
+| Stammdaten Mandant + KFZ | ⚠️ BeteiligteSection als nacktes CRUD | Kein Geburtsdatum, kein Beruf, keine Pflichtfelder |
+| RSV-Deckungsanfrage tracken | ⚠️ RSV-Pill vorhanden, aber kein Workflow | Anfrage → Deckungsbestätigung nicht nachverfolgbar |
+| Vollmacht versenden | ✅ Vollmacht-Generator + Mailto-Link | – |
+| Gegnerseite identifizieren | ⚠️ Gegnerkachel vorhanden | Kein KH-Versicherer-Lookup per Kennzeichen |
+| WDM-Daten laden | ✅ PRD-15 implementiert (v53) | – |
+| Erstanschreiben-Paket | ⚠️ WordSection generiert einzeln | Kein „Onboarding-Pack"-Button (alle Briefe auf einmal) |
+| Konfliktcheck / Interessenkollision | ❌ Komplett fehlend | Kein Hinweis bei Gegenseite bereits vertreten |
+
+### Phase 2: Außergerichtliche Regulierung
+Von Erstforderung bis Vollregulierung oder Klagevorbereitung.
+
+| Schritt | System-Status | Lücke |
+|---|---|---|
+| Erstforderung versenden | ✅ WordSection + Forderungshistorie | – |
+| § 3a PflVG-Frist | ✅ StatusBand mit Countdown | – |
+| STA versenden | ✅ STA-Dialog im Header | – |
+| Abrechnungsschreiben parsen | ✅ KI-Parsing + Qwen Shadow-Mode | – |
+| Kürzungsanalyse (Was wurde gekürzt?) | ✅ Kürzungsarten-Tabelle | Gut abgedeckt |
+| Stellungnahme erstellen | ⚠️ apiStellungnahme vorhanden | PRD-27 (ReguWizard) fehlt; keine Textbausteine (PRD-02) |
+| Mandant über Zwischenstand informieren | ⚠️ PWA-Nachricht-Modal vorhanden | Kein automatischer Stand-Bericht als PDF |
+| Nachforderung / 2. Forderungsschreiben | ⚠️ Technisch möglich | Kein klarer Workflow |
+| Verzugsschaden + RVG Nr. 2300 | ✅ PRD-28 Gebührenassistent | – |
+| Regulierungsstand verbuchen | ✅ Option-B-Regulierungsworkflow | – |
+| Entscheidungspunkt → Klage | ✅ Klage-Wizard 10 Steps (PRD-26) | – |
 
 ---
 
 ## Aktuelle Bug-Liste
 
 ### B-01 ✅ Prüfbericht-Persistenz
-**Datei:** `abrechnungsschreiben_routes.py`
-Prüfbericht verschwand nach Neuanmelden. Behoben in v17.
+Prüfbericht verschwand nach Neuanmelden. Behoben v17.
 
 ### B-02 ✅ Kürzungskatalog Dauerspinner
-**Datei:** `App.jsx` – `KuerzungskatalogSection`
-`KATEGORIE_CFG` nie definiert → React Error Boundary fing Crash stumm ab.
-`finally`-Block fehlte → `setLoading(false)` wurde nie erreicht.
-Behoben in v18. Siehe `bugs_and_fixes.md` [v18-01].
+`KATEGORIE_CFG` nicht definiert → `finally`-Block fehlte. Behoben v18.
 
 ### B-03 ⬜ Klagegenerator nicht vollständig getestet
-**Datei:** `klage_service.py`, `klage_routes.py`
-13 Blöcke müssen einzeln getestet werden. Noch kein Block abgenommen.
-→ Gehört zu PRD-03.
+Gehört zu PRD-03. 13 Blöcke müssen einzeln getestet werden.
 
-### B-04 ⬜ Abrechnungsart-Logik an 4 Stellen gespiegelt
-**Dateien:** `App.jsx` (3 Stellen), `klage_service.py`
-Die Logik "fiktiv / konkret / Totalschaden → welcher Betrag gilt" ist mehrfach
-vorhanden. Führte in v15 zu Bugs (B-15-02). Wird bei jeder Änderung erneut
-inkonsistent.
-→ Wird in PRD-14 als erstes behoben (Single Source of Truth).
-**Risiko:** Hoch – Konsistenzfehler setzen sich in Klageschrift und Regulierung fort.
+### B-04 🔄 Abrechnungsart an 4 Stellen gespiegelt
+**Dateien:** `AkteDetailView.jsx:172–176`, `UebersichtSection.jsx:~1789`, `RegulierungSection.jsx:~1776`
+Backend liefert `abrechnungsberechnung.gesamt_brutto` (Header liest es bereits korrekt).
+Frontend-Berechnungen in UebersichtSection und RegulierungSection müssen noch auf Backend-Wert umgestellt werden.
+→ PRD-14 (teilweise umgesetzt, Frontend-Cleanup ausstehend)
 
-### B-05 ⬜ WDM-Daten werden nur auf Knopfdruck geladen
-**Dateien:** `App.jsx`, `klage_routes.py`
-WDM-Felder (Unfalldatum, Unfallort, Zeugen etc.) werden nicht automatisch
-beim Öffnen einer Akte geladen. Wenn Sachbearbeiter "WDM laden" vergisst:
-Klageschrift hat kein Unfalldatum.
-→ Wird in PRD-15 behoben (automatischer WDM-Load).
+### B-05 ✅ WDM-Daten werden nur auf Knopfdruck geladen
+Behoben: PRD-15 implementiert in `AkteDetailView.jsx:106–158` (v53).
 
----
+### B-06 ✅ IMP-02: RSV „anfrage"-Zustand nicht erreichbar
+RSV `warn`-Prop entfernt, nur `ok/neutral`. Behoben in Commit 6f3c46e.
 
-## Produktplanung – Übersicht
+### B-07 ✅ IMP-04: Doppelter `apiTodos.liste()`-Fetch
+Todos in `UebersichtSection` gehoisted, als Prop an StatusBand + TodoWvSpalten. Behoben in Commit 6f3c46e.
 
-```
-── FUNDAMENT ──────────────────────────────────────────────────
-PRD-14  Single Source of Truth: Abrechnungsart          [KRITISCH]
-PRD-15  WDM automatisch laden                           [KRITISCH]
-PRD-16  Reiter-Reihenfolge: Ablauf erkennbar            [UX]
-PRD-17  Tagesstart-Dashboard                            [UX]
-PRD-18  Statusmodell erweitern                          [Logik]
-
-── BESTEHENDE FEATURES ABSCHLIESSEN ───────────────────────────
-PRD-01  To-Do-System + Kachel                           [Fundament]
-PRD-02  Kürzungsarten: Textbaustein-Feld                [Stellungnahme]
-PRD-03  Klagegenerator Abschlusstest                    [Klage]
-PRD-13  D4 Rechtliche Würdigung (Klage)                 [Klage]
-PRD-12  Vorlagen-Verwaltung (Einstellungen)             [Einstellungen]
-
-── DOKUMENTEN-WORKFLOW ────────────────────────────────────────
-PRD-04  Erweiterte Dokumentenklassen                    [Workflow]
-PRD-05  Betrag-Abgleich nach Upload                     [Workflow]
-PRD-06  Parser: Reparaturrechnung (LLM)                 [Workflow]
-PRD-07  Workflow-Regeln + automatische To-Dos           [Workflow]
-PRD-08  Weitere Parser (je Dokumentenklasse)            [Workflow]
-PRD-09  Vollständigkeits-Ampel (smart)                  [Workflow]
-PRD-10  Mandanten-Anforderungsstatus                    [Workflow]
-PRD-11  Dokument-Position-Verknüpfung                   [Integration]
-PRD-19  RA-Micro DMS Integration (Read-Only)            [Integration]
-```
+### B-08 ✅ IMP-05: `pwa_nachricht_senden` nutzt kein `logge_aktivitaet()`
+`logge_aktivitaet()` verwendet. Behoben in Commit 6f3c46e.
 
 ---
 
-## 🔴 PRD-14 – Single Source of Truth: Abrechnungsart
-**Priorität:** 🔴 Kritisch – vor allen anderen PRDs
-**Session-Schätzung:** 1 Session
-**Abhängigkeiten:** keine – Voraussetzung für alle anderen PRDs die Beträge verwenden
+## PRD-Übersicht (nach Priorität)
 
-### Problem (B-04)
-Die Logik zur Bestimmung der Abrechnungsart und des maßgeblichen Fahrzeugschadens
-ist an **4 Stellen** gespiegelt:
-- `App.jsx` → `calcBrutto()` (Übersichtsberechnung)
-- `App.jsx` → `_fzg()` in `UebersichtSection`
-- `App.jsx` → `_fzg()` in `AktenDetail`
-- `klage_service.py` → `berechne_fahrzeugschaden()`
-
-Jede Änderung muss an 4 Stellen gemacht werden. Jede Inkonsistenz führt dazu
-dass Frontend und Klageschrift unterschiedliche Beträge zeigen.
-
-### Lösung: Backend berechnet, Frontend zeigt nur an
-
-```python
-# backend/models/schaden.py – neue Funktion
-
-def berechne_abrechnungsart(schaden: dict) -> dict:
-    """
-    Einzige Stelle im gesamten System wo die Abrechnungsart berechnet wird.
-    Gibt vollständiges Ergebnis zurück – Frontend rechnet NIE selbst.
-
-    Returns:
-        {
-          "abrechnungsart":     "fiktiv" | "konkret" | "totalschaden",
-          "fahrzeugschaden":    1234.56,   # der maßgebliche Nettobetrag
-          "fahrzeugschaden_key": "rep_gutachten_netto" | "rep_rechnung_netto" | "wiederbeschaffung",
-          "ust_relevant":       True | False,
-          "begruendung":        "Reparaturrechnung liegt vor (rep_rechnung_netto > 0)",
-        }
-    """
-    def f(key): return float(schaden.get(key) or 0)
-
-    rep_sv  = f("rep_gutachten_netto") or f("reparaturkosten")
-    rep_rn  = f("rep_rechnung_netto")
-    wbw     = f("wiederbeschaffung")
-    rstwert = f("restwert")
-
-    # Explizit gesetzte Abrechnungsart hat immer Vorrang
-    explizit = (schaden.get("abrechnungsart") or "").strip()
-    if explizit in ("fiktiv", "konkret", "totalschaden"):
-        art = explizit
-    else:
-        # Auto-Logik
-        if wbw > 0 and (rep_sv <= 0 or rep_sv > wbw - rstwert):
-            art = "totalschaden"
-        elif rep_rn > 0:
-            art = "konkret"
-        else:
-            art = "fiktiv"
-
-    if art == "totalschaden":
-        betrag = wbw - rstwert
-        key    = "wiederbeschaffung"
-    elif art == "konkret":
-        betrag = rep_rn
-        key    = "rep_rechnung_netto"
-    else:
-        betrag = rep_sv
-        key    = "rep_gutachten_netto"
-
-    return {
-        "abrechnungsart":      art,
-        "fahrzeugschaden":     round(betrag, 2),
-        "fahrzeugschaden_key": key,
-        "ust_relevant":        art == "konkret",
-    }
 ```
+── KRITISCH (sofort) ────────────────────────────────────────────
+PRD-14   Single Source of Truth: Abrechnungsart (Frontend-Cleanup)
+PRD-02   Textbaustein-Feld Kürzungsarten (Voraussetzung für PRD-27)
+PRD-27   ReguWizard – Stellungnahme-Wizard (größter Effizienz-Hebel)
 
-### API-Änderung
+── BALD (nächste 3 Sessions) ────────────────────────────────────
+PRD-16   Tab-Reihenfolge als Workflow-Ablauf
+PRD-18   Statusmodell + Phasen-Strip
+PRD-NEW  Onboarding-Wizard (neu identifiziert)
+PRD-17   Tagesstart-Dashboard (DashboardView existiert – nur Default setzen)
+
+── MITTEL ───────────────────────────────────────────────────────
+PRD-03   Klagegenerator Abschlusstest
+PRD-33   Klage-Wizard Feintuning (Formatierung + Textbausteine)
+PRD-04   Erweiterte Dokumentenklassen (Klasse A/B/C)
+PRD-32   Rechnungstypen-Parser Phase 2 (Beleg-Mapping)
+PRD-05   Betrag-Abgleich nach Upload
+PRD-25c  Mandantenkommunikation
+
+── SPÄTER ───────────────────────────────────────────────────────
+PRD-01   To-Do-System Vollausbau (Action Board deckt 70 % ab)
+PRD-06   Parser Reparaturrechnung LLM
+PRD-07   Workflow-Regeln + automatische To-Dos
+PRD-19   RA-Micro DMS Integration (Read-Only)
+
+── ABGESCHLOSSEN ────────────────────────────────────────────────
+PRD-15 ✅  WDM automatisch laden (AkteDetailView.jsx:106–158)
+PRD-22c ✅ Mandanten-Fragebogen
+PRD-22d ✅ E-Mail-Import UI (3 Tabs)
+PRD-23b ✅ Rechnungs-Parser (Registry + Kandidaten + Parser)
+PRD-25a ✅ Automatische Fristen
+PRD-25b ✅ Action-Dashboard / Wiedervorlagen
+PRD-26 ✅  Klage-Wizard (10 Steps)
+PRD-28 ✅  Gebührenassistent Nr. 2300 VV RVG
+PRD-29 ✅  Schmerzensgeld-Ermittlungstool
+PRD-29b ✅ E-Akte Auto-Parser Schlagwort-Filter
+PRD-30 ✅  OCR + SSE-Streaming (pytesseract, pdf2image, EventSource)
+PRD-31 ✅  Action Board / Übersicht-Umbau (IMP-01/03/06 erledigt)
+PRD-32 ✅  Phase 1: Subklassifizierung (standkostenrechnung, abschlepprechnung)
+PRD-34 ✅  Inbox-Pattern Dokumente-Kachel
 ```
-GET /akten/<az>/schaden
-→ Response enthält künftig: { ...schaden, "abrechnungsberechnung": { ... } }
-```
-
-Frontend liest `abrechnungsberechnung` aus der API-Response.
-Alle Frontend-Berechnungen (`calcBrutto`, `_fzg`) werden **gelöscht** und
-durch den API-Wert ersetzt.
-
-### Checkliste
-- [ ] `berechne_abrechnungsart()` in `backend/models/schaden.py`
-- [ ] `GET /akten/<az>/schaden` gibt `abrechnungsberechnung` zurück
-- [ ] `App.jsx`: `calcBrutto()` entfernen, durch API-Wert ersetzen
-- [ ] `App.jsx`: `_fzg()` in UebersichtSection entfernen
-- [ ] `App.jsx`: `_fzg()` in AktenDetail entfernen
-- [ ] `klage_service.py`: `berechne_fahrzeugschaden()` ruft jetzt `berechne_abrechnungsart()` auf
-- [ ] Regressionstest: Summen in Übersicht == Summen in Klageschrift
-
-**Abnahmekriterium:** Betrag in Übersicht, Regulierungsreiter und Klageschrift
-sind identisch bei gleicher Akte – unabhängig davon ob fiktiv/konkret/Totalschaden.
 
 ---
 
-## 🔴 PRD-15 – WDM automatisch laden
-**Priorität:** 🔴 Hoch
-**Session-Schätzung:** 1 Session
+## PRD-Details: Offene Kritische PRDs
+
+---
+
+### 🔴 PRD-14 – Single Source of Truth: Abrechnungsart (Frontend-Cleanup)
+**Status:** 🔄 In Arbeit (Backend ✅, Frontend-Cleanup ⬜)
+**Session-Schätzung:** 0,5 Sessions
 **Abhängigkeiten:** keine
 
-### Problem (B-05)
-WDM-Variablen (Unfalldatum, Unfallort, Zeugen, Fahrer, Kennzeichen Gegner etc.)
-werden nur geladen wenn der Sachbearbeiter aktiv auf "WDM laden" klickt.
-Vergisst er das → Klageschrift hat leere Felder.
+#### Was bereits fertig ist
+Backend liefert `abrechnungsberechnung.gesamt_brutto` in der Schaden-Response.
+`AkteDetailView.jsx:172` liest es bereits korrekt mit Fallback.
 
-### Lösung
-Beim Öffnen einer Akte wird WDM automatisch im Hintergrund geladen und mit
-SQLite-Daten gemergt (SQLite hat Vorrang – manuell Eingetragenes wird nie überschrieben).
+#### Was noch fehlt
+Lokale Berechnungen in zwei Dateien entfernen:
 
-```python
-# In GET /akten/<az>/unfalldetails (bereits vorhanden)
-# Schon implementiert für den Klage-Tab – auf alle Reiter ausweiten
+```javascript
+// UebersichtSection.jsx – _fzg()-Funktion entfernen (~Zeile 1789)
+// Stattdessen: abrechnungsberechnung aus st.schaden lesen
 
-# Erweitern auf:
-# GET /akten/<az>  (Akten-Öffnen)
-# → WDM-Merge direkt in der Antwort, kein separater Klick nötig
+// RegulierungSection.jsx – lokale Betrag-Berechnung entfernen (~Zeile 1776)
+// Stattdessen: st.schaden.abrechnungsberechnung verwenden
 ```
 
-### UI-Änderung
-- "WDM laden"-Button bleibt als manueller Refresh für den Fall dass RA-Micro
-  nach dem Öffnen aktualisiert wurde
-- Neu: kleines WDM-Status-Icon in der Kopfzeile:
-  - ✅ grün: WDM geladen
-  - ⚠️ gelb: WDM nicht erreichbar (RA-Micro offline)
-  - Kein Icon: keine WDM-Integration konfiguriert
+#### Checkliste
+- [ ] `UebersichtSection.jsx`: `_fzg()` entfernen, `st.schaden.abrechnungsberechnung` lesen
+- [ ] `RegulierungSection.jsx`: lokale Betrag-Berechnung auf Backend-Wert umstellen
+- [ ] Regressionstest: gleiche Beträge in Übersicht, Regulierung, Header
 
-### Checkliste
-- [ ] WDM-Merge in `GET /akten/<az>` integrieren
-- [ ] WDM-Status-Icon in Akten-Kopfzeile
-- [ ] "WDM laden"-Button bleibt als manueller Refresh
-- [ ] Warnung wenn WDM-Pflichtfelder für Klage leer sind
-
-**Abnahmekriterium:** Akte öffnen → Unfalldatum, Unfallort, Kennzeichen Gegner
-automatisch aus RA-Micro vorausgefüllt, ohne Klick.
+**Abnahmekriterium:** Betrag in Übersicht, Regulierung und Header sind identisch.
 
 ---
 
-## 🔴 PRD-16 – Reiter-Reihenfolge: Ablauf erkennbar
-**Priorität:** 🔴 Hoch
-**Session-Schätzung:** 0,5 Sessions (nur Umsortierung + UX-Anpassung)
-**Abhängigkeiten:** PRD-01 (To-Dos als erster Reiter)
+### 🔴 PRD-02 – Textbaustein-Feld Kürzungsarten
+**Status:** ⬜ Offen
+**Session-Schätzung:** 0,5 Sessions
+**Abhängigkeiten:** keine – Voraussetzung für PRD-27
 
-### Problem
-Acht Reiter ohne erkennbare Reihenfolge. Der Sachbearbeiter muss selbst
-wissen wo er steht und was als nächstes zu tun ist.
-
-### Neue Reiter-Reihenfolge (Ablauf-Logik)
-
-```
-1. 📋 To-Dos          ← Was ist jetzt zu tun? (PRD-01)
-2. 👥 Beteiligte      ← Wer ist beteiligt? (Grundlage für alles)
-3. 🚗 Schaden         ← Was ist passiert / wie hoch ist der Schaden?
-4. 📄 Dokumente       ← Welche Belege liegen vor?
-5. 💶 Regulierung     ← Was hat die Versicherung gezahlt / gekürzt?
-6. ⚖️ Klage           ← Gerichtliche Geltendmachung
-7. 📝 Word            ← Alle generierbaren Dokumente
-8. 🔍 Unfalldetails   ← Ergänzende Details (WDM-Daten, selten gebraucht)
-```
-
-**Begründung der Reihenfolge:**
-- To-Dos zuerst: sofortiger Überblick was offen ist
-- Beteiligte vor Schaden: ohne Gegner/GHPV kann kein Schreiben generiert werden
-- Dokumente vor Regulierung: Belege müssen vor Regulierungsprüfung vorliegen
-- Klage nach Regulierung: logischer Eskalationsweg
-- Word nach Klage: Generierung als letzter Schritt, nicht als Einstieg
-- Unfalldetails ans Ende: selten bearbeitet, meist durch WDM vorausgefüllt
-
-### Visueller Fortschrittsindikator
-Jeder Reiter bekommt einen Status-Punkt:
-```
-📋 To-Dos      🔴 3 offen
-👥 Beteiligte  ✅ vollständig
-🚗 Schaden     ✅ vollständig
-📄 Dokumente   ⚠️ 2 fehlen
-💶 Regulierung ⚠️ Kürzungen offen
-⚖️ Klage       ⬜ noch nicht begonnen
-```
-
-### Checkliste
-- [ ] Reiter umsortieren in `App.jsx`
-- [ ] Status-Punkte je Reiter berechnen und anzeigen
-- [ ] Reiter-Icons einheitlich
-
-**Abnahmekriterium:** Neuer Sachbearbeiter öffnet Akte und erkennt ohne Einweisung
-wo er steht und was als nächstes zu tun ist.
-
----
-
-## 🔴 PRD-17 – Tagesstart-Dashboard
-**Priorität:** 🔴 Hoch
-**Session-Schätzung:** 1–2 Sessions
-**Abhängigkeiten:** PRD-01 (To-Dos), PRD-04 (Dokumentenklassen)
-
-### Vision
-Der Sachbearbeiter öffnet morgens das System und sieht sofort:
-was ist heute zu tun, was ist neu, was ist dringend.
-
-### Dashboard-Struktur
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Guten Morgen, Peter Koch  ·  Freitag, 27. März 2026       │
-├─────────────┬───────────────┬──────────────┬───────────────┤
-│  🔴 Dringend │  📨 Neu heute  │  ⏳ In Arbeit │  ✅ Diese Woche│
-│      3      │       2       │      12      │      8        │
-└─────────────┴───────────────┴──────────────┴───────────────┘
-
-🔴 HEUTE FÄLLIG
-  322/25KS  Müller ./. Allianz    Stellungnahme überfällig – 18 Tage offen
-  187/24AS  Schmidt ./. HUK       Verjährung in 12 Tagen ← frist_typ=verjaehrung
-  091/25KS  Weber ./. DEVK        Warte auf Mietwagenrechnung – 21 Tage
-
-📨 NEU EINGEGANGEN
-  E-Mail von Allianz zu 244/24KS  [In Akte öffnen]
-  Abrechnungsschreiben zu 311/25AS wurde geparst  [Prüfen]
-
-🚀 BEREIT ZUR BEARBEITUNG
-  Akten bei denen alle Dokumente vorliegen aber noch kein
-  Forderungsschreiben generiert wurde (5 Akten)  [Alle anzeigen]
-```
-
-### Datenquellen
-| Block | Quelle |
-|---|---|
-| Dringend | `todos`-Tabelle: `faellig_am` < heute + 3 Tage, oder Alter > 15 Tage |
-| Verjährung | `todos`-Tabelle: `frist_typ = 'verjaehrung'` |
-| Neu eingegangen | `email_import_log` + `dokumente` (heute erstellt) |
-| Bereit zur Bearbeitung | Akten wo Klasse-A-Dokumente vorhanden aber kein Forderungsschreiben |
-
-### Checkliste
-- [ ] Neuer Reiter "Dashboard" in der Hauptnavigation (ganz links)
-- [ ] Kacheln: Dringend / Neu / In Arbeit / Diese Woche
-- [ ] Block "Heute fällig" (aus `todos`)
-- [ ] Block "Neu eingegangen" (aus E-Mail-Import + Dokumente)
-- [ ] Block "Bereit zur Bearbeitung" (aus Dokumenten-Vollständigkeit)
-- [ ] Sachbearbeiter-Filter (eigene Akten / alle Akten)
-- [ ] Klick auf Eintrag öffnet direkt die richtige Akte im richtigen Reiter
-
-**Abnahmekriterium:** Sachbearbeiter öffnet das System morgens und kann ohne
-eine einzige Akte manuell zu öffnen erkennen was heute prioritär ist.
-
----
-
-## 🟡 PRD-18 – Statusmodell erweitern
-**Priorität:** 🟡 Mittel
-**Session-Schätzung:** 1 Session
-**Abhängigkeiten:** PRD-14
-
-### Problem
-Eine Akte hat einen einzigen Status: `offen / abgeschlossen / klage`.
-Das bildet die Realität nicht ab – eine Akte kann mehrere parallele Zustände haben.
-
-### Neues Statusmodell
-
-```sql
--- Bestehend (bleibt):
-status TEXT  -- 'offen' | 'abgeschlossen' | 'klage'
-
--- Neu (zusätzliche Spalten):
-ALTER TABLE unfallakte ADD COLUMN regulierungsstatus TEXT
-    DEFAULT 'ausstehend';
-    -- 'ausstehend' | 'teilreguliert' | 'vollreguliert' | 'abgelehnt' | 'strittig'
-
-ALTER TABLE unfallakte ADD COLUMN klagestatus TEXT
-    DEFAULT 'kein_verfahren';
-    -- 'kein_verfahren' | 'vorbereitung' | 'eingereicht' | 'anhängig' | 'abgeschlossen'
-
-ALTER TABLE unfallakte ADD COLUMN wv_status TEXT
-    DEFAULT 'keine';
-    -- 'keine' | 'fällig' | 'überfällig'
-```
-
-### Automatische Ableitung
-- `regulierungsstatus` wird automatisch aus `regulierung_positionen` berechnet
-- `klagestatus` wird manuell gesetzt (oder bei Klageschrift-Generierung auf 'vorbereitung')
-- `wv_status` kommt aus RA-Micro Wiedervorlagen
-
-### Checkliste
-- [ ] DB-Migration: 3 neue Statusspalten
-- [ ] `regulierungsstatus` automatisch berechnen nach jeder Regulierung
-- [ ] Aktenübersicht: kombinierte Statusanzeige
-- [ ] Filter in der Aktenübersicht nach allen Statusdimensionen
-
----
-
-## PRD-01 – To-Do-System + Kachel
-**Priorität:** 🔴 Hoch
-**Session-Schätzung:** 1 Session
-**Abhängigkeiten:** keine (aber PRD-16 bestimmt wo die Kachel landet)
-
-### Ziel
-Sachbearbeiter kann To-Dos manuell anlegen, abhaken und priorisieren.
-To-Dos erscheinen als erster Reiter in der Akte (PRD-16) und im Tagesstart (PRD-17).
-
-### DB-Schema
-```sql
-CREATE TABLE todos (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  akte_az      TEXT NOT NULL REFERENCES unfallakte(az),
-  text         TEXT NOT NULL,
-  erstellt_am  TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
-  faellig_am   TEXT,
-  frist_typ    TEXT,   -- 'verjaehrung' | 'gericht' | 'intern' | NULL
-  erledigt_am  TEXT,
-  erledigt     INTEGER NOT NULL DEFAULT 0 CHECK(erledigt IN (0,1)),
-  quelle       TEXT NOT NULL DEFAULT 'benutzer',  -- 'system' | 'benutzer'
-  dok_id       INTEGER REFERENCES dokumente(id),
-  regel_key    TEXT,
-  sortierung   INTEGER NOT NULL DEFAULT 0
-);
-```
-
-### Dringlichkeit (zwei Dimensionen)
-```
-Nach Alter (kein faellig_am):
-  0–3 Tage   → grau
-  4–7 Tage   → gelb
-  8–14 Tage  → orange
-  15+ Tage   → rot
-
-Nach Frist (faellig_am gesetzt):
-  > 14 Tage  → grau
-  7–14 Tage  → gelb
-  3–7 Tage   → orange
-  < 3 Tage   → rot
-  verjaehrung → immer eine Stufe höher
-```
-
-### Verhalten
-- Erledigt: durchgestrichen, rote Schrift, bleibt in Liste am Ende
-- System-To-Dos: Schloss-Icon, Text nicht editierbar
-- Nutzer kann eigene anlegen, erledigen, wieder öffnen
-
-### Checkliste
-- [ ] DB-Migration: `todos`-Tabelle
-- [ ] `todos_routes.py` + Blueprint in `app.py`
-- [ ] To-Do-Reiter als erster Reiter in Aktenansicht
-- [ ] Zeitbasierte Dringlichkeitsfarben
-- [ ] Frist-Dringlichkeit
-- [ ] Erledigt-Markierung (nicht gelöscht)
-- [ ] Manuelles Anlegen + Text + optionales Fälligkeitsdatum
-
-**Abnahmekriterium:** To-Do anlegen, Fälligkeitsdatum setzen, abhaken –
-bleibt durchgestrichen in der Liste.
-
----
-
-## PRD-02 – Kürzungsarten: Textbaustein-Feld
-**Priorität:** 🔴 Hoch
-**Session-Schätzung:** 1 Session
-**Abhängigkeiten:** keine
-
-### DB-Migration
+#### DB-Migration
 ```sql
 ALTER TABLE kuerzungsarten ADD COLUMN textbaustein TEXT;
 ```
 
-### Fallback-Kette in `stellungnahme_service.py`
+#### Fallback-Kette in `stellungnahme_service.py`
 ```python
 text = ka.textbaustein \
     or ka.standard_gegenargument \
     or "Die Kürzung ist nicht gerechtfertigt."
 ```
 
-### Checkliste
-- [ ] DB-Migration
-- [ ] `schema_manager.py` Migration eintragen
+#### Checkliste
+- [ ] DB-Migration + `schema_manager.py`
 - [ ] Kürzungskatalog-Formular: Textarea für Textbaustein
 - [ ] `stellungnahme_service.py`: Fallback-Kette
 - [ ] Kürzungskatalog-Liste: Textbaustein-Preview
 
 ---
 
-## PRD-03 – Klagegenerator Abschlusstest
-**Priorität:** 🔴 Hoch
+### 🔴 PRD-27 – ReguWizard: Geführte Stellungnahme
+**Status:** ⬜ Offen (Planung)
 **Session-Schätzung:** 1–2 Sessions
-**Abhängigkeiten:** PRD-14 (Abrechnungsart muss konsistent sein bevor Test sinnvoll)
+**Abhängigkeiten:** PRD-02 (Textbausteine)
+
+#### Vision
+Nach Eingang eines Abrechnungsschreibens mit 5 Kürzungen soll das System sagen:
+> „Kürzung: UPE-Aufschlag 12 % → Vorschlag: BGH VI ZR 53/09 (Stundenverrechnungssätze) – Kürzung unzulässig [Einfügen]"
+
+Exakt diese Mikrointeraktion × 5–10 Akten/Tag = mehrere Stunden Zeitersparnis pro Woche.
+
+#### Ablauf
+```
+1. Abrechnung mit Kürzungen → Button „Stellungnahme erstellen"
+2. Wizard öffnet: je Kürzungsposition eine Seite
+3. Pro Position: Kürzungs-Art (automatisch erkannt) + vorgeschlagener Textbaustein
+4. Anwalt: akzeptieren / anpassen / überspringen
+5. Zusammenfassung → Word-Export
+```
+
+#### Checkliste
+- [ ] Wizard-Komponente in `RegulierungSection.jsx` oder eigene Section
+- [ ] Kürzungsarten → Textbaustein → Brieftext-Zusammenbau
+- [ ] Word-Export über `word_routes.py`
+- [ ] Stellungnahme als Dokument speichern + Aktivitäten-Log
+
+---
+
+### 🟡 PRD-16 – Tab-Reihenfolge als Workflow-Ablauf
+**Status:** ⬜ Offen
+**Session-Schätzung:** 0,5 Sessions
+
+#### Ziel-Reihenfolge
+```
+1. ⚡ Übersicht   (Action Board – Default)
+2. 👥 Beteiligte
+3. 🔍 Unfalldetails
+4. 🚗 Schaden
+5. 📄 Dokumente
+6. 💶 Regulierung
+7. ⚖ Klage
+8. 📝 Word
+9. ⚖️ Gebühren
+```
+„To-Dos"-Tab entfernen (Inhalt liegt bereits in Übersicht).
+
+#### Aktuelle Reihenfolge (v53)
+uebersicht → beteiligte → unfalldetails → schaden → dokumente → regulierung → **gebuehren** → klage → word → **todos**
+
+#### Checkliste
+- [ ] `AkteDetailView.jsx`: `tabs`-Array umordnen (Zeile 222–233)
+- [ ] „To-Dos"-Tab aus Array entfernen oder durch Redirect auf Übersicht ersetzen
+- [ ] „Gebühren" nach „Word" verschieben
+
+---
+
+### 🟡 PRD-18 – Statusmodell + Phasen-Strip
+**Status:** ⬜ Offen
+**Session-Schätzung:** 1 Session
+**Abhängigkeiten:** PRD-14
+
+#### Problem
+Mehrere Mitarbeiter, eine fremde Akte: Wo stehen wir? 
+FinanzBand + StatusBand zeigen KPIs, aber keine **Phase**. 
+Sichtbarer Phasen-Strip würde Übergaben eliminieren.
+
+#### Phasen-Strip (automatisch abgeleitet)
+```
+Onboarding ▶ Erstforderung ▶ Regulierung ▶ Stellungnahme ▶ Abschluss
+```
+Ableitungslogik:
+- Vollmacht + IBAN vorhanden → Onboarding fertig
+- Erstforderung versendet (Aktivitäten-Log) → Erstforderung
+- Abrechnungsschreiben eingegangen → Regulierung
+- Stellungnahme versendet → Stellungnahme
+- Vollregulierung oder Klage → Abschluss
+
+#### DB-Migration
+```sql
+ALTER TABLE unfallakte ADD COLUMN regulierungsstatus TEXT DEFAULT 'ausstehend';
+    -- 'ausstehend' | 'teilreguliert' | 'vollreguliert' | 'abgelehnt' | 'strittig'
+ALTER TABLE unfallakte ADD COLUMN klagestatus TEXT DEFAULT 'kein_verfahren';
+    -- 'kein_verfahren' | 'vorbereitung' | 'eingereicht' | 'anhaengig' | 'abgeschlossen'
+```
+
+#### Checkliste
+- [ ] DB-Migration
+- [ ] Phasen-Strip-Komponente in `UebersichtSection.jsx` (über FinanzBand)
+- [ ] Phase automatisch ableiten beim Laden der Akte
+- [ ] `regulierungsstatus` aus `regulierung_positionen` berechnen
+
+---
+
+### 🟡 PRD-NEW – Onboarding-Wizard
+**Status:** ⬜ Offen (neu identifiziert 2026-04-25)
+**Session-Schätzung:** 1–2 Sessions
+**Abhängigkeiten:** PRD-NEW Neue-Akte-Button (Stub in v54 implementiert)
+
+#### Problem
+Kein geführter Onboarding-Ablauf. Junior-Mitarbeiter erfassen Beteiligte unvollständig
+(fehlendes Geburtsdatum, Beruf, Vorsteuer). Daten fehlen dann bei Klage und Schmerzensgeld.
+
+#### Wizard-Schritte (analog Klage-Wizard)
+```
+Schritt 1: Aktenzeichen + Unfalldatum + Unfallort
+Schritt 2: Mandant (Anrede, Name, Adresse, Geburtsdatum, Beruf, IBAN, Vorsteuer J/N)
+Schritt 3: KFZ Mandant (Kennzeichen, Typ, WBW, RSV J/N)
+Schritt 4: Gegner (Halter, Fahrer, Kennzeichen, KH-Versicherung, Schadennummer)
+Schritt 5: RSV-Status (RSV vorhanden? → Deckungsanfrage Vorlage erstellen)
+Schritt 6: Vollmacht + Erstanschreiben (Vollmacht + Anzeige der Vertretung + optional RSV-Anfrage)
+Schritt 7: Fertig → Akte öffnen
+```
+
+#### Checkliste
+- [ ] `OnboardingWizard.jsx` – neue Komponente (analog `KlageWizard.jsx`)
+- [ ] Schrittweise Validierung, Pflichtfelder markiert
+- [ ] Integration in `AktensucheView.jsx` → Öffnet nach „+ Neue Akte" wenn kein AZ noch vergeben
+- [ ] Beteiligte-Felder erweitern: `geburtsdatum`, `beruf` (DB-Migration oder Schema-Check)
+
+---
+
+### 🟡 PRD-17 – Tagesstart-Dashboard
+**Status:** ⬜ Offen (DashboardView.jsx existiert!)
+**Session-Schätzung:** 0,5 Sessions
+**Abhängigkeiten:** keine
+
+#### Was schon da ist
+`DashboardView.jsx` mit Kennzahlen-Kacheln und Fristen-Übersicht existiert bereits.
+Das Problem: Der Nutzer startet immer in der Aktensuche, nicht im Dashboard.
+
+#### Fix
+Dashboard als **Default-View** beim App-Start setzen (statt Aktensuche).
+Aktensuche bleibt über Navigation erreichbar.
+Evtl. „Guten Morgen"-Begrüßung mit heutigem Datum und offenen To-Dos.
+
+#### Checkliste
+- [ ] App.jsx / Layout.jsx: Default-Route auf Dashboard setzen
+- [ ] DashboardView: Block „Heute fällig" (aus todos WHERE faellig_am < heute+3)
+- [ ] DashboardView: Block „Neu eingegangen" (Dokumente heute + E-Mail-Imports)
+- [ ] Sachbearbeiter-Filter: eigene Akten / alle
+
+---
+
+## PRD-Details: Mittelpriorität
+
+---
+
+### PRD-03 ⬜ Klagegenerator Abschlusstest
+**Abhängigkeiten:** PRD-14 (erst nach Abrechnungsart-Bereinigung sinnvoll)
 
 | Block | Was prüfen | Status |
 |---|---|---|
-| **Rubrum** | Kläger, Beklagte, Vertreter, Gericht | ⬜ |
-| **Einleitung** | AZ, Unfalldatum, Unfallort, Kennzeichen, Schadennummer | ⬜ |
-| **Tatbestand** | Unfallschilderung, Zeugen, Fahrer, KFZ-Daten | ⬜ |
-| **Ermittlungsakte** | AZ, Behörde, Ort | ⬜ |
-| **Schadentabelle** | Positionen je Abrechnungsart, Beträge, Pauschale | ⬜ |
-| **Haftungsquote** | Block bei HQ < 100%, korrekte Berechnung | ⬜ |
-| **Haftungsbegründung** | varANSP1 oder SQLite | ⬜ |
-| **Schmerzensgeld** | Block bei Anhaken, Mindestbetrag optional | ⬜ |
-| **Zinsen** | Verzugsdatum, Zinsbeginn, 5PP | ⬜ |
-| **Klageanträge** | Hauptantrag, Leerzeilen, Versäumnisurteil | ⬜ |
-| **Rechtliche Würdigung** | Platzhalter, Kürzungsargumente | ⬜ |
-| **RVG** | Streitwert, §13-Tabelle, MwSt, Override | ⬜ |
-| **Verweisbetrieb** | Textbaustein, Entfernungsangabe | ⬜ |
+| Rubrum | Kläger, Beklagte, Vertreter, Gericht | ⬜ |
+| Einleitung | AZ, Unfalldatum, Unfallort, KZ, Schadennummer | ⬜ |
+| Tatbestand | Unfallschilderung, Zeugen, Fahrer, KFZ | ⬜ |
+| Schadentabelle | Positionen, Beträge, Pauschale | ⬜ |
+| Haftungsquote | Block bei HQ < 100% | ⬜ |
+| Schmerzensgeld | Block bei Anhaken | ⬜ |
+| Zinsen | Verzugsdatum, 5PP | ⬜ |
+| Klageanträge | Hauptantrag, Versäumnisurteil | ⬜ |
+| RVG | Streitwert, §13-Tabelle, MwSt | ⬜ |
 
 ---
 
-## PRD-04 – Erweiterte Dokumentenklassen
-**Priorität:** 🔴 Hoch
-**Session-Schätzung:** 1 Session
+### PRD-33 ⬜ Klage-Wizard Feintuning
+Formatierung (Absätze, Leerzeilen), Textbausteine einzelner Schritte,
+Rubrum bei mehreren Beklagten, RVG-Betrags-Einbindung.
+**Debugging-Vorbereitung:** `handover/session_handover_v52.md`
 
-### Dokumentenklassen
+---
+
+### PRD-04 ⬜ Erweiterte Dokumentenklassen (Klasse A/B/C)
 
 **Klasse A – Immer vorhanden**
-| Key | Label | Position-Key |
-|---|---|---|
-| `gutachterrechnung` | Gutachterrechnung | `sv_kosten` |
-| `reparaturrechnung` | Reparaturrechnung | `rep_rechnung_netto` |
-| `abschlepprechnung` | Abschlepprechnung | `abschleppkosten` |
-| `abrechnungsschreiben` | Abrechnungsschreiben | ✅ vorhanden |
-| `pruefbericht` | Prüfbericht | ✅ vorhanden |
+`gutachterrechnung` · `reparaturrechnung` · `abschlepprechnung` · `abrechnungsschreiben` · `pruefbericht`
 
 **Klasse B – Personenschaden**
-| Key | Label | Position-Key |
-|---|---|---|
-| `arztbericht` | Arztbericht | — (ICD-Codes) |
-| `krankenhausbericht` | Krankenhausbericht | — |
-| `verdienstausfall_nachweis` | Verdienstausfall-Nachweis | `verdienstausfall` |
-| `haushalt_attest` | Attest Haushaltsführung | `haushalt` |
+`arztbericht` · `krankenhausbericht` · `verdienstausfall_nachweis` · `haushalt_attest`
 
 **Klasse C – Sonderfälle**
-| Key | Label | Position-Key |
-|---|---|---|
-| `mietwagenrechnung` | Mietwagenrechnung | `mietwagenkosten` |
-| `kaufvertrag` | Kaufvertrag | Vergleich WBW |
-| `nachbesichtigung` | Nachbesichtigungsgutachten | Vergleich Erstgutachten |
-| `feuerwehrrechnung` | Feuerwehrrechnung | `sonstiges` |
-| `sachschadenbeleg` | Sachschadenbeleg | `sonstiges` |
-| `sonstiges` | Sonstiges | — |
+`mietwagenrechnung` · `kaufvertrag` · `nachbesichtigung` · `feuerwehrrechnung` · `sachschadenbeleg` · `sonstiges`
 
-### DB-Migration
 ```sql
 ALTER TABLE dokumente ADD COLUMN dokumentenklasse TEXT;
-ALTER TABLE dokumente ADD COLUMN pdf_hash TEXT;  -- SHA-256
-```
-
-### Checkliste
-- [ ] DB-Migration
-- [ ] Upload-Dialog: Klassen-Dropdown
-- [ ] SHA-256-Hash beim Upload + Duplikat-Warnung
-- [ ] Dokumentenliste: Klassen-Badge
-- [ ] Vollständigkeitsanzeige
-
----
-
-## PRD-05 – Betrag-Abgleich nach Upload
-**Priorität:** 🔴 Hoch
-**Abhängigkeiten:** PRD-04, PRD-14
-
-### Smarte Ampel (aus Schadentabelle ableiten)
-```python
-ERWARTUNGS_REGELN = [
-  { "wenn_position": "schmerzensgeld",    "dann_klasse": "arztbericht" },
-  { "wenn_position": "mietwagenkosten",   "dann_klasse": "mietwagenrechnung" },
-  { "wenn_position": "rep_rechnung_netto","dann_klasse": "reparaturrechnung" },
-  { "wenn_position": "sv_kosten",         "dann_klasse": "gutachterrechnung" },
-  { "wenn_position": "verdienstausfall",  "dann_klasse": "verdienstausfall_nachweis" },
-]
 ```
 
 ---
 
-## PRD-06 – Parser: Reparaturrechnung (LLM-Ansatz)
-**Priorität:** 🔴 Hoch
-**Abhängigkeiten:** PRD-04, PRD-05
-
-### LLM statt Regex
-```python
-# backend/workflow/parser_reparaturrechnung.py
-def parse_reparaturrechnung(pdf_text: str) -> dict:
-    client = anthropic.Anthropic()
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=500,
-        messages=[{"role": "user", "content": f"""
-Extrahiere aus dieser Reparaturrechnung:
-- betrag_netto (Zahl, Punkt als Dezimaltrennzeichen)
-- betrag_brutto (Zahl)
-- werkstatt_name
-- rechnungsdatum (YYYY-MM-DD)
-- rechnungsnummer (oder null)
-Antworte NUR als JSON, ohne Erklärung.
-Text: {pdf_text[:4000]}
-"""}]
-    )
-    return json.loads(response.content[0].text)
-```
-
-### Dispatcher-Architektur
-```python
-# backend/workflow/dispatcher.py
-PARSER_MAP = {
-    "reparaturrechnung": parser_reparaturrechnung.parse,
-    "gutachterrechnung": parser_rechnung_allgemein.parse,
-    "arztbericht":       parser_arztbericht.parse,
-    "mietwagenrechnung": parser_mietwagen.parse,
-    "sonstiges":         None,
-}
-```
+### PRD-32 Phase 2 ⬜ Rechnungstypen-Beleg-Mapping
+Phase 1 (Subklassifizierung standkostenrechnung/abschlepprechnung) ✅.
+Phase 2: automatisches Mapping auf Schadenposition bei Upload.
+**Plan:** `handover/PRD-32_Rechnungstypen_Parser.md`
 
 ---
 
-## PRD-07 – Workflow-Regeln + automatische To-Dos
-**Priorität:** 🟡 Mittel
-**Abhängigkeiten:** PRD-01, PRD-04, PRD-06
-
-### Initiale Regeln
-```python
-WORKFLOW_REGELN = [
-  { "key": "rep→nutzungsausfall",  "ausloeser": "reparaturrechnung",
-    "pruefe": "nutzungsausfall",   "todo_text": "Nutzungsausfall prüfen – Reparaturrechnung liegt vor" },
-  { "key": "rep→mietwagen",        "ausloeser": "reparaturrechnung",
-    "pruefe": "mietwagenkosten",   "todo_text": "Mietwagenrechnung anfordern oder Nutzungsausfall berechnen" },
-  { "key": "arzt→schmerzensgeld",  "ausloeser": "arztbericht",
-    "pruefe": "schmerzensgeld",    "todo_text": "Schmerzensgeld prüfen – Arztbericht liegt vor" },
-  { "key": "arzt→haushalt",        "ausloeser": "arztbericht",
-    "pruefe": "haushalt",          "todo_text": "Haushaltsführungsschaden prüfen – Verletzung dokumentiert" },
-  { "key": "gutachten→sv_kosten",  "ausloeser": "gutachterrechnung",
-    "pruefe": "sv_kosten",         "todo_text": "SV-Kosten in Schadentabelle eintragen" },
-]
-```
-
----
-
-## PRD-08 bis PRD-13 (unverändert aus v2)
-
-PRD-08: Weitere Parser (Arztbericht, Mietwagen, Kaufvertrag, Gutachten)
-PRD-09: Vollständigkeits-Ampel (smart)
-PRD-10: Mandanten-Anforderungsstatus
-PRD-11: Dokument-Position-Verknüpfung
-PRD-12: Vorlagen-Verwaltung
-PRD-13: D4 Rechtliche Würdigung
-
----
-
-## Empfohlene Session-Reihenfolge (aktualisiert)
-
-| Session | PRD | Titel | Kritisch weil |
-|---|---|---|---|
-| v19 | **PRD-14** | Single Source of Truth: Abrechnungsart | Alle anderen PRDs bauen darauf auf |
-| v20 | **PRD-01** | To-Do-System + Kachel | Fundament für Dashboard + Workflow |
-| v21 | **PRD-16** | Reiter-Reihenfolge | UX-Fundament, geringer Aufwand |
-| v22 | **PRD-15** | WDM automatisch laden | Verhindert leere Klageschriften |
-| v23 | **PRD-03** | Klagegenerator Abschlusstest | Nach PRD-14 erst sinnvoll testbar |
-| v24 | **PRD-02** | Textbaustein Kürzungsarten | Stellungnahme-Qualität |
-| v25 | **PRD-17** | Tagesstart-Dashboard | Braucht To-Dos (PRD-01) |
-| v26 | **PRD-18** | Statusmodell erweitern | Braucht PRD-14 |
-| v27 | **PRD-04** | Erweiterte Dokumentenklassen | Workflow-Fundament |
-| v28 | **PRD-05** | Betrag-Abgleich | Braucht PRD-04 + PRD-14 |
-| v29 | **PRD-06** | Parser Reparaturrechnung (LLM) | Pilotprojekt Parser |
-| v30 | **PRD-07** | Workflow-Regeln + auto To-Dos | Braucht PRD-01 + PRD-06 |
-| v31+ | PRD-08 | Weitere Parser | je Session eine Gruppe |
-| v3x | PRD-09–13 | Vollständigkeit, Mandant, Verknüpfung | Später |
+### PRD-25c ⬜ Mandantenkommunikation
+Portal + PWA-Nachricht-Modal (Stub) vorhanden. Vollständiges Push-System ausstehend.
 
 ---
 
 ## Offene Entscheidungen
 
-- [ ] Soll die globale To-Do-Übersicht in PRD-17 (Tagesstart) integriert werden oder als eigener Reiter? (Empfehlung: Tagesstart)
-- [ ] Welche Dokumentenklassen initial in PRD-04? (Empfehlung: alle Klasse-A + Arztbericht)
-- [ ] LLM-Parser (PRD-06): direkt Anthropic API oder über bestehendes Backend-Setup?
-- [ ] ICD-Code-Lookup für Arztberichte (PRD-08B): eigene Tabelle oder externe API?
-- [ ] Sachbearbeiter-Filter im Tagesstart (PRD-17): eigene Akten default oder alle?
-- [ ] Verjährungs-Datum: manuell eingetragen oder automatisch aus Unfalldatum berechnen (3 Jahre)?
+- [ ] Onboarding-Wizard Schritt 4 (Gegner): Kennzeichen-Lookup auf KH-Versicherer? Eigene Tabelle oder externe API?
+- [ ] Soll Tagesstart-Dashboard der Default-Einstieg werden oder bleibt Aktensuche?
+- [ ] PRD-NEW Neue Akte: Erlauben wir einen „Vorerfassungs-AZ" (z.B. `TMP-001/26`) der später mit RA-Micro-AZ verknüpft wird?
+- [ ] PRD-18 Phasen-Strip: Automatisch ableiten oder manuell setzen? (Empfehlung: automatisch mit manuellem Override)
+- [ ] Verjährungsdatum: Immer 3 Jahre automatisch aus Unfalldatum berechnen oder manuell?
 
 ---
 
 ## Architektur-Prinzipien (unveränderlich)
 
-Diese Prinzipien gelten für alle PRDs und dürfen nicht gebrochen werden:
+Diese Regeln gelten für alle PRDs und Sessions:
 
-1. **Single Source of Truth:** Jede Berechnung findet genau einmal statt – im Backend. Frontend zeigt nur an.
-2. **`az = akte.aktenzeichen`:** Nach `hole_akte_by_id()` immer `az` setzen, nie `akte_id` direkt in Queries verwenden.
-3. **Kein stummer Catch:** Jeder `catch`-Block zeigt einen echten Fehlertext im Toast.
-4. **`finally` für Loading-States:** `setLoading(false)` immer in `finally`, nie nach dem try-catch.
-5. **Blueprint-Routing:** Fester `url_prefix` + `<path:akte_id>` pro Route – nie `<path:>` am Ende des Prefixes.
-6. **Python 3.9 kompatibel:** Keine `str | None` Type-Hints, keine `list[dict]` Syntax.
-7. **`hole_beteiligte_by_akte(az)`:** Immer diese Funktion, nie roher `SELECT * FROM beteiligte`.
+| # | Regel | Warum |
+|---|---|---|
+| 1 | **Single Source of Truth** – Backend berechnet, Frontend zeigt nur an | Vermeidet Inkonsistenz zwischen Übersicht, Regulierung und Klageschrift |
+| 2 | **`az = akte.aktenzeichen`** – nach `hole_akte_by_id()` immer `az` setzen, nie `akte_id` | Verlässliches Routing; ID ist intern, AZ ist extern |
+| 3 | **Kein stummer Catch** – jeder `catch`-Block zeigt echten Fehlertext im Toast | Fehler werden nicht stillschweigend verschluckt |
+| 4 | **`finally` für Loading-States** – `setLoading(false)` immer in `finally` | Loading-Spinner hängen nie bei Fehler |
+| 5 | **Blueprint-Routing** – fester `url_prefix` + `<path:akte_id>` | Konsistente API-Struktur |
+| 6 | **Python 3.9** – kein `str | None`, kein `list[dict]` als Type-Hint | Kompatibilität |
+| 7 | **`hole_beteiligte_by_akte(az)`** – immer diese Funktion | Nie roher `SELECT * FROM beteiligte` |
+| 8 | **RA-MICRO Read-Only** – NIEMALS in RA-MICRO DB schreiben | Datenintegrität RA-Micro |
+| 9 | **`_pruefe_akte()` Rückgabewert nutzen** – immer `az = akte_obj.aktenzeichen if hasattr(...) else akte_id` | Korrekte az-Extraktion für alle DB-Queries |
+| 10 | **SHA-256 Hash-Dedup** – vor `registriere_dokument` auf Duplikat prüfen | Keine doppelten Uploads |
 
 ---
 
-## PRD-19 – RA-Micro DMS Integration (Read-Only)
-**Priorität:** 🟡 Mittel
-**Session-Schätzung:** 1–2 Sessions
-**Abhängigkeiten:** Zugriff auf RA-Micro SQL-Server (Read-Only)
+## Empfohlene Session-Reihenfolge
 
-### Ziel
-Alle in RA-Micro abgelegten Dokumente einer Akte erscheinen automatisch
-im Dokumente-Reiter als Read-Only-Einträge – ohne Upload, ohne Kopieren,
-immer aktuell. Die Datei bleibt in RA-Micro, das System verlinkt nur.
-
-### Warum SQL und nicht Dateipfad
-- SQL liefert Metadaten (Datum, Dokumentart, Sachbearbeiter) ohne Dateisystem-Analyse
-- Funktioniert auch wenn Backend und RA-Micro auf verschiedenen Rechnern laufen
-- Read-Only-Datenbankverbindung ist sicherer als Netzwerkfreigabe
-- Einmal eingerichtet: vollautomatisch, kein manueller Pflegaufwand
-
-### Architektur
-```
-RA-Micro SQL-Server (Read-Only-Verbindung)
-    ↓
-backend/ramicro/dms_connector.py
-    ↓
-GET /akten/<az>/ramicro-dokumente
-    ↓
-Frontend: Dokumente-Reiter zeigt RA-Micro-Dokumente mit Badge "📁 RA-Micro"
-```
-
-### Verbindung (Backend)
-```python
-# backend/ramicro/dms_connector.py
-import pyodbc  # oder pymssql je nach SQL-Server-Typ
-
-_DMS_CONN_STR = (
-    "DRIVER={ODBC Driver 17 for SQL Server};"
-    f"SERVER={os.environ['RAMICRO_SQL_SERVER']};"
-    f"DATABASE={os.environ['RAMICRO_SQL_DB']};"
-    f"UID={os.environ['RAMICRO_SQL_USER']};"
-    f"PWD={os.environ['RAMICRO_SQL_PASS']};"
-    "ReadOnly=Yes;"   # ← kein Schreiben möglich
-)
-
-def hole_dms_dokumente(az: str) -> list:
-    """
-    Lädt alle Dokumente einer Akte aus dem RA-Micro ELO-DMS.
-    Zentrale Tabelle: tblElo_AktenArchiv (Datenbank: raEloakte)
-    Mapping: AZ '322/25KS' → AktenNr=322, Jahrgang=25
-    """
-    # AZ parsen: '322/25KS' → nr=322, jahr=25
-    import re
-    m = re.match(r'(\d+)/(\d+)', az)
-    if not m:
-        return []
-    akten_nr = int(m.group(1))
-    jahrgang  = int(m.group(2))
-
-    with pyodbc.connect(_DMS_CONN_STR, timeout=5) as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT
-                a.Nr,
-                a.Dateiname,
-                a.OrgDatei,
-                a.Rubrik,
-                a.Schlagwort,
-                a.Sachbearb,
-                a.EinfDatum,
-                a.Geaendert,
-                a.Status,
-                t.Text AS RubrikText
-            FROM tblElo_AktenArchiv a
-            LEFT JOIN tblElo_Text t
-                ON t.Pool = 'Rubrik' AND t.IDText = TRY_CAST(a.Rubrik AS numeric)
-            WHERE a.AktenNr = ? AND a.Jahrgang = ?
-            ORDER BY a.EinfDatum DESC
-        """, (akten_nr, jahrgang))
-
-        cols = [c[0] for c in cursor.description]
-        return [dict(zip(cols, row)) for row in cursor.fetchall()]
-```
-
-### Umgebungsvariablen (.env)
-```
-RAMICRO_SQL_SERVER=192.168.x.x\RAMICRO    # SQL-Server-Adresse
-RAMICRO_SQL_DB=RA-MICRO                    # Datenbankname
-RAMICRO_SQL_USER=readonly_user             # Read-Only-Benutzer
-RAMICRO_SQL_PASS=...
-RAMICRO_DMS_BASEPATH=\\RA-SERVER\DOCS      # Basispfad für Datei-Download
-```
-
-### Frontend-Integration
-Im Dokumente-Reiter: zwei getrennte Bereiche:
-```
-── Hochgeladene Dokumente (eigenes System) ────────────────────
-  [Liste wie bisher]
-
-── RA-Micro Dokumente (Read-Only) ─────────────────────────────
-  📁 Schreiben_Allianz_15032026.pdf     15.03.2026  [Öffnen]
-  📁 Abrechnungsschreiben_220325.pdf    22.03.2026  [Öffnen]
-  📁 Gutachten_Kfz_Koch.pdf            01.03.2026  [Öffnen]
-```
-
-Kein Upload-Button für RA-Micro-Dokumente – nur Anzeigen und Öffnen.
-Optional: "In eigenes System übernehmen" (kopiert + verknüpft).
-
-### Drag & Drop aus RA-Micro (Diagnose ausstehend)
-Aktuell: Cursor ändert sich beim Drop, aber keine Datei wird übergeben.
-Mögliche Ursachen:
-- RA-Micro übergibt nur Dateipfad als Text (nicht als File-Objekt)
-- Debug-Code nötig um zu prüfen was `dataTransfer` enthält:
-```javascript
-onDrop={e => {
-  console.log("files:", e.dataTransfer.files.length);
-  console.log("types:", [...e.dataTransfer.types]);
-  console.log("text:", e.dataTransfer.getData("text"));
-}}
-```
-→ Nach Diagnose ggf. Pfad-Import-Endpunkt bauen.
-
-### Checkliste
-- [x] RA-Micro SQL-Tabellenstruktur analysieren → `tblElo_AktenArchiv` ist die zentrale Tabelle
-- [x] Aktenzeichen-Mapping verifiziert: AktenNr + Jahrgang → AZ ohne SB-Kürzel
-- [ ] Read-Only SQL-Benutzer in RA-Micro anlegen
-- [ ] `backend/ramicro/dms_connector.py` mit korrekter Query
-- [ ] `GET /akten/<az>/ramicro-dokumente` Route
-- [ ] Frontend: RA-Micro-Dokumente-Block im Dokumente-Reiter
-- [ ] Datei-Download über Backend (proxied, kein direkter Client-Zugriff auf SQL)
-- [ ] Drag & Drop Diagnose + ggf. Pfad-Import
-- [ ] `.env`-Dokumentation erweitern
-- [ ] Fallback wenn RA-Micro SQL nicht erreichbar (graceful degradation)
-
-### SQL-Tabellenstruktur (analysiert)
-
-Datenbank: **raEloakte**
-
-Zentrale Tabelle: **`tblElo_AktenArchiv`**
-
-| Spalte | Typ | Bedeutung |
+| Session | Was | Begründung |
 |---|---|---|
-| `Nr` | int | PK / DMS-interne ID |
-| `AktenNr` | int | Aktennummer (z.B. 322 aus "322/25KS") |
-| `Jahrgang` | smallint | Jahr (z.B. 25 aus "322/25KS") |
-| `Dateiname` | nvarchar(255) | Dateiname im DMS |
-| `OrgDatei` | nvarchar(255) | Originaldateiname / Pfad |
-| `Rubrik` | nvarchar(3) | Dokumentkategorie-Kürzel |
-| `Schlagwort` | nvarchar(200) | Schlagwort / Dokumentbeschreibung |
-| `Sachbearb` | nvarchar(2) | SB-Kürzel (z.B. "AS", "KS") |
-| `EinfDatum` | datetime | Einstellungsdatum |
-| `Geaendert` | datetime | Letzte Änderung |
-| `Version` | datetime | Dokumentversion-Datum |
-| `Status` | smallint | Dokumentstatus |
-| `WDM_XML` | text | WDM-Variablen als XML (Metadaten) |
-| `IDNode` | numeric | Verknüpfung zu tblElo_TreeNodes |
-| `UAkte | int | Unterakte |
-
-Weitere Tabellen:
-- `tblElo__Attachments`: Anhänge (docnodeid, filename, contenttype)
-- `tblElo__Knoten`: Baumstruktur des DMS (AktenNr, Jahrgang, NodeID, Header)
-- `tblElo_TreeNodes`: Knotenstruktur (IDNode, IDParentNode, IDNodeText)
-- `tblElo_Text`: Textkatalog (IDText, Pool, Text) – vermutlich Rubrik-Labels
-
-### Aktenzeichen-Mapping (✅ verifiziert)
-
-`AktenNr=276` + `Jahrgang=26` → AZ = **`276/26`**
-
-**Regeln:**
-- SB-Kürzel (`Sachbearb`-Spalte) wird **niemals** ins Aktenzeichen aufgenommen
-- AZ-Format im Unfallakten-System: `{AktenNr}/{Jahrgang}` (z.B. `276/26`)
-- Mapping-Code:
-```python
-import re
-m = re.match(r'(\d+)/(\d+)', az)   # "276/26KS" → nr=276, jahr=26
-akten_nr = int(m.group(1))
-jahrgang  = int(m.group(2))
-# Jahrgang kann 2-stellig sein (26) oder 4-stellig (2026) → normieren:
-if jahrgang > 100: jahrgang = jahrgang % 100
-```
-
-### Dateipfad-Struktur
-`Dateiname`-Spalte enthält relativen DMS-Pfad:
-```
-ea\as\26\03\27\274614400276-00-26~~AS~01.pdf
-  ↑    ↑   ↑   ↑   ↑
-pool  sb  jahr mo  tag
-```
-Vollständiger Pfad = `RAMICRO_DMS_BASEPATH` + `\` + `Dateiname`
-→ z.B. `\\RA-SERVER\ELO\ea\as\26\03\27\...pdf`
-
-`OrgDatei` = ursprünglicher Client-Pfad beim Einstellenden (für uns irrelevant).
-
-**Abnahmekriterium:** Akte öffnen → RA-Micro-Dokumente erscheinen automatisch
-im Dokumente-Reiter ohne Upload – immer aktuell, Read-Only.
+| **v54** | Neue-Akte-Stub ✅ + Konzept/Architektur konsolidiert ✅ | Diese Session |
+| v55 | PRD-14 Frontend-Cleanup (0,5 Std.) + PRD-02 Textbausteine | Fundament für Stellungnahme |
+| v56 | PRD-27 ReguWizard Stellungnahme | Größter täglicher Effizienz-Hebel |
+| v57 | PRD-16 Tab-Reihenfolge + PRD-17 Dashboard Default | Quick-Wins UX |
+| v58 | PRD-18 Statusmodell + Phasen-Strip | Mehrbenutzer-Klarheit |
+| v59 | PRD-NEW Onboarding-Wizard Step 1–3 | Datenqualitäts-Fundament |
+| v60 | PRD-NEW Onboarding-Wizard Step 4–7 | Vollständiger Onboarding-Fluss |
+| v61 | PRD-03 Klagegenerator Abschlusstest | Qualitäts-Pass Klage |
+| v62 | PRD-33 Klage-Wizard Feintuning | Formatierung + Textbausteine |
+| v63+ | PRD-04/05/06/07 Dokumenten-Workflow | Erweiterte Klassifizierung |
