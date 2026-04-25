@@ -1626,6 +1626,44 @@ function KlappAbschnitt({ titel, lsKey, children, standardOffen = true }) {
   );
 }
 
+const STRIP_TABS = [
+  { id:"ramicro",     label:"🏛 RA-Micro Stammdaten" },
+  { id:"historie",    label:"📜 Forderungshistorie" },
+  { id:"regulierung", label:"⚖️ Regulierungsdetails" },
+  { id:"chronik",     label:"🕒 Akten-Chronik" },
+  { id:"notizen",     label:"📝 Notizen" },
+];
+
+function AkkordeonStrip({ offene, onToggle }) {
+  return (
+    <div style={{
+      borderTop:`2px solid ${T.border}`,
+      display:"flex", flexWrap:"wrap",
+    }}>
+      {STRIP_TABS.map((tab, i) => (
+        <button key={tab.id} onClick={() => onToggle(tab.id)}
+          style={{
+            flex:1, minWidth:130,
+            padding:"9px 14px",
+            fontFamily:T.fontBody, fontSize:".72rem",
+            color: offene.includes(tab.id) ? T.accentDark : T.textFaint,
+            background: offene.includes(tab.id) ? T.accentPale : T.surface,
+            border:"none",
+            borderRight: i < STRIP_TABS.length - 1 ? `1px solid ${T.border}` : "none",
+            cursor:"pointer", textAlign:"left",
+            display:"flex", alignItems:"center", gap:5,
+            transition:"background .15s, color .15s",
+          }}>
+          {tab.label}
+          <span style={{ marginLeft:"auto", fontSize:".75rem" }}>
+            {offene.includes(tab.id) ? "▲" : "▾"}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function TodoWvSpalten({ az, azRoh, onTodoChange }) {
   const [todos,   setTodos]   = React.useState([]);
   const [wvListe, setWvListe] = React.useState([]);
