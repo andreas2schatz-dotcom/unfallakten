@@ -62,6 +62,122 @@ def _datum_deutsch(d: date) -> str:
     return f"{d.day}. {m[d.month]} {d.year}"
 
 
+# ── Textbaustein-Replacement ──────────────────────────────────────────────────
+
+def ersetze_platzhalter(text, kontext: dict):
+    """
+    Ersetzt <PLATZHALTER> im Text mit Werten aus kontext.
+    Unbekannte Platzhalter werden als [FEHLT: <XYZ>] markiert.
+    """
+    if not text:
+        return text
+    for key, value in kontext.items():
+        text = text.replace(f"<{key}>", str(value) if value else "")
+    text = re.sub(r"<([A-Z_]+)>", r"[FEHLT: <\1>]", text)
+    return text
+
+
+def _baue_kontext(az: str, akte_daten, beteiligte: list) -> dict:
+    """Baut das Platzhalter-Kontext-Dict aus Aktendaten."""
+    mandant = next(
+        (b for b in (beteiligte or []) if getattr(b, "rolle", "") == "mandant"),
+        None,
+    )
+    versicherung = next(
+        (b for b in (beteiligte or [])
+         if getattr(b, "rolle", "") in ("ghpv", "versicherung", "haftpflicht")),
+        None,
+    )
+
+    def _name(b) -> str:
+        if not b:
+            return ""
+        vn = getattr(b, "vorname", "") or ""
+        nn = getattr(b, "name", "") or getattr(b, "nachname", "") or ""
+        return f"{vn} {nn}".strip() or nn
+
+    schaden = getattr(akte_daten, "schaden", None) or {}
+    if isinstance(schaden, dict):
+        _s = lambda k: str(schaden.get(k) or "")
+    else:
+        _s = lambda k: str(getattr(schaden, k, "") or "")
+
+    return {
+        "MANDANT":      _name(mandant),
+        "AZ":           az,
+        "VERSICHERER":  _name(versicherung),
+        "DATUM":        date.today().strftime("%d.%m.%Y"),
+        "KFZ":          getattr(akte_daten, "kfz_kennzeichen", "") or "",
+        # RA-MICRO Platzhalter aus den importierten Textbausteinen
+        "RGGDAT":       "",   # Datum Regulierungsschreiben – wird aus abrechnungsschreiben befüllt
+        "GUTACHTER":    "",   # Name SV – aus beteiligte (rolle=gutachter)
+        "FKLASSE":      _s("fklasse"),
+        "NUTZUNGSA":    _s("nutzungsausfall_betrag"),
+        "NABETRAG":     _s("nutzungsausfall_tagessatz"),
+        "REPDAUER":     _s("reparaturdauer"),
+        "KOSTENNB":     _s("kostennb"),
+        "SCHMGELD":     _s("schmerzensgeld"),
+        "SGVORSCHUSS":  _s("schmerzensgeld_vorschuss"),
+    }
+
+
+def _aggregiere_kuerzungen(abrechnungen: list) -> tuple[list, float]:
+    """
+    Aggregiert Kürzungspositionen über alle Abrechnungen.
+    Gibt (kuerzungen_liste, restbetrag) zurück.
+    """
+    kuerzung_by_art: dict = {}
+    restbetrag = 0.0
+
+    for ab in (abrechnungen or []):
+        positionen = (getattr(ab, "positionen", None)
+                      or (ab.get("positionen") if isinstance(ab, dict) else None)
+                      or [])
+        for pos in positionen:
+            pos_dict = (pos if isinstance(pos, dict)
+                        else vars(pos) if hasattr(pos, "__dict__") else {})
+            betrag_gef = float(pos_dict.get("betrag_gefordert") or 0)
+            betrag_reg = float(pos_dict.get("betrag_reguliert") or 0)
+            kuerzung   = round(betrag_gef - betrag_reg, 2)
+            if kuerzung <= 0.005:
+                continue
+
+            restbetrag += kuerzung
+
+            ka_id  = pos_dict.get("kuerzungsart_id")
+            ka_bez = pos_dict.get("kuerzungsart_bezeichnung") or ""
+            ka_arg = (
+                pos_dict.get("textbaustein")
+                or pos_dict.get("kuerzungsart_textbaustein")
+                or pos_dict.get("standard_gegenargument")
+                or pos_dict.get("kuerzungsart_standard_gegenargument")
+                or ""
+            )
+            pos_key   = pos_dict.get("position_key") or "sonstiges"
+            pos_label = pos_dict.get("position_label") or pos_key.replace("_", " ").title()
+            gruppe_key = f"ka_{ka_id}" if ka_id else f"pos_{pos_key}"
+
+            if gruppe_key not in kuerzung_by_art:
+                kuerzung_by_art[gruppe_key] = {
+                    "_gruppe_key":            gruppe_key,
+                    "bezeichnung":            ka_bez or pos_label,
+                    "label":                  ka_bez or pos_label,
+                    "standard_gegenargument": ka_arg,
+                    "kuerzung_gesamt":        0.0,
+                    "positionen":             [],
+                }
+            kuerzung_by_art[gruppe_key]["kuerzung_gesamt"] += kuerzung
+            kuerzung_by_art[gruppe_key]["positionen"].append(pos_label)
+
+    kuerzungen = list(kuerzung_by_art.values())
+    for k in kuerzungen:
+        posis = list(dict.fromkeys(k["positionen"]))
+        if len(posis) > 1:
+            k["label"] = k["bezeichnung"] + f" ({', '.join(posis)})"
+
+    return kuerzungen, restbetrag
+
+
 def _euro(wert) -> str:
     v = float(wert or 0)
     return f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") + "\u00a0\u20ac"
@@ -115,7 +231,11 @@ def _lz() -> str:
     return '<w:p><w:pPr><w:jc w:val="both"/></w:pPr></w:p>'
 
 
-def _xml_kuerzungstabelle(kuerzungen: list) -> str:
+def _xml_kuerzungstabelle(
+    kuerzungen: list,
+    kontext: dict | None = None,
+    custom_texte: dict | None = None,
+) -> str:
     """
     Baut die Kürzungstabelle mit 3 Spalten:
     Schadenposition | Kürzung | Gegenargument
@@ -166,11 +286,13 @@ def _xml_kuerzungstabelle(kuerzungen: list) -> str:
     for k in kuerzungen:
         betrag = float(k.get("kuerzung_gesamt") or 0)
         gesamt_kuerzung += betrag
-        argument = (
-            k.get("textbaustein")
+        gruppe_key = k.get("_gruppe_key", "")
+        raw_text = (
+            (custom_texte or {}).get(gruppe_key)
             or k.get("standard_gegenargument")
             or "Die Kürzung ist nicht gerechtfertigt."
         )
+        argument = ersetze_platzhalter(raw_text, kontext or {})
         reihen.append(zeile(
             k.get("label") or k.get("bezeichnung") or "Position",
             f"−{_euro(betrag)}",
@@ -303,9 +425,10 @@ def _render_docx(
 
 def generiere_stellungnahme(
     az: str,
-    akte_daten: dict,
+    akte_daten,
     beteiligte: list,
     abrechnungen: list,
+    custom_texte: dict | None = None,
 ) -> bytes:
     """
     Generiert die Stellungnahme zum Abrechnungsschreiben als DOCX-Bytes.
@@ -387,56 +510,8 @@ def generiere_stellungnahme(
             datum_betreff = datum_letzte_ab
 
     # Alle Positionen mit Kürzung über alle Abrechnungen aggregieren
-    # Gruppiert nach Kürzungsart (standard_gegenargument); unbekannte als "Sonstige Kürzung"
-    kuerzung_by_art = {}   # key = kuerzungsart_id or position_key → dict
-
-    restbetrag = 0.0
-
-    for ab in (abrechnungen or []):
-        positionen = getattr(ab, "positionen", None) or (ab.get("positionen") if isinstance(ab, dict) else None) or []
-        for pos in positionen:
-            pos_dict = pos if isinstance(pos, dict) else vars(pos) if hasattr(pos, "__dict__") else {}
-            betrag_gef = float(pos_dict.get("betrag_gefordert") or 0)
-            betrag_reg = float(pos_dict.get("betrag_reguliert") or 0)
-            kuerzung   = round(betrag_gef - betrag_reg, 2)
-            if kuerzung <= 0.005:
-                continue
-
-            restbetrag += kuerzung
-
-            ka_id  = pos_dict.get("kuerzungsart_id")
-            ka_bez = pos_dict.get("kuerzungsart_bezeichnung") or ""
-            ka_arg = (
-                pos_dict.get("textbaustein")
-                or pos_dict.get("kuerzungsart_textbaustein")
-                or pos_dict.get("standard_gegenargument")
-                or pos_dict.get("kuerzungsart_standard_gegenargument")
-                or ""
-            )
-            pos_key   = pos_dict.get("position_key") or "sonstiges"
-            pos_label = pos_dict.get("position_label") or pos_key.replace("_", " ").title()
-
-            # Gruppenkey: bevorzuge Kürzungsart, sonst Positions-Key
-            gruppe_key = f"ka_{ka_id}" if ka_id else f"pos_{pos_key}"
-
-            if gruppe_key not in kuerzung_by_art:
-                kuerzung_by_art[gruppe_key] = {
-                    "bezeichnung":          ka_bez or pos_label,
-                    "label":                ka_bez or pos_label,
-                    "standard_gegenargument": ka_arg,
-                    "kuerzung_gesamt":       0.0,
-                    "positionen":            [],
-                }
-            kuerzung_by_art[gruppe_key]["kuerzung_gesamt"] += kuerzung
-            kuerzung_by_art[gruppe_key]["positionen"].append(pos_label)
-
-    kuerzungen = list(kuerzung_by_art.values())
-
-    # Kombinierte Positionslabels wenn mehrere Positionen je Kürzungsart
-    for k in kuerzungen:
-        posis = list(dict.fromkeys(k["positionen"]))   # deduplizieren, Reihenfolge behalten
-        if len(posis) > 1:
-            k["label"] = k["bezeichnung"] + f" ({', '.join(posis)})"
+    kuerzungen, restbetrag = _aggregiere_kuerzungen(abrechnungen)
+    kontext = _baue_kontext(az, akte_daten, beteiligte)
 
     # ── Betreff ───────────────────────────────────────────────────────────────
     mandant_name = ""
@@ -460,7 +535,7 @@ def generiere_stellungnahme(
 
     # ── OOXML-Blöcke ─────────────────────────────────────────────────────────
     if kuerzungen:
-        tabelle_xml = _xml_kuerzungstabelle(kuerzungen)
+        tabelle_xml = _xml_kuerzungstabelle(kuerzungen, kontext, custom_texte)
     else:
         tabelle_xml = _p("Keine Kürzungen erfasst.")
 
