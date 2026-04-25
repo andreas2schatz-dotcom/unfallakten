@@ -291,6 +291,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     """,
     38: "-- migration_38_portal_sync",  # Handled by _run_migration_38
     39: "-- migration_39_gutachten_nr",  # Handled by _run_migration_39
+    40: "-- migration_40_stellungnahme_texte",  # Handled by _run_migration_40
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -434,6 +435,8 @@ def run_migrations() -> None:
                 _run_migration_38(conn)
             elif version == 39:
                 _run_migration_39(conn)
+            elif version == 40:
+                _run_migration_40(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
@@ -2316,3 +2319,22 @@ def _run_migration_39(conn):
         (39, "Migration 39 - beteiligte.gutachten_nr fuer Portal-A2"),
     )
     logger.info("Migration 39 abgeschlossen.")
+
+
+def _run_migration_40(conn):
+    # type: (sqlite3.Connection) -> None
+    """Migration 40: stellungnahme_texte – gespeicherte Gegenargument-Texte je Akte/Position."""
+    conn.execute("""
+CREATE TABLE IF NOT EXISTS stellungnahme_texte (
+    az              TEXT    NOT NULL,
+    gruppe_key      TEXT    NOT NULL,
+    gegenargument   TEXT,
+    geaendert_am    TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+    PRIMARY KEY (az, gruppe_key)
+)
+    """)
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
+        (40, "Migration 40 – stellungnahme_texte fuer ReguWizard-Persistenz"),
+    )
+    logger.info("Migration 40 abgeschlossen.")

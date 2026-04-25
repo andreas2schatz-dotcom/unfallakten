@@ -2864,14 +2864,23 @@ function RegulierungSection({ brutto, hq, dispatch, akteId, schaden, abrechnunge
 
 // ── ReguWizard ────────────────────────────────────────────────────────────────
 
+const _STICKY_NAV = {
+  position: "sticky", bottom: 0,
+  background: "#fff", borderTop: "1px solid #e8ecf0",
+  padding: "0.9rem 0 0", marginTop: "1.25rem",
+  display: "flex", gap: "0.5rem", flexWrap: "wrap",
+};
+
 function ReguWizard({ az, onClose }) {
-  const [step, setStep]             = useState(0);
-  const [positionen, setPositionen] = useState([]);
-  const [texte, setTexte]           = useState({});
-  const [frist, setFrist]           = useState(14);
-  const [laden, setLaden]           = useState(true);
-  const [generieren, setGenerieren] = useState(false);
-  const [fehler, setFehler]         = useState("");
+  const [step, setStep]               = useState(0);
+  const [positionen, setPositionen]   = useState([]);
+  const [texte, setTexte]             = useState({});
+  const [frist, setFrist]             = useState(14);
+  const [laden, setLaden]             = useState(true);
+  const [generieren, setGenerieren]   = useState(false);
+  const [speichernLaeuft, setSpeichernLaeuft] = useState(false);
+  const [gespeichert, setGespeichert] = useState(false);
+  const [fehler, setFehler]           = useState("");
 
   useEffect(() => {
     apiStellungnahme.vorschau(az)
@@ -2888,9 +2897,25 @@ function ReguWizard({ az, onClose }) {
 
   const pos_steps_count = positionen.length;
 
+  async function handleSpeichern() {
+    setSpeichernLaeuft(true);
+    setFehler("");
+    try {
+      await apiStellungnahme.texteSpeichern(az, texte);
+      setGespeichert(true);
+      setTimeout(() => setGespeichert(false), 2500);
+    } catch (e) {
+      setFehler(e.message);
+    } finally {
+      setSpeichernLaeuft(false);
+    }
+  }
+
   async function handleGenerieren() {
     setGenerieren(true);
+    setFehler("");
     try {
+      await apiStellungnahme.texteSpeichern(az, texte);
       await apiStellungnahme.generieren(az, null, texte);
       onClose();
     } catch (e) {
@@ -2900,36 +2925,30 @@ function ReguWizard({ az, onClose }) {
   }
 
   if (laden) return (
-    <div style={{ padding: "2rem", textAlign: "center" }}>Lade Kürzungspositionen…</div>
+    <div style={{ padding: "2rem", textAlign: "center", color: T.textMuted }}>Lade Kürzungspositionen…</div>
   );
 
-  if (fehler) return (
-    <div style={{ padding: "2rem", color: "red" }}>
+  if (fehler && !positionen.length) return (
+    <div style={{ padding: "2rem", color: T.red }}>
       <strong>Fehler:</strong> {fehler}
-      <br /><button onClick={onClose}>Schließen</button>
+      <br /><br /><Btn size="sm" variant="secondary" onClick={onClose}>Schließen</Btn>
     </div>
   );
 
   // Step 0: Intro
   if (step === 0) return (
-    <div style={{ padding: "1.5rem" }}>
-      <h3 style={{ marginTop: 0 }}>Stellungnahme erstellen</h3>
-      <p>
+    <div>
+      <h3 style={{ marginTop: 0, fontFamily: "'Bricolage Grotesque',sans-serif", color: T.navy }}>Stellungnahme erstellen</h3>
+      <p style={{ color: T.textMid, lineHeight: 1.6 }}>
         Für diese Akte wurden <strong>{pos_steps_count}</strong> Kürzungsposition(en) gefunden.
         Der Assistent führt Sie durch jede Position und schlägt einen Gegenargument-Text vor.
       </p>
       {pos_steps_count === 0 && (
-        <p style={{ color: "orange" }}>⚠ Keine Kürzungspositionen gefunden.</p>
+        <p style={{ color: T.amber }}>⚠ Keine Kürzungspositionen gefunden. Bitte zuerst ein Abrechnungsschreiben erfassen.</p>
       )}
-      <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
-        <button onClick={onClose}>Abbrechen</button>
-        <button
-          onClick={() => setStep(1)}
-          disabled={pos_steps_count === 0}
-          style={{ fontWeight: "bold" }}
-        >
-          Weiter →
-        </button>
+      <div style={_STICKY_NAV}>
+        <Btn size="sm" variant="secondary" onClick={onClose}>Abbrechen</Btn>
+        <Btn size="sm" variant="primary" onClick={() => setStep(1)} disabled={pos_steps_count === 0}>Weiter →</Btn>
       </div>
     </div>
   );
@@ -2939,34 +2958,31 @@ function ReguWizard({ az, onClose }) {
     const pos = positionen[step - 1];
     const key = pos._gruppe_key;
     return (
-      <div style={{ padding: "1.5rem" }}>
-        <div style={{ fontSize: "0.8rem", color: "#888", marginBottom: "0.5rem" }}>
+      <div>
+        <div style={{ fontSize: "0.78rem", color: T.textFaint, marginBottom: "0.4rem", fontFamily: "'Figtree',sans-serif", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>
           Position {step} von {pos_steps_count}
         </div>
-        <h3 style={{ marginTop: 0 }}>{pos.label || pos.bezeichnung}</h3>
-        <div style={{ marginBottom: "0.5rem" }}>
-          Kürzungsbetrag: <strong>−{Number(pos.kuerzung_gesamt).toFixed(2).replace(".", ",")} €</strong>
+        <h3 style={{ marginTop: 0, fontFamily: "'Bricolage Grotesque',sans-serif", color: T.navy, marginBottom: "0.35rem" }}>
+          {pos.label || pos.bezeichnung}
+        </h3>
+        <div style={{ marginBottom: "0.85rem", fontSize: "0.88rem", color: T.textMid }}>
+          Kürzungsbetrag: <strong style={{ color: T.red }}>−{Number(pos.kuerzung_gesamt).toFixed(2).replace(".", ",")} €</strong>
         </div>
-        <label style={{ display: "block", marginBottom: "0.25rem", fontWeight: "bold" }}>
-          Gegenargument:
+        <label style={{ display: "block", marginBottom: "0.35rem", fontFamily: "'Figtree',sans-serif", fontSize: "0.82rem", fontWeight: 600, color: T.textMid, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          Gegenargument
         </label>
         <textarea
-          rows={8}
-          style={{ width: "100%", fontFamily: "inherit", fontSize: "0.9rem", padding: "0.5rem", boxSizing: "border-box" }}
+          rows={9}
+          style={{ width: "100%", fontFamily: "'Figtree',sans-serif", fontSize: "0.92rem", padding: "0.6rem 0.75rem", boxSizing: "border-box", border: `1.5px solid ${T.border}`, borderRadius: 7, color: T.text, background: T.surface, resize: "vertical", lineHeight: 1.55 }}
           value={texte[key] || ""}
           onChange={e => setTexte(prev => ({ ...prev, [key]: e.target.value }))}
         />
-        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
-          <button onClick={() => setStep(s => s - 1)}>← Zurück</button>
-          <button onClick={() => setTexte(prev => ({ ...prev, [key]: "" }))}>
-            Überspringen
-          </button>
-          <button
-            onClick={() => setStep(s => s + 1)}
-            style={{ fontWeight: "bold" }}
-          >
+        <div style={_STICKY_NAV}>
+          <Btn size="sm" variant="secondary" onClick={() => setStep(s => s - 1)}>← Zurück</Btn>
+          <Btn size="sm" variant="secondary" onClick={() => setTexte(prev => ({ ...prev, [key]: "" }))}>Überspringen</Btn>
+          <Btn size="sm" variant="primary" onClick={() => setStep(s => s + 1)}>
             {step < pos_steps_count ? "Weiter →" : "Zur Frist →"}
-          </button>
+          </Btn>
         </div>
       </div>
     );
@@ -2974,46 +2990,42 @@ function ReguWizard({ az, onClose }) {
 
   // Frist-Step
   if (step === pos_steps_count + 1) return (
-    <div style={{ padding: "1.5rem" }}>
-      <h3 style={{ marginTop: 0 }}>Zahlungsfrist</h3>
-      <label>
-        Frist in Tagen ab heute:{" "}
+    <div>
+      <h3 style={{ marginTop: 0, fontFamily: "'Bricolage Grotesque',sans-serif", color: T.navy }}>Zahlungsfrist</h3>
+      <label style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.92rem", color: T.textMid, display: "flex", alignItems: "center", gap: "0.6rem" }}>
+        Frist in Tagen ab heute:
         <input
-          type="number"
-          min={1}
-          max={90}
-          value={frist}
+          type="number" min={1} max={90} value={frist}
           onChange={e => setFrist(Number(e.target.value))}
-          style={{ width: "4rem", textAlign: "center" }}
+          style={{ width: "4.5rem", textAlign: "center", padding: "6px 8px", border: `1.5px solid ${T.border}`, borderRadius: 7, fontFamily: "'Figtree',sans-serif", fontSize: "1rem" }}
         />
       </label>
-      <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
-        <button onClick={() => setStep(s => s - 1)}>← Zurück</button>
-        <button onClick={() => setStep(s => s + 1)} style={{ fontWeight: "bold" }}>
-          Zusammenfassung →
-        </button>
+      <div style={_STICKY_NAV}>
+        <Btn size="sm" variant="secondary" onClick={() => setStep(s => s - 1)}>← Zurück</Btn>
+        <Btn size="sm" variant="primary" onClick={() => setStep(s => s + 1)}>Zusammenfassung →</Btn>
       </div>
     </div>
   );
 
-  // Generieren-Step
+  // Abschluss-Step
+  const mitText = positionen.filter(p => texte[p._gruppe_key]).length;
   return (
-    <div style={{ padding: "1.5rem" }}>
-      <h3 style={{ marginTop: 0 }}>Zusammenfassung</h3>
-      <p>
-        <strong>{positionen.filter(p => texte[p._gruppe_key]).length}</strong> von{" "}
-        {pos_steps_count} Positionen mit Gegenargument. Frist: <strong>{frist} Tage</strong>.
-      </p>
-      {fehler && <div style={{ color: "red", marginBottom: "0.5rem" }}>{fehler}</div>}
-      <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
-        <button onClick={() => setStep(s => s - 1)}>← Zurück</button>
-        <button
-          onClick={handleGenerieren}
-          disabled={generieren}
-          style={{ fontWeight: "bold", background: "#1a3a5c", color: "#fff", padding: "0.5rem 1rem" }}
-        >
-          {generieren ? "Generiere…" : "Word-Dokument generieren"}
-        </button>
+    <div>
+      <h3 style={{ marginTop: 0, fontFamily: "'Bricolage Grotesque',sans-serif", color: T.navy }}>Zusammenfassung</h3>
+      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "0.9rem 1.1rem", marginBottom: "0.75rem", fontSize: "0.92rem", color: T.textMid, lineHeight: 1.6 }}>
+        <div><strong style={{ color: T.navy }}>{mitText}</strong> von {pos_steps_count} Positionen mit Gegenargument</div>
+        <div>Zahlungsfrist: <strong style={{ color: T.navy }}>{frist} Tage</strong></div>
+      </div>
+      {fehler && <div style={{ color: T.red, marginBottom: "0.5rem", fontSize: "0.88rem" }}>{fehler}</div>}
+      {gespeichert && <div style={{ color: T.green, marginBottom: "0.5rem", fontSize: "0.88rem" }}>✓ Texte gespeichert</div>}
+      <div style={_STICKY_NAV}>
+        <Btn size="sm" variant="secondary" onClick={() => setStep(s => s - 1)}>← Zurück</Btn>
+        <Btn size="sm" variant="secondary" onClick={handleSpeichern} disabled={speichernLaeuft}>
+          {speichernLaeuft ? "Speichere…" : "Speichern"}
+        </Btn>
+        <Btn size="sm" variant="primary" onClick={handleGenerieren} disabled={generieren}>
+          {generieren ? "Generiere…" : "Word-Dokument erstellen"}
+        </Btn>
       </div>
     </div>
   );

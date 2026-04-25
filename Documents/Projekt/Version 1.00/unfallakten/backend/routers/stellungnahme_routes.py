@@ -122,11 +122,12 @@ def generiere(akte_id: str):
 def vorschau(akte_id: str):
     """
     Gibt aggregierte Kürzungspositionen mit Textbaustein-Vorschlägen zurück.
-    Wird vom ReguWizard verwendet.
+    Gespeicherte Gegenargumente (stellungnahme_texte) überschreiben den Standard-Vorschlag.
     """
     from ..word.stellungnahme_service import (
         _aggregiere_kuerzungen, _baue_kontext, ersetze_platzhalter
     )
+    from ..db.database import get_connection
 
     akte = hole_akte_by_id(akte_id)
     if not akte:
@@ -141,15 +142,73 @@ def vorschau(akte_id: str):
     kuerzungen, _ = _aggregiere_kuerzungen(alle_abrechnungen)
     kontext = _baue_kontext(az, akte, beteiligte)
 
+    saved_texte = {}
+    try:
+        with get_connection() as conn:
+            rows = conn.execute(
+                "SELECT gruppe_key, gegenargument FROM stellungnahme_texte WHERE az = ?",
+                (az,)
+            ).fetchall()
+            saved_texte = {r["gruppe_key"]: r["gegenargument"] for r in rows}
+    except Exception:
+        pass
+
     positionen_out = []
     for k in kuerzungen:
+        key = k.get("_gruppe_key", "")
         raw = k.get("standard_gegenargument") or "Die Kürzung ist nicht gerechtfertigt."
+        vorschlag = saved_texte.get(key) or ersetze_platzhalter(raw, kontext)
         positionen_out.append({
-            "_gruppe_key":            k.get("_gruppe_key", ""),
+            "_gruppe_key":            key,
             "bezeichnung":            k.get("bezeichnung", ""),
             "label":                  k.get("label", ""),
             "kuerzung_gesamt":        k.get("kuerzung_gesamt", 0.0),
-            "textbaustein_vorschlag": ersetze_platzhalter(raw, kontext),
+            "textbaustein_vorschlag": vorschlag,
         })
 
     return jsonify({"positionen": positionen_out})
+
+
+@stellungnahme_bp.route("/<path:akte_id>/stellungnahme/texte", methods=["GET"])
+def texte_holen(akte_id: str):
+    """Gibt gespeicherte Gegenargument-Texte für diese Akte zurück."""
+    from ..db.database import get_connection
+
+    akte = hole_akte_by_id(akte_id)
+    if not akte:
+        return _err(f"Akte '{akte_id}' nicht gefunden.", 404)
+    az = akte.aktenzeichen if hasattr(akte, "aktenzeichen") else akte_id
+
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT gruppe_key, gegenargument FROM stellungnahme_texte WHERE az = ?",
+            (az,)
+        ).fetchall()
+    return jsonify({r["gruppe_key"]: r["gegenargument"] for r in rows})
+
+
+@stellungnahme_bp.route("/<path:akte_id>/stellungnahme/texte", methods=["PUT"])
+def texte_speichern(akte_id: str):
+    """Speichert Gegenargument-Texte aus dem ReguWizard."""
+    from ..db.database import get_connection
+
+    akte = hole_akte_by_id(akte_id)
+    if not akte:
+        return _err(f"Akte '{akte_id}' nicht gefunden.", 404)
+    az = akte.aktenzeichen if hasattr(akte, "aktenzeichen") else akte_id
+
+    body = request.get_json(silent=True) or {}
+    texte = body.get("texte", {})
+    if not isinstance(texte, dict):
+        return _err("'texte' muss ein Objekt {gruppe_key: text} sein.", 400)
+
+    with get_connection() as conn:
+        for key, text in texte.items():
+            conn.execute(
+                "INSERT OR REPLACE INTO stellungnahme_texte "
+                "(az, gruppe_key, gegenargument, geaendert_am) "
+                "VALUES (?, ?, ?, datetime('now', 'localtime'))",
+                (az, key, text or "")
+            )
+
+    return jsonify({"ok": True, "gespeichert": len(texte)})

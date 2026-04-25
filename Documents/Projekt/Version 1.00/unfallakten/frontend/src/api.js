@@ -836,6 +836,30 @@ export const apiStellungnahme = {
     const sicheresAz = az.replace(/\//g, '-');
     _triggerDownload(blob, m ? m[1] : `${sicheresAz}_stellungnahme.docx`);
   },
+
+  texteHolen: async (az) => {
+    const token = tokenStore.getAccess();
+    const res = await fetch(`${API_BASE}/akten/${encodeURIComponent(az)}/stellungnahme/texte`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return {};
+    return res.json();
+  },
+
+  texteSpeichern: async (az, texte) => {
+    const token = tokenStore.getAccess();
+    const res = await fetch(`${API_BASE}/akten/${encodeURIComponent(az)}/stellungnahme/texte`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ texte }),
+    });
+    if (!res.ok) {
+      let msg = 'Speichern fehlgeschlagen.';
+      try { const d = await res.json(); msg = d.fehler || msg; } catch {}
+      throw new Error(msg);
+    }
+    return res.json();
+  },
 };
 
 // ── PRD-01: To-Do-System ──────────────────────────────────────────────────────

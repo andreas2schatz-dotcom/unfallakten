@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import ReactDOM from "react-dom";
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
 import { STATUS_MAP, KLAGE_SECTION_COLORS } from "../config/constants.js";
@@ -109,7 +110,7 @@ function Toast({ msg, onDone }) {
 
 
 function SlidePanel({ open, onClose, title, children }) {
-  return (
+  const panel = (
     <>
       {open && <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(17,29,53,0.45)", zIndex:300, backdropFilter:"blur(2px)" }} />}
       <div style={{ position:"fixed", top:0, right:0, bottom:0, width:"min(500px, calc(100vw - 40px))", background:T.white, boxShadow:"-8px 0 48px rgba(0,0,0,0.18)", zIndex:310, display:"flex", flexDirection:"column", transform:open?"translateX(0)":"translateX(105%)", transition:"transform 0.3s cubic-bezier(0.16,1,0.3,1)" }}>
@@ -121,6 +122,7 @@ function SlidePanel({ open, onClose, title, children }) {
       </div>
     </>
   );
+  return ReactDOM.createPortal(panel, document.body);
 }
 
 
