@@ -19,7 +19,6 @@ from ..auth.middleware import login_erforderlich
 from ..ramicro.connector import (
     get_ramicro_connection, RaMicroNichtAktiv, RaMicroVerbindungsFehler
 )
-from ..db.database import get_connection
 
 logger = logging.getLogger(__name__)
 ramicro_akte_bp = Blueprint("ramicro_akte", __name__, url_prefix="/ramicro/akte")
@@ -796,12 +795,10 @@ def adressen_suche():
 @ramicro_akte_bp.route("/mandant-checks", methods=["GET"])
 @login_erforderlich
 def mandant_checks():
-    """
-    GET /ramicro/akte/mandant-checks?az=242/26
-
-    Prüft für den Mandanten einer Akte:
-      - IBAN vorhanden in tblAdressenBankverbindungen
-    Gibt zurück: { iban_vorhanden, iban, mandant_name, mandant_email }
+    """GET /ramicro/akte/mandant-checks?az=
+    Prüft: IBAN (tblAdressenBankverbindungen), Vollmacht (WDM),
+    RSV-Beteiligter (tblAktenBeteiligte iBeteiligtenArt=3).
+    Returns: {iban_vorhanden, vollmacht_vorhanden, rechtsschutz_deckung, mandant_name, ...}
     """
     az = (request.args.get("az") or "").strip()
     if not az:
@@ -873,6 +870,19 @@ def mandant_checks():
                 except Exception as ve:
                     logger.debug("vollmacht_wdm check: %s", ve)
 
+            # RSV-Check: Beteiligter mit iBeteiligtenArt = 3 in tblAktenBeteiligte
+            rsv_vorhanden = False
+            try:
+                cur.execute("""
+                    SELECT COUNT(*) AS n
+                    FROM tblAktenBeteiligte
+                    WHERE GUIDAkte = %(guid)s AND iBeteiligtenArt = 3
+                """, {"guid": guid_akte})
+                rsv_row = cur.fetchone()
+                rsv_vorhanden = bool(rsv_row and rsv_row["n"] > 0)
+            except Exception as re_:
+                logger.debug("rsv_check(%s): %s", az_basis, re_)
+
     except RaMicroNichtAktiv:
         return jsonify({"iban_vorhanden": None, "fehler": "RA-Micro nicht aktiv"}), 503
     except RaMicroVerbindungsFehler as e:
@@ -880,18 +890,6 @@ def mandant_checks():
     except Exception as e:
         logger.warning("mandant_checks(%s): %s", az, e)
         return jsonify({"iban_vorhanden": None, "fehler": str(e)}), 500
-
-    # RSV-Check: SQLite beteiligte mit rolle='rechtsschutz'
-    rsv_vorhanden = False
-    try:
-        with get_connection() as _sq:
-            _rsv = _sq.execute(
-                "SELECT COUNT(*) AS n FROM beteiligte WHERE akte_id = ? AND rolle = 'rechtsschutz'",
-                (az_basis,)
-            ).fetchone()
-            rsv_vorhanden = bool(_rsv and _rsv["n"] > 0)
-    except Exception as _re:
-        logger.debug("rsv_check(%s): %s", az_basis, _re)
 
     if not m:
         return jsonify({
