@@ -819,7 +819,8 @@ def mandant_checks():
                     a.GUIDAkte,
                     a.sAktenNummer          AS az_roh,
                     a.sAktenKurzBezeichnung AS kurzbezeichnung,
-                    a.sAktenBezeichnung     AS bezeichnung
+                    a.sAktenBezeichnung     AS bezeichnung,
+                    a.sAktenSachbearbeiter  AS sachbearbeiter
                 FROM tblAkten a
                 WHERE a.sAktenNummer LIKE %(like)s
                   AND (a.dtAblage IS NULL OR CAST(a.dtAblage AS DATE) = '1899-12-30')
@@ -828,6 +829,25 @@ def mandant_checks():
             row = cur.fetchone()
             if not row:
                 return jsonify({"iban_vorhanden": False, "fehler": "Akte nicht gefunden"})
+
+            # KFZ-Kennzeichen aus WDM
+            kfz_mandant = kfz_gegner = ""
+            try:
+                cur.execute("""
+                    SELECT sName, CAST(Value AS nvarchar(50)) AS wert
+                    FROM _tbl0WDMDaten
+                    WHERE AktenNr = %(az_roh)s
+                      AND sName IN ('varM-KZ', 'varG-KZ')
+                      AND Value IS NOT NULL
+                      AND CAST(Value AS nvarchar(50)) != ''
+                """, {"az_roh": row["az_roh"]})
+                for kfz_r in cur.fetchall():
+                    if kfz_r["sName"] == "varM-KZ":
+                        kfz_mandant = (kfz_r["wert"] or "").strip()
+                    elif kfz_r["sName"] == "varG-KZ":
+                        kfz_gegner  = (kfz_r["wert"] or "").strip()
+            except Exception as ke:
+                logger.debug("kfz_check(%s): %s", az_basis, ke)
             guid_akte = row["GUIDAkte"]
 
             # Mandant + seine GUIDAdresse + IBAN
@@ -898,6 +918,8 @@ def mandant_checks():
     kurzbez   = (row.get("kurzbezeichnung") or "").strip() if row else ""
     langbez   = (row.get("bezeichnung")    or "").strip() if row else ""
 
+    sb_roh = (row.get("sachbearbeiter") or "").strip() if row else ""
+
     if not m:
         return jsonify({
             "iban_vorhanden":        False,
@@ -907,6 +929,9 @@ def mandant_checks():
             "mandant_email":         "",
             "kurzbezeichnung":       kurzbez,
             "bezeichnung":           langbez,
+            "sachbearbeiter":        sb_roh,
+            "kfz_mandant":           kfz_mandant,
+            "kfz_gegner":            kfz_gegner,
         })
 
     firma   = (m.get("firma")   or "").strip()
@@ -927,6 +952,9 @@ def mandant_checks():
         "az_roh":                az_basis,
         "kurzbezeichnung":       kurzbez,
         "bezeichnung":           langbez,
+        "sachbearbeiter":        sb_roh,
+        "kfz_mandant":           kfz_mandant,
+        "kfz_gegner":            kfz_gegner,
     })
 
 

@@ -245,9 +245,9 @@ function AkteDetailView({ akte, st, dispatch }) {
           {(() => {
             const kurz = akte.kurzbezeichnung || raInfo?.kurzbezeichnung || "";
             const lang = raInfo?.bezeichnung || "";
-            const sb   = akte.sachbearbeiter || "";
-            const mKfz = (st.beteiligte || []).find(b => b.rolle === "mandant")?.kfz_kennzeichen || "";
-            const gKfz = (st.beteiligte || []).find(b =>
+            const sb   = raInfo?.sachbearbeiter || akte.sachbearbeiter || "";
+            const mKfz = raInfo?.kfz_mandant || (st.beteiligte || []).find(b => b.rolle === "mandant")?.kfz_kennzeichen || "";
+            const gKfz = raInfo?.kfz_gegner  || (st.beteiligte || []).find(b =>
               ["gegner","GHPV","GHV","GBEV"].includes(b.rolle || b.kuerzel || "")
             )?.kfz_kennzeichen || "";
             const metaTeile = [
@@ -269,8 +269,9 @@ function AkteDetailView({ akte, st, dispatch }) {
                       fontWeight:800, color:T.white, margin:"2px 0 0", lineHeight:1.05,
                       letterSpacing:"-0.01em" }}>{akte.az}</h1>
                     {(kurz || lang) && (
-                      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.95rem",
-                        fontWeight:500, color:"rgba(255,255,255,0.65)", whiteSpace:"nowrap" }}>
+                      <span style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"2.2rem",
+                        fontWeight:400, color:"rgba(255,255,255,0.55)", whiteSpace:"nowrap",
+                        letterSpacing:"-0.01em", lineHeight:1.05 }}>
                         {kurz}{kurz && lang ? " – " : ""}{lang}
                       </span>
                     )}
@@ -285,29 +286,6 @@ function AkteDetailView({ akte, st, dispatch }) {
               </div>
             );
           })()}
-
-          {/* ── Mitte: To-Do Aufklapp-Kachel (flex-grow, so weit links wie möglich) ── */}
-          {/* ── Portal-aktiv Toggle ── */}
-          <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
-            <label style={{ display:"flex", alignItems:"center", gap:5, cursor:"pointer" }}>
-              <input
-                type="checkbox"
-                checked={portalAktiv}
-                onChange={(e) => handlePortalToggle(e.target.checked)}
-                style={{ width:15, height:15, accentColor:T.accent, cursor:"pointer" }}
-              />
-              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
-                color:"rgba(255,255,255,0.55)", letterSpacing:"0.04em" }}>Portal</span>
-            </label>
-            {akte?.portal_last_sync && (
-              <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.7rem",
-                color:"rgba(255,255,255,0.35)" }}>
-                ↑ {new Date(akte.portal_last_sync).toLocaleString("de-DE", {
-                  day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"
-                })}
-              </span>
-            )}
-          </div>
 
           {/* ── Rechts: KPI rechtsbündig ── */}
           <div style={{ display:"flex", gap:10, background:"rgba(255,255,255,0.05)",
@@ -340,7 +318,7 @@ function AkteDetailView({ akte, st, dispatch }) {
         </div>
 
         {/* ── Action-Buttons (Option C: zwischen KPI-Zeile und Tabs) ── */}
-        <div style={{ display:"flex", gap:6, padding:"6px 1.75rem 8px", flexWrap:"wrap" }}>
+        <div style={{ display:"flex", gap:6, padding:"6px 1.75rem 8px", flexWrap:"wrap", alignItems:"center" }}>
           {[
             { label:"💬 Nachricht → Mandant", stil:"primary", onClick:() => setZeigePwModal(true) },
             { label:"📤 STA senden",          stil:"warn",    onClick:() => setZeigeStaDialog(true) },
@@ -362,6 +340,19 @@ function AkteDetailView({ akte, st, dispatch }) {
               }}>{label}</button>
             );
           })}
+          {/* Portal-aktiv Toggle */}
+          <label style={{ display:"flex", alignItems:"center", gap:5, cursor:"pointer", marginLeft:8 }}>
+            <input
+              type="checkbox"
+              checked={portalAktiv}
+              onChange={(e) => handlePortalToggle(e.target.checked)}
+              style={{ width:14, height:14, accentColor:T.accent, cursor:"pointer" }}
+            />
+            <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem",
+              color:"rgba(255,255,255,0.45)", letterSpacing:"0.04em" }}>
+              Portal{akte?.portal_last_sync ? ` ↑${new Date(akte.portal_last_sync).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}` : ""}
+            </span>
+          </label>
         </div>
 
         <div style={{ display:"flex", overflowX:"auto", scrollbarWidth:"none" }}>
@@ -404,7 +395,7 @@ function AkteDetailView({ akte, st, dispatch }) {
           ) : null}
           {/* Synchron: Übersicht + To-Dos */}
           {sec==="uebersicht" && <UebersichtSection akte={akte} st={st} dispatch={dispatch} onNavigate={setSec} />}
-          {sec==="todos"      && <TodoSection akteId={akte.id} az={akte.az} onTodoChange={ladeHeaderTodos} />}
+          {sec==="todos"      && <TodoSection akteId={akte.id} az={akte.az} />}
           {/* Lazy: alle anderen Sections – werden erst bei erstem Tabwechsel geladen */}
           <Suspense fallback={
             <div style={{ display:"flex", justifyContent:"center", padding:"3rem 0" }}>
