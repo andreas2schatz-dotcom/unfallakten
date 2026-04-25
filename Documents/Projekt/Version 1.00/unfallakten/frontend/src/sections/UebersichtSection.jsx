@@ -1450,7 +1450,7 @@ function TodoKachelKompakt({ az, akteId, azRoh }) {
       new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
     ]).catch(() => ({ todos: [] }));
     const wvCall = azRoh && azRoh.includes("/")
-      ? request(`/wiedervorlage/?az=${encodeURIComponent(azRoh)}&alle_gruende=true&limit=10`)
+      ? request(`/wiedervorlage/?az=${encodeURIComponent(azRoh)}&alle_gruende=true&alle_daten=true&limit=10`)
           .then(r => r?.wiedervorlagen || [])
           .catch(() => [])
       : Promise.resolve([]);
@@ -1602,16 +1602,20 @@ function KlappAbschnitt({ titel, lsKey, children, standardOffen = true }) {
         onClick={toggle}
         style={{
           width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
-          background:"transparent", border:"none", padding:"0 0 6px 0",
-          cursor:"pointer", marginBottom: offen ? 0 : 0,
+          background: offen ? T.accentPale : T.surface,
+          border: `1px solid ${offen ? T.accentTrim : T.border}`,
+          borderRadius: 8, padding:"8px 14px", cursor:"pointer", textAlign:"left",
+          boxShadow:"0 1px 3px rgba(0,0,0,0.06)", marginBottom: offen ? 6 : 0,
+          transition:"background 0.15s, border-color 0.15s",
         }}
       >
         <span style={{
-          fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", fontWeight:600,
-          color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.08em",
+          fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", fontWeight:600,
+          color: offen ? T.accent : T.textMid,
+          textTransform:"uppercase", letterSpacing:"0.08em",
         }}>{titel}</span>
         <span style={{
-          fontSize:"1rem", color:T.textFaint, lineHeight:1,
+          fontSize:"1.1rem", color: offen ? T.accent : T.textFaint, lineHeight:1,
           transform: offen ? "rotate(180deg)" : "none",
           transition:"transform 0.2s",
         }}>⌄</span>

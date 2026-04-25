@@ -148,6 +148,7 @@ def liste_wiedervorlagen():
     """
     nur_heute      = request.args.get("nur_heute", "false").lower() == "true"
     alle_gruende   = request.args.get("alle_gruende", "false").lower() == "true"
+    alle_daten     = request.args.get("alle_daten", "false").lower() == "true"
     sb             = request.args.get("sb") or None
     grund_filter   = request.args.get("grund") or None
     az             = request.args.get("az") or None
@@ -164,6 +165,7 @@ def liste_wiedervorlagen():
             nur_stellungnahme=not alle_gruende,
             grund_filter=grund_filter,
             aktenzeichen=az,
+            alle_daten=alle_daten,
         )
     except Exception as e:
         return _ramicro_fehler_antwort(e)

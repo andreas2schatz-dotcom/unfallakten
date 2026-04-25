@@ -98,6 +98,7 @@ def hole_faellige_wiedervorlagen(
     nur_stellungnahme: bool = True,
     grund_filter: Optional[str] = None,
     aktenzeichen: Optional[str] = None,
+    alle_daten: bool = False,
 ) -> list[dict]:
     """
     Gibt fällige Wiedervorlagen zurück, inklusive Akten- und Adressdaten.
@@ -109,10 +110,13 @@ def hole_faellige_wiedervorlagen(
         nur_stellungnahme: True = nur '%nahme%' Gründe, False = alle Gründe
         grund_filter:     Exakter WV-Grund als Filter, None = alle
         aktenzeichen:     Aktenzeichen filtern (z.B. "285/26TB"), None = alle
+        alle_daten:       True = kein Datum-Filter (alle WV, auch zukünftige)
     """
     limit = min(int(limit), 500)
 
     datum_filter = (
+        "1=1"
+        if alle_daten else
         "CAST(w.dtWiedervorlage AS DATE) = CAST(GETDATE() AS DATE)"
         if nur_heute else
         "CAST(w.dtWiedervorlage AS DATE) <= CAST(GETDATE() AS DATE)"
