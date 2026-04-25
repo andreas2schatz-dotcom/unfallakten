@@ -2035,8 +2035,8 @@ function AkteActionBoardHeader({ akte, azRoh, mandantName, onNavigate, ibanCheck
           <BTN stil="primary" onClick={() => setZeigePwModal(true)}>💬 Nachricht → Mandant</BTN>
           <BTN stil="warn"    onClick={() => setZeigeStaDialog(true)}>📤 STA senden</BTN>
           <BTN stil="ghost"   onClick={() => setZeigeTodoForm(t => !t)}>+ Todo</BTN>
-          <BTN stil="ghost"   onClick={() => onNavigate && onNavigate("word")}>📄 Forderungsschr.</BTN>
-          <BTN stil="dimmed"  onClick={() => onNavigate && onNavigate("word")}>⬇ Word</BTN>
+          <BTN stil="ghost"   onClick={() => onNavigate && onNavigate("word")}>📄 Word</BTN>
+          <BTN stil="dimmed"  onClick={() => onNavigate && onNavigate("klage")}>⚖ Klage</BTN>
         </div>
       </div>
 
