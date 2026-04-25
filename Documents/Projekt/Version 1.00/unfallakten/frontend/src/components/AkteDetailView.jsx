@@ -173,6 +173,11 @@ function AkteDetailView({ akte, st, dispatch }) {
     return _b > 0 ? _b : (_sd.gesamt_brutto || akte.brutto || 0);
   }, [st.schaden, akte.brutto]);
 
+  // Badge-Logik: localStorage-Timestamps für Neu-Indikatoren
+  const azKey    = (akte?.az || "").replace(/\//g, "-");
+  const lsKeyDok = `tab-letztbesucht-${azKey}-dokumente`;
+  const lsKeyReg = `tab-letztbesucht-${azKey}-regulierung`;
+
   // PRD-16: Status-Punkte je Reiter — memoized, da bei jedem Render neu berechnet
   const tabs = useMemo(() => {
     const beteiligteOk  = (st.beteiligte||[]).some(b => b.rolle === "mandant") &&
@@ -182,6 +187,15 @@ function AkteDetailView({ akte, st, dispatch }) {
     const regulierungOk = (st.abrechnungen?.length || 0) > 0;
     const klageStatus   = akte.status === "klage";
 
+    const letzterBesuchDok = localStorage.getItem(lsKeyDok);
+    const letzterBesuchReg = localStorage.getItem(lsKeyReg);
+    const neueDokumente = letzterBesuchDok
+      ? (st.dokumente || []).filter(d => d.erstellt_am && d.erstellt_am > letzterBesuchDok).length
+      : 0;
+    const neueAbrechnung = letzterBesuchReg && (st.abrechnungen || []).length > 0
+      ? (st.abrechnungen[0]?.erstellt_am || "") > letzterBesuchReg
+      : false;
+
     const sp = (ok, fehlt) => {
       if (ok)    return { dot: "✅", color: T.green };
       if (fehlt) return { dot: "⚠️", color: T.amber };
@@ -189,18 +203,18 @@ function AkteDetailView({ akte, st, dispatch }) {
     };
 
     return [
-      { id:"uebersicht",    label:"Übersicht" },
+      { id:"uebersicht",    label:"⚡ Übersicht" },
       { id:"beteiligte",    label:`👥 Beteiligte`, ...sp(beteiligteOk,  !beteiligteOk  && st.beteiligte  !== undefined) },
       { id:"unfalldetails", label:"🔍 Unfalldetails" },
       { id:"schaden",       label:`🚗 Schaden`,    ...sp(schadenOk,     !schadenOk     && st.schaden     !== undefined) },
-      { id:"dokumente",     label:`📄 Dokumente (${dokumenteAnz})` },
-      { id:"regulierung",   label:`💶 Regulierung`, ...sp(regulierungOk, false) },
+      { id:"dokumente",     label: neueDokumente > 0 ? `📄 Dokumente (${dokumenteAnz}) 🔴` : `📄 Dokumente (${dokumenteAnz})` },
+      { id:"regulierung",   label: neueAbrechnung ? `💶 Regulierung 🔴` : `💶 Regulierung`, ...sp(regulierungOk, false) },
       { id:"gebuehren",     label:"⚖️ Gebühren" },
       { id:"klage",         label:`⚖ Klage`,        ...sp(klageStatus,   false) },
       { id:"word",          label:"📝 Word" },
       { id:"todos",         label:`📋 To-Dos` },
     ];
-  }, [st.beteiligte, st.schaden, st.dokumente, st.abrechnungen, akte.status]);
+  }, [st.beteiligte, st.schaden, st.dokumente, st.abrechnungen, akte.status, akte.az, lsKeyDok, lsKeyReg]);
 
   return (
     <>
@@ -448,7 +462,11 @@ function AkteDetailView({ akte, st, dispatch }) {
 
         <div style={{ display:"flex", overflowX:"auto", scrollbarWidth:"none" }}>
           {tabs.map(t => (
-            <button key={t.id} onClick={() => setSec(t.id)}
+            <button key={t.id} onClick={() => {
+              setSec(t.id);
+              const lsTabKey = `tab-letztbesucht-${(akte?.az || "").replace(/\//g, "-")}-${t.id}`;
+              localStorage.setItem(lsTabKey, new Date().toISOString());
+            }}
               style={{ padding:"9px 17px", background:"transparent", border:"none",
                 borderBottom:sec===t.id?`2px solid ${T.accent}`:"2px solid transparent",
                 color:sec===t.id?T.white:"rgba(255,255,255,0.48)",
@@ -476,7 +494,7 @@ function AkteDetailView({ akte, st, dispatch }) {
             />
           ) : null}
           {/* Synchron: Übersicht + To-Dos */}
-          {sec==="uebersicht" && <UebersichtSection akte={akte} st={st} dispatch={dispatch} />}
+          {sec==="uebersicht" && <UebersichtSection akte={akte} st={st} dispatch={dispatch} onNavigate={setSec} />}
           {sec==="todos"      && <TodoSection akteId={akte.id} az={akte.az} onTodoChange={ladeHeaderTodos} />}
           {/* Lazy: alle anderen Sections – werden erst bei erstem Tabwechsel geladen */}
           <Suspense fallback={
