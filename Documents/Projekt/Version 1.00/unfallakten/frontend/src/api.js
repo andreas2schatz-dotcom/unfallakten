@@ -139,6 +139,11 @@ export const akten = {
   aktivitaetLoeschen: (akteId, aktivitaetId) =>
     request(`/akten/${akteId}/aktivitaeten/${aktivitaetId}`, { method: "DELETE" }),
   statistik:     ()         => request('/akten/statistik'),
+  pwaMessage: (az, text, vorlageKey = "freitext") =>
+    request(`/akten/${encodeURIComponent(az)}/pwa-nachricht`, {
+      method: "POST",
+      body: JSON.stringify({ text, vorlage_key: vorlageKey }),
+    }),
 };
 
 // ─────────────────────────────────────────────────────────────
