@@ -1625,6 +1625,107 @@ function KlappAbschnitt({ titel, lsKey, children, standardOffen = true }) {
   );
 }
 
+const PWA_VORLAGEN = [
+  {
+    key: "iban_anfrage",
+    label: "Bitte IBAN mitteilen",
+    text: "für die Weiterleitung eingegangener Zahlungen benötigen wir noch Ihre Bankverbindung (IBAN). Bitte teilen Sie uns diese baldmöglichst mit.",
+  },
+  {
+    key: "regulierung_eingegangen",
+    label: "Regulierungszahlung eingegangen",
+    text: "wir möchten Sie informieren, dass eine Zahlung der Gegenseite bei uns eingegangen ist. Wir werden diese nach Prüfung an Sie weiterleiten.",
+  },
+  {
+    key: "sachstand",
+    label: "Sachstandsmitteilung",
+    text: "wir möchten Sie über den aktuellen Stand Ihrer Akte informieren.",
+  },
+  { key: "freitext", label: "Freitext", text: "" },
+];
+
+function PwaNachrichtModal({ az, mandantName, onClose }) {
+  const [vorlageKey, setVorlageKey] = React.useState("iban_anfrage");
+  const [text, setText]             = React.useState(PWA_VORLAGEN[0].text);
+  const [senden, setSenden]         = React.useState(false);
+  const [toast, setToast]           = React.useState("");
+
+  const waehleVorlage = (key) => {
+    setVorlageKey(key);
+    const v = PWA_VORLAGEN.find(v => v.key === key);
+    if (v) setText(v.text);
+  };
+
+  const absenden = async () => {
+    if (!text.trim()) { setToast("Bitte einen Text eingeben."); return; }
+    setSenden(true);
+    try {
+      await apiAkten.pwaMessage(az, text.trim(), vorlageKey);
+      setToast("Nachricht gespeichert.");
+      setTimeout(onClose, 1200);
+    } catch (e) {
+      setToast("Fehler: " + (e?.message || String(e)));
+    } finally {
+      setSenden(false);
+    }
+  };
+
+  return (
+    <>
+      {toast && <Toast msg={toast} onDone={() => setToast("")} />}
+      <div style={{
+        position:"fixed", inset:0, background:"rgba(0,0,0,.45)",
+        zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center",
+      }} onClick={onClose}>
+        <div style={{
+          background:T.offWhite, borderRadius:12, padding:"1.5rem",
+          width:"min(520px,96vw)", boxShadow:"0 8px 32px rgba(0,0,0,.18)",
+          fontFamily:T.fontBody,
+        }} onClick={e => e.stopPropagation()}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1rem" }}>
+            <span style={{ fontFamily:T.fontDisplay, fontWeight:700, fontSize:"1rem", color:T.navy }}>
+              💬 Nachricht an Mandant
+            </span>
+            {mandantName && (
+              <span style={{ fontSize:"0.78rem", color:T.textMuted }}>{mandantName}</span>
+            )}
+          </div>
+
+          <label style={{ fontSize:"0.75rem", fontWeight:600, color:T.textMuted, textTransform:"uppercase", letterSpacing:".06em", display:"block", marginBottom:4 }}>
+            Vorlage
+          </label>
+          <select value={vorlageKey} onChange={e => waehleVorlage(e.target.value)}
+            style={{ width:"100%", padding:"7px 10px", borderRadius:7, border:`1.5px solid ${T.border}`,
+              fontFamily:T.fontBody, fontSize:"0.875rem", color:T.text, background:T.surface,
+              marginBottom:"0.75rem", outline:"none" }}>
+            {PWA_VORLAGEN.map(v => (
+              <option key={v.key} value={v.key}>{v.label}</option>
+            ))}
+          </select>
+
+          <label style={{ fontSize:"0.75rem", fontWeight:600, color:T.textMuted, textTransform:"uppercase", letterSpacing:".06em", display:"block", marginBottom:4 }}>
+            Nachrichtentext
+          </label>
+          <textarea value={text} onChange={e => setText(e.target.value)} rows={5}
+            style={{ width:"100%", padding:"8px 10px", borderRadius:7, border:`1.5px solid ${T.border}`,
+              fontFamily:T.fontBody, fontSize:"0.875rem", color:T.text, background:T.surface,
+              resize:"vertical", outline:"none", boxSizing:"border-box", marginBottom:"1rem" }}
+            onFocus={e => e.target.style.borderColor = T.accent}
+            onBlur={e => e.target.style.borderColor = T.border}
+          />
+
+          <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+            <Btn variant="secondary" onClick={onClose}>Abbrechen</Btn>
+            <Btn variant="primary" onClick={absenden} disabled={senden}>
+              {senden ? "…" : "📤 Senden"}
+            </Btn>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function UebersichtSection({ akte, st, dispatch }) {
   const [notizen, setNotizen] = useState(st.notizen || "");
   const [nChanged, setNC]     = useState(false);
