@@ -2372,7 +2372,7 @@ function UebersichtSection({ akte, st, dispatch }) {
     </div>
   ) : null;
 
-  const azKlappKey = (akte.az_roh || akte.az || "").replace(/\//g, "-");
+  const azKlappKey = azRoh.replace(/\//g, "-");
 
   const mandantName = ibanCheck?.mandant_name || mandant?.name || "";
 
