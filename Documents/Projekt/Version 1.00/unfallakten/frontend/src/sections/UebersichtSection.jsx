@@ -4,6 +4,7 @@ import Ic from "../config/icons.jsx";
 import { HAFTUNGSART_CFG, TIMELINE_FILTER, TIMELINE_TYPE_CFG, POSITION_LABELS_FE, positionKuerzungBetrag } from "../config/constants.js";
 import { fmtEuro } from "../config/utils.js";
 import { Card, CardHead, Btn, Toast } from "../components/common.jsx";
+import StaDialog from "../components/StaDialog.jsx";
 import {
   akten as apiAkten,
   forderungen as apiForderungen,
@@ -1622,6 +1623,146 @@ function KlappAbschnitt({ titel, lsKey, children, standardOffen = true }) {
       </button>
       {offen && children}
     </div>
+  );
+}
+
+function TodoInlineForm({ az, onDone }) {
+  const [text, setText]       = React.useState("");
+  const [faellig, setFaellig] = React.useState("");
+  const [busy, setBusy]       = React.useState(false);
+  const [toast, setToast]     = React.useState("");
+
+  const speichern = async () => {
+    if (!text.trim()) return;
+    setBusy(true);
+    try {
+      await apiTodos.erstelle(az, { text: text.trim(), faellig_am: faellig || null, frist_typ: "" });
+      onDone();
+    } catch (e) {
+      setToast("Fehler: " + (e?.message || String(e)));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      {toast && <Toast msg={toast} onDone={() => setToast("")} />}
+      <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+        <input
+          type="text" value={text} onChange={e => setText(e.target.value)}
+          placeholder="To-Do Text …"
+          style={{
+            flex:1, minWidth:200, padding:"6px 10px",
+            border:`1.5px solid ${T.border}`, borderRadius:6,
+            fontFamily:T.fontBody, fontSize:"0.875rem", color:T.text,
+            background:T.white || "#ffffff", outline:"none",
+          }}
+          onFocus={e => e.target.style.borderColor = T.accent}
+          onBlur={e => e.target.style.borderColor = T.border}
+          onKeyDown={e => { if (e.key === "Enter") speichern(); if (e.key === "Escape") onDone(); }}
+          autoFocus
+        />
+        <input
+          type="date" value={faellig} onChange={e => setFaellig(e.target.value)}
+          style={{
+            padding:"6px 10px", border:`1.5px solid ${T.border}`, borderRadius:6,
+            fontFamily:T.fontBody, fontSize:"0.875rem", color:T.text,
+            background:T.white || "#ffffff", outline:"none",
+          }}
+        />
+        <Btn variant="gold" size="sm" onClick={speichern} disabled={busy || !text.trim()}>
+          {busy ? "…" : "✓ Anlegen"}
+        </Btn>
+        <Btn variant="secondary" size="sm" onClick={onDone}>Abbrechen</Btn>
+      </div>
+    </>
+  );
+}
+
+function AkteActionBoardHeader({ akte, azRoh, mandantName, onNavigate }) {
+  const [zeigePwModal, setZeigePwModal]       = React.useState(false);
+  const [zeigeStaDialog, setZeigeStaDialog]   = React.useState(false);
+  const [zeigeTodoForm, setZeigeTodoForm]     = React.useState(false);
+
+  const az   = akte.az_roh || akte.az || "";
+  const kurz = akte.kurzbezeichnung || akte.kurzbez || "";
+  const lang = akte.bezeichnung || akte.langbezeichnung || "";
+
+  const BTN = ({ children, onClick, stil = "ghost" }) => {
+    const styles = {
+      ghost:   { background:"rgba(255,255,255,.12)", color:"white",  border:"1px solid rgba(255,255,255,.22)" },
+      primary: { background:T.accent,               color:"white",  border:"none" },
+      warn:    { background:T.amber || "#f59e0b",   color:"#1a1a00",border:"none" },
+      dimmed:  { background:"rgba(255,255,255,.07)", color:T.textFaint, border:"1px solid rgba(255,255,255,.1)" },
+    };
+    return (
+      <button onClick={onClick} style={{
+        ...styles[stil],
+        fontFamily:T.fontBody, fontSize:"0.72rem", fontWeight:600,
+        padding:"5px 12px", borderRadius:6, cursor:"pointer",
+        display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap",
+      }}>{children}</button>
+    );
+  };
+
+  return (
+    <>
+      {zeigePwModal && (
+        <PwaNachrichtModal
+          az={azRoh || az}
+          mandantName={mandantName}
+          onClose={() => setZeigePwModal(false)}
+        />
+      )}
+      {zeigeStaDialog && (
+        <StaDialog
+          az={azRoh || az}
+          onClose={() => setZeigeStaDialog(false)}
+        />
+      )}
+
+      <div style={{ background:T.navy, borderRadius:"10px 10px 0 0", padding:"12px 18px 10px" }}>
+        <div style={{ display:"flex", alignItems:"baseline", gap:14, flexWrap:"wrap", marginBottom:3 }}>
+          <span style={{
+            fontFamily:"'Bricolage Grotesque',system-ui,sans-serif",
+            fontSize:"1.5rem", fontWeight:800, color:"white", letterSpacing:".03em", lineHeight:1,
+          }}>{az}</span>
+          {kurz && (
+            <span style={{
+              fontFamily:"'Bricolage Grotesque',system-ui,sans-serif",
+              fontSize:"1.1rem", fontWeight:600, color:T.accentLight, lineHeight:1,
+            }}>{kurz}</span>
+          )}
+        </div>
+        {lang && (
+          <div style={{
+            fontFamily:T.fontBody, fontSize:"0.88rem", color:T.textFaint, marginTop:2,
+          }}>{lang}</div>
+        )}
+
+        <div style={{
+          display:"flex", gap:6, flexWrap:"wrap",
+          marginTop:10, paddingTop:10,
+          borderTop:"1px solid rgba(255,255,255,.1)",
+        }}>
+          <BTN stil="primary" onClick={() => setZeigePwModal(true)}>💬 Nachricht → Mandant</BTN>
+          <BTN stil="warn"    onClick={() => setZeigeStaDialog(true)}>📤 STA senden</BTN>
+          <BTN stil="ghost"   onClick={() => setZeigeTodoForm(t => !t)}>+ Todo</BTN>
+          <BTN stil="ghost"   onClick={() => onNavigate && onNavigate("word")}>📄 Forderungsschr.</BTN>
+          <BTN stil="dimmed"  onClick={() => onNavigate && onNavigate("word")}>⬇ Word</BTN>
+        </div>
+      </div>
+
+      {zeigeTodoForm && (
+        <div style={{
+          background:T.surface, border:`1px solid ${T.border}`,
+          borderTop:"none", padding:"12px 18px",
+        }}>
+          <TodoInlineForm az={azRoh || az} onDone={() => setZeigeTodoForm(false)} />
+        </div>
+      )}
+    </>
   );
 }
 
