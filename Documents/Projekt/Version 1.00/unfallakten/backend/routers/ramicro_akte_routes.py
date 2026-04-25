@@ -876,7 +876,7 @@ def mandant_checks():
                 cur.execute("""
                     SELECT COUNT(*) AS n
                     FROM tblAktenBeteiligte
-                    WHERE GUIDAkte = %(guid)s AND iBeteiligtenArt = 3
+                    WHERE GUIDAkte = %(guid)s AND iBeteiligtenArt = 3 AND bDeaktiviert = 0
                 """, {"guid": guid_akte})
                 rsv_row = cur.fetchone()
                 rsv_vorhanden = bool(rsv_row and rsv_row["n"] > 0)
