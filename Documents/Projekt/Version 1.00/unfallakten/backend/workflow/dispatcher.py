@@ -253,26 +253,29 @@ def _pruefe_duplikat(pdf_hash, akte_az):
 
 # ── Hauptfunktion ─────────────────────────────────────────────────────────────
 
-def dispatch_dokument(dok_id, akte_az, dateipfad, benutzer_id=None, absender_domain=None):
-    # type: (int, str, str, Optional[int], Optional[str]) -> Dict[str, Any]
+def dispatch_dokument(dok_id, akte_az, dateipfad, benutzer_id=None, absender_domain=None,
+                      ocr_text_override=None):
+    # type: (int, str, str, Optional[int], Optional[str], Optional[str]) -> Dict[str, Any]
     """
     Wird automatisch nach Upload oder E-Mail-Import aufgerufen.
 
     1. Hash berechnen + Duplikat pruefen
     2. Text extrahieren (bestehendes pdf_utils)
-    3. Domain-Lookup (wenn absender_domain vorhanden)
-    4. Registry-Lookup im PDF-Text (Stufe 1)
-    5. classify_document() Fallback (Stufe 1b)
-    6. Eskalation falls unbekannt (Stufe 3)
-    7. Parser ausfuehren falls vorhanden
-    8. Ergebnis in DB schreiben
+    3. OCR falls Bild-PDF und kein ocr_text_override gegeben (PRD-30)
+    4. Domain-Lookup (wenn absender_domain vorhanden)
+    5. Registry-Lookup im PDF-Text (Stufe 1)
+    6. classify_document() Fallback (Stufe 1b)
+    7. Eskalation falls unbekannt (Stufe 3)
+    8. Parser ausfuehren falls vorhanden
+    9. Ergebnis in DB schreiben
 
     Args:
-        dok_id:          Dokument-ID in der DB
-        akte_az:         Aktenzeichen (PK der unfallakte)
-        dateipfad:       Pfad zur PDF-Datei
-        benutzer_id:     Hochladender Benutzer (optional)
-        absender_domain: E-Mail-Domain des Absenders (optional, z.B. 'allianz.de')
+        dok_id:            Dokument-ID in der DB
+        akte_az:           Aktenzeichen (PK der unfallakte)
+        dateipfad:         Pfad zur PDF-Datei
+        benutzer_id:       Hochladender Benutzer (optional)
+        absender_domain:   E-Mail-Domain des Absenders (optional, z.B. 'allianz.de')
+        ocr_text_override: Vorverarbeiteter OCR-Text (aus SSE-Endpoint, vermeidet doppeltes OCR)
 
     Returns: Ergebnis-Dict mit klasse, konfidenz, stufe, parse_ergebnis
     """
@@ -302,19 +305,41 @@ def dispatch_dokument(dok_id, akte_az, dateipfad, benutzer_id=None, absender_dom
         )
 
     # ── Text extrahieren ───────────────────────────────────────────────────
-    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-        tmp.write(datei_bytes)
-        tmp_pfad = tmp.name
+    if ocr_text_override is not None:
+        # SSE-Endpoint hat OCR bereits durchgeführt – direkt verwenden
+        norm_text = normalize_text(ocr_text_override)
+        has_image_pages = True
+        logger.info("Dok %d: OCR-Text-Override verwendet (%d Zeichen).", dok_id, len(norm_text))
+    else:
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp.write(datei_bytes)
+            tmp_pfad = tmp.name
 
-    try:
-        full_text, page_texts, has_image_pages = extract_text_from_pdf(tmp_pfad)
-    finally:
         try:
-            os.unlink(tmp_pfad)
-        except OSError:
-            pass
+            full_text, page_texts, has_image_pages = extract_text_from_pdf(tmp_pfad)
+        finally:
+            try:
+                os.unlink(tmp_pfad)
+            except OSError:
+                pass
 
-    norm_text = normalize_text(full_text)
+        norm_text = normalize_text(full_text)
+
+        # ── OCR-Fallback für Bild-PDFs (PRD-30) ───────────────────────────
+        if not norm_text or len(norm_text.strip()) < 50:
+            try:
+                from ..services.ocr_service import ist_bild_pdf, ocr_text as _ocr_text
+                if ist_bild_pdf(has_image_pages, len(norm_text.strip())):
+                    logger.info("Dok %d: Bild-PDF erkannt – starte OCR-Fallback.", dok_id)
+                    ocr_roh = _ocr_text(datei_bytes)
+                    if ocr_roh and len(ocr_roh.strip()) >= 20:
+                        norm_text = normalize_text(ocr_roh)
+                        logger.info(
+                            "Dok %d: OCR-Fallback erfolgreich – %d Zeichen.",
+                            dok_id, len(norm_text),
+                        )
+            except Exception as ocr_err:
+                logger.warning("Dok %d: OCR-Fallback fehlgeschlagen: %s", dok_id, ocr_err)
 
     if not norm_text or len(norm_text.strip()) < 20:
         logger.warning("Dok %d: Zu wenig Text extrahiert (%d Zeichen).", dok_id, len(norm_text))
@@ -496,7 +521,17 @@ def _fuehre_parser_aus(klasse, norm_text, meta, versicherer_kuerzel=None,
 
     if klasse == "abrechnungsschreiben":
         from ..parsers.abrechnungsschreiben_parser import parse_abrechnungsschreiben
-        r = parse_abrechnungsschreiben(norm_text, versicherer_kuerzel)
+        import os as _os
+        from ..db.database import get_connection as _get_conn
+        _env_on = _os.environ.get("LLM_ENABLED", "false").strip().lower() == "true"
+        _db_on  = False
+        if _env_on:
+            with _get_conn() as _c:
+                _row = _c.execute(
+                    "SELECT wert FROM konfiguration WHERE schluessel='llm_parsing_enabled'"
+                ).fetchone()
+                _db_on = (_row["wert"] == "true") if _row else False
+        r = parse_abrechnungsschreiben(norm_text, versicherer_kuerzel, llm_aktiv=_env_on and _db_on)
         positionen = []
         for p in r.positionen:
             positionen.append({
@@ -525,7 +560,11 @@ def _fuehre_parser_aus(klasse, norm_text, meta, versicherer_kuerzel=None,
             "positionen": positionen,
             "zahlungen": zahlungen,
             "parse_konfidenz": round(r.konfidenz, 3),
-            "warnungen": r.warnungen,
+            "llm_verwendet":    r.llm_verwendet,
+            "llm_konflikt":     r.llm_konflikt,
+            "llm_gesamtbetrag": r.llm_gesamtbetrag,
+            "llm_positionen":   r.llm_positionen,
+            "warnungen": [w for w in r.warnungen if "LLM" not in w],
         }
 
     elif klasse == "pruefbericht":
@@ -561,7 +600,17 @@ def _fuehre_parser_aus(klasse, norm_text, meta, versicherer_kuerzel=None,
 
     elif klasse == "gutachten":
         from ..parsers.gutachten_parser import parse_gutachten
-        r = parse_gutachten(norm_text, pruefdienstleister)
+        import os as _os
+        from ..db.database import get_connection as _get_conn
+        _env_on = _os.environ.get("LLM_ENABLED", "false").strip().lower() == "true"
+        _db_on  = False
+        if _env_on:
+            with _get_conn() as _c:
+                _row = _c.execute(
+                    "SELECT wert FROM konfiguration WHERE schluessel='llm_parsing_enabled'"
+                ).fetchone()
+                _db_on = (_row["wert"] == "true") if _row else False
+        r = parse_gutachten(norm_text, pruefdienstleister, llm_aktiv=_env_on and _db_on)
         fz = r.fahrzeug
         return {
             "dokumenttyp": "gutachten",
@@ -580,6 +629,10 @@ def _fuehre_parser_aus(klasse, norm_text, meta, versicherer_kuerzel=None,
             "schadenart": r.schadenart,
             "abrechnungsart": r.abrechnungsart,
             "wirtschaftlicher_totalschaden": r.wirtschaftlicher_totalschaden,
+            # Rohe Beträge für LLM-Vergleich im Frontend
+            "reparaturkosten_netto":       r.reparaturkosten_netto,
+            "nutzungsausfall_tagessatz":    r.nutzungsausfall_tagessatz,
+            "nutzungsausfall_tage":         r.nutzungsausfall_tage,
             "schadenpositionen": {
                 "reparaturkosten": r.reparaturkosten_netto or r.reparaturkosten_brutto,
                 "rep_gutachten_netto": r.reparaturkosten_netto,
@@ -592,6 +645,17 @@ def _fuehre_parser_aus(klasse, norm_text, meta, versicherer_kuerzel=None,
             },
             "parse_konfidenz": r.konfidenz,
             "warnungen": r.warnungen,
+            # LLM Shadow-Mode (PRD-31)
+            "llm_verwendet":              r.llm_verwendet,
+            "llm_konflikt":               r.llm_konflikt,
+            "llm_wbw":                    r.llm_wbw,
+            "llm_restwert":               r.llm_restwert,
+            "llm_reparaturkosten_netto":  r.llm_reparaturkosten_netto,
+            "llm_wertminderung":          r.llm_wertminderung,
+            "llm_nutzungsausfall_tagessatz": r.llm_nutzungsausfall_tagessatz,
+            "llm_nutzungsausfall_tage":   r.llm_nutzungsausfall_tage,
+            "llm_sv_kosten_netto":        r.llm_sv_kosten_netto,
+            "llm_schadenart":             r.llm_schadenart,
         }
 
     elif klasse in ("sv_rechnung", "rechnung", "reparaturrechnung",

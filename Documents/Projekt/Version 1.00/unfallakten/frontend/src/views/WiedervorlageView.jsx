@@ -155,7 +155,7 @@ function WiedervorlageView({ onOpenAkte }) {
         whiteSpace:"nowrap",
       }}>
         <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-          <circle cx="6.5" cy="6.5" r="6.5" fill=T.green/>
+          <circle cx="6.5" cy="6.5" r="6.5" fill={T.green}/>
           <path d="M3.5 6.5L5.5 8.5L9.5 4.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
         Erstellt

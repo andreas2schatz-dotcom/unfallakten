@@ -636,12 +636,24 @@ def _vertretungs_hinweis(firmenname: str) -> str:
 def _sachverhalt_override_xml(text):
     # type: (str) -> str
     """
-    Wandelt einen sachverhalt_override-Freitext (Absätze mit \\n\\n getrennt)
-    in OOXML um.  Wird verwendet wenn der Wizard einen kombinierten
-    Sachverhalt-Text (Einleitung + Beklagten-Block + AktLeg) übergeben hat.
+    Wandelt einen sachverhalt_override-Freitext in OOXML um.
+    Trennzeichen: \\n\\n = neuer Absatz, \\n = neue Zeile innerhalb Block.
+    BEWEIS:\\t-Zeilen werden mit Tab-Stop-Formatierung gerendert.
     """
-    absaetze = text.split("\n\n")
-    return "".join(_p(a.strip()) for a in absaetze if a.strip())
+    xml = ""
+    for block in text.split("\n\n"):
+        block = block.strip()
+        if not block:
+            continue
+        if block.startswith("BEWEIS:\t") or block.upper().startswith("BEWEIS: "):
+            xml += _beweis(block[block.index("\t") + 1:].strip()
+                           if "\t" in block else block[len("BEWEIS:"):].strip())
+        else:
+            for zeile in block.split("\n"):
+                z = zeile.strip()
+                if z:
+                    xml += _p(z)
+    return xml
 
 
 def _build_aktivlegitimation_xml(details: dict, kl_einf: str, anrede: str) -> str:
@@ -1150,7 +1162,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         tabelle_xml += _p(f"Gesamt: {_eur_str(klagebetrag)}", fett=True)
 
 
-    schaden_xml  = _lz() + _p("2.) Unfallschaden", fett=True)
+    schaden_xml  = _lz() + _p("3.) Unfallschaden", fett=True)
     schaden_xml += _lz()
     schaden_xml += _p("Durch den Unfall ist ein Schaden entstanden, der sich wie folgt zusammensetzt:")
     schaden_xml += tabelle_xml
@@ -1162,15 +1174,16 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     # ── {{RECHTLICHE_WUERDIGUNG}} ─────────────────────────────────────────
     rw_text_override = (details.get("rw_text_override") or "").strip()
     if rw_text_override:
-        rw_xml = _lz() + _p("3.) Rechtliche Würdigung", fett=True)
+        rw_xml = _lz() + _p("4.) Rechtliche Würdigung", fett=True)
         rw_xml += _lz()
         for _line in rw_text_override.split("\n"):
             _line = _line.strip()
-            if _line:
-                if _line.startswith("**") and _line.endswith("**"):
-                    rw_xml += _p(_line[2:-2], fett=True)
-                else:
-                    rw_xml += _p(_line)
+            if not _line:
+                rw_xml += _lz()
+            elif _line.startswith("**") and _line.endswith("**"):
+                rw_xml += _p(_line[2:-2], fett=True)
+            else:
+                rw_xml += _p(_line)
     else:
         haftungsbegruendung = details.get("haftungsbegruendung") or ""
         gesamt_reguliert    = sum(float(a.get("gesamt_reguliert") or 0) for a in abrechnungen)
@@ -1199,7 +1212,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
 
     # ── {{SCHMERZENSGELD}} ────────────────────────────────────────────────
     if mit_sg:
-        sg_xml = _p("4.) Schmerzensgeld", fett=True) + _lz()
+        sg_xml = _p("5.) Schmerzensgeld", fett=True) + _lz()
         sg_absaetze, sg_beweis, sg_vgl = baue_sg_abschnitt(ps_data, kl_nom, sg_mind)
         for absatz in sg_absaetze:
             sg_xml += _p(absatz)
@@ -1216,8 +1229,8 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         for _line in verzug_text_override.split("\n"):
             _line = _line.strip()
             if not _line:
-                continue
-            if _line.upper().startswith("BEWEIS:"):
+                verzug_xml += _lz()
+            elif _line.upper().startswith("BEWEIS:"):
                 verzug_xml += _beweis(_line[len("BEWEIS:"):].strip())
             else:
                 verzug_xml += _p(_line)
@@ -1270,7 +1283,8 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     bek_haften = "haften" if len(beklagte_gef) > 1 else "haftet"
     bek_nom    = "die Beklagten" if len(beklagte_gef) > 1 else "die Beklagte"
 
-    vk_xml  = _lz() + _p("4.) Vorgerichtliche Rechtsanwaltsgebühren", fett=True)
+    vk_nr   = 5 + int(mit_sg)  # 5 ohne SG, 6 mit SG
+    vk_xml  = _lz() + _p(f"{vk_nr}.) Vorgerichtliche Rechtsanwaltsgebühren", fett=True)
     vk_xml += _lz()
     vk_xml += _p(
         f"Der Klageantrag zu {rvg_antrag_nr}. ergibt sich aus den vorgerichtlich entstandenen "

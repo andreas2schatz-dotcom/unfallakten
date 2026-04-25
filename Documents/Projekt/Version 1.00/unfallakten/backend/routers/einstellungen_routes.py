@@ -218,6 +218,108 @@ def put_ki_einstellungen():
         return jsonify({"ok": True, **_ki_werte(conn)})
 
 
+@einstellungen_bp.route("/llm-status", methods=["GET"])
+@login_erforderlich
+def get_llm_status():
+    """
+    GET /einstellungen/llm-status
+    Gibt zurück ob LLM-Parsing aktiviert, LM Studio erreichbar ist
+    und welche Modelle konfiguriert sind.
+    """
+    import os as _os
+    from ..services.llm_service import (
+        is_available, get_active_model, get_available_models,
+        set_active_model, _BASE_URL,
+    )
+    env_enabled = _os.environ.get("LLM_ENABLED", "false").strip().lower() == "true"
+    with get_connection() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO konfiguration (schluessel, wert, beschreibung) VALUES (?, ?, ?)",
+            ("llm_parsing_enabled", "false", "LLM-Parsing aktiviert"),
+        )
+        row_aktiv = conn.execute(
+            "SELECT wert FROM konfiguration WHERE schluessel='llm_parsing_enabled'"
+        ).fetchone()
+        row_modell = conn.execute(
+            "SELECT wert FROM konfiguration WHERE schluessel='llm_aktives_modell'"
+        ).fetchone()
+        db_enabled = (row_aktiv["wert"] == "true") if row_aktiv else False
+        # Gespeichertes Modell aus DB in Service übernehmen
+        if row_modell and row_modell["wert"]:
+            set_active_model(row_modell["wert"])
+    verfuegbar = is_available() if env_enabled else False
+    return jsonify({
+        "env_konfiguriert": env_enabled,
+        "aktiviert":        db_enabled,
+        "verfuegbar":       verfuegbar,
+        "aktives_modell":   get_active_model(),
+        "modelle":          get_available_models(),
+        "base_url":         _BASE_URL,
+    })
+
+
+@einstellungen_bp.route("/llm-modell", methods=["PUT"])
+@login_erforderlich
+def put_llm_modell():
+    """PUT /einstellungen/llm-modell  Body: { "modell": "qwen3.5-9b" }"""
+    from ..services.llm_service import set_active_model, get_available_models
+    body   = request.get_json(silent=True) or {}
+    modell = (body.get("modell") or "").strip()
+    if not modell:
+        return jsonify({"fehler": "Kein Modell angegeben."}), 400
+    if modell not in get_available_models():
+        return jsonify({"fehler": f"Unbekanntes Modell: {modell}. In LLM_MODELS eintragen."}), 400
+    set_active_model(modell)
+    with get_connection() as conn:
+        conn.execute(
+            """INSERT INTO konfiguration (schluessel, wert, geaendert_am)
+               VALUES ('llm_aktives_modell', ?, datetime('now','localtime'))
+               ON CONFLICT(schluessel) DO UPDATE SET
+                   wert=excluded.wert, geaendert_am=excluded.geaendert_am""",
+            (modell,)
+        )
+    return jsonify({"ok": True, "aktives_modell": modell})
+
+
+@einstellungen_bp.route("/llm-aktivieren", methods=["PUT"])
+@login_erforderlich
+def put_llm_aktivieren():
+    """PUT /einstellungen/llm-aktivieren  Body: { "aktiviert": true|false }"""
+    body = request.get_json(silent=True) or {}
+    wert = "true" if body.get("aktiviert") else "false"
+    with get_connection() as conn:
+        conn.execute(
+            """INSERT INTO konfiguration (schluessel, wert, geaendert_am)
+               VALUES ('llm_parsing_enabled', ?, datetime('now','localtime'))
+               ON CONFLICT(schluessel) DO UPDATE SET
+                   wert=excluded.wert, geaendert_am=excluded.geaendert_am""",
+            (wert,)
+        )
+    return jsonify({"ok": True, "aktiviert": wert == "true"})
+
+
+@einstellungen_bp.route("/llm-test", methods=["POST"])
+@login_erforderlich
+def post_llm_test():
+    """
+    POST /einstellungen/llm-test
+    Body: { "prompt": "..." }   (optional, Default: einfacher Ping)
+    Schickt einen Testprompt an Gemma und gibt die Antwort zurück.
+    """
+    import os as _os
+    body   = request.get_json(silent=True) or {}
+    prompt = (body.get("prompt") or "Antworte mit genau einem Satz: Verbindung zu Gemma erfolgreich.").strip()
+
+    if not _os.environ.get("LLM_ENABLED", "false").strip().lower() == "true":
+        return jsonify({"fehler": "LLM_ENABLED ist in .env nicht auf true gesetzt."}), 503
+
+    from ..services.llm_service import chat as llm_chat, get_active_model
+    antwort = llm_chat(prompt)
+    if antwort is None:
+        return jsonify({"fehler": "Keine Antwort von LM Studio – läuft der Server?"}), 503
+    return jsonify({"antwort": antwort, "modell": get_active_model()})
+
+
 @einstellungen_bp.route("/lg-grenzwert", methods=["GET"])
 @login_erforderlich
 def get_lg_grenzwert():

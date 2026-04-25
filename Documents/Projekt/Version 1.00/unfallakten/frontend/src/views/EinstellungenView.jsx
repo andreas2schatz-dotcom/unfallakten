@@ -30,6 +30,15 @@ function EinstellungenView() {
   const [kiLaedt,  setKiLaedt]  = useState(false);
   const [kiSpeich, setKiSpeich] = useState(false);
 
+  // Lokales LLM-Parsing
+  const [llm,          setLlm]          = useState({ env_konfiguriert: false, aktiviert: false, verfuegbar: false, aktives_modell: "", modelle: [], base_url: "" });
+  const [llmModellWechsel, setLlmModellWechsel] = useState(false);
+  const [llmLaedt,     setLlmLaedt]     = useState(false);
+  const [llmToggling,  setLlmToggling]  = useState(false);
+  const [llmTestPrompt, setLlmTestPrompt] = useState("Erkläre in einem Satz was du bist.");
+  const [llmTestLaedt, setLlmTestLaedt] = useState(false);
+  const [llmTestAntwort, setLlmTestAntwort] = useState("");
+
   // LG-Zuständigkeitsgrenze
   const [lgGrenzwert,      setLgGrenzwert]      = useState(10000);
   const [lgGrenzwertLaedt, setLgGrenzwertLaedt] = useState(false);
@@ -67,6 +76,11 @@ function EinstellungenView() {
       .then(d => setLgGrenzwert(d.lg_grenzwert ?? 10000))
       .catch(() => {})
       .finally(() => setLgGrenzwertLaedt(false));
+    setLlmLaedt(true);
+    apiEinstellungen.llmStatus()
+      .then(d => setLlm(d))
+      .catch(() => {})
+      .finally(() => setLlmLaedt(false));
   }, []);
 
   const speichereNeu = async () => {
@@ -439,6 +453,153 @@ function EinstellungenView() {
                 </div>
               </div>
             </Card>
+
+            {/* ── Lokales LLM-Parsing ───────────────────────────────────── */}
+            <Card>
+              <CardHead title="✦ Lokales LLM – PDF-Parsing" />
+              <div style={{ padding:"1rem 1.25rem", display:"flex", flexDirection:"column", gap:"1.1rem" }}>
+
+                {/* Status-Zeile */}
+                <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+                  {/* Aktivieren-Toggle */}
+                  <label style={{ display:"flex", alignItems:"center", gap:10, cursor: llm.env_konfiguriert ? "pointer" : "not-allowed", opacity: llm.env_konfiguriert ? 1 : 0.5 }}>
+                    <div
+                      onClick={async () => {
+                        if (!llm.env_konfiguriert || llmToggling) return;
+                        setLlmToggling(true);
+                        try {
+                          const res = await apiEinstellungen.llmAktivieren(!llm.aktiviert);
+                          setLlm(p => ({ ...p, aktiviert: res.aktiviert }));
+                          setToast(res.aktiviert ? "Gemma-Parsing aktiviert." : "Gemma-Parsing deaktiviert.");
+                        } catch { setToast("Fehler beim Speichern."); }
+                        finally { setLlmToggling(false); }
+                      }}
+                      style={{
+                        width:42, height:24, borderRadius:12,
+                        background: llm.aktiviert ? T.green : T.border,
+                        position:"relative", transition:"background 0.2s",
+                        cursor: llm.env_konfiguriert ? "pointer" : "not-allowed",
+                      }}>
+                      <div style={{
+                        position:"absolute", top:3, left: llm.aktiviert ? 21 : 3,
+                        width:18, height:18, borderRadius:9, background:"#fff",
+                        transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.2)",
+                      }} />
+                    </div>
+                    <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem",
+                      fontWeight:600, color: llm.aktiviert ? T.green : T.textMuted }}>
+                      {llm.aktiviert ? "Aktiv" : "Inaktiv"}
+                    </span>
+                  </label>
+
+                  {/* Verbindungs-Badge */}
+                  <span style={{
+                    padding:"3px 10px", borderRadius:5, fontSize:12, fontWeight:600,
+                    background: llm.verfuegbar ? "rgba(34,197,94,0.12)" : "rgba(156,163,175,0.12)",
+                    color: llm.verfuegbar ? T.green : T.textFaint,
+                    border: `1px solid ${llm.verfuegbar ? "rgba(34,197,94,0.3)" : T.border}`,
+                  }}>
+                    {llmLaedt ? "Prüfe …" : llm.verfuegbar ? "● LM Studio verbunden" : "○ Nicht verbunden"}
+                  </span>
+
+                  <Btn style={{ marginLeft:"auto", background:"transparent",
+                    color:T.textMuted, border:`1px solid ${T.border}`, fontSize:12, padding:"4px 12px" }}
+                    onClick={() => {
+                      setLlmLaedt(true);
+                      apiEinstellungen.llmStatus().then(d => setLlm(d)).catch(() => {}).finally(() => setLlmLaedt(false));
+                    }} disabled={llmLaedt}>
+                    ↺ Status prüfen
+                  </Btn>
+                </div>
+
+                {/* Modell-Auswahl */}
+                <div>
+                  <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
+                    fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:6 }}>
+                    Aktives Modell
+                  </label>
+                  <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                    <select
+                      value={llm.aktives_modell || ""}
+                      onChange={async e => {
+                        const m = e.target.value;
+                        if (!m || llmModellWechsel) return;
+                        setLlmModellWechsel(true);
+                        try {
+                          await apiEinstellungen.llmModellSetzen(m);
+                          setLlm(p => ({ ...p, aktives_modell: m }));
+                          setToast(`Modell gewechselt: ${m}`);
+                        } catch { setToast("Fehler beim Modellwechsel."); }
+                        finally { setLlmModellWechsel(false); }
+                      }}
+                      disabled={!llm.env_konfiguriert || llmModellWechsel || llm.modelle.length === 0}
+                      style={{ ...inputStyle, flex:1, fontFamily:"ui-monospace,monospace",
+                        fontSize:"0.825rem", opacity: llm.env_konfiguriert ? 1 : 0.5 }}>
+                      {(llm.modelle.length ? llm.modelle : [llm.aktives_modell || "—"]).map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                    {llmModellWechsel && (
+                      <span style={{ fontSize:12, color:T.textMuted }}>Wechsle …</span>
+                    )}
+                  </div>
+                  <div style={{ marginTop:6, fontFamily:"ui-monospace,monospace",
+                    fontSize:"0.775rem", color:T.textFaint }}>
+                    URL: {llm.base_url || "—"}
+                  </div>
+                  {!llm.env_konfiguriert && (
+                    <div style={{ marginTop:6, fontSize:"0.8rem", color:T.amber,
+                      fontFamily:"'Figtree',sans-serif" }}>
+                      ⚠ LLM_ENABLED=true fehlt in <code>.env</code> — Toggle ohne Wirkung.
+                    </div>
+                  )}
+                </div>
+
+                {/* Verbindungstest */}
+                <div>
+                  <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
+                    fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:6 }}>
+                    Verbindungstest
+                  </label>
+                  <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+                    <input
+                      value={llmTestPrompt}
+                      onChange={e => setLlmTestPrompt(e.target.value)}
+                      placeholder="Testprompt …"
+                      style={{ ...inputStyle, flex:1, fontSize:"0.875rem" }}
+                    />
+                    <Btn
+                      onClick={async () => {
+                        setLlmTestLaedt(true);
+                        setLlmTestAntwort("");
+                        try {
+                          const res = await apiEinstellungen.llmTest(llmTestPrompt);
+                          setLlmTestAntwort(res.antwort || "");
+                        } catch(e) {
+                          setLlmTestAntwort("Fehler: " + (e?.message || "Verbindung fehlgeschlagen"));
+                        } finally { setLlmTestLaedt(false); }
+                      }}
+                      disabled={llmTestLaedt || !llm.env_konfiguriert}>
+                      {llmTestLaedt ? "Warte …" : "Senden"}
+                    </Btn>
+                  </div>
+                  {llmTestAntwort && (
+                    <div style={{
+                      background: llmTestAntwort.startsWith("Fehler") ? "#2a1500" : T.offWhite,
+                      border:`1px solid ${llmTestAntwort.startsWith("Fehler") ? "rgba(245,158,11,0.3)" : T.border}`,
+                      borderRadius:7, padding:"0.75rem 1rem",
+                      fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+                      color: llmTestAntwort.startsWith("Fehler") ? T.amber : T.text,
+                      lineHeight:1.6, whiteSpace:"pre-wrap",
+                    }}>
+                      {llmTestAntwort}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </Card>
+
           </div>
         )}
 

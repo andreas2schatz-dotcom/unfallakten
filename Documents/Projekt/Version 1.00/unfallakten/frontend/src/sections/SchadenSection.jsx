@@ -256,6 +256,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
   const [gutErgebnis, setGutErg]  = useState(null);
   const [gutError, setGutError]   = useState("");
   const [gutDocId, setGutDocId]   = useState(null); // dok_id des gewählten Gutachtens
+  const [llmWahl, setLlmWahl]    = useState({});   // { rep_netto:'ki', wbw:'ki', ... } PRD-31
 
   // Vorhandene Gutachten-PDFs aus importierten/hochgeladenen Dokumenten
   const gutachtenDoks = useMemo(() =>
@@ -269,6 +270,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
     setGutLoad(true);
     setGutError("");
     setGutErg(null);
+    setLlmWahl({});
     setGutDocId(dokId);
     setGutFile({ name: dateiname });
     try {
@@ -294,6 +296,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
     setGutLoad(true);
     setGutError("");
     setGutErg(null);
+    setLlmWahl({});
     try {
       const res = await apiParsePdf.parse(akteId, file);
       if (res?.ergebnis?.dokumenttyp === "gutachten") {
@@ -321,12 +324,20 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
     if (!gutErgebnis?.schadenpositionen) return;
     const pos = gutErgebnis.schadenpositionen;
     const updates = {};
-    const repNetto = pos.rep_gutachten_netto || pos.reparaturkosten;
+    // Für jede Position: wenn User 'ki' gewählt hat, LLM-Wert nehmen, sonst Regex
+    const _pick = (regex, llm, key) => llmWahl[key] === 'ki' && llm ? llm : regex;
+    const repNetto = _pick(pos.rep_gutachten_netto || pos.reparaturkosten, gutErgebnis.llm_reparaturkosten_netto, 'rep_netto');
     if (repNetto)              updates.rep_gutachten_netto = repNetto;
-    if (pos.wiederbeschaffung) updates.wiederbeschaffung = pos.wiederbeschaffung;
-    if (pos.restwert)          updates.restwert          = pos.restwert;
-    if (pos.wertminderung)     updates.wertminderung     = pos.wertminderung;
-    if (pos.nutzungsausfall)   updates.nutzungsausfall   = pos.nutzungsausfall;
+    const wbw = _pick(pos.wiederbeschaffung, gutErgebnis.llm_wbw, 'wbw');
+    if (wbw)                   updates.wiederbeschaffung   = wbw;
+    const rv  = _pick(pos.restwert, gutErgebnis.llm_restwert, 'restwert');
+    if (rv)                    updates.restwert             = rv;
+    const wm  = _pick(pos.wertminderung, gutErgebnis.llm_wertminderung, 'wertminderung');
+    if (wm)                    updates.wertminderung        = wm;
+    if (pos.nutzungsausfall)   updates.nutzungsausfall      = pos.nutzungsausfall; // kein LLM-Gesamtbetrag
+    const sv  = _pick(pos.sv_kosten, gutErgebnis.llm_sv_kosten_netto, 'sv_netto');
+    if (sv)                    updates.sv_kosten            = sv;
+    setLlmWahl({});
     setForm(prev => {
       const neu = { ...prev, ...updates, quelle: "gutachten_pdf" };
       setArtVorschlag(ermittleAbrechnungsart(neu, vorsteuer));
@@ -893,50 +904,94 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
             {gutError && (
               <div style={{ color:T.red, fontSize:"0.875rem", marginTop:4 }}>⚠ {gutError}</div>
             )}
-            {gutErgebnis && (
-              <div>
-                <div style={{ fontSize:"0.84rem", color:T.green, fontWeight:600, marginBottom:8 }}>
-                  ✓ Erkannt: {gutErgebnis.sv_buero || "SV-Gutachten"} · {gutErgebnis.schadenart === "totalschaden" ? "🔴 Totalschaden" : "🟡 Reparaturschaden"}
-                  {gutErgebnis.fahrzeug?.kennzeichen && ` · ${gutErgebnis.fahrzeug.kennzeichen}`}
-                </div>
-                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.855rem", marginBottom:10 }}>
-                  <thead>
-                    <tr style={{ background:"rgba(0,0,0,0.04)" }}>
-                      {["Position","Betrag (Gutachten)"].map(h => (
-                        <th key={h} style={{ padding:"5px 10px", textAlign:h==="Position"?"left":"right", color:T.textMuted, fontWeight:600, fontSize:"0.78rem", textTransform:"uppercase" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      ["Reparaturkosten", gutErgebnis.schadenpositionen?.reparaturkosten],
-                      ["Wiederbeschaffungswert", gutErgebnis.schadenpositionen?.wiederbeschaffung],
-                      ["Restwert (Abzug)", gutErgebnis.schadenpositionen?.restwert],
-                      ["Wertminderung", gutErgebnis.schadenpositionen?.wertminderung],
-                      ["Nutzungsausfall", gutErgebnis.schadenpositionen?.nutzungsausfall],
-                      ["SV-Kosten", gutErgebnis.schadenpositionen?.sv_kosten],
-                    ].filter(([,v]) => v != null && v > 0).map(([label, value]) => (
-                      <tr key={label} style={{ borderTop:`1px solid ${T.border}` }}>
-                        <td style={{ padding:"5px 10px", color:T.text }}>{label}</td>
-                        <td style={{ padding:"5px 10px", textAlign:"right", fontFamily:"monospace", fontWeight:600, color: value >= 999_999 ? T.green : T.navy }}>
-                          {value >= 999_999 ? "ausreichend" : fmtEuro(value)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {(gutErgebnis.warnungen||[]).length > 0 && (
-                  <div style={{ fontSize:"0.8rem", color:T.amber, marginBottom:8 }}>
-                    ⚠ {gutErgebnis.warnungen.join(" · ")}
+            {gutErgebnis && (() => {
+              const sp      = gutErgebnis.schadenpositionen || {};
+              const hatKi   = gutErgebnis.llm_verwendet;
+              const hatKonf = gutErgebnis.llm_konflikt;
+              const _toggle = fk => setLlmWahl(w => ({ ...w, [fk]: w[fk] === 'ki' ? 'regex' : 'ki' }));
+              const _fmt    = v  => v == null ? "—" : (v >= 999_000 ? "ausreichend" : fmtEuro(v));
+              const _istKonf = (rv, lv) => hatKi && lv != null && rv != null && rv < 999_000 && Math.abs(rv - lv) > 1.0;
+              const btnS    = { padding:"2px 7px", borderRadius:4, fontSize:11, fontWeight:600, cursor:"pointer", border:"1px solid", background:"transparent" };
+              const reihen  = [
+                ["Reparaturkosten",        sp.reparaturkosten,  gutErgebnis.llm_reparaturkosten_netto, "rep_netto"   ],
+                ["Wiederbeschaffungswert", sp.wiederbeschaffung, gutErgebnis.llm_wbw,                  "wbw"         ],
+                ["Restwert (Abzug)",       sp.restwert,          gutErgebnis.llm_restwert,             "restwert"    ],
+                ["Wertminderung",          sp.wertminderung,     gutErgebnis.llm_wertminderung,        "wertminderung"],
+                ["Nutzungsausfall",        sp.nutzungsausfall,   null,                                  null          ],
+                ["SV-Kosten",             sp.sv_kosten,          gutErgebnis.llm_sv_kosten_netto,      "sv_netto"    ],
+              ].filter(([,rv,lv]) => (rv != null && rv > 0) || (lv != null && lv > 0));
+              return (
+                <div>
+                  {/* Header */}
+                  <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:8 }}>
+                    <div style={{ fontSize:"0.84rem", color:T.green, fontWeight:600 }}>
+                      ✓ Erkannt: {gutErgebnis.sv_buero || "SV-Gutachten"} · {gutErgebnis.schadenart === "totalschaden" ? "🔴 Totalschaden" : "🟡 Reparaturschaden"}
+                      {gutErgebnis.fahrzeug?.kennzeichen && ` · ${gutErgebnis.fahrzeug.kennzeichen}`}
+                    </div>
+                    {hatKi && !hatKonf && (
+                      <span style={{ background:"rgba(139,92,246,0.18)", color:"#c4b5fd", border:"1px solid rgba(139,92,246,0.35)", borderRadius:4, fontSize:11, fontWeight:600, padding:"2px 7px" }}>✦ Qwen ✓</span>
+                    )}
+                    {hatKi && hatKonf && (
+                      <span style={{ background:"rgba(245,158,11,0.15)", color:"#f59e0b", border:"1px solid rgba(245,158,11,0.4)", borderRadius:4, fontSize:11, fontWeight:600, padding:"2px 7px" }}>⚠ KI-Konflikt</span>
+                    )}
                   </div>
-                )}
-                <div style={{ display:"flex", gap:8 }}>
-                  <Btn variant="gold" onClick={handleGutachtenUebernehmen}>✓ Werte übernehmen</Btn>
-                  <Btn variant="secondary" onClick={() => { setGutErg(null); setGutFile(null); }}>Andere Datei</Btn>
-                  <Btn variant="ghost" onClick={() => setShowGutImport(false)} style={{ marginLeft:"auto" }}>Abbrechen</Btn>
+                  {/* Vergleichstabelle */}
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.855rem", marginBottom:10 }}>
+                    <thead>
+                      <tr style={{ background:"rgba(0,0,0,0.04)" }}>
+                        <th style={{ padding:"5px 10px", textAlign:"left",  color:T.textMuted, fontWeight:600, fontSize:"0.78rem", textTransform:"uppercase" }}>Position</th>
+                        <th style={{ padding:"5px 10px", textAlign:"right", color:T.textMuted, fontWeight:600, fontSize:"0.78rem", textTransform:"uppercase" }}>Regex</th>
+                        {hatKi && <th style={{ padding:"5px 10px", textAlign:"right", color:"#a78bfa", fontWeight:600, fontSize:"0.78rem", textTransform:"uppercase" }}>Qwen KI</th>}
+                        {hatKi && hatKonf && <th style={{ padding:"5px 10px", textAlign:"center", color:T.textMuted, fontWeight:600, fontSize:"0.78rem", textTransform:"uppercase", width:100 }}>Wählen</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reihen.map(([label, rv, lv, fk]) => {
+                        const istKonf = fk ? _istKonf(rv, lv) : false;
+                        const kiGew   = llmWahl[fk] === 'ki';
+                        return (
+                          <tr key={label} style={{ borderTop:`1px solid ${T.border}`, background: istKonf ? "rgba(245,158,11,0.04)" : "transparent" }}>
+                            <td style={{ padding:"5px 10px", color:T.text }}>{label}</td>
+                            <td style={{ padding:"5px 10px", textAlign:"right", fontFamily:"monospace", fontWeight:600,
+                              color: rv >= 999_000 ? T.green : (istKonf && !kiGew ? T.green : T.navy) }}>
+                              {rv >= 999_000 ? "ausreichend" : (rv != null ? fmtEuro(rv) : "—")}
+                              {istKonf && !kiGew && <span style={{ marginLeft:3, fontSize:8 }}>✓</span>}
+                            </td>
+                            {hatKi && (
+                              <td style={{ padding:"5px 10px", textAlign:"right", fontFamily:"monospace",
+                                color: istKonf ? (kiGew ? T.green : "#f59e0b") : "#a78bfa", fontWeight: kiGew ? 700 : 500 }}>
+                                {_fmt(lv)}
+                                {istKonf && kiGew && <span style={{ marginLeft:3, fontSize:8 }}>✓</span>}
+                              </td>
+                            )}
+                            {hatKi && hatKonf && (
+                              <td style={{ padding:"5px 10px", textAlign:"center" }}>
+                                {istKonf && fk ? (
+                                  <div style={{ display:"inline-flex", gap:3 }}>
+                                    <button onClick={() => kiGew   && _toggle(fk)} style={{ ...btnS, borderColor: !kiGew ? T.green : T.border, color: !kiGew ? T.green : T.textMuted }}>Regex</button>
+                                    <button onClick={() => !kiGew  && _toggle(fk)} style={{ ...btnS, borderColor:  kiGew ? T.green : T.border, color:  kiGew ? T.green : "#a78bfa" }}>KI</button>
+                                  </div>
+                                ) : <span style={{ fontSize:11, color:T.textFaint }}>—</span>}
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {(gutErgebnis.warnungen||[]).length > 0 && (
+                    <div style={{ fontSize:"0.8rem", color:T.amber, marginBottom:8 }}>
+                      ⚠ {gutErgebnis.warnungen.join(" · ")}
+                    </div>
+                  )}
+                  <div style={{ display:"flex", gap:8 }}>
+                    <Btn variant="gold" onClick={handleGutachtenUebernehmen}>✓ Werte übernehmen</Btn>
+                    <Btn variant="secondary" onClick={() => { setGutErg(null); setGutFile(null); setLlmWahl({}); }}>Andere Datei</Btn>
+                    <Btn variant="ghost" onClick={() => setShowGutImport(false)} style={{ marginLeft:"auto" }}>Abbrechen</Btn>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
         <div style={{ padding:"0.5rem 1.4rem 1.25rem" }}>

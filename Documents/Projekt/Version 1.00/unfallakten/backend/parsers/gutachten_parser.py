@@ -15,10 +15,13 @@ Extrahiert:
 - SV-Büro und Gutachter
 - Auftragsdatum / Besichtigungsdatum
 """
+import logging
 import re
 from dataclasses import dataclass, field
 from typing import Optional
 from .pdf_utils import parse_betrag, find_betrag_near_label, normalize_text
+
+logger = logging.getLogger(__name__)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -75,6 +78,18 @@ class GutachtenParseResult:
 
     konfidenz: float = 0.0
     warnungen: list[str] = field(default_factory=list)
+
+    # LLM Shadow-Mode (PRD-31)
+    llm_verwendet: bool = False
+    llm_konflikt: bool = False
+    llm_wbw: Optional[float] = None
+    llm_restwert: Optional[float] = None
+    llm_reparaturkosten_netto: Optional[float] = None
+    llm_wertminderung: Optional[float] = None
+    llm_nutzungsausfall_tagessatz: Optional[float] = None
+    llm_nutzungsausfall_tage: Optional[int] = None
+    llm_sv_kosten_netto: Optional[float] = None
+    llm_schadenart: Optional[str] = None
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -636,7 +651,77 @@ def _calc_konfidenz(result: GutachtenParseResult) -> float:
 # HAUPT-PARSER
 # ══════════════════════════════════════════════════════════════════════════════
 
-def parse_gutachten(text: str, sv_buero_hint: str = "") -> GutachtenParseResult:
+def _llm_shadow_gutachten(text: str, regex_result: GutachtenParseResult) -> None:
+    """
+    Führt LLM-Analyse parallel zum Regex-Parser aus (Shadow-Mode).
+    Modifiziert regex_result in-place; Regex-Primärwerte bleiben unverändert.
+    """
+    try:
+        from ..services.llm_service import parse_gutachten_raw as _llm_parse
+    except ImportError:
+        return
+
+    llm_dict = _llm_parse(text)
+    if not llm_dict or not isinstance(llm_dict, dict):
+        return
+
+    regex_result.llm_verwendet                 = True
+    regex_result.llm_reparaturkosten_netto      = llm_dict.get("reparaturkosten_netto")
+    regex_result.llm_wbw                        = llm_dict.get("wiederbeschaffungswert")
+    regex_result.llm_restwert                   = llm_dict.get("restwert")
+    regex_result.llm_wertminderung              = llm_dict.get("wertminderung")
+    regex_result.llm_nutzungsausfall_tagessatz  = llm_dict.get("nutzungsausfall_tagessatz")
+    regex_result.llm_nutzungsausfall_tage       = llm_dict.get("nutzungsausfall_tage")
+    regex_result.llm_sv_kosten_netto            = llm_dict.get("sv_kosten_netto")
+    regex_result.llm_schadenart                 = llm_dict.get("schadenart")
+
+    # Konflikt-Erkennung: numerische Felder mit Abweichung > 1 EUR
+    # Sentinel 1_000_000 (WBW "ausreichend") gilt nie als Konflikt.
+    _FELDER = [
+        (regex_result.reparaturkosten_netto,       regex_result.llm_reparaturkosten_netto,    "rep_netto"),
+        (regex_result.wiederbeschaffungswert,       regex_result.llm_wbw,                      "wbw"),
+        (regex_result.restwert,                    regex_result.llm_restwert,                 "restwert"),
+        (regex_result.wertminderung,               regex_result.llm_wertminderung,            "wertminderung"),
+        (regex_result.nutzungsausfall_tagessatz,   regex_result.llm_nutzungsausfall_tagessatz, "na_tagessatz"),
+        (regex_result.sv_kosten_netto,             regex_result.llm_sv_kosten_netto,          "sv_kosten_netto"),
+    ]
+    for r_val, l_val, name in _FELDER:
+        # Sentinel überspringen
+        if r_val is not None and r_val >= 999_000:
+            continue
+        if r_val is not None and l_val is not None and abs(r_val - l_val) > 1.0:
+            regex_result.llm_konflikt = True
+            logger.info(
+                "LLM Shadow (Gutachten): Konflikt bei '%s' – Regex=%.2f LLM=%.2f",
+                name, r_val, l_val,
+            )
+            break
+        if r_val is None and l_val is not None and l_val > 0:
+            regex_result.llm_konflikt = True
+            logger.info(
+                "LLM Shadow (Gutachten): Konflikt bei '%s' – Regex=None LLM=%.2f",
+                name, l_val,
+            )
+            break
+
+    # Ganzzahl-Feld separat prüfen: != statt > 1.0, da kein Betrag
+    if not regex_result.llm_konflikt:
+        r_tage = regex_result.nutzungsausfall_tage
+        l_tage = regex_result.llm_nutzungsausfall_tage
+        if r_tage is not None and l_tage is not None and r_tage != l_tage:
+            regex_result.llm_konflikt = True
+            logger.info(
+                "LLM Shadow (Gutachten): Konflikt bei 'na_tage' – Regex=%d LLM=%d",
+                r_tage, l_tage,
+            )
+
+    logger.info(
+        "LLM Shadow (Gutachten): verwendet=%s konflikt=%s",
+        regex_result.llm_verwendet, regex_result.llm_konflikt,
+    )
+
+
+def parse_gutachten(text: str, sv_buero_hint: str = "", llm_aktiv: bool = False) -> GutachtenParseResult:
     """
     Haupt-Einstieg für den Gutachten-Parser.
 
@@ -680,5 +765,9 @@ def parse_gutachten(text: str, sv_buero_hint: str = "") -> GutachtenParseResult:
 
     # Konfidenz
     result.konfidenz = _calc_konfidenz(result)
+
+    # LLM Shadow-Mode (PRD-31)
+    if llm_aktiv:
+        _llm_shadow_gutachten(text, result)
 
     return result

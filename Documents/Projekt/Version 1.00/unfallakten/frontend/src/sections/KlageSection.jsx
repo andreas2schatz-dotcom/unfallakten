@@ -339,7 +339,26 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setAktLegTyp(al.typ || "eigentum");
     setAktLegFreigabe(al.freigabe_status || "freigabe");
     setAktLegDatum(al.datum_freigabe || "");
-    setWizardPos([...positionen]);
+    // Offene Beträge vorausberechnen (gefordert − reguliert je Position)
+    // Fahrzeugschaden-Keys aus dem Abrechnung-Parser → Wizard-Key "fahrzeugschaden"
+    const _KEY_MAP = {
+      "reparatur_netto":  "fahrzeugschaden",
+      "reparatur_brutto": "fahrzeugschaden",
+      "reparaturkosten":  "fahrzeugschaden",
+      "wba":              "fahrzeugschaden", // Totalschaden: Wiederbeschaffungsaufwand
+    };
+    const _regMap = {};
+    (daten?.abrechnungen || []).forEach(ab => {
+      (ab.positionen || []).forEach(rp => {
+        const rawKey = rp.position_key;
+        const k = _KEY_MAP[rawKey] || rawKey;
+        if (k) _regMap[k] = (_regMap[k] || 0) + (parseFloat(rp.betrag_reguliert) || 0);
+      });
+    });
+    setWizardPos(positionen.map(p => ({
+      ...p,
+      betrag: Math.max(0, (p.betrag || 0) - (_regMap[p.key] || 0)),
+    })));
     setWizardMitSG(mitSG);
     setWizardSGMind(sgMind);
     setWizardSachverhaltText("");

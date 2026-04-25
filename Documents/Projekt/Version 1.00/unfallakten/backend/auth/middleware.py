@@ -37,11 +37,18 @@ def _extrahiere_token() -> str | None:
     """
     Liest den Bearer Token aus dem Authorization-Header.
     Format: 'Authorization: Bearer <token>'
+
+    Fallback für SSE (EventSource unterstützt keine Custom-Header):
+    Query-Parameter 'token=<token>' wird ebenfalls akzeptiert.
     """
     auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
-        return None
-    return auth_header[7:].strip()  # "Bearer " abschneiden
+    if auth_header.startswith("Bearer "):
+        return auth_header[7:].strip()
+    # SSE-Fallback: ?token=<jwt>
+    qs_token = request.args.get("token", "").strip()
+    if qs_token:
+        return qs_token
+    return None
 
 
 def _lade_benutzer(benutzer_id: int):

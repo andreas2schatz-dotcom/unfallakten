@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useReducer, useMemo, lazy, Suspense } from "react";
-import { auth as apiAuth, ramicroListe } from "./api.js";
+import React, { useState, useCallback, useReducer, useMemo, lazy, Suspense, useRef, useEffect } from "react";
+import { auth as apiAuth, ramicroListe, emailImport } from "./api.js";
 import T from "./config/theme.js";
 import Ic from "./config/icons.jsx";
 import { INITIAL_STATE } from "./config/constants.js";
@@ -17,6 +17,79 @@ const WiedervorlageView    = lazy(() => import("./views/WiedervorlageView.jsx"))
 const KuerzungskatalogSection = lazy(() => import("./views/KuerzungskatalogView.jsx"));
 const EinstellungenView    = lazy(() => import("./views/EinstellungenView.jsx"));
 const AkteDetailView       = lazy(() => import("./components/AkteDetailView.jsx"));
+
+function QuickAkteSearch({ onOpenAkte }) {
+  const [q, setQ]           = useState("");
+  const [items, setItems]   = useState([]);
+  const [open, setOpen]     = useState(false);
+  const containerRef        = useRef(null);
+  const timerRef            = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const search = useCallback((val) => {
+    clearTimeout(timerRef.current);
+    if (val.length < 2) { setItems([]); setOpen(false); return; }
+    timerRef.current = setTimeout(async () => {
+      try {
+        const res = await emailImport.aktensuche(val);
+        setItems(res.akten || []);
+        setOpen(true);
+      } catch { setItems([]); }
+    }, 180);
+  }, []);
+
+  const select = useCallback((akte) => {
+    onOpenAkte({ az: akte.az, az_roh: akte.az, label: akte.label });
+    setQ(""); setItems([]); setOpen(false);
+  }, [onOpenAkte]);
+
+  const onKey = (e) => {
+    if (e.key === "Enter" && items.length > 0) { select(items[0]); }
+    if (e.key === "Escape") { setOpen(false); setQ(""); setItems([]); }
+  };
+
+  return (
+    <div ref={containerRef} style={{ padding:"0 0.5rem 0.5rem", position:"relative" }}>
+      <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem", fontWeight:600, color:"rgba(255,255,255,0.35)", letterSpacing:"0.12em", textTransform:"uppercase", padding:"6px 6px 4px" }}>
+        Schnellaufruf
+      </div>
+      <div style={{ position:"relative" }}>
+        <input
+          value={q}
+          onChange={e => { setQ(e.target.value); search(e.target.value); }}
+          onKeyDown={onKey}
+          onFocus={() => { if (items.length > 0) setOpen(true); }}
+          placeholder="Az. / Name …"
+          style={{ width:"100%", boxSizing:"border-box", padding:"7px 10px 7px 30px", background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.13)", borderRadius:7, color:"rgba(255,255,255,0.85)", fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem", outline:"none" }}
+        />
+        <span style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)", fontSize:"0.8rem", color:"rgba(255,255,255,0.35)", pointerEvents:"none" }}>🔍</span>
+      </div>
+      {open && items.length > 0 && (
+        <div style={{ position:"absolute", left:"0.5rem", right:"0.5rem", top:"calc(100% - 2px)", background:"#fff", border:"1px solid #ddd", borderRadius:7, boxShadow:"0 6px 20px rgba(0,0,0,0.18)", zIndex:200, overflow:"hidden" }}>
+          {items.slice(0, 6).map((a, i) => (
+            <div key={i}
+              onMouseDown={() => select(a)}
+              style={{ padding:"7px 10px", cursor:"pointer", fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem", borderBottom: i < Math.min(items.length, 6) - 1 ? "1px solid #f0f0f0" : "none" }}
+              onMouseEnter={e => e.currentTarget.style.background="#f5f1ec"}
+              onMouseLeave={e => e.currentTarget.style.background="transparent"}>
+              <span style={{ fontWeight:600, fontFamily:"ui-monospace,monospace", fontSize:"0.82rem" }}>{a.az}</span>
+              {a.label && <span style={{ color:"#666", marginLeft:6, fontSize:"0.8rem" }}>{a.label}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function AppShell({ user, onLogout }) {
   const [tabs, setTabs]          = useState([]);
@@ -85,6 +158,11 @@ function AppShell({ user, onLogout }) {
 
         {/* ── Linke Menüspalte ────────────────────────────────── */}
         <div style={{ width:210, background:T.navy, borderRight:`1px solid ${T.accentTrim}`, display:"flex", flexDirection:"column", flexShrink:0, zIndex:10 }}>
+
+          {/* Schnellaufruf – ganz oben */}
+          <div style={{ borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
+            <QuickAkteSearch onOpenAkte={openAkte} />
+          </div>
 
           {/* Navigationseinträge */}
           <div style={{ padding:"0.6rem 0.5rem", flex:1 }}>

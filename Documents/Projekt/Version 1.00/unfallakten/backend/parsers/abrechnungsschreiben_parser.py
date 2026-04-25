@@ -14,10 +14,13 @@ Rückgabe-Datenstruktur orientiert sich am Modul-9-Schema:
 - gesamtbetrag: Gesamtgezahlter Betrag
 - zahlungen: Einzelzahlungen mit Empfänger
 """
+import logging
 import re
 from dataclasses import dataclass, field
 from typing import Optional
 from .pdf_utils import parse_betrag, find_betrag_near_label, normalize_text
+
+logger = logging.getLogger(__name__)
 
 
 # ──────────────────────────────────────────────────────────
@@ -56,6 +59,11 @@ class AbrechnungParseResult:
     mwst_hinweis: bool = False          # Nettobetrag, MwSt auf Anfrage
     konfidenz: float = 0.0
     warnungen: list[str] = field(default_factory=list)
+    # LLM Shadow-Mode
+    llm_verwendet: bool = False
+    llm_konflikt: bool = False
+    llm_gesamtbetrag: Optional[float] = None   # Qwen's Gesamtbetrag zum Vergleich
+    llm_positionen: list = field(default_factory=list)  # Qwen's Positionen [{art, betrag_netto, betrag_brutto}]
 
 
 # ──────────────────────────────────────────────────────────
@@ -71,8 +79,20 @@ POSITIONS_PATTERNS = [
     # Standalone "Reparaturkosten N.NNN,NN" (HUK-COBURG Reparatur-Format)
     ("reparatur_netto",  r"^Reparaturkosten\s+[\d]", 80),
 
-    # Sachverständigen
-    ("sv_kosten",        r"Sachverständigen(?:kosten|gebühren|honorar)", 120),
+    # Sachverständigen – großes Fenster wegen Netto→USt→Brutto-Aufbau
+    # (Brutto steht als letzter Betrag; Extraktion nimmt daher den letzten Betrag im Fenster)
+    ("sv_kosten",        r"SV[-\s]Kosten",                               500),  # Gothaer: "SV-Kosten"
+    ("sv_kosten",        r"Sachverständigen(?:kosten|gebühren|honorar)", 500),
+
+    # Nutzungsausfall / Sonstiges
+    ("nutzungsausfall",  r"Nutzungsausfall",                            150),
+    ("abschleppkosten",  r"Abschleppkosten",                             80),
+    ("restkraftstoff",   r"Restkraftstoff",                              80),
+
+    # WBA – Wiederbeschaffungsaufwand (WBW minus Restwert; trumpft wbw bei Totalschaden)
+    # Muss VOR wbw stehen damit found_arts-Prüfung greift
+    ("wba",              r"Wiederbeschaffungsaufwand", 120),
+    ("wba",              r"\bWBA\b", 80),
 
     # Wiederbeschaffung / Restwert – Reihenfolge wichtig (spezifischer zuerst)
     ("wbw_netto",        r"Wiederbeschaffungswert(?:e)?\s+netto", 120),
@@ -100,9 +120,12 @@ POSITIONS_PATTERNS = [
 # Gesamtbetrag-Patterns (suchen nach dem letzten/größten erkannten Betrag)
 GESAMTBETRAG_PATTERNS = [
     r"(?:Entschädigungsbetrag|Gesamtentschädigung)\s+([\d.]+,\d{2})\s*€?",
+    r"Regulierungsbetrag\s+([\d.]+,\d{2})\s*(?:EUR|€)?",      # Generali
+    r"Auszahlungsbetrag\s+([\d.]+,\d{2})\s*(?:EUR|€)?",
     r"Zahlungsbetrag\s+([\d.]+,\d{2})\s*(?:EUR|€)",
     r"Betrag\s+in\s+Höhe\s+von\s+([\d.]+,\d{2})\s+EUR",
     r"Summe:\s+([\d.]+,\d{2})\s*(?:EUR|€)?",
+    r"Gesamtbetrag\s*:\s*([\d.]+,\d{2})\s*(?:EUR|€)",          # Gothaer
     # HUK: "===============" nach dem Betrag
     r"([\d.]+,\d{2})\s*€?\s*\n\s*[=]+",
 ]
@@ -203,6 +226,63 @@ def _extract_reparatur_mit_abzuegen(text: str) -> list[ParsedPosition]:
     return positionen
 
 
+_GOTHAER_ART_MAP = {
+    "wiederbeschaffungswert": "wbw",
+    "sv-kosten":              "sv_kosten",
+    "sachverständig":         "sv_kosten",
+    "kostenpauschale":        "kostenpauschale",
+    "restkraftstoff":         "restkraftstoff",
+    "nutzungsausfall":        "nutzungsausfall",
+    "abschleppkosten":        "abschleppkosten",
+    "wertminderung":          "wertminderung",
+    "reparaturkosten":        "reparatur_netto",
+    "wertverbesserung":       "wertminderung",
+    "unkostenpauschale":      "kostenpauschale",
+}
+
+
+def _extract_gothaer_positionen(text: str) -> list[ParsedPosition]:
+    """
+    Gothaer-Layout: Strichliste mit Doppelpunkt-Trenner.
+
+    Muster: "- LABEL : BETRAG EUR"
+
+    Der Betrag steht immer NACH dem Doppelpunkt – dadurch wird z.B.
+    "Nutzungsausfall 14 x 43 EUR : 602,00 EUR" korrekt mit 602,00 EUR
+    ausgewertet und nicht mit dem Tagessatz 43 EUR.
+    """
+    positionen = []
+
+    # Doppelpunkt (:) ist NICHT in der Label-Zeichenklasse → Greedy-Matching
+    # stoppt automatisch am ersten ":" → Betrag nach ":" ist der Gesamtbetrag.
+    line_re = re.compile(
+        r"-\s+([\w][\w\s\-,./()]+)\s*:\s*([\d.]+,\d{2})\s*EUR",
+        re.IGNORECASE,
+    )
+
+    for m in line_re.finditer(text):
+        label = m.group(1).strip()
+        betrag = parse_betrag(m.group(2))
+        if not betrag:
+            continue
+
+        label_lower = label.lower()
+        art = "sonstiges"
+        for key, mapped_art in _GOTHAER_ART_MAP.items():
+            if key in label_lower:
+                art = mapped_art
+                break
+
+        positionen.append(ParsedPosition(
+            art=art,
+            bezeichnung=label,
+            betrag_netto=betrag,
+            konfidenz=0.92,
+        ))
+
+    return positionen
+
+
 def _extract_standard_positionen(text: str) -> list[ParsedPosition]:
     """Extrahiert Standardpositionen via Label + nachfolgendem Betrag."""
     positionen = []
@@ -223,32 +303,46 @@ def _extract_standard_positionen(text: str) -> list[ParsedPosition]:
 
         for m in re.finditer(label_pattern, text, re.IGNORECASE | re.MULTILINE):
             snippet = text[m.start(): m.start() + window]
-            betrag_m = betrag_re.search(snippet)
-            if betrag_m:
-                val = parse_betrag(betrag_m.group(1))
-                if val is not None:
-                    bezeichnung = m.group(0).strip()
-                    pos = ParsedPosition(
-                        art=art,
-                        bezeichnung=bezeichnung,
-                        konfidenz=0.85,
-                    )
-                    # Je nach Art als brutto oder netto speichern
-                    if art in ("reparatur_netto", "wbw_netto", "fahrzeugschaden",
-                                "sv_kosten", "kostenpauschale", "wertminderung",
-                                "ra_gebuehren", "restwert"):
-                        pos.betrag_netto = val
-                    elif art in ("reparatur_brutto", "wbw_brutto", "wbw"):
-                        pos.betrag_brutto = val
-                    elif art in ("mwst_abzug", "pruefbericht_abzug"):
-                        pos.betrag_netto = val
-                        pos.hinweis = "Abzug"
-                    else:
-                        pos.betrag_brutto = val
 
-                    positionen.append(pos)
-                    found_arts.add(art)
-                    break
+            # sv_kosten: Brutto ist immer der GRÖSSTE Betrag im Block
+            # (Teilposten < Netto < Brutto; Reihenfolge im Dokument variiert)
+            # → alle Beträge im Fenster sammeln, Maximum nehmen
+            if art == "sv_kosten":
+                alle_vals = [parse_betrag(x) for x in betrag_re.findall(snippet)]
+                alle_vals = [v for v in alle_vals if v is not None and v > 0]
+                val = max(alle_vals) if alle_vals else None
+            else:
+                betrag_m = betrag_re.search(snippet)
+                val = parse_betrag(betrag_m.group(1)) if betrag_m else None
+
+            if val is not None:
+                bezeichnung = m.group(0).strip()
+                pos = ParsedPosition(
+                    art=art,
+                    bezeichnung=bezeichnung,
+                    konfidenz=0.85,
+                )
+                # Je nach Art als brutto oder netto speichern
+                if art in ("reparatur_netto", "wbw_netto", "fahrzeugschaden",
+                            "wba",
+                            "kostenpauschale", "wertminderung",
+                            "ra_gebuehren", "restwert",
+                            "nutzungsausfall", "abschleppkosten", "restkraftstoff"):
+                    pos.betrag_netto = val
+                elif art == "sv_kosten":
+                    # Brutto-Betrag – enthält bereits MwSt
+                    pos.betrag_brutto = val
+                elif art in ("reparatur_brutto", "wbw_brutto", "wbw"):
+                    pos.betrag_brutto = val
+                elif art in ("mwst_abzug", "pruefbericht_abzug"):
+                    pos.betrag_netto = val
+                    pos.hinweis = "Abzug"
+                else:
+                    pos.betrag_brutto = val
+
+                positionen.append(pos)
+                found_arts.add(art)
+                break
 
     return positionen
 
@@ -357,10 +451,23 @@ def _extract_zahlungen(text: str, versicherer_kuerzel: str = "") -> list[ParsedZ
                 if b:
                     zahlungen.append(ParsedZahlung(empfaenger="kanzlei", betrag=b))
 
+    # ── "Letztgenannter Betrag wird auf Ihr Konto überwiesen" (Gothaer) ──
+    # Kein eigener Betrag im Satz – Gesamtbetrag steht weiter oben.
+    if not zahlungen:
+        if re.search(r"letztgenannter\s+betrag\s+wird", text, re.IGNORECASE):
+            gb_m = re.search(
+                r"Gesamtbetrag\s*:\s*([\d.]+,\d{2})\s*EUR",
+                text, re.IGNORECASE,
+            )
+            if gb_m:
+                b = parse_betrag(gb_m.group(1))
+                if b:
+                    zahlungen.append(ParsedZahlung(empfaenger="kanzlei", betrag=b))
+
     return zahlungen
 
 
-def parse_abrechnungsschreiben(text: str, versicherer_kuerzel: str = "") -> AbrechnungParseResult:
+def parse_abrechnungsschreiben(text: str, versicherer_kuerzel: str = "", llm_aktiv: bool = False) -> AbrechnungParseResult:
     """
     Hauptfunktion: Parst ein Abrechnungsschreiben.
     
@@ -384,21 +491,28 @@ def parse_abrechnungsschreiben(text: str, versicherer_kuerzel: str = "") -> Abre
     ))
 
     # Positionen extrahieren
-    # Schritt 1: Spezialfall HDI - Reparatur mit eingebetteten Abzügen
-    hdi_positionen = _extract_reparatur_mit_abzuegen(text)
-    already_found_reparatur = bool(hdi_positionen)
+    # Versicherer-Spezialformate haben Vorrang vor dem generischen Parser.
 
-    # Schritt 2: Standardpositionen
-    standard_positionen = _extract_standard_positionen(text)
-
-    # Zusammenführen: HDI-Spezialpositionen haben Vorrang bei Reparatur
-    if already_found_reparatur:
-        result.positionen = hdi_positionen
-        for p in standard_positionen:
-            if p.art not in ("reparatur_brutto", "reparatur_netto", "mwst_abzug", "pruefbericht_abzug"):
-                result.positionen.append(p)
+    if versicherer_kuerzel == "GOTHAER":
+        # Gothaer: Strichliste "- LABEL : BETRAG EUR"
+        gothaer_positionen = _extract_gothaer_positionen(text)
+        if gothaer_positionen:
+            result.positionen = gothaer_positionen
+        else:
+            # Fallback auf Standardpositionen wenn Gothaer-Parser nichts findet
+            result.positionen = _extract_standard_positionen(text)
     else:
-        result.positionen = standard_positionen
+        # HDI: Reparatur mit eingebetteten Abzügen
+        hdi_positionen = _extract_reparatur_mit_abzuegen(text)
+        standard_positionen = _extract_standard_positionen(text)
+
+        if hdi_positionen:
+            result.positionen = hdi_positionen
+            for p in standard_positionen:
+                if p.art not in ("reparatur_brutto", "reparatur_netto", "mwst_abzug", "pruefbericht_abzug"):
+                    result.positionen.append(p)
+        else:
+            result.positionen = standard_positionen
 
     # Gesamtbetrag
     result.gesamtbetrag = _extract_gesamtbetrag(text)
@@ -432,4 +546,81 @@ def parse_abrechnungsschreiben(text: str, versicherer_kuerzel: str = "") -> Abre
                 f"weicht von Summe der Zahlungen ({total_zahlungen:.2f} EUR) ab"
             )
 
+    # ── LLM Shadow-Mode ───────────────────────────────────────────────────────
+    # Gemma läuft parallel zum Regex-Parser (wenn aktiviert).
+    # Primäres Ergebnis bleibt immer das Regex-Ergebnis.
+    # Abweichungen werden als Konflikt-Flag zurückgemeldet.
+    if llm_aktiv:
+        _llm_shadow(text, versicherer_kuerzel, result)
+
     return result
+
+
+def _llm_shadow(
+    text: str,
+    versicherer: str,
+    regex_result: "AbrechnungParseResult",
+) -> None:
+    """
+    Führt Gemma parallel zum Regex-Parser aus (Shadow-Mode).
+    Modifiziert regex_result in-place:
+      llm_verwendet     = True wenn Gemma geantwortet hat
+      llm_konflikt      = True wenn Gesamtbeträge um > 1 EUR abweichen
+      llm_gesamtbetrag  = Gemma's Gesamtbetrag (zum Anzeigen im Frontend)
+    Das Regex-Ergebnis wird NICHT ersetzt.
+    """
+    try:
+        from ..services.llm_service import parse_abrechnung_raw as llm_parse
+    except ImportError:
+        return
+
+    llm_dict = llm_parse(text, versicherer)
+    if llm_dict is None:
+        return  # Gemma nicht erreichbar oder JSON nicht parsierbar
+
+    # Qwen hat geantwortet – Badge zeigen, auch wenn JSON unvollständig
+    regex_result.llm_verwendet    = True
+    regex_result.llm_gesamtbetrag = llm_dict.get("gesamtbetrag")
+    regex_result.llm_positionen   = [
+        {
+            "art":           p.get("art", "sonstiges"),
+            "bezeichnung":   p.get("bezeichnung", ""),
+            "betrag_netto":  p.get("betrag_netto"),
+            "betrag_brutto": p.get("betrag_brutto"),
+        }
+        for p in (llm_dict.get("positionen") or [])
+        if isinstance(p, dict)
+    ]
+
+    # Konflikt-Prüfung: Gesamtbetrag weicht > 1 EUR ab
+    r_total   = regex_result.gesamtbetrag or 0.0
+    llm_total = regex_result.llm_gesamtbetrag or 0.0
+    if r_total > 0 and llm_total > 0:
+        regex_result.llm_konflikt = abs(r_total - llm_total) > 1.0
+    elif r_total == 0 and llm_total > 0:
+        # Regex hat keinen Gesamtbetrag erkannt, LLM schon → Konflikt,
+        # damit Nutzer zwischen den Ergebnissen wählen kann
+        regex_result.llm_konflikt = True
+
+    # Positions-Konflikt: Auch wenn Gesamtbeträge übereinstimmen,
+    # kann eine einzelne Position (z.B. sv_kosten) unterschiedlich sein
+    if not regex_result.llm_konflikt and regex_result.llm_positionen:
+        regex_pos_map = {
+            p.art: (p.betrag_brutto or p.betrag_netto or 0.0)
+            for p in regex_result.positionen
+        }
+        for llm_p in regex_result.llm_positionen:
+            llm_val   = llm_p.get("betrag_brutto") or llm_p.get("betrag_netto") or 0.0
+            regex_val = regex_pos_map.get(llm_p.get("art"), 0.0)
+            if regex_val > 0 and llm_val > 0 and abs(regex_val - llm_val) > 1.0:
+                regex_result.llm_konflikt = True
+                logger.info(
+                    "LLM Shadow: Positions-Konflikt bei art='%s': Regex=%.2f LLM=%.2f",
+                    llm_p.get("art"), regex_val, llm_val,
+                )
+                break
+
+    logger.info(
+        "LLM Shadow: Regex=%.2f LLM=%.2f Konflikt=%s",
+        r_total, llm_total, regex_result.llm_konflikt,
+    )

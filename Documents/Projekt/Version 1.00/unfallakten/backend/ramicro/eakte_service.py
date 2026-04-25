@@ -90,7 +90,7 @@ def parse_az(az):
 
 # ── E-Akte Dokumente abfragen ────────────────────────────────────────────────
 
-def hole_eakte_dokumente(az, nur_pdf=True, limit=500):
+def hole_eakte_dokumente(az, nur_pdf=True, limit=0):
     # type: (str, bool, int) -> List[Dict]
     """
     Holt Dokument-Metadaten aus tblElo_AktenArchiv.
@@ -99,15 +99,16 @@ def hole_eakte_dokumente(az, nur_pdf=True, limit=500):
     Args:
         az:       Aktenzeichen (z.B. "1/16")
         nur_pdf:  True = nur PDFs, False = auch E-Mails/andere
-        limit:    Maximale Anzahl Ergebnisse
+        limit:    Maximale Anzahl Ergebnisse (0 = kein Limit, Standard)
 
     Returns:
         Liste von Dicts mit Dokument-Metadaten
     """
     akten_nr, jahrgang = parse_az(az)
 
+    top_klausel = ("TOP %d " % limit) if limit > 0 else ""
     sql = """
-        SELECT TOP %d
+        SELECT %s
             Nr, AktenNr, Jahrgang,
             Dateiname, OrgDatei,
             Empfaenger, Bemerkung,
@@ -117,7 +118,7 @@ def hole_eakte_dokumente(az, nur_pdf=True, limit=500):
         WHERE AktenNr = %%s
           AND Jahrgang = %%s
           AND (UAkte = 0 OR UAkte IS NULL)
-    """ % limit
+    """ % top_klausel
 
     if nur_pdf:
         sql += " AND (Dateiname LIKE '%.pdf')"
@@ -152,6 +153,7 @@ def hole_eakte_dokumente(az, nur_pdf=True, limit=500):
             "nr": row["Nr"],
             "dateiname": dateiname_raw,
             "anzeigename": anzeigename,
+            "orgdatei": row.get("OrgDatei") or "",
             "dateityp": ext,
             "empfaenger": empfaenger,
             "absender_domain": domain,
@@ -207,6 +209,7 @@ def hole_eakte_dokument(az, nr):
         "nr": row["Nr"],
         "dateiname": dateiname_raw,
         "anzeigename": anzeigename,
+        "orgdatei": row.get("OrgDatei") or "",
         "dateityp": ext,
         "empfaenger": row.get("Empfaenger") or "",
         "absender_domain": _extrahiere_domain(row.get("Empfaenger") or ""),

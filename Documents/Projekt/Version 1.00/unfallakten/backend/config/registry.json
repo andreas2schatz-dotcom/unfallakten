@@ -5794,6 +5794,13 @@
       "ramicro_adressnr": "1135",
       "marker_typ": "domain"
     },
+    "asd-offenbach.de": {
+      "klasse": "abschlepprechnung",
+      "parser": "rechnung_parser",
+      "lieferant": "Abschleppdienst Offenbach GmbH",
+      "ramicro_adressnr": "1135",
+      "marker_typ": "domain"
+    },
     "sv-kurpisz.de": {
       "klasse": "gutachten",
       "parser": "gutachten_default",
@@ -5858,10 +5865,10 @@
       "marker_typ": "domain"
     },
     "adac.de": {
-      "klasse": "mietwagenrechnung",
-      "parser": "mietwagen_parser",
-      "lieferant": "ADAC Autovermietung GmbH",
-      "ramicro_adressnr": "7675",
+      "klasse": "versicherung",
+      "parser": "auto_classify",
+      "lieferant": "ADAC Versicherungs-AG",
+      "kuerzel": "ADAC",
       "marker_typ": "domain"
     },
     "ploetz.com": {

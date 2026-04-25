@@ -134,14 +134,33 @@ _FIRMA_POSITION_MAP = [
 
 # Dokumentenklasse (Registry) → Schadenposition-Key
 _KLASSE_POSITION_MAP = {
-    "abschlepprechnung":  "abschleppkosten",
-    "reparaturrechnung":  "rep_rechnung_netto",
-    "mietwagenrechnung":  "mietwagenkosten_netto",
-    "werkstattrechnung":  "rep_rechnung_netto",
+    "abschlepprechnung":    "abschleppkosten",
+    "standkostenrechnung":  "standkosten",
+    "reparaturrechnung":    "rep_rechnung_netto",
+    "mietwagenrechnung":    "mietwagenkosten_netto",
+    "werkstattrechnung":    "rep_rechnung_netto",
     # sv_rechnung ist eine separate SV-Honorarrechnung → sv_kosten
     # (vorsteuer-abhängige Variante wird unten im Loop gesetzt)
-    "sv_rechnung":        "__sv_kosten_vorsteuer__",
+    "sv_rechnung":          "__sv_kosten_vorsteuer__",
 }
+
+# ── E-Akte Whitelist-Filter ──────────────────────────────────────────────────
+# Rubrik-Werte → Dokument ist für den Schaden-Parser irrelevant
+# (Gerichts- und Behördenkorrespondenz sowie ausgehende Kanzleischreiben)
+_EAKTE_RUBRIK_SKIP = frozenset({
+    "gerichtlich",
+    "verwaltungsbehörde",
+    "verwaltungsbehoerde",    # ASCII-Fallback ohne Umlaut
+    "an mandant",             # Weiterleitungen zur Kenntnis → ausgehend, kein Schadendokument
+})
+
+# Gericht-Substrings im Empfänger-Feld (Fallback wenn Rubrik nicht gesetzt)
+_EMPFAENGER_GERICHT_KW = (
+    "amtsgericht", "landgericht", "oberlandesgericht",
+    "bundesgerichtshof", "arbeitsgericht", "sozialgericht",
+    "finanzgericht", "verwaltungsgericht",
+    "gerichtskasse", "justizkasse",
+)
 
 
 def _ist_firma(b):
@@ -190,6 +209,32 @@ def _routing_basis_eakte_dok(dok):
     if not domain and not rubrik:
         return "fallback_kein_signal"
     return "fallback_domain_unbekannt"
+
+
+def _eakte_dok_uberspringen(dok):
+    # type: (dict) -> Optional[str]
+    """
+    Gibt Grund-String zurück wenn das Dokument übersprungen werden soll, sonst None.
+
+    Übersprungen werden:
+    - Schlagwort "E-Brief" (ausgehende E-Mails via RA-MICRO E-Brief-Modul)
+    - Rubrik "Gerichtlich" / "Verwaltungsbehörde" / "An Mandant"
+    - Empfänger-Feld enthält Gericht-Bezeichnung (Fallback ohne Rubrik)
+    """
+    if (dok.get("schlagwort") or "").lower().strip() == "e-brief":
+        return "schlagwort_ebrief"
+    rubrik = (dok.get("rubrik") or "").lower().strip()
+    if rubrik in _EAKTE_RUBRIK_SKIP:
+        # Normalisierter Key: Leerzeichen→Unterstrich, Umlaute→ASCII
+        key = (rubrik
+               .replace(" ", "_")
+               .replace("ä", "ae").replace("ö", "oe").replace("ü", "ue")
+               .replace("ß", "ss"))
+        return "rubrik_%s" % key
+    empf = (dok.get("empfaenger") or "").lower()
+    if any(kw in empf for kw in _EMPFAENGER_GERICHT_KW):
+        return "empfaenger_gericht"
+    return None
 
 
 def _klassifiziere_eakte_dok(dok, beteiligte, vorsteuer):
@@ -454,6 +499,7 @@ def kandidaten(akte_id):
                 "FROM dokumente "
                 "WHERE akte_id = ? AND ("
                 "  dokumentenklasse LIKE 'rechnung%'"
+                "  OR dokumentenklasse = 'standkostenrechnung'"
                 "  OR dokumentenklasse = 'gutachten'"
                 "  OR dokumentenklasse = 'sv_rechnung'"
                 "  OR dokumentenklasse = 'abrechnungsschreiben'"
@@ -486,6 +532,7 @@ def kandidaten(akte_id):
     eakte_geprueft = 0
     eakte_verfuegbar = False
     auto_importiert = 0   # Zählt in diesem Aufruf neu importierte E-Akte-Dokumente
+    uebersprungen_nach_kategorie = {}   # Grund → Anzahl
 
     # ── Stufe 0: Lokale Dokumente auswerten ──────────────────────────────────
     for dok in lokale_rows:
@@ -625,6 +672,19 @@ def kandidaten(akte_id):
             if nr in importierte_nrs:
                 continue  # Bereits lokal importiert
 
+            # ── Whitelist-Filter: irrelevante Kategorien überspringen ─────────
+            skip_grund = _eakte_dok_uberspringen(dok)
+            if skip_grund:
+                uebersprungen_nach_kategorie[skip_grund] = (
+                    uebersprungen_nach_kategorie.get(skip_grund, 0) + 1
+                )
+                logger.debug(
+                    "E-Akte nr=%d übersprungen [%s] (rubrik=%r, empf=%r)",
+                    nr, skip_grund, dok.get("rubrik", ""),
+                    (dok.get("empfaenger") or "")[:60],
+                )
+                continue
+
             treffer_liste = _klassifiziere_eakte_dok(dok, beteiligte, vorsteuer)
             if not treffer_liste:
                 continue
@@ -681,7 +741,8 @@ def kandidaten(akte_id):
                             akte_id=akte_id,
                             typ="sonstiges",
                             dateiname=(
-                                dok.get("bemerkung") or dok.get("anzeigename")
+                                dok.get("bemerkung") or dok.get("orgdatei")
+                                or dok.get("anzeigename")
                                 or ("eakte_%d.pdf" % nr)
                             ),
                             dateipfad=pfad,
@@ -816,7 +877,7 @@ def kandidaten(akte_id):
                     "quelle":          "lokal" if auto_dok_id else "eakte",
                     "dok_id":          auto_dok_id,
                     "eakte_nr":        nr,
-                    "dateiname":       dok.get("bemerkung") or dok.get("anzeigename") or "",
+                    "dateiname":       dok.get("bemerkung") or dok.get("orgdatei") or dok.get("anzeigename") or "",
                     "betrag_vorschlag": betrag_vorschlag,
                     "betrag_ist_netto": betrag_ist_netto,
                     "lieferant":       treffer.get("lieferant"),
@@ -865,10 +926,11 @@ def kandidaten(akte_id):
 
     return _j({
         "kandidaten":       kandidaten_liste,
-        "lokal_geprueft":   lokal_geprueft,
-        "eakte_geprueft":   eakte_geprueft,
-        "eakte_verfuegbar": eakte_verfuegbar,
-        "auto_importiert":  auto_importiert,
+        "lokal_geprueft":               lokal_geprueft,
+        "eakte_geprueft":               eakte_geprueft,
+        "eakte_verfuegbar":             eakte_verfuegbar,
+        "auto_importiert":              auto_importiert,
+        "uebersprungen_nach_kategorie": uebersprungen_nach_kategorie,
     })
 
 
@@ -892,6 +954,7 @@ def neu_parsen(akte_id):
                 "FROM dokumente "
                 "WHERE akte_id = ? AND dateipfad IS NOT NULL AND dateipfad != '' AND ("
                 "  dokumentenklasse LIKE 'rechnung%'"
+                "  OR dokumentenklasse = 'standkostenrechnung'"
                 "  OR dokumentenklasse = 'gutachten'"
                 "  OR dokumentenklasse = 'sv_rechnung'"
                 "  OR dokumentenklasse = 'abrechnungsschreiben'"

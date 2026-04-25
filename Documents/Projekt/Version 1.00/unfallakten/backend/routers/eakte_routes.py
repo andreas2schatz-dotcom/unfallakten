@@ -226,7 +226,7 @@ def importieren(akte_id, nr):
         db_dok = registriere_dokument(
             akte_id=akte_id,
             typ="sonstiges",  # Wird vom Dispatcher ueberschrieben
-            dateiname=dok["bemerkung"] or dok["anzeigename"] or ("eakte_%d.pdf" % nr),
+            dateiname=dok.get("bemerkung") or dok.get("orgdatei") or dok.get("anzeigename") or ("eakte_%d.pdf" % nr),
             dateipfad=pfad,
             bearbeiter_id=getattr(g, "benutzer_id", None),
             dateityp="pdf",

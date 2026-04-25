@@ -46,6 +46,8 @@ VERSICHERER_PATTERNS = [
     (r"ergo",                          "ERGO",           "ERGO Versicherung",               7),
     (r"gothaer",                       "GOTHAER",        "Gothaer Versicherung",            7),
     (r"württembergische",              "WUERTTEMBERGISCHE","Württembergische Versicherung", 7),
+    (r"adac\s+versicherungs?[-\s]?ag|adac\s+versicherung\b", "ADAC", "ADAC Versicherungs-AG", 8),
+    (r"adac\.de",                      "ADAC",           "ADAC Versicherungs-AG",           7),
 ]
 
 # ──────────────────────────────────────────────────────────
@@ -57,6 +59,7 @@ SCHADENNUMMER_PATTERNS = {
     "HUK":            r"\b(\d{2}-\d{2}-\d{3}/\d{6}-[A-Z])\b",
     "ALLIANZ":        r"\b(AS\d{4}-\d{8}-[A-Z]\d{3})\b",
     "ALLIANZ_DIRECT": r"\b(DG\d{4}-\d{8})\b",
+    "GOTHAER":        r"\b(\d{2}\.\d{2}\.\d{7})\b",   # z.B. 54.26.0146692
 }
 
 # Fallback: generische Schadennummer
@@ -133,6 +136,12 @@ def classify_document(text: str, has_image_pages: bool = False) -> DokumentMetad
         "den schadenfall rechnen wir", "abrechnung.*nehmen wir.*vor",
         r"zahlung\s+per\s*überweisung", "zahlungsbetrag", "entschädigungsbetrag",
         r"haben wir.*(?:angewiesen|veranlasst)", "rechnen wir wie folgt ab",
+        "wir rechnen wie folgt ab",       # Gothaer-Wortstellung
+        r"letztgenannter betrag",          # Gothaer-Zahlungshinweis
+        r"schadenregulierung",             # ADAC: "Haftpflichtschadenregulierung"
+        r"regulierungsbetrag",             # ADAC + Generali: Gesamtzahlungsbetrag-Label
+        r"auszahlungsbetrag",             # einige Versicherer
+        r"wir (?:regulieren|haben.*reguliert|konnten.*regulier)", # generisch
     ]
     gutachten_signals = [
         "schadensgutachten", "kfz-gutachten", "kraftfahrzeuggutachten",
@@ -185,7 +194,34 @@ def classify_document(text: str, has_image_pages: bool = False) -> DokumentMetad
         konfidenz_punkte += min(sv_rg_score + rg_score, 5)
     # Rechnung gewinnt nur wenn mind. 2 spezifische Signale UND klarer Vorsprung
     elif rg_score >= 2 and rg_score > gt_score and rg_score > pb_score and rg_score > ab_score:
-        meta.dokumenttyp = "rechnung"
+        # ── Subtyp-Bestimmung ────────────────────────────────────────────
+        abschlepp_sub_signals = [
+            r"abschleppdienst",
+            r"abschlepp(?:en|kosten|fahrzeug)",
+            r"\blfbk\b",                        # LKW mit Fahrzeugkran
+            r"fahrzeugbeförderung",
+            r"berg(?:ung|ekosten)",
+            r"pannenhilfe|pannendienst",
+            r"rückschlepp|umsetzkosten",
+        ]
+        standkosten_sub_signals = [
+            r"\bstandkosten\b",
+            r"\bstandgeld\b",
+            r"\bstandgebühr\b",
+            r"bereitstellungsgebühr",
+            r"abstellgebühr",
+            r"einstellgebühr",
+            r"\d+\s*tage?\s+[àa@]\s",           # "22 Tage à 16,81 €"
+            r"\d+[,.]?\d*\s*€\s*/\s*tag\b",     # "16,81 €/Tag"
+        ]
+        ab_sub  = sum(1 for s in abschlepp_sub_signals  if re.search(s, text_lower))
+        sk_sub  = sum(1 for s in standkosten_sub_signals if re.search(s, text_lower))
+        if ab_sub >= 1:
+            meta.dokumenttyp = "abschlepprechnung"
+        elif sk_sub >= 1:
+            meta.dokumenttyp = "standkostenrechnung"
+        else:
+            meta.dokumenttyp = "rechnung"
         konfidenz_punkte += min(rg_score, 4)
     elif pb_score > ab_score and pb_score >= gt_score:
         meta.dokumenttyp = "pruefbericht"
@@ -272,26 +308,27 @@ def classify_document(text: str, has_image_pages: bool = False) -> DokumentMetad
             meta.aktenzeichen_kanzlei = m.group(1).strip()
 
     # ── Schreibdatum ──────────────────────────────────────
-    # Suche nach Ortsangabe + Datum (typisches Briefdatum)
+    # Priorität 1: Ort + Datum (z.B. "Köln, 12.03.2026")
     ort_datum = re.search(
-        r"(?:Essen|Hannover|Frankfurt|München|Koblenz|Berlin|Hamburg|Köln|Leipzig),?\s+"
+        r"[A-ZÄÖÜ][a-zäöüß]+(?:\s[A-ZÄÖÜ][a-zäöüß]+)?,?\s+"
         r"(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})",
-        text, re.IGNORECASE
+        text
     )
     if ort_datum:
         d, m_val, y = ort_datum.group(1), ort_datum.group(2), ort_datum.group(3)
         meta.schreibdatum = f"{y}-{m_val.zfill(2)}-{d.zfill(2)}"
         konfidenz_punkte += 1
     else:
-        # Suche nach "Datum DD.MM.YYYY" (Prüfberichte)
+        # Priorität 2: explizites Label "Datum DD.MM.YYYY"
         datum_m = re.search(r"Datum\s+(\d{2})\.(\d{2})\.(\d{4})", text)
         if datum_m:
             meta.schreibdatum = f"{datum_m.group(3)}-{datum_m.group(2)}-{datum_m.group(1)}"
             konfidenz_punkte += 1
         else:
-            # Deutsches Briefdatum: "10. Februar 2026"
+            # Priorität 3: ausgeschriebener Monat ("10. Februar 2026")
             datum_m2 = re.search(
-                r"\b(\d{1,2})\.\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})\b",
+                r"\b(\d{1,2})\.\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|"
+                r"September|Oktober|November|Dezember)\s+(\d{4})\b",
                 text, re.IGNORECASE
             )
             if datum_m2:
@@ -300,6 +337,16 @@ def classify_document(text: str, has_image_pages: bool = False) -> DokumentMetad
                 y = datum_m2.group(3)
                 meta.schreibdatum = f"{y}-{mon}-{d.zfill(2)}"
                 konfidenz_punkte += 1
+            else:
+                # Priorität 4: erstes DD.MM.YYYY im Briefkopf (erste 800 Zeichen)
+                kopf = text[:800]
+                datum_m3 = re.search(r"\b(\d{1,2})\.(\d{2})\.(\d{4})\b", kopf)
+                if datum_m3:
+                    d, m_val, y = datum_m3.group(1), datum_m3.group(2), datum_m3.group(3)
+                    # Plausibilitätsprüfung: Monat 1–12, Jahr ab 2000
+                    if 1 <= int(m_val) <= 12 and int(y) >= 2000:
+                        meta.schreibdatum = f"{y}-{m_val.zfill(2)}-{d.zfill(2)}"
+                        konfidenz_punkte += 1
 
     # ── Schadendatum ──────────────────────────────────────
     # "Kfz-Haftpflichtschaden vom DD.MM.YYYY" / "Schaden vom DD.MM.YYYY"

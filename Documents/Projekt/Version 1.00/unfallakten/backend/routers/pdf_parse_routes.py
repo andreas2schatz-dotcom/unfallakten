@@ -95,6 +95,19 @@ def _parse_versicherungs_pdf(datei_bytes: bytes) -> dict:
 
     norm_text = normalize_text(full_text)
 
+    # ── OCR-Fallback für Bild-PDFs (PRD-30) ───────────────────────────────
+    if not norm_text or len(norm_text.strip()) < 50:
+        try:
+            from ..services.ocr_service import ist_bild_pdf, ocr_text as _ocr_text
+            if ist_bild_pdf(has_image_pages, len(norm_text.strip())):
+                logger.info("Bild-PDF erkannt – starte OCR.")
+                ocr_roh = _ocr_text(datei_bytes)
+                if ocr_roh and len(ocr_roh.strip()) >= 20:
+                    norm_text = normalize_text(ocr_roh)
+                    logger.info("OCR abgeschlossen – %d Zeichen.", len(norm_text))
+        except Exception as ocr_err:
+            logger.warning("OCR fehlgeschlagen (nicht kritisch): %s", ocr_err)
+
     # Klassifizieren
     meta = classify_document(norm_text, has_image_pages)
 
@@ -112,8 +125,32 @@ def _parse_versicherungs_pdf(datei_bytes: bytes) -> dict:
         "seiten_anzahl":        len(page_texts),
     }
 
+    # Fallback: bekannter Versicherer aber Typ unklar → als Abrechnungsschreiben behandeln
+    if (meta.dokumenttyp not in ("abrechnungsschreiben", "pruefbericht")
+            and meta.versicherer_kuerzel
+            and meta.rg_score < 2
+            and meta.sv_rg_score == 0):
+        import logging as _log
+        _log.getLogger(__name__).info(
+            "Versicherer '%s' erkannt, Dokumenttyp '%s' → Fallback auf abrechnungsschreiben",
+            meta.versicherer_kuerzel, meta.dokumenttyp,
+        )
+        meta.dokumenttyp = "abrechnungsschreiben"
+
     if meta.dokumenttyp == "abrechnungsschreiben":
-        r = parse_abrechnungsschreiben(norm_text, meta.versicherer_kuerzel)
+        # LLM Shadow-Mode: aktiv wenn env UND DB-Setting beide true
+        import os as _os
+        from ..db.database import get_connection as _get_conn
+        _env_on = _os.environ.get("LLM_ENABLED", "false").strip().lower() == "true"
+        _db_on  = False
+        if _env_on:
+            with _get_conn() as _c:
+                _row = _c.execute(
+                    "SELECT wert FROM konfiguration WHERE schluessel='llm_parsing_enabled'"
+                ).fetchone()
+                _db_on = (_row["wert"] == "true") if _row else False
+        llm_aktiv = _env_on and _db_on
+        r = parse_abrechnungsschreiben(norm_text, meta.versicherer_kuerzel, llm_aktiv=llm_aktiv)
         positionen = []
         for p in r.positionen:
             positionen.append({
@@ -136,13 +173,17 @@ def _parse_versicherungs_pdf(datei_bytes: bytes) -> dict:
             })
         ergebnis = {
             **basis,
-            "abrechnungsart":   r.abrechnungsart,
-            "gesamtbetrag":     r.gesamtbetrag,
-            "mwst_hinweis":     r.mwst_hinweis,
-            "positionen":       positionen,
-            "zahlungen":        zahlungen,
-            "parse_konfidenz":  round(r.konfidenz, 3),
-            "warnungen":        r.warnungen,
+            "abrechnungsart":    r.abrechnungsart,
+            "gesamtbetrag":      r.gesamtbetrag,
+            "mwst_hinweis":      r.mwst_hinweis,
+            "positionen":        positionen,
+            "zahlungen":         zahlungen,
+            "parse_konfidenz":   round(r.konfidenz, 3),
+            "llm_verwendet":     r.llm_verwendet,
+            "llm_konflikt":      r.llm_konflikt,
+            "llm_gesamtbetrag":  r.llm_gesamtbetrag,
+            "llm_positionen":    r.llm_positionen,
+            "warnungen":         r.warnungen,
         }
 
     elif meta.dokumenttyp == "pruefbericht":
@@ -209,7 +250,18 @@ def _parse_versicherungs_pdf(datei_bytes: bytes) -> dict:
         }
 
     elif meta.dokumenttyp == "gutachten":
-        r = parse_gutachten(norm_text, meta.pruefdienstleister)
+        import os as _os
+        from ..db.database import get_connection as _get_conn
+        _env_on = _os.environ.get("LLM_ENABLED", "false").strip().lower() == "true"
+        _db_on  = False
+        if _env_on:
+            with _get_conn() as _c:
+                _row = _c.execute(
+                    "SELECT wert FROM konfiguration WHERE schluessel='llm_parsing_enabled'"
+                ).fetchone()
+                _db_on = (_row["wert"] == "true") if _row else False
+        llm_aktiv = _env_on and _db_on
+        r = parse_gutachten(norm_text, meta.pruefdienstleister, llm_aktiv=llm_aktiv)
         fz = r.fahrzeug
         ergebnis = {
             **basis,
@@ -269,6 +321,17 @@ def _parse_versicherungs_pdf(datei_bytes: bytes) -> dict:
             "sv_kosten_brutto":           r.sv_kosten_brutto,
             "parse_konfidenz":            r.konfidenz,
             "warnungen":                  r.warnungen,
+            # LLM Shadow-Mode (PRD-31)
+            "llm_verwendet":              r.llm_verwendet,
+            "llm_konflikt":               r.llm_konflikt,
+            "llm_wbw":                    r.llm_wbw,
+            "llm_restwert":               r.llm_restwert,
+            "llm_reparaturkosten_netto":  r.llm_reparaturkosten_netto,
+            "llm_wertminderung":          r.llm_wertminderung,
+            "llm_nutzungsausfall_tagessatz": r.llm_nutzungsausfall_tagessatz,
+            "llm_nutzungsausfall_tage":   r.llm_nutzungsausfall_tage,
+            "llm_sv_kosten_netto":        r.llm_sv_kosten_netto,
+            "llm_schadenart":             r.llm_schadenart,
         }
 
     else:

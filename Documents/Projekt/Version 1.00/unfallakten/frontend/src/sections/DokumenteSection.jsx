@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
-import { DOK_TYPEN, SCHADEN_F } from "../config/constants.js";
+import { DOK_TYPEN, SCHADEN_F, KLASSE_TO_POS } from "../config/constants.js";
 import { fmtSize, fmtEuro } from "../config/utils.js";
 import { Card, CardHead, Btn, FieldSelect, Toast } from "../components/common.jsx";
 import {
@@ -51,8 +51,52 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
   const [letzteKandidaten, setLetzteKandidaten] = useState(null); // Ergebnis letzter Auto-Zuordnung
   const [eakteBulkLaden, setEakteBulkLaden] = useState(false);
 
+  // ── KI-Analyse-Dialog (PRD-31) ─────────────────────────────────────────────
+  const [kiDialog, setKiDialog]     = useState(null);   // dok_id | null
+  const [kiErgebnis, setKiErgebnis] = useState(null);   // parse_ergebnis object
+  const [kiLaden, setKiLaden]       = useState(false);
+  const [kiWahl, setKiWahl]         = useState({});     // { field: 'ki' } – nur KI-Overrides
+  const [kiSpeichert, setKiSpeichert] = useState(false);
+
+  // ── Inbox-Filter + Inline-Zuordnung (PRD-34) ──────────────────────────────
+  const [zeigeAlle, setZeigeAlle]             = useState(false);
+  const [promptAbgelehnt, setPromptAbgelehnt] = useState(new Set());
+  const [promptForced, setPromptForced]       = useState(new Set());
+  const [inlineWahl, setInlineWahl]           = useState({});
+  const [inlineAnnehmenLaden, setInlineAnnehmenLaden] = useState(null);
+  const [highlightPos, setHighlightPos]       = useState(null);
+
   const belegAnzahl = Object.keys(belegMap).length;
   const belegTotal = SCHADEN_F.length;
+
+  // Belegte + Gutachten Dok-IDs für Inbox-Filter
+  const belegDokIds = useMemo(() => {
+    const ids = new Set();
+    Object.values(belegMap).forEach(b => { if (b.dokument_id) ids.add(b.dokument_id); });
+    return ids;
+  }, [belegMap]);
+
+  const sichtbareDokumente = useMemo(() =>
+    zeigeAlle ? dokumente : dokumente.filter(d =>
+      !belegDokIds.has(d.id) && d.dokumentenklasse !== "gutachten"
+    ),
+    [dokumente, belegDokIds, zeigeAlle]
+  );
+  const ausgeblendetAnzahl = dokumente.length - sichtbareDokumente.length;
+
+  // Kandidaten-Lookup nach dok_id (DISP-gemappt) für Inline-Betrag
+  const kandidatenNachDokId = useMemo(() => {
+    const DISP = { rep_rechnung_netto:"rep_rechnung_brutto", mietwagenkosten_netto:"mietwagenkosten", abschleppkosten_netto:"abschleppkosten", standkosten_netto:"standkosten", sv_kosten_netto:"sv_kosten" };
+    const map = {};
+    (belegeKandidaten || []).forEach(k => {
+      if (!k.dok_id || !k.position_key) return;
+      const pk = DISP[k.position_key] || k.position_key;
+      if (belegMap[pk]) return;
+      if (!map[k.dok_id]) map[k.dok_id] = [];
+      map[k.dok_id].push({ ...k, position_key: pk });
+    });
+    return map;
+  }, [belegeKandidaten, belegMap]);
 
   // Inline-Beträge für Kandidaten ohne betrag_vorschlag
   const [uebernehmenLaden, setUebernehmenLaden] = useState(null); // posKey | "__alle__" | null
@@ -165,8 +209,10 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
         lokalGeprueft > 0 ? `${lokalGeprueft} lokal` : null,
         eakteVerfuegbar ? `${eakteGeprueft} E-Akte` : "E-Akte nicht verfügbar",
       ].filter(Boolean).join(" · ");
-      setToast(`${kandidaten.length} Kandidat(en) gefunden · ${gesamtGeprueft} Dokumente geprüft (${quellen})`);
-      setLetzteKandidaten(kandidaten);
+      const uebersprungen = res?.uebersprungen_nach_kategorie || {};
+      const uebersproungenGesamt = Object.values(uebersprungen).reduce((s, n) => s + n, 0);
+      setToast(`${kandidaten.length} Kandidat(en) gefunden · ${gesamtGeprueft} Dokumente geprüft (${quellen})${uebersproungenGesamt ? ` · ${uebersproungenGesamt} übersprungen` : ""}`);
+      setLetzteKandidaten({ kandidaten, uebersprungen });
     } catch(e) {
       clearInterval(iv);
       setToast("Batch-Parser fehlgeschlagen: " + (e?.message || ""));
@@ -430,7 +476,85 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
     }
   };
 
+  // Inline-Zuordnung aus Dokumente-Inbox (PRD-34)
+  const handleInlineAnnehmen = async (dokId, posKey, betrag) => {
+    const b = parseFloat(betrag) || 0;
+    if (b <= 0) return;
+    setInlineAnnehmenLaden(dokId);
+    try {
+      await apiBelege.zuordnen(akteId, posKey, dokId, b);
+      const neuerSchaden = { ...schaden, [posKey]: b };
+      const res = await apiSchaden.speichern(akteId, neuerSchaden);
+      dispatch({ type:"SAVE_SCHADEN", akteId, schaden: { ...neuerSchaden, gesamt_brutto: res?.schaden?.gesamt_brutto ?? 0 } });
+      const bRes = await apiBelege.liste(akteId);
+      const nm = {};
+      (bRes?.belege || []).forEach(bv => { nm[bv.position_key] = bv; });
+      setBelegMap(nm);
+      setPromptForced(s => { const n = new Set(s); n.delete(dokId); return n; });
+      const label = SCHADEN_F.find(f => f.k === posKey)?.l || posKey;
+      setToast(`✓ ${label}: ${new Intl.NumberFormat("de-DE", { style:"currency", currency:"EUR" }).format(b)} zugeordnet`);
+      setHighlightPos(posKey);
+      setTimeout(() => setHighlightPos(null), 2000);
+    } catch(e) {
+      setToast("Zuordnung fehlgeschlagen: " + (e?.message || ""));
+    } finally {
+      setInlineAnnehmenLaden(null);
+    }
+  };
+
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  const ladeKiDialog = async (dokId) => {
+    setKiDialog(dokId);
+    setKiLaden(true);
+    setKiErgebnis(null);
+    setKiWahl({});
+    try {
+      const res = await apiDokumente.parse(akteId, dokId);
+      setKiErgebnis(res?.parse_ergebnis || null);
+    } catch (e) {
+      setKiErgebnis(null);
+      setToast("KI-Analyse konnte nicht geladen werden: " + (e?.message || "Fehler"));
+    } finally {
+      setKiLaden(false);
+    }
+  };
+
+  const speichereKiWahl = async () => {
+    if (!kiErgebnis || !kiDialog) return;
+    setKiSpeichert(true);
+    try {
+      // Merged Parse-Ergebnis: bestehende Felder + KI-Overrides
+      const sp = kiErgebnis.schadenpositionen || {};
+      const merged = {
+        ...kiErgebnis,
+        // KI-Overrides wenn gewählt
+        schadenart:                kiWahl.schadenart     === 'ki' ? (kiErgebnis.llm_schadenart              ?? kiErgebnis.schadenart)                : kiErgebnis.schadenart,
+        nutzungsausfall_tagessatz: kiWahl.na_tagessatz   === 'ki' ? (kiErgebnis.llm_nutzungsausfall_tagessatz ?? kiErgebnis.nutzungsausfall_tagessatz) : kiErgebnis.nutzungsausfall_tagessatz,
+        nutzungsausfall_tage:      kiWahl.na_tage        === 'ki' ? (kiErgebnis.llm_nutzungsausfall_tage      ?? kiErgebnis.nutzungsausfall_tage)      : kiErgebnis.nutzungsausfall_tage,
+        schadenpositionen: {
+          ...sp,
+          rep_gutachten_netto: kiWahl.rep_netto     === 'ki' ? (kiErgebnis.llm_reparaturkosten_netto ?? sp.rep_gutachten_netto) : sp.rep_gutachten_netto,
+          reparaturkosten:     kiWahl.rep_netto     === 'ki' ? (kiErgebnis.llm_reparaturkosten_netto ?? sp.reparaturkosten)     : sp.reparaturkosten,
+          wiederbeschaffung:   kiWahl.wbw           === 'ki' ? (kiErgebnis.llm_wbw                  ?? sp.wiederbeschaffung)   : sp.wiederbeschaffung,
+          restwert:            kiWahl.restwert      === 'ki' ? (kiErgebnis.llm_restwert              ?? sp.restwert)            : sp.restwert,
+          wertminderung:       kiWahl.wertminderung === 'ki' ? (kiErgebnis.llm_wertminderung         ?? sp.wertminderung)       : sp.wertminderung,
+          sv_kosten_netto:     kiWahl.sv_netto      === 'ki' ? (kiErgebnis.llm_sv_kosten_netto       ?? sp.sv_kosten_netto)     : sp.sv_kosten_netto,
+          sv_kosten:           kiWahl.sv_netto      === 'ki' ? (kiErgebnis.llm_sv_kosten_netto       ?? sp.sv_kosten)           : sp.sv_kosten,
+        },
+        // LLM-Konflikt als aufgelöst markieren
+        llm_konflikt: false,
+      };
+      await apiDokumente.korrektur(akteId, kiDialog, merged);
+      setKiDialog(null);
+      ladeBelegeKandidaten();
+      setToast("KI-Werte übernommen · Kandidaten werden aktualisiert.");
+    } catch (e) {
+      setToast("Speichern fehlgeschlagen: " + (e?.message || ""));
+    } finally {
+      setKiSpeichert(false);
+    }
+  };
 
   const korrigiereKlasse = async (dokId, neueKlasse) => {
     setKorrekturLading(dokId);
@@ -442,6 +566,12 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
         setToast(`Korrigiert zu ${label}.${erg.parse_status==="erfolgreich" ? " Parser erfolgreich." : ""}`);
         // Kandidaten im Schaden-Tab neu laden damit neue Klasse sofort greift
         ladeBelegeKandidaten();
+        // Inline-Prompt anzeigen wenn neue Klasse auf offene Position mappt
+        const offenePos = (KLASSE_TO_POS[erg.klasse] || []).filter(pk => !belegMap[pk]);
+        if (offenePos.length > 0) {
+          setPromptForced(s => new Set([...s, dokId]));
+          setPromptAbgelehnt(s => { const n = new Set(s); n.delete(dokId); return n; });
+        }
       }
     } catch(e) {
       setToast("Korrektur fehlgeschlagen: " + (e?.message || String(e)));
@@ -487,6 +617,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
   return (
     <>
       {toast && <Toast msg={toast} onDone={() => setToast("")} />}
+
       <div style={{ display:"flex", flexDirection:"column", gap:"1.25rem" }}>
 
         {/* Upload */}
@@ -558,7 +689,9 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
               const isHigh = (kand?.konfidenz || 0) >= 0.85;
               return (
                 <div key={f.k} style={{ display:"flex", alignItems:"center", gap:10,
-                  padding:"7px 0", borderBottom: i < SCHADEN_F.length - 1 ? `1px solid ${T.borderSoft}` : "none" }}>
+                  padding:"7px 0", borderBottom: i < SCHADEN_F.length - 1 ? `1px solid ${T.borderSoft}` : "none",
+                  background: highlightPos === f.k ? T.greenBg : "transparent",
+                  transition:"background 0.4s" }}>
 
                   {/* Positions-Label */}
                   <div style={{ width:178, flexShrink:0, fontFamily:"'Figtree',sans-serif", fontSize:"0.845rem",
@@ -590,6 +723,23 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                         border:`1px solid ${T.green}33`, borderRadius:10, padding:"1px 6px", flexShrink:0 }}>
                         ✓
                       </span>
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Zuordnung von "${beleg.dateiname}" entfernen?`)) return;
+                          try {
+                            await apiBelege.entfernen(akteId, beleg.id);
+                            const bRes = await apiBelege.liste(akteId);
+                            const nm = {};
+                            (bRes?.belege || []).forEach(bv => { nm[bv.position_key] = bv; });
+                            setBelegMap(nm);
+                          } catch(e) { setToast("Entfernen fehlgeschlagen: " + (e?.message || "")); }
+                        }}
+                        title="Zuordnung entfernen"
+                        style={{ background:"none", border:"none", cursor:"pointer", color:T.textFaint,
+                          fontSize:"0.72rem", padding:"0 2px", lineHeight:1, opacity:0.4, transition:"opacity 0.15s" }}
+                        onMouseEnter={e => e.currentTarget.style.opacity="1"}
+                        onMouseLeave={e => e.currentTarget.style.opacity="0.4"}
+                      >✕</button>
                     </div>
 
                   ) : kand ? (
@@ -692,14 +842,35 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
 
         {/* Liste */}
         <Card>
-          <CardHead title={`Dokumente (${dokumente.length})`} />
+          <CardHead
+            title={`Dokumente (${sichtbareDokumente.length}${ausgeblendetAnzahl > 0 && !zeigeAlle ? ` offen / ${dokumente.length} gesamt` : ""})`}
+            action={ausgeblendetAnzahl > 0 ? (
+              <Btn size="sm" variant="ghost" onClick={() => setZeigeAlle(v => !v)}
+                title={zeigeAlle ? "Nur unbearbeitete Dokumente anzeigen" : "Alle Dokumente anzeigen"}>
+                {zeigeAlle ? "Nur offene" : `Alle (${dokumente.length})`}
+              </Btn>
+            ) : null}
+          />
           {dokumente.length === 0 ? (
             <div style={{ padding:"2rem", textAlign:"center", fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", color:T.textFaint }}>Noch keine Dokumente hochgeladen.</div>
-          ) : dokumente.map((d, i) => {
+          ) : sichtbareDokumente.length === 0 ? (
+            <div style={{ padding:"1.5rem", textAlign:"center", fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem", color:T.textFaint }}>
+              Alle Dokumente zugeordnet.{" "}
+              <button onClick={() => setZeigeAlle(true)} style={{ background:"none", border:"none", color:T.accent, cursor:"pointer", textDecoration:"underline", fontFamily:"inherit", fontSize:"inherit" }}>Alle anzeigen</button>
+            </div>
+          ) : sichtbareDokumente.map((d, i) => {
             const ps = PARSE_STYLE[d.parse_status] || PARSE_STYLE.ausstehend;
             const isPdf = d.dateityp === "pdf";
+            const offenePos = (KLASSE_TO_POS[d.dokumentenklasse] || []).filter(pk => !belegMap[pk]);
+            const zeigPrompt = offenePos.length > 0 && !promptAbgelehnt.has(d.id) &&
+              (promptForced.has(d.id) || (d.parse_konfidenz || 0) >= 0.85);
+            const kands   = kandidatenNachDokId[d.id] || [];
+            const gewPos  = inlineWahl[d.id] || offenePos[0];
+            const gewKand = kands.find(k => k.position_key === gewPos);
+            const betragV = gewKand?.betrag_vorschlag ?? null;
             return (
-              <div key={d.id} style={{ display:"flex", alignItems:"center", gap:13, padding:"11px 1.4rem", borderBottom:i<dokumente.length-1?`1px solid ${T.borderSoft}`:"none", transition:"background 0.1s" }}
+              <React.Fragment key={d.id}>
+              <div style={{ display:"flex", alignItems:"center", gap:13, padding:"11px 1.4rem", borderBottom: zeigPrompt ? "none" : (i<sichtbareDokumente.length-1?`1px solid ${T.borderSoft}`:"none"), transition:"background 0.1s" }}
                 onMouseEnter={e => e.currentTarget.style.background=T.surface}
                 onMouseLeave={e => e.currentTarget.style.background="transparent"}>
                 <div style={{ width:38, height:38, borderRadius:8, background:isPdf?T.redBg:T.blueBg, display:"flex", alignItems:"center", justifyContent:"center", color:isPdf?T.red:T.blue, flexShrink:0 }}>
@@ -726,6 +897,18 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                         })()}
                       </span>
                     )}
+                    {zeigeAlle && belegDokIds.has(d.id) && (
+                      <span style={{ background:T.greenBg, color:T.green, border:`1px solid ${T.green}33`,
+                        borderRadius:10, fontSize:"0.72rem", padding:"1px 6px", flexShrink:0 }}>
+                        zugeordnet
+                      </span>
+                    )}
+                    {zeigeAlle && d.dokumentenklasse === "gutachten" && (
+                      <span style={{ background:T.accentPale, color:T.accent, border:`1px solid ${T.accent}33`,
+                        borderRadius:10, fontSize:"0.72rem", padding:"1px 6px", flexShrink:0 }}>
+                        → Schaden-Reiter
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
@@ -747,6 +930,16 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                       👁
                     </Btn>
                   )}
+                  {isPdf && d.dokumentenklasse === "gutachten" && (
+                    <Btn size="sm" variant="secondary"
+                      onClick={() => kiDialog === d.id ? setKiDialog(null) : ladeKiDialog(d.id)}
+                      title="KI-Analyse einblenden / ausblenden"
+                      style={{ fontSize:"0.78rem", padding:"4px 7px",
+                        background: kiDialog === d.id ? T.accentPale : undefined,
+                        color:      kiDialog === d.id ? T.accent      : undefined }}>
+                      🔬 KI
+                    </Btn>
+                  )}
                   <Btn size="sm" variant="secondary" onClick={async () => {
                     try {
                       await apiDokumente.download(akteId, d.id, d.dateiname);
@@ -765,9 +958,85 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                         }}>{Ic.trash}</Btn>
                 </div>
               </div>
+              {/* ── Inline Zuordnen-Prompt (PRD-34) ── */}
+              {zeigPrompt && (
+                <div style={{ padding:"7px 1.4rem 7px 3.5rem", background:T.accentPale,
+                  borderBottom: i < sichtbareDokumente.length-1 ? `1px solid ${T.borderSoft}` : "none",
+                  display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                  <span style={{ fontSize:"0.78rem", color:T.accent, flexShrink:0 }}>↳</span>
+                  {offenePos.length > 1 ? (
+                    <select
+                      value={gewPos || ""}
+                      onChange={e => setInlineWahl(p => ({ ...p, [d.id]: e.target.value }))}
+                      style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", background:"#fff",
+                        color:T.textMid, border:`1px solid ${T.border}`, borderRadius:10,
+                        padding:"2px 7px", cursor:"pointer", outline:"none" }}
+                    >
+                      {offenePos.map(pk => (
+                        <option key={pk} value={pk}>{SCHADEN_F.find(f => f.k === pk)?.l || pk}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:600,
+                      color:T.navy, flexShrink:0 }}>
+                      {SCHADEN_F.find(f => f.k === offenePos[0])?.l || offenePos[0]}
+                    </span>
+                  )}
+                  {betragV != null ? (
+                    <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.82rem",
+                      color:T.navy, fontWeight:600, flexShrink:0 }}>
+                      {fmtEuro(betragV)}
+                    </span>
+                  ) : (
+                    <input
+                      type="number" step="0.01" min="0" placeholder="Betrag €"
+                      value={inlineWahl[`${d.id}_b`] || ""}
+                      onChange={e => setInlineWahl(p => ({ ...p, [`${d.id}_b`]: e.target.value }))}
+                      style={{ width:90, fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
+                        padding:"2px 7px", border:`1px solid ${T.border}`, borderRadius:5,
+                        outline:"none", color:T.text, background:"#fff" }}
+                    />
+                  )}
+                  <button
+                    onClick={() => handleInlineAnnehmen(d.id, gewPos, betragV ?? inlineWahl[`${d.id}_b`])}
+                    disabled={inlineAnnehmenLaden === d.id ||
+                      (betragV == null && !(parseFloat(inlineWahl[`${d.id}_b`]) > 0))}
+                    style={{ padding:"3px 10px", borderRadius:5, border:"none", background:T.accent,
+                      color:"#fff", fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
+                      fontWeight:600, cursor:"pointer", flexShrink:0,
+                      opacity: (inlineAnnehmenLaden === d.id ||
+                        (betragV == null && !(parseFloat(inlineWahl[`${d.id}_b`]) > 0))) ? 0.5 : 1 }}>
+                    {inlineAnnehmenLaden === d.id ? "…" : "← Annehmen"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPromptAbgelehnt(s => new Set([...s, d.id]));
+                      setPromptForced(s => { const n = new Set(s); n.delete(d.id); return n; });
+                    }}
+                    title="Schließen"
+                    style={{ background:"none", border:"none", cursor:"pointer",
+                      color:T.textFaint, fontSize:"0.9rem", lineHeight:1, flexShrink:0 }}>
+                    ✕
+                  </button>
+                </div>
+              )}
+              </React.Fragment>
             );
           })}
         </Card>
+
+        {/* ── Gutachten KI-Vorschau Panel (PRD-31) ───────────────────── */}
+        {kiDialog && (
+          <GutachtenVorschau
+            erg={kiErgebnis}
+            laden={kiLaden}
+            wahl={kiWahl}
+            setWahl={setKiWahl}
+            speichert={kiSpeichert}
+            onSpeichern={speichereKiWahl}
+            onClose={() => setKiDialog(null)}
+          />
+        )}
 
         {/* ── E-Akte (RA-Micro) ──────────────────────────────────────── */}
         {String(akteId).includes("/") && (
@@ -1024,7 +1293,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
       </div>
 
       {/* ── Debug-Dialog: Kandidaten-Übersicht ──────────────────────────── */}
-      {debugKandidaten && <KandidatenDebugDialog kandidaten={debugKandidaten} onClose={() => setDebugKandidaten(null)} />}
+      {debugKandidaten && <KandidatenDebugDialog kandidaten={debugKandidaten.kandidaten} uebersprungen={debugKandidaten.uebersprungen || {}} onClose={() => setDebugKandidaten(null)} />}
     </>
   );
 }
@@ -1062,7 +1331,7 @@ const _DISPLAY_KEY = {
   sv_kosten_netto:       "sv_kosten",
 };
 
-function KandidatenDebugDialog({ kandidaten, onClose }) {
+function KandidatenDebugDialog({ kandidaten, uebersprungen = {}, onClose }) {
   // Winner je Display-Key berechnen (gleiche Logik wie kandidatMap in SchadenSection)
   const winnerSet = useMemo(() => {
     const map = {};
@@ -1105,6 +1374,15 @@ function KandidatenDebugDialog({ kandidaten, onClose }) {
     fallback_kein_signal:      "Fallback (kein Signal)",
     fallback_domain_unbekannt: "Fallback (Domain unbekannt)",
   };
+
+  const SKIP_LABEL = {
+    schlagwort_ebrief:           "E-Brief (Ausgehend)",
+    rubrik_gerichtlich:          "Gerichtlich",
+    rubrik_verwaltungsbehoerde:  "Verwaltungsbehörde",
+    rubrik_an_mandant:           "An Mandant",
+    empfaenger_gericht:          "Empf. Gericht",
+  };
+  const skipEintraege = Object.entries(uebersprungen).filter(([, n]) => n > 0);
   const ROUTING_COLOR = {
     domain_versicherer:        "#22c55e",
     rubrik:                    T.blue,
@@ -1156,6 +1434,21 @@ function KandidatenDebugDialog({ kandidaten, onClose }) {
                 {ROUTING_LABEL[basis] || basis}: {cnt}
               </span>
             ))}
+            {skipEintraege.length > 0 && (
+              <>
+                <span style={{ color:T.border, userSelect:"none" }}>|</span>
+                <span style={{ color:T.textMuted, fontWeight:600 }}>Übersprungen:</span>
+                {skipEintraege.map(([grund, cnt]) => (
+                  <span key={grund} style={{
+                    background:"#fff1f2", border:"1px solid #fca5a5",
+                    borderRadius:4, padding:"1px 6px",
+                    color:"#9f1239", fontWeight:600,
+                  }}>
+                    {SKIP_LABEL[grund] || grund}: {cnt}
+                  </span>
+                ))}
+              </>
+            )}
           </div>
         </div>
 
@@ -1279,6 +1572,225 @@ function KandidatenDebugDialog({ kandidaten, onClose }) {
   );
 }
 
+
+
+// ── KI-Analyse-Dialog für Gutachten (PRD-31) ─────────────────────────────────
+
+const _fmtE = v => (v != null && v > 0 && v < 999_000)
+  ? v.toLocaleString("de-DE", { minimumFractionDigits: 2 }) + "\u202f€"
+  : (v === 0 ? "0,00\u202f€" : "—");
+
+const _SCHADENART_LABEL = {
+  reparaturschaden: "Reparaturschaden",
+  totalschaden:     "Totalschaden",
+  grenzfall:        "Grenzfall",
+};
+
+function GutachtenVorschau({ erg, laden, wahl, setWahl, speichert, onSpeichern, onClose }) {
+  const istKi = erg?.llm_verwendet;
+  const hatKonflikt = erg?.llm_konflikt;
+  const sp = erg?.schadenpositionen || {};
+
+  const _toggle = (field) => setWahl(w => ({ ...w, [field]: w[field] === 'ki' ? 'regex' : 'ki' }));
+
+  // Felder-Definition: [label, regex_val, ki_val, field_key, is_int]
+  const felder = erg ? [
+    ["Reparaturkosten (netto)",   sp.rep_gutachten_netto,        erg.llm_reparaturkosten_netto,       "rep_netto",     false],
+    ["Wiederbeschaffungswert",    sp.wiederbeschaffung,           erg.llm_wbw,                         "wbw",           false],
+    ["Restwert",                  sp.restwert,                    erg.llm_restwert,                    "restwert",      false],
+    ["Wertminderung",             sp.wertminderung,               erg.llm_wertminderung,               "wertminderung", false],
+    ["NA-Tagessatz",              erg.nutzungsausfall_tagessatz,  erg.llm_nutzungsausfall_tagessatz,   "na_tagessatz",  false],
+    ["NA-Tage (Schätzung)",       erg.nutzungsausfall_tage,       erg.llm_nutzungsausfall_tage,        "na_tage",       true],
+    ["SV-Kosten (netto)",         sp.sv_kosten_netto,             erg.llm_sv_kosten_netto,             "sv_netto",      false],
+  ] : [];
+
+  const schadenartKonflikt = istKi && erg.llm_schadenart && erg.llm_schadenart !== erg.schadenart;
+  const hatKiWahl = Object.values(wahl).some(v => v === 'ki');
+
+  const btnBase = {
+    padding:"2px 8px", borderRadius:4, fontSize:11, fontWeight:600,
+    cursor:"pointer", border:"1px solid", transition:"border-color .1s, color .1s",
+  };
+
+  return (
+    <div style={{ borderRadius:12, border:`1px solid ${T.border}`, background:"#fff", overflow:"hidden" }}>
+      {/* Header */}
+      <div style={{ padding:"12px 20px", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+          <span style={{ fontFamily:"'Figtree',sans-serif", fontWeight:700, fontSize:"0.975rem", color:T.text }}>
+            Gutachten · KI-Analyse
+          </span>
+          {istKi && !hatKonflikt && (
+            <span style={{ background:"rgba(139,92,246,0.18)", color:"#c4b5fd",
+              border:"1px solid rgba(139,92,246,0.35)", borderRadius:4, fontSize:11, fontWeight:600,
+              padding:"2px 7px", letterSpacing:"0.03em" }}>
+              ✦ Qwen ✓
+            </span>
+          )}
+          {istKi && hatKonflikt && (
+            <span style={{ background:"rgba(245,158,11,0.15)", color:"#f59e0b",
+              border:"1px solid rgba(245,158,11,0.4)", borderRadius:4, fontSize:11, fontWeight:600,
+              padding:"2px 7px" }}>
+              ⚠ KI-Konflikt
+            </span>
+          )}
+          {!istKi && erg && (
+            <span style={{ fontSize:11, color:T.textFaint }}>KI nicht aktiv</span>
+          )}
+          {erg?.sv_buero && (
+            <span style={{ fontSize:12, color:T.textMuted }}>
+              SV-Büro: <strong style={{ color:T.text }}>{erg.sv_buero}</strong>
+            </span>
+          )}
+          {erg?.schadenart && (
+            <span style={{ fontSize:12, color:T.textMuted }}>
+              Schadenart: <strong style={{ color:T.text }}>{_SCHADENART_LABEL[erg.schadenart] || erg.schadenart}</strong>
+            </span>
+          )}
+          {erg?.parse_konfidenz != null && (
+            <span style={{ fontSize:12, color:T.textMuted }}>
+              Konfidenz: <strong style={{ color:erg.parse_konfidenz > 0.7 ? T.green : T.amber }}>{Math.round(erg.parse_konfidenz * 100)} %</strong>
+            </span>
+          )}
+        </div>
+        <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", fontSize:"1.3rem", color:T.textMuted, lineHeight:1 }}>✕</button>
+      </div>
+
+      {/* Body */}
+      <div style={{ padding:"12px 20px" }}>
+          {laden && (
+            <div style={{ textAlign:"center", padding:"2rem", color:T.textMuted }}>
+              <div style={{ width:24, height:24, border:`3px solid ${T.accentTrim}`, borderTopColor:T.accent, borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto 8px" }} />
+              KI-Ergebnis wird geladen …
+            </div>
+          )}
+
+          {!laden && !erg && (
+            <div style={{ textAlign:"center", padding:"2rem", color:T.textFaint, fontFamily:"'Figtree',sans-serif" }}>
+              Kein Parse-Ergebnis verfügbar.
+            </div>
+          )}
+
+          {!laden && erg && (
+            <>
+              {/* Vergleichstabelle */}
+              <table style={{ width:"100%", borderCollapse:"collapse", fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem" }}>
+                <thead>
+                  <tr style={{ background:T.surface, borderBottom:`1px solid ${T.border}` }}>
+                    <th style={{ padding:"6px 10px", textAlign:"left", fontWeight:600, color:T.textMuted, fontSize:"0.75rem", textTransform:"uppercase", letterSpacing:"0.05em" }}>Position</th>
+                    <th style={{ padding:"6px 10px", textAlign:"right", fontWeight:600, color:T.textMuted, fontSize:"0.75rem", textTransform:"uppercase" }}>Regex</th>
+                    {istKi && <th style={{ padding:"6px 10px", textAlign:"right", fontWeight:600, color:"#a78bfa", fontSize:"0.75rem", textTransform:"uppercase" }}>Qwen KI</th>}
+                    {istKi && hatKonflikt && <th style={{ padding:"6px 10px", textAlign:"center", width:120, fontWeight:600, color:T.textMuted, fontSize:"0.75rem", textTransform:"uppercase" }}>Wählen</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {felder.map(([label, rv, lv, fk, isInt]) => {
+                    const rDisp = isInt ? (rv != null ? String(rv) + " Tage" : "—") : _fmtE(rv);
+                    const lDisp = isInt ? (lv != null ? String(lv) + " Tage" : "—") : _fmtE(lv);
+                    // Sentinel 1_000_000 = WBW "ausreichend" → kein Konflikt
+                    const istKonf = istKi && lv != null && rv != null && rv < 999_000 && (isInt ? rv !== lv : Math.abs(rv - lv) > 1.0);
+                    const kiGew = wahl[fk] === 'ki';
+                    return (
+                      <tr key={fk} style={{ borderBottom:`1px solid ${T.borderSoft}`, background: istKonf ? "rgba(245,158,11,0.04)" : "transparent" }}>
+                        <td style={{ padding:"7px 10px", color:T.text, fontWeight:500 }}>{label}</td>
+                        <td style={{ padding:"7px 10px", textAlign:"right", fontFamily:"ui-monospace,monospace",
+                          color: istKonf && !kiGew ? T.green : T.textMid, fontWeight: istKonf && !kiGew ? 700 : 400 }}>
+                          {rDisp}
+                          {istKonf && !kiGew && <span style={{marginLeft:4, fontSize:9}}>✓</span>}
+                        </td>
+                        {istKi && (
+                          <td style={{ padding:"7px 10px", textAlign:"right", fontFamily:"ui-monospace,monospace",
+                            color: istKonf ? (kiGew ? T.green : "#f59e0b") : "#a78bfa",
+                            fontWeight: kiGew ? 700 : 400 }}>
+                            {lDisp}
+                            {istKonf && kiGew && <span style={{marginLeft:4, fontSize:9}}>✓</span>}
+                          </td>
+                        )}
+                        {istKi && hatKonflikt && (
+                          <td style={{ padding:"7px 10px", textAlign:"center" }}>
+                            {istKonf ? (
+                              <div style={{ display:"inline-flex", gap:4 }}>
+                                <button onClick={() => kiGew && _toggle(fk)}
+                                  style={{ ...btnBase, background:"transparent",
+                                    borderColor: !kiGew ? T.green : T.border,
+                                    color: !kiGew ? T.green : T.textMuted }}>
+                                  Regex
+                                </button>
+                                <button onClick={() => !kiGew && _toggle(fk)}
+                                  style={{ ...btnBase, background:"transparent",
+                                    borderColor: kiGew ? T.green : T.border,
+                                    color: kiGew ? T.green : "#a78bfa" }}>
+                                  KI
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize:11, color:T.textFaint }}>—</span>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+
+                  {/* Schadenart */}
+                  {schadenartKonflikt && (() => {
+                    const kiGew = wahl.schadenart === 'ki';
+                    return (
+                      <tr style={{ borderBottom:`1px solid ${T.borderSoft}`, background:"rgba(245,158,11,0.04)" }}>
+                        <td style={{ padding:"7px 10px", color:T.text, fontWeight:500 }}>Schadenart</td>
+                        <td style={{ padding:"7px 10px", textAlign:"right", color: !kiGew ? T.green : T.textMid, fontWeight: !kiGew ? 700 : 400 }}>
+                          {_SCHADENART_LABEL[erg.schadenart] || erg.schadenart}
+                          {!kiGew && <span style={{marginLeft:4, fontSize:9}}>✓</span>}
+                        </td>
+                        <td style={{ padding:"7px 10px", textAlign:"right", color: kiGew ? T.green : "#f59e0b", fontWeight: kiGew ? 700 : 400 }}>
+                          {_SCHADENART_LABEL[erg.llm_schadenart] || erg.llm_schadenart}
+                          {kiGew && <span style={{marginLeft:4, fontSize:9}}>✓</span>}
+                        </td>
+                        <td style={{ padding:"7px 10px", textAlign:"center" }}>
+                          <div style={{ display:"inline-flex", gap:4 }}>
+                            <button onClick={() => kiGew && _toggle('schadenart')}
+                              style={{ ...btnBase, background:"transparent",
+                                borderColor: !kiGew ? T.green : T.border,
+                                color: !kiGew ? T.green : T.textMuted }}>
+                              Regex
+                            </button>
+                            <button onClick={() => !kiGew && _toggle('schadenart')}
+                              style={{ ...btnBase, background:"transparent",
+                                borderColor: kiGew ? T.green : T.border,
+                                color: kiGew ? T.green : "#a78bfa" }}>
+                              KI
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })()}
+                </tbody>
+              </table>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        {!laden && erg && (
+          <div style={{ padding:"12px 20px", borderTop:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"flex-end", gap:10 }}>
+            <button onClick={onClose} style={{ padding:"7px 16px", borderRadius:6, border:`1px solid ${T.border}`, background:"transparent", color:T.textMid, cursor:"pointer", fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}>
+              Schließen
+            </button>
+            {(hatKiWahl || hatKonflikt) && (
+              <button onClick={onSpeichern} disabled={speichert}
+                style={{ padding:"7px 16px", borderRadius:6, border:"none", background: hatKiWahl ? T.accent : T.surface,
+                  color: hatKiWahl ? "#fff" : T.textMuted, cursor: speichert ? "not-allowed" : "pointer",
+                  fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", fontWeight:600,
+                  opacity: speichert ? 0.6 : 1 }}>
+                {speichert ? "Speichert …" : hatKiWahl ? "KI-Werte übernehmen" : "Regex-Werte bestätigen"}
+              </button>
+            )}
+          </div>
+        )}
+    </div>
+  );
+}
 
 
 export default DokumenteSection;

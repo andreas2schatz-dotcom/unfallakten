@@ -20,11 +20,11 @@ GUELTIGE_PARSE_STATUS  = ("ausstehend", "erfolgreich", "teilweise", "manuell", "
 POSITION_KEYS = (
     "reparaturkosten", "wiederbeschaffung", "restwert",
     "wertminderung", "nutzungsausfall", "mietwagenkosten",
-    "sv_kosten", "abschleppkosten", "standkosten",
+    "sv_kosten", "abschleppkosten", "restkraftstoff", "standkosten",
     "anabmeldekosten", "schmerzensgeld", "sonstiges",
     # PDF-Parser Arten
     "reparatur_brutto", "reparatur_netto",
-    "wbw", "wbw_netto", "wbw_brutto",
+    "wbw", "wbw_netto", "wbw_brutto", "wba",
     "fahrzeugschaden", "kostenpauschale",
     "ra_gebuehren", "mwst_abzug", "pruefbericht_abzug",
     # Neue Keys (Migration 14+)
@@ -44,6 +44,7 @@ POSITION_LABELS = {
     "mietwagenkosten":  "Mietwagenkosten",
     "sv_kosten":        "SV-Kosten",
     "abschleppkosten":  "Abschleppkosten",
+    "restkraftstoff":   "Restkraftstoff",
     "standkosten":      "Standkosten",
     "anabmeldekosten":  "An-/Abmeldekosten",
     "schmerzensgeld":   "Schmerzensgeld",
@@ -53,6 +54,7 @@ POSITION_LABELS = {
     "wbw":              "Wiederbeschaffungswert",
     "wbw_netto":        "WBW (netto)",
     "wbw_brutto":       "WBW (brutto)",
+    "wba":              "Wiederbeschaffungsaufwand",
     "fahrzeugschaden":  "Fahrzeugschaden",
     "kostenpauschale":  "Kostenpauschale",
     "ra_gebuehren":     "RA-Gebühren",

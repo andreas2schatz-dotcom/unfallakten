@@ -107,6 +107,7 @@ export default function SchmerzensgelDialog({ az, kl_nom, onClose, onUebernehmen
   const [speichern,     setSpeichern]     = useState(false);
 
   const [fehler,        setFehler]        = useState(null);
+  const [kopiert,       setKopiert]       = useState(false);
   const textRef = useRef(null);
 
   // Verletzungsprofil + bereits gespeicherte SG-Daten laden
@@ -209,6 +210,24 @@ export default function SchmerzensgelDialog({ az, kl_nom, onClose, onUebernehmen
   const profil   = analyse?.profil || null;
   const fehlend  = analyse?.fehlende_felder || [];
   const hatDaten = profil && (profil.verletzungen_text || profil.krankenhaustage || profil.au_tage);
+
+  const suchBegriffe = (() => {
+    if (!profil) return "";
+    const teile = [];
+    if (profil.verletzungen_text) teile.push(profil.verletzungen_text);
+    if (profil.krankenhaustage > 0) teile.push(`stationär ${profil.krankenhaustage} Tage`);
+    if (profil.au_tage > 0) teile.push(`AU ${profil.au_tage} Tage`);
+    if (profil.dauerfolgen && profil.dauerfolgen_text) teile.push(profil.dauerfolgen_text);
+    return teile.join(", ");
+  })();
+
+  const suchBegriffeKopieren = () => {
+    if (!suchBegriffe) return;
+    navigator.clipboard.writeText(suchBegriffe).then(() => {
+      setKopiert(true);
+      setTimeout(() => setKopiert(false), 2000);
+    });
+  };
 
   return (
     <div
@@ -363,6 +382,40 @@ export default function SchmerzensgelDialog({ az, kl_nom, onClose, onUebernehmen
                     schmerzensgeld.online ↗
                   </a>
                 </div>
+
+                {/* Suchbegriffe für schmerzensgeld.online */}
+                {hatDaten && suchBegriffe && (
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: "0.5rem",
+                    marginBottom: "0.6rem",
+                    background: T.offWhite, borderRadius: 6,
+                    padding: "0.4rem 0.5rem 0.4rem 0.75rem",
+                    border: `1px solid ${T.border}`,
+                  }}>
+                    <span style={{
+                      fontSize: "0.75rem", color: T.textFaint, flex: 1,
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      <span style={{ fontWeight: 600, color: T.text }}>Suchbegriffe:&nbsp;</span>
+                      {suchBegriffe}
+                    </span>
+                    <button
+                      onClick={suchBegriffeKopieren}
+                      title="Suchbegriffe für schmerzensgeld.online in Zwischenablage kopieren"
+                      style={{
+                        padding: "0.25rem 0.65rem", borderRadius: 5,
+                        background: kopiert ? T.green : T.surface,
+                        color: kopiert ? "#fff" : T.navy,
+                        border: `1px solid ${kopiert ? T.green : T.border}`,
+                        cursor: "pointer", fontSize: "0.75rem", fontWeight: 600,
+                        whiteSpace: "nowrap", flexShrink: 0,
+                        transition: "background 0.15s, color 0.15s, border-color 0.15s",
+                      }}
+                    >
+                      {kopiert ? "✓ Kopiert" : "📋 Kopieren"}
+                    </button>
+                  </div>
+                )}
 
                 {/* Trefferliste */}
                 {treffer !== null && treffer.length === 0 && !fehler && (
