@@ -177,6 +177,9 @@ function AkteDetailView({ akte, st, dispatch }) {
   const azKey    = (akte?.az || "").replace(/\//g, "-");
   const lsKeyDok = `tab-letztbesucht-${azKey}-dokumente`;
   const lsKeyReg = `tab-letztbesucht-${azKey}-regulierung`;
+  // Als React-State damit Badges innerhalb einer Session reaktiv verschwinden
+  const [besuchDok, setBesuchDok] = useState(() => localStorage.getItem(lsKeyDok));
+  const [besuchReg, setBesuchReg] = useState(() => localStorage.getItem(lsKeyReg));
 
   // PRD-16: Status-Punkte je Reiter — memoized, da bei jedem Render neu berechnet
   const tabs = useMemo(() => {
@@ -187,13 +190,11 @@ function AkteDetailView({ akte, st, dispatch }) {
     const regulierungOk = (st.abrechnungen?.length || 0) > 0;
     const klageStatus   = akte.status === "klage";
 
-    const letzterBesuchDok = localStorage.getItem(lsKeyDok);
-    const letzterBesuchReg = localStorage.getItem(lsKeyReg);
-    const neueDokumente = letzterBesuchDok
-      ? (st.dokumente || []).filter(d => d.erstellt_am && d.erstellt_am > letzterBesuchDok).length
+    const neueDokumente = besuchDok
+      ? (st.dokumente || []).filter(d => d.erstellt_am && d.erstellt_am > besuchDok).length
       : 0;
-    const neueAbrechnung = letzterBesuchReg && (st.abrechnungen || []).length > 0
-      ? (st.abrechnungen[0]?.erstellt_am || "") > letzterBesuchReg
+    const neueAbrechnung = besuchReg && (st.abrechnungen || []).length > 0
+      ? (st.abrechnungen[0]?.erstellt_am || "") > besuchReg
       : false;
 
     const sp = (ok, fehlt) => {
@@ -207,14 +208,14 @@ function AkteDetailView({ akte, st, dispatch }) {
       { id:"beteiligte",    label:`👥 Beteiligte`, ...sp(beteiligteOk,  !beteiligteOk  && st.beteiligte  !== undefined) },
       { id:"unfalldetails", label:"🔍 Unfalldetails" },
       { id:"schaden",       label:`🚗 Schaden`,    ...sp(schadenOk,     !schadenOk     && st.schaden     !== undefined) },
-      { id:"dokumente",     label: neueDokumente > 0 ? `📄 Dokumente (${dokumenteAnz}) 🔴` : `📄 Dokumente (${dokumenteAnz})` },
+      { id:"dokumente",     label: neueDokumente > 0 ? `📄 Dokumente (${dokumenteAnz}) 🔴${neueDokumente}` : `📄 Dokumente (${dokumenteAnz})` },
       { id:"regulierung",   label: neueAbrechnung ? `💶 Regulierung 🔴` : `💶 Regulierung`, ...sp(regulierungOk, false) },
       { id:"gebuehren",     label:"⚖️ Gebühren" },
       { id:"klage",         label:`⚖ Klage`,        ...sp(klageStatus,   false) },
       { id:"word",          label:"📝 Word" },
       { id:"todos",         label:`📋 To-Dos` },
     ];
-  }, [st.beteiligte, st.schaden, st.dokumente, st.abrechnungen, akte.status, akte.az, lsKeyDok, lsKeyReg]);
+  }, [st.beteiligte, st.schaden, st.dokumente, st.abrechnungen, akte.status, besuchDok, besuchReg]);
 
   return (
     <>
@@ -464,8 +465,13 @@ function AkteDetailView({ akte, st, dispatch }) {
           {tabs.map(t => (
             <button key={t.id} onClick={() => {
               setSec(t.id);
-              const lsTabKey = `tab-letztbesucht-${(akte?.az || "").replace(/\//g, "-")}-${t.id}`;
-              localStorage.setItem(lsTabKey, new Date().toISOString());
+              if (t.id === "dokumente" || t.id === "regulierung") {
+                const now = new Date().toISOString();
+                const lsTabKey = `tab-letztbesucht-${azKey}-${t.id}`;
+                localStorage.setItem(lsTabKey, now);
+                if (t.id === "dokumente") setBesuchDok(now);
+                if (t.id === "regulierung") setBesuchReg(now);
+              }
             }}
               style={{ padding:"9px 17px", background:"transparent", border:"none",
                 borderBottom:sec===t.id?`2px solid ${T.accent}`:"2px solid transparent",
