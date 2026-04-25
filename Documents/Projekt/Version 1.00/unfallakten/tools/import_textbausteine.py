@@ -45,15 +45,25 @@ MAPPING: dict[str, int] = {
 
 # -- Hilfsfunktionen -----------------------------------------------------------
 
-def _lese_docx(pfad: Path) -> str:
-    """Extrahiert den vollstaendigen Text aus einer Word-Datei."""
+def _lese_docx(pfad: Path) -> tuple[str, list[str]]:
+    """Extrahiert Text und Feldfunktions-Instruktionen aus einer Word-Datei."""
     doc = Document(str(pfad))
     absaetze = []
+    felder: list[str] = []
+    gesehen: set[str] = set()
+
     for para in doc.paragraphs:
         text = para.text.strip()
         if text:
             absaetze.append(text)
-    return "\n\n".join(absaetze)
+        for elem in para._element.iter():
+            if elem.tag.endswith('}instrText') and elem.text:
+                instr = elem.text.strip()
+                if instr and instr not in gesehen:
+                    gesehen.add(instr)
+                    felder.append(instr)
+
+    return "\n\n".join(absaetze), felder
 
 
 def _finde_platzhalter(text: str) -> list[str]:
@@ -97,7 +107,7 @@ def run(schreiben: bool) -> None:
         for pfad in dateien:
             name_key = pfad.stem.lower()
             kuerzungsart_id = MAPPING.get(name_key) or MAPPING.get(pfad.stem)
-            text = _lese_docx(pfad)
+            text, felder_im_dok = _lese_docx(pfad)
             platzhalter = _finde_platzhalter(text)
             alle_platzhalter.update(platzhalter)
 
@@ -116,6 +126,12 @@ def run(schreiben: bool) -> None:
                 print(f"   Platzhalter: {', '.join(f'<{p}>' for p in platzhalter)}")
             else:
                 print("   Platzhalter: keine")
+
+            if felder_im_dok:
+                print(f"   Feldfunktionen ({len(felder_im_dok)}):")
+                for f in felder_im_dok:
+                    kurztext = f if len(f) <= 80 else f[:77] + "..."
+                    print(f"     {{ {kurztext} }}")
 
             if schreiben and kuerzungsart_id:
                 conn.execute(
