@@ -42,7 +42,14 @@ class TestErsetzePlatzhalter(unittest.TestCase):
 import tempfile
 import json
 
+try:
+    import flask  # noqa: F401
+    _FLASK_VERFUEGBAR = True
+except ImportError:
+    _FLASK_VERFUEGBAR = False
 
+
+@unittest.skipUnless(_FLASK_VERFUEGBAR, "Flask nicht installiert – nur in Docker ausfuehren")
 class TestVorschauEndpoint(unittest.TestCase):
     """Integration-Test: GET /akten/<az>/stellungnahme/vorschau"""
 
@@ -57,8 +64,7 @@ class TestVorschauEndpoint(unittest.TestCase):
         importlib.reload(db_mod)
         importlib.reload(sm_mod)
 
-        with db_mod.get_connection() as conn:
-            sm_mod.initialisiere_schema(conn)
+        sm_mod.create_schema()
 
         import backend.app as app_mod
         importlib.reload(app_mod)
