@@ -1796,12 +1796,12 @@ function StatusBand({ ibanCheck, todos, hq }) {
   const iban      = ibanCheck?.iban_vorhanden;
   const rsv       = ibanCheck?.rechtsschutz_deckung;
 
-  const Pill = ({ ok, warn, label }) => {
+  const Pill = ({ ok, warn, neutral, label }) => {
     let bg, color, border;
     if (ok === true)               { bg = T.greenBg;  color = T.greenText;  border = T.greenLight; }
-    else if (ok === false && !warn){ bg = T.redBg;    color = T.redText;    border = T.redLight;   }
     else if (warn)                 { bg = T.amberMid; color = T.amberText;  border = T.amber + "80"; }
-    else                           { bg = T.surface;  color = T.textFaint;  border = T.border;     }
+    else if (neutral || ok !== false){ bg = T.surface; color = T.textFaint; border = T.border;     }
+    else                           { bg = T.redBg;    color = T.redText;    border = T.redLight;   }
     return (
       <span style={{
         display:"inline-flex", alignItems:"center", gap:4,
@@ -1842,7 +1842,7 @@ function StatusBand({ ibanCheck, todos, hq }) {
           label={vollmacht === true ? "✓ Vollmacht" : vollmacht === false ? "✗ Vollmacht fehlt" : "○ Vollmacht"} />
         <Pill ok={iban}
           label={iban === true ? "✓ IBAN" : iban === false ? "✗ IBAN fehlt" : "○ IBAN"} />
-        <Pill ok={rsv === true} warn={rsv === "anfrage"}
+        <Pill ok={rsv === true} warn={rsv === "anfrage"} neutral={rsv === false}
           label={rsv === true ? "✓ RSV" : rsv === false ? "○ Keine RSV" : "⚠ RSV: Anfrage"} />
       </div>
 
@@ -1977,14 +1977,14 @@ function TodoInlineForm({ az, onDone }) {
   );
 }
 
-function AkteActionBoardHeader({ akte, azRoh, mandantName, onNavigate }) {
+function AkteActionBoardHeader({ akte, azRoh, mandantName, onNavigate, ibanCheck }) {
   const [zeigePwModal, setZeigePwModal]       = React.useState(false);
   const [zeigeStaDialog, setZeigeStaDialog]   = React.useState(false);
   const [zeigeTodoForm, setZeigeTodoForm]     = React.useState(false);
 
   const az   = akte.az_roh || akte.az || "";
-  const kurz = akte.kurzbezeichnung || akte.kurzbez || "";
-  const lang = akte.bezeichnung || akte.langbezeichnung || "";
+  const kurz = akte.kurzbezeichnung || akte.kurzbez || ibanCheck?.kurzbezeichnung || "";
+  const lang = akte.bezeichnung || akte.langbezeichnung || ibanCheck?.bezeichnung || "";
 
   const BTN = ({ children, onClick, stil = "ghost" }) => {
     const styles = {
@@ -2388,6 +2388,7 @@ function UebersichtSection({ akte, st, dispatch, onNavigate }) {
           azRoh={azRoh}
           mandantName={mandantName}
           onNavigate={onNavigate}
+          ibanCheck={ibanCheck}
         />
 
         <StatusBand

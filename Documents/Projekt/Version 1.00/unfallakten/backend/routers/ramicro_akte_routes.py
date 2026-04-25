@@ -815,7 +815,11 @@ def mandant_checks():
 
             # Akte + GUIDAkte holen
             cur.execute("""
-                SELECT TOP 1 a.GUIDAkte, a.sAktenNummer AS az_roh
+                SELECT TOP 1
+                    a.GUIDAkte,
+                    a.sAktenNummer          AS az_roh,
+                    a.sAktenKurzBezeichnung AS kurzbezeichnung,
+                    a.sAktenBezeichnung     AS bezeichnung
                 FROM tblAkten a
                 WHERE a.sAktenNummer LIKE %(like)s
                   AND (a.dtAblage IS NULL OR CAST(a.dtAblage AS DATE) = '1899-12-30')
@@ -891,6 +895,9 @@ def mandant_checks():
         logger.warning("mandant_checks(%s): %s", az, e)
         return jsonify({"iban_vorhanden": None, "fehler": str(e)}), 500
 
+    kurzbez   = (row.get("kurzbezeichnung") or "").strip() if row else ""
+    langbez   = (row.get("bezeichnung")    or "").strip() if row else ""
+
     if not m:
         return jsonify({
             "iban_vorhanden":        False,
@@ -898,6 +905,8 @@ def mandant_checks():
             "rechtsschutz_deckung":  rsv_vorhanden,
             "mandant_name":          "",
             "mandant_email":         "",
+            "kurzbezeichnung":       kurzbez,
+            "bezeichnung":           langbez,
         })
 
     firma   = (m.get("firma")   or "").strip()
@@ -916,6 +925,8 @@ def mandant_checks():
         "vollmacht_vorhanden":   vollmacht_wdm,
         "rechtsschutz_deckung":  rsv_vorhanden,
         "az_roh":                az_basis,
+        "kurzbezeichnung":       kurzbez,
+        "bezeichnung":           langbez,
     })
 
 
