@@ -1815,6 +1815,11 @@ function UebersichtSection({ akte, st, dispatch }) {
       {toast && <Toast msg={toast} onDone={() => setToast("")} />}
       <div style={{ display:"flex", flexDirection:"column", gap:"1.25rem" }}>
 
+        {/* ── To-Dos & Wiedervorlagen (ganz oben) ── */}
+        <KlappAbschnitt titel="To-Dos & Wiedervorlagen" lsKey={`uebersicht-todos-${azKlappKey}`}>
+          <TodoKachelKompakt az={akte.az} akteId={akte.id} azRoh={akte.az_roh || akte.az} />
+        </KlappAbschnitt>
+
         {/* ── RA-Micro Live-Daten (nur bei gültigem AZ-Format ZAHL/JJ) ── */}
         {(() => { const az = akte.az_roh || akte.az || ""; return az.includes("/") && az.length >= 4; })() && (
           <RaMicroAkteUebersicht azRoh={akte.az_roh || akte.az} />
@@ -1872,11 +1877,6 @@ function UebersichtSection({ akte, st, dispatch }) {
                 dispatch({ type:"SET_AKTIVITAETEN", akteId: akte.id, aktivitaeten: data.aktivitaeten });
             }}
           />
-        </KlappAbschnitt>
-
-        {/* ── To-Dos & Wiedervorlagen ── */}
-        <KlappAbschnitt titel="To-Dos & Wiedervorlagen" lsKey={`uebersicht-todos-${azKlappKey}`}>
-          <TodoKachelKompakt az={akte.az} akteId={akte.id} azRoh={akte.az_roh || akte.az} />
         </KlappAbschnitt>
 
       </div>
