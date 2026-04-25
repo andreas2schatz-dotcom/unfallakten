@@ -1626,6 +1626,138 @@ function KlappAbschnitt({ titel, lsKey, children, standardOffen = true }) {
   );
 }
 
+function StatusBand({ ibanCheck, todos, hq }) {
+  const vollmacht = ibanCheck?.vollmacht_vorhanden;
+  const iban      = ibanCheck?.iban_vorhanden;
+  const rsv       = ibanCheck?.rechtsschutz_deckung;
+
+  const Pill = ({ ok, warn, label }) => {
+    let bg, color, border;
+    if (ok === true)               { bg = T.greenBg;  color = T.greenText;  border = T.greenLight; }
+    else if (ok === false && !warn){ bg = T.redBg;    color = T.redText;    border = T.redLight;   }
+    else if (warn)                 { bg = T.amberMid; color = T.amberText;  border = T.amber + "80"; }
+    else                           { bg = T.surface;  color = T.textFaint;  border = T.border;     }
+    return (
+      <span style={{
+        display:"inline-flex", alignItems:"center", gap:4,
+        fontSize:"0.7rem", fontWeight:600, padding:"3px 9px",
+        borderRadius:20, border:`1px solid ${border}`,
+        background:bg, color, whiteSpace:"nowrap",
+      }}>{label}</span>
+    );
+  };
+
+  const heute = new Date(); heute.setHours(0,0,0,0);
+  const fristTodo = (todos || []).find(t => !t.erledigt && t.frist_typ === "gerichtlich");
+  const verjTodo  = (todos || []).find(t => !t.erledigt && t.frist_typ === "verjaehrung");
+
+  const tageBis = (iso) => {
+    if (!iso) return null;
+    const d = new Date(iso); d.setHours(0,0,0,0);
+    return Math.round((d - heute) / 86400000);
+  };
+
+  const fristTage = fristTodo ? tageBis(fristTodo.faellig_am) : null;
+  const verjTage  = verjTodo  ? tageBis(verjTodo.faellig_am)  : null;
+
+  const fmtDatum = (iso) => {
+    if (!iso) return "";
+    try { const [y,m,d] = iso.split("-"); return `${d}.${m}.${y}`; } catch { return iso; }
+  };
+
+  return (
+    <div style={{
+      background:T.surface, borderTop:`1px solid ${T.border}`,
+      padding:"7px 18px", display:"flex", alignItems:"center",
+      flexWrap:"wrap", gap:0,
+    }}>
+      <div style={{ display:"flex", gap:7, alignItems:"center", paddingRight:14, marginRight:14, borderRight:`1px solid ${T.border}`, flexWrap:"wrap" }}>
+        <span style={{ fontSize:".62rem", fontWeight:700, color:T.textFaint, textTransform:"uppercase", letterSpacing:".07em" }}>Checks</span>
+        <Pill ok={vollmacht}
+          label={vollmacht === true ? "✓ Vollmacht" : vollmacht === false ? "✗ Vollmacht fehlt" : "○ Vollmacht"} />
+        <Pill ok={iban}
+          label={iban === true ? "✓ IBAN" : iban === false ? "✗ IBAN fehlt" : "○ IBAN"} />
+        <Pill ok={rsv === true} warn={rsv === "anfrage"}
+          label={rsv === true ? "✓ RSV" : rsv === false ? "○ Keine RSV" : "⚠ RSV: Anfrage"} />
+      </div>
+
+      <div style={{ display:"flex", gap:7, alignItems:"center", flexWrap:"wrap" }}>
+        {fristTage !== null && (
+          <span style={{
+            display:"inline-flex", alignItems:"center", gap:4,
+            fontSize:"0.7rem", fontWeight: fristTage <= 7 ? 700 : 400,
+            padding:"3px 9px", borderRadius:20, whiteSpace:"nowrap",
+            border:`1px solid ${fristTage <= 7 ? T.redLight : T.border}`,
+            background: fristTage <= 7 ? T.redBg : T.surface,
+            color: fristTage <= 7 ? T.redText : T.textFaint,
+          }}>§3a-Frist: {fristTage < 0 ? "überschritten" : `${fristTage} Tage`}</span>
+        )}
+        {verjTage !== null && (
+          <span style={{
+            display:"inline-flex", alignItems:"center", gap:4,
+            fontSize:"0.7rem", fontWeight: verjTage <= 14 ? 700 : 400,
+            padding:"3px 9px", borderRadius:20, whiteSpace:"nowrap",
+            border:`1px solid ${verjTage <= 60 ? T.amber + "80" : T.border}`,
+            background: verjTage <= 14 ? T.redBg : verjTage <= 60 ? T.amberMid : T.surface,
+            color: verjTage <= 14 ? T.redText : verjTage <= 60 ? T.amberText : T.textFaint,
+          }}>Verjährung: {fmtDatum(verjTodo.faellig_am)}</span>
+        )}
+        {hq !== null && hq !== undefined && hq < 100 && (
+          <span style={{
+            display:"inline-flex", alignItems:"center", gap:4,
+            fontSize:"0.7rem", padding:"3px 9px", borderRadius:20,
+            border:`1px solid ${T.amber}80`, background:T.amberMid, color:T.amberText,
+            whiteSpace:"nowrap",
+          }}>HQ {hq} %</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FinanzBand({ gesamtForderung, gesamtReguliert, gesamtKuerzung, anzahlSchreiben }) {
+  const offen   = Math.max(0, gesamtForderung - gesamtReguliert);
+  const regGrad = gesamtForderung > 0 ? Math.min(100, Math.round(gesamtReguliert / gesamtForderung * 100)) : 0;
+  const hatReg  = anzahlSchreiben > 0;
+
+  const Item = ({ label, value, farbe }) => (
+    <div style={{ display:"flex", flexDirection:"column", paddingRight:20, marginRight:20, borderRight:`1px solid ${T.border}` }}>
+      <span style={{ fontSize:".62rem", fontWeight:600, color:T.accent, textTransform:"uppercase", letterSpacing:".06em" }}>{label}</span>
+      <span style={{ fontFamily:T.fontMono, fontSize:"1rem", fontWeight:700, color:farbe || T.navy, marginTop:1 }}>
+        {fmtEuro(value)}
+      </span>
+    </div>
+  );
+
+  if (!hatReg && gesamtForderung === 0) return null;
+
+  return (
+    <div style={{
+      background:T.accentPale, borderTop:`1px solid ${T.accentTrim}`,
+      padding:"8px 18px", display:"flex", alignItems:"center", flexWrap:"wrap", gap:0,
+    }}>
+      <Item label="Gefordert"   value={gesamtForderung} />
+      {hatReg && <Item label="Reguliert"  value={gesamtReguliert} farbe={T.green} />}
+      {hatReg && <Item label="Noch offen" value={offen}           farbe={offen > 0 ? T.red : T.green} />}
+      {hatReg && gesamtKuerzung > 0 && <Item label="Kürzungen" value={gesamtKuerzung} farbe={T.amber} />}
+
+      {hatReg && (
+        <div style={{ flex:1, minWidth:140, display:"flex", flexDirection:"column", justifyContent:"center" }}>
+          <span style={{ fontSize:".62rem", fontWeight:600, color:T.accentDark, textTransform:"uppercase", letterSpacing:".06em" }}>
+            Regulierungsfortschritt
+          </span>
+          <div style={{ height:6, background:T.border, borderRadius:3, overflow:"hidden", marginTop:4 }}>
+            <div style={{ height:"100%", width:`${regGrad}%`, background:T.accent, borderRadius:3, transition:"width .8s" }} />
+          </div>
+          <span style={{ fontSize:".65rem", color:T.accentDark, fontWeight:600, marginTop:2 }}>
+            {regGrad} % · {anzahlSchreiben} {anzahlSchreiben === 1 ? "Schreiben" : "Schreiben"}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TodoInlineForm({ az, onDone }) {
   const [text, setText]       = React.useState("");
   const [faellig, setFaellig] = React.useState("");
