@@ -28,7 +28,7 @@ from ..models.schaden import (
     hole_beteiligte_by_akte, hole_schadenpositionen,
     hole_regulierungsstatus
 )
-from ..models.dokument import hole_aktivitaeten, hole_dokumente_by_akte
+from ..models.dokument import hole_aktivitaeten, hole_dokumente_by_akte, logge_aktivitaet
 from ..services.fristen_service import setze_verjaerungs_fristen
 from ..services.portal_sync import _portal_flag
 
@@ -495,18 +495,10 @@ def pwa_nachricht_senden(akte_id: str):
     benutzer_id = getattr(g, "benutzer_id", None)
     beschreibung = f"[PWA:{vorlage_key}] {text[:500]}"
 
-    with get_connection() as conn:
-        cursor = conn.execute(
-            """
-            INSERT INTO aktivitaeten
-                (akte_id, benutzer_id, aktion, beschreibung, tabelle)
-            VALUES (?, ?, 'pwa_nachricht', ?, 'pwa')
-            """,
-            (az, benutzer_id, beschreibung)
-        )
-        akt_id = cursor.lastrowid
+    eintrag = logge_aktivitaet("pwa_nachricht", beschreibung,
+                               akte_id=az, benutzer_id=benutzer_id, tabelle="pwa")
 
-    return jsonify({"ok": True, "aktivitaet_id": akt_id})
+    return jsonify({"ok": True, "aktivitaet_id": eintrag.id})
 
 
 # ── Hilfsfunktion: Abschluss-Summary ─────────────────────────────────────────

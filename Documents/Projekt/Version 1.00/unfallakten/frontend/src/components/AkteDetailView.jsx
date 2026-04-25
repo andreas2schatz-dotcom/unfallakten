@@ -181,6 +181,20 @@ function AkteDetailView({ akte, st, dispatch }) {
   const [besuchDok, setBesuchDok] = useState(() => localStorage.getItem(lsKeyDok));
   const [besuchReg, setBesuchReg] = useState(() => localStorage.getItem(lsKeyReg));
 
+  // IMP-06: Timestamp setzen wenn Tab beim Laden einer neuen Akte bereits aktiv ist
+  useEffect(() => {
+    if (!akte?.az) return;
+    const now = new Date().toISOString();
+    if (sec === "dokumente" && !besuchDok) {
+      localStorage.setItem(lsKeyDok, now);
+      setBesuchDok(now);
+    }
+    if (sec === "regulierung" && !besuchReg) {
+      localStorage.setItem(lsKeyReg, now);
+      setBesuchReg(now);
+    }
+  }, [akte?.az]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // PRD-16: Status-Punkte je Reiter — memoized, da bei jedem Render neu berechnet
   const tabs = useMemo(() => {
     const beteiligteOk  = (st.beteiligte||[]).some(b => b.rolle === "mandant") &&

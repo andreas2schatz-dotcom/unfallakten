@@ -1664,30 +1664,19 @@ function AkkordeonStrip({ offene, onToggle }) {
   );
 }
 
-function TodoWvSpalten({ az, azRoh, onTodoChange }) {
-  const [todos,   setTodos]   = React.useState([]);
+function TodoWvSpalten({ az, azRoh, onTodoChange, todos = [] }) {
   const [wvListe, setWvListe] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    const todoCall = Promise.race([
-      apiTodos.liste(az),
-      new Promise((_, r) => setTimeout(() => r(new Error("timeout")), 8000)),
-    ]).catch(() => ({ todos: [] }));
-
     const wvCall = azRoh && azRoh.includes("/")
       ? request(`/wiedervorlage/?az=${encodeURIComponent(azRoh)}&alle_gruende=true&alle_daten=true&limit=10`)
           .then(r => r?.wiedervorlagen || [])
           .catch(() => [])
       : Promise.resolve([]);
 
-    Promise.all([todoCall, wvCall])
-      .then(([tRes, wRes]) => {
-        setTodos(tRes?.todos || []);
-        setWvListe(wRes);
-      })
-      .finally(() => setLoading(false));
-  }, [az, azRoh]);
+    wvCall.then(wRes => setWvListe(wRes)).finally(() => setLoading(false));
+  }, [azRoh]);
 
   const offen = todos.filter(t => !t.erledigt);
 
@@ -1842,8 +1831,8 @@ function StatusBand({ ibanCheck, todos, hq }) {
           label={vollmacht === true ? "✓ Vollmacht" : vollmacht === false ? "✗ Vollmacht fehlt" : "○ Vollmacht"} />
         <Pill ok={iban}
           label={iban === true ? "✓ IBAN" : iban === false ? "✗ IBAN fehlt" : "○ IBAN"} />
-        <Pill ok={rsv === true} warn={rsv === "anfrage"} neutral={rsv === false}
-          label={rsv === true ? "✓ RSV" : rsv === false ? "○ Keine RSV" : "⚠ RSV: Anfrage"} />
+        <Pill ok={rsv === true} neutral={rsv === false}
+          label={rsv === true ? "✓ RSV" : "○ Keine RSV"} />
       </div>
 
       <div style={{ display:"flex", gap:7, alignItems:"center", flexWrap:"wrap" }}>
@@ -2404,7 +2393,7 @@ function UebersichtSection({ akte, st, dispatch, onNavigate }) {
           anzahlSchreiben={abrechnungen.length}
         />
 
-        <TodoWvSpalten az={akte.az} azRoh={azRoh} />
+        <TodoWvSpalten az={akte.az} azRoh={azRoh} todos={todosState} />
 
         <AkkordeonStrip offene={stripOffene} onToggle={toggleStrip} />
 
