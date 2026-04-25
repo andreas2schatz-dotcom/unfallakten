@@ -1626,6 +1626,133 @@ function KlappAbschnitt({ titel, lsKey, children, standardOffen = true }) {
   );
 }
 
+function TodoWvSpalten({ az, azRoh, onTodoChange }) {
+  const [todos,   setTodos]   = React.useState([]);
+  const [wvListe, setWvListe] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const todoCall = Promise.race([
+      apiTodos.liste(az),
+      new Promise((_, r) => setTimeout(() => r(new Error("timeout")), 8000)),
+    ]).catch(() => ({ todos: [] }));
+
+    const wvCall = azRoh && azRoh.includes("/")
+      ? request(`/wiedervorlage/?az=${encodeURIComponent(azRoh)}&alle_gruende=true&alle_daten=true&limit=10`)
+          .then(r => r?.wiedervorlagen || [])
+          .catch(() => [])
+      : Promise.resolve([]);
+
+    Promise.all([todoCall, wvCall])
+      .then(([tRes, wRes]) => {
+        setTodos(tRes?.todos || []);
+        setWvListe(wRes);
+      })
+      .finally(() => setLoading(false));
+  }, [az, azRoh]);
+
+  const offen = todos.filter(t => !t.erledigt);
+
+  const dringlichkeit = (todo) => {
+    const heute = new Date(); heute.setHours(0,0,0,0);
+    if (todo.faellig_am) {
+      const f = new Date(todo.faellig_am); f.setHours(0,0,0,0);
+      const tage = Math.round((f - heute) / 86400000);
+      const s = tage < 0 ? "rot" : tage < 3 ? "rot" : tage < 7 ? "orange" : tage < 14 ? "gelb" : "grau";
+      return todo.frist_typ === "verjaehrung" ? ({rot:"rot",orange:"rot",gelb:"orange",grau:"gelb"}[s]||s) : s;
+    }
+    const alter = Math.round((heute - new Date(todo.erstellt_am)) / 86400000);
+    return alter >= 15 ? "rot" : alter >= 8 ? "orange" : alter >= 4 ? "gelb" : "grau";
+  };
+
+  const DOT = { rot:"#ef4444", orange:"#f97316", gelb:"#eab308", grau:T.textFaint };
+
+  const fmtD = (iso) => {
+    if (!iso) return "";
+    try { const [,m,d] = iso.split("-"); return `${d}.${m}.`; } catch { return ""; }
+  };
+
+  if (loading) return null;
+
+  const hatWv = wvListe.length > 0;
+
+  return (
+    <div style={{
+      display:"grid",
+      gridTemplateColumns: hatWv ? "1fr 1px 1fr" : "1fr",
+      padding:"12px 18px 14px", gap:0,
+    }}>
+      {/* Todos */}
+      <div style={{ paddingRight: hatWv ? 16 : 0 }}>
+        <div style={{ fontSize:".65rem", fontWeight:700, color:T.textFaint, textTransform:"uppercase", letterSpacing:".08em", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
+          📋 To-Dos
+          {offen.length > 0 && (
+            <span style={{ background:T.redBg, color:T.red, borderRadius:10, padding:"1px 7px", fontSize:".62rem", fontWeight:700 }}>
+              {offen.length} offen
+            </span>
+          )}
+        </div>
+        {offen.length === 0 ? (
+          <div style={{ fontSize:".875rem", color:T.textFaint, fontFamily:T.fontBody }}>✅ Alle erledigt</div>
+        ) : (
+          offen.slice(0, 5).map(todo => {
+            const d = dringlichkeit(todo);
+            return (
+              <div key={todo.id} style={{ display:"flex", alignItems:"flex-start", gap:7, padding:"5px 0", borderBottom:`1px solid ${T.borderSoft}` }}>
+                <span style={{ width:8, height:8, borderRadius:"50%", background:DOT[d], flexShrink:0, marginTop:5 }} />
+                <span style={{ fontFamily:T.fontBody, fontSize:".875rem", color:T.text, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {todo.text}
+                </span>
+                {todo.faellig_am && (
+                  <span style={{ fontFamily:T.fontMono, fontSize:".68rem", color:T.textFaint, flexShrink:0 }}>
+                    {fmtD(todo.faellig_am)}
+                  </span>
+                )}
+              </div>
+            );
+          })
+        )}
+        {offen.length > 5 && (
+          <div style={{ fontSize:".78rem", color:T.textFaint, marginTop:5, fontFamily:T.fontBody }}>
+            + {offen.length - 5} weitere …
+          </div>
+        )}
+      </div>
+
+      {/* Trennlinie */}
+      {hatWv && <div style={{ background:T.border, width:1 }} />}
+
+      {/* Wiedervorlagen */}
+      {hatWv && (
+        <div style={{ paddingLeft:16 }}>
+          <div style={{ fontSize:".65rem", fontWeight:700, color:T.textFaint, textTransform:"uppercase", letterSpacing:".08em", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
+            📅 Wiedervorlagen
+            <span style={{ background:T.amberMid, color:T.amberText, borderRadius:10, padding:"1px 7px", fontSize:".62rem", fontWeight:700 }}>
+              {wvListe.length} fällig
+            </span>
+          </div>
+          {wvListe.slice(0, 4).map((wv, i) => (
+            <div key={wv.guid || i} style={{
+              background:T.amberMid, border:`1px solid ${T.amber}50`,
+              borderRadius:6, padding:"6px 10px", marginBottom:5,
+            }}>
+              <div style={{ fontFamily:T.fontBody, fontSize:".78rem", fontWeight:700, color:T.amberText, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                {wv.grund || "Wiedervorlage"}
+              </div>
+              <div style={{ fontFamily:T.fontMono, fontSize:".68rem", color:T.amberText, marginTop:2 }}>
+                fällig {fmtD(wv.datum)}{new Date(wv.datum).getFullYear()}
+              </div>
+            </div>
+          ))}
+          {wvListe.length > 4 && (
+            <div style={{ fontSize:".72rem", color:T.textFaint }}>+ {wvListe.length - 4} weitere</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatusBand({ ibanCheck, todos, hq }) {
   const vollmacht = ibanCheck?.vollmacht_vorhanden;
   const iban      = ibanCheck?.iban_vorhanden;
