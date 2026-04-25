@@ -243,6 +243,20 @@ function KuerzungskatalogSection() {
                                     <span style={{ fontSize:"0.72rem", background:T.surface, color:T.textFaint, borderRadius:4, padding:"1px 5px" }}>inaktiv</span>
                                   )}
                                 </div>
+                                {art.textbaustein && (
+                                  <div style={{
+                                    fontSize: "0.78rem",
+                                    color: "#666",
+                                    marginTop: "0.2rem",
+                                    fontStyle: "italic",
+                                    maxWidth: "500px",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}>
+                                    {art.textbaustein.slice(0, 120)}{art.textbaustein.length > 120 ? "…" : ""}
+                                  </div>
+                                )}
                                 {art.standard_gegenargument && (
                                   <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem", color:T.textMuted, lineHeight:1.5, marginBottom:art.hinweis_intern?3:0 }}>
                                     {art.standard_gegenargument}

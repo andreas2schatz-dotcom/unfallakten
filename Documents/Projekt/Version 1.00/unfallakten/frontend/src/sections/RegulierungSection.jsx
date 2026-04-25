@@ -3,7 +3,7 @@ import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
 import { POSITION_LABELS_FE, POSITION_IST_ABZUG, ART_LABEL, ABRECHNUNG_ART_LABEL, POS_KUERZUNG_KATEGORIE, positionKuerzungBetrag, positionenVorlage, _mapPdfPos } from "../config/constants.js";
 import { fmtEuro } from "../config/utils.js";
-import { Card, CardHead, Btn, FieldInput, FieldSelect, Toast } from "../components/common.jsx";
+import { Card, CardHead, Btn, FieldInput, FieldSelect, Toast, SlidePanel } from "../components/common.jsx";
 import {
   akten as apiAkten,
   kuerzungsarten as apiKuerzungsarten,
@@ -1669,6 +1669,7 @@ function RegulierungSection({ brutto, hq, dispatch, akteId, schaden, abrechnunge
 
   // Stellungnahme generieren
   const [stellungLaedt, setStellungLaedt] = useState(false);
+  const [wizardOffen, setWizardOffen]     = useState(false);
   const [loeschenLaedt, setLoeschenLaedt] = useState(null); // ab_id die gerade gelöscht wird
 
   // Einzelne Abrechnung löschen
@@ -2235,6 +2236,9 @@ function RegulierungSection({ brutto, hq, dispatch, akteId, schaden, abrechnunge
                 onClick={handleStellungnahme} disabled={stellungLaedt}
                 title="Stellungnahme zu den Kürzungen als Word-Dokument generieren">
                 {stellungLaedt ? "⏳ …" : "📝 Stellungnahme"}
+              </Btn>
+              <Btn onClick={() => setWizardOffen(true)} title="Geführter Stellungnahme-Wizard">
+                📋 Wizard
               </Btn>
               {abrechnungen.length > 0 && (
                 <Btn size="sm" variant="danger"
@@ -2845,9 +2849,173 @@ function RegulierungSection({ brutto, hq, dispatch, akteId, schaden, abrechnunge
         </Card>
 
       </div>
+
+      <SlidePanel
+        open={wizardOffen}
+        onClose={() => setWizardOffen(false)}
+        title="Stellungnahme erstellen"
+      >
+        <ReguWizard az={akteId} onClose={() => setWizardOffen(false)} />
+      </SlidePanel>
     </>
   );
 }
 
+// ── ReguWizard ────────────────────────────────────────────────────────────────
+
+function ReguWizard({ az, onClose }) {
+  const [step, setStep]             = useState(0);
+  const [positionen, setPositionen] = useState([]);
+  const [texte, setTexte]           = useState({});
+  const [frist, setFrist]           = useState(14);
+  const [laden, setLaden]           = useState(true);
+  const [generieren, setGenerieren] = useState(false);
+  const [fehler, setFehler]         = useState("");
+
+  useEffect(() => {
+    apiStellungnahme.vorschau(az)
+      .then(data => {
+        const posis = data.positionen || [];
+        setPositionen(posis);
+        const initTexte = {};
+        posis.forEach(p => { initTexte[p._gruppe_key] = p.textbaustein_vorschlag || ""; });
+        setTexte(initTexte);
+      })
+      .catch(e => setFehler(e.message))
+      .finally(() => setLaden(false));
+  }, [az]);
+
+  const pos_steps_count = positionen.length;
+
+  async function handleGenerieren() {
+    setGenerieren(true);
+    try {
+      await apiStellungnahme.generieren(az, null, texte);
+      onClose();
+    } catch (e) {
+      setFehler(e.message);
+      setGenerieren(false);
+    }
+  }
+
+  if (laden) return (
+    <div style={{ padding: "2rem", textAlign: "center" }}>Lade Kürzungspositionen…</div>
+  );
+
+  if (fehler) return (
+    <div style={{ padding: "2rem", color: "red" }}>
+      <strong>Fehler:</strong> {fehler}
+      <br /><button onClick={onClose}>Schließen</button>
+    </div>
+  );
+
+  // Step 0: Intro
+  if (step === 0) return (
+    <div style={{ padding: "1.5rem" }}>
+      <h3 style={{ marginTop: 0 }}>Stellungnahme erstellen</h3>
+      <p>
+        Für diese Akte wurden <strong>{pos_steps_count}</strong> Kürzungsposition(en) gefunden.
+        Der Assistent führt Sie durch jede Position und schlägt einen Gegenargument-Text vor.
+      </p>
+      {pos_steps_count === 0 && (
+        <p style={{ color: "orange" }}>⚠ Keine Kürzungspositionen gefunden.</p>
+      )}
+      <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
+        <button onClick={onClose}>Abbrechen</button>
+        <button
+          onClick={() => setStep(1)}
+          disabled={pos_steps_count === 0}
+          style={{ fontWeight: "bold" }}
+        >
+          Weiter →
+        </button>
+      </div>
+    </div>
+  );
+
+  // Steps 1..pos_steps_count: Kürzungspositionen
+  if (step >= 1 && step <= pos_steps_count) {
+    const pos = positionen[step - 1];
+    const key = pos._gruppe_key;
+    return (
+      <div style={{ padding: "1.5rem" }}>
+        <div style={{ fontSize: "0.8rem", color: "#888", marginBottom: "0.5rem" }}>
+          Position {step} von {pos_steps_count}
+        </div>
+        <h3 style={{ marginTop: 0 }}>{pos.label || pos.bezeichnung}</h3>
+        <div style={{ marginBottom: "0.5rem" }}>
+          Kürzungsbetrag: <strong>−{Number(pos.kuerzung_gesamt).toFixed(2).replace(".", ",")} €</strong>
+        </div>
+        <label style={{ display: "block", marginBottom: "0.25rem", fontWeight: "bold" }}>
+          Gegenargument:
+        </label>
+        <textarea
+          rows={8}
+          style={{ width: "100%", fontFamily: "inherit", fontSize: "0.9rem", padding: "0.5rem", boxSizing: "border-box" }}
+          value={texte[key] || ""}
+          onChange={e => setTexte(prev => ({ ...prev, [key]: e.target.value }))}
+        />
+        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
+          <button onClick={() => setStep(s => s - 1)}>← Zurück</button>
+          <button onClick={() => setTexte(prev => ({ ...prev, [key]: "" }))}>
+            Überspringen
+          </button>
+          <button
+            onClick={() => setStep(s => s + 1)}
+            style={{ fontWeight: "bold" }}
+          >
+            {step < pos_steps_count ? "Weiter →" : "Zur Frist →"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Frist-Step
+  if (step === pos_steps_count + 1) return (
+    <div style={{ padding: "1.5rem" }}>
+      <h3 style={{ marginTop: 0 }}>Zahlungsfrist</h3>
+      <label>
+        Frist in Tagen ab heute:{" "}
+        <input
+          type="number"
+          min={1}
+          max={90}
+          value={frist}
+          onChange={e => setFrist(Number(e.target.value))}
+          style={{ width: "4rem", textAlign: "center" }}
+        />
+      </label>
+      <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
+        <button onClick={() => setStep(s => s - 1)}>← Zurück</button>
+        <button onClick={() => setStep(s => s + 1)} style={{ fontWeight: "bold" }}>
+          Zusammenfassung →
+        </button>
+      </div>
+    </div>
+  );
+
+  // Generieren-Step
+  return (
+    <div style={{ padding: "1.5rem" }}>
+      <h3 style={{ marginTop: 0 }}>Zusammenfassung</h3>
+      <p>
+        <strong>{positionen.filter(p => texte[p._gruppe_key]).length}</strong> von{" "}
+        {pos_steps_count} Positionen mit Gegenargument. Frist: <strong>{frist} Tage</strong>.
+      </p>
+      {fehler && <div style={{ color: "red", marginBottom: "0.5rem" }}>{fehler}</div>}
+      <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
+        <button onClick={() => setStep(s => s - 1)}>← Zurück</button>
+        <button
+          onClick={handleGenerieren}
+          disabled={generieren}
+          style={{ fontWeight: "bold", background: "#1a3a5c", color: "#fff", padding: "0.5rem 1rem" }}
+        >
+          {generieren ? "Generiere…" : "Word-Dokument generieren"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default RegulierungSection;

@@ -795,19 +795,35 @@ export const apiFirmen = {
 // ── Modul: Stellungnahme zum Abrechnungsschreiben ─────────────────────────────
 export const apiStellungnahme = {
   /**
+   * Lädt Kürzungspositionen mit Textbaustein-Vorschlägen für den Wizard.
+   * @param {string} az  Aktenzeichen
+   */
+  vorschau: async (az) => {
+    const token = tokenStore.getAccess();
+    const res = await fetch(`${API_BASE}/akten/${encodeURIComponent(az)}/stellungnahme/vorschau`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`Vorschau fehlgeschlagen: ${res.status}`);
+    return res.json();
+  },
+
+  /**
    * Generiert die Stellungnahme als .docx und löst Download aus.
    * @param {string} az              Aktenzeichen
    * @param {number|null} abId       Optional: nur dieses Abrechnungsschreiben
+   * @param {Object|null} custom_texte  Optional: {gruppe_key: text} Mapping aus Wizard
    */
-  generieren: async (az, abId = null) => {
+  generieren: async (az, abId = null, custom_texte = null) => {
     const token = tokenStore.getAccess();
+    const body = abId ? { abrechnungsschreiben_id: abId } : {};
+    if (custom_texte !== null) body.custom_texte = custom_texte;
     const res = await fetch(`${API_BASE}/akten/${az}/stellungnahme/generieren`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify(abId ? { abrechnungsschreiben_id: abId } : {}),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       let msg = 'Stellungnahme konnte nicht generiert werden.';

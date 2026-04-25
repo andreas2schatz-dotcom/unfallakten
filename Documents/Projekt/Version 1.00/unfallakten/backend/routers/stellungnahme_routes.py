@@ -86,6 +86,9 @@ def generiere(akte_id: str):
     if not hat_kuerzungen:
         return _err("Keine Kürzungen in den Abrechnungsschreiben gefunden.", 422)
 
+    # ── custom_texte aus Request-Body ────────────────────────────────────────
+    custom_texte = body.get("custom_texte") or {}
+
     # ── Dokument generieren ───────────────────────────────────────────────────
     try:
         docx_bytes = generiere_stellungnahme(
@@ -93,6 +96,7 @@ def generiere(akte_id: str):
             akte_daten=akte,
             beteiligte=beteiligte,
             abrechnungen=abrechnungen,
+            custom_texte=custom_texte,
         )
     except FileNotFoundError as e:
         logger.error("Stellungnahme-Vorlage fehlt: %s", e)
@@ -112,3 +116,40 @@ def generiere(akte_id: str):
             "Content-Length":      str(len(docx_bytes)),
         },
     )
+
+
+@stellungnahme_bp.route("/<path:akte_id>/stellungnahme/vorschau", methods=["GET"])
+def vorschau(akte_id: str):
+    """
+    Gibt aggregierte Kürzungspositionen mit Textbaustein-Vorschlägen zurück.
+    Wird vom ReguWizard verwendet.
+    """
+    from ..word.stellungnahme_service import (
+        _aggregiere_kuerzungen, _baue_kontext, ersetze_platzhalter
+    )
+
+    akte = hole_akte_by_id(akte_id)
+    if not akte:
+        return _err(f"Akte '{akte_id}' nicht gefunden.", 404)
+    az = akte.aktenzeichen if hasattr(akte, "aktenzeichen") else akte_id
+
+    beteiligte = hole_beteiligte_by_akte(az)
+    alle_abrechnungen = hole_abrechnungsschreiben_by_akte(az)
+    if not alle_abrechnungen:
+        return jsonify({"positionen": []})
+
+    kuerzungen, _ = _aggregiere_kuerzungen(alle_abrechnungen)
+    kontext = _baue_kontext(az, akte, beteiligte)
+
+    positionen_out = []
+    for k in kuerzungen:
+        raw = k.get("standard_gegenargument") or "Die Kürzung ist nicht gerechtfertigt."
+        positionen_out.append({
+            "_gruppe_key":            k.get("_gruppe_key", ""),
+            "bezeichnung":            k.get("bezeichnung", ""),
+            "label":                  k.get("label", ""),
+            "kuerzung_gesamt":        k.get("kuerzung_gesamt", 0.0),
+            "textbaustein_vorschlag": ersetze_platzhalter(raw, kontext),
+        })
+
+    return jsonify({"positionen": positionen_out})
