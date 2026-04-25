@@ -2164,7 +2164,7 @@ function PwaNachrichtModal({ az, mandantName, onClose }) {
   );
 }
 
-function UebersichtSection({ akte, st, dispatch }) {
+function UebersichtSection({ akte, st, dispatch, onNavigate }) {
   const [notizen, setNotizen] = useState(st.notizen || "");
   const [nChanged, setNC]     = useState(false);
   const [toast, setToast]     = useState("");
@@ -2387,7 +2387,7 @@ function UebersichtSection({ akte, st, dispatch }) {
           akte={akte}
           azRoh={azRoh}
           mandantName={mandantName}
-          onNavigate={null}
+          onNavigate={onNavigate}
         />
 
         <StatusBand
