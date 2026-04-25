@@ -19,6 +19,7 @@ from ..auth.middleware import login_erforderlich
 from ..ramicro.connector import (
     get_ramicro_connection, RaMicroNichtAktiv, RaMicroVerbindungsFehler
 )
+from ..db.database import get_connection
 
 logger = logging.getLogger(__name__)
 ramicro_akte_bp = Blueprint("ramicro_akte", __name__, url_prefix="/ramicro/akte")
@@ -880,9 +881,26 @@ def mandant_checks():
         logger.warning("mandant_checks(%s): %s", az, e)
         return jsonify({"iban_vorhanden": None, "fehler": str(e)}), 500
 
+    # RSV-Check: SQLite beteiligte mit rolle='rechtsschutz'
+    rsv_vorhanden = False
+    try:
+        with get_connection() as _sq:
+            _rsv = _sq.execute(
+                "SELECT COUNT(*) AS n FROM beteiligte WHERE akte_id = ? AND rolle = 'rechtsschutz'",
+                (az_basis,)
+            ).fetchone()
+            rsv_vorhanden = bool(_rsv and _rsv["n"] > 0)
+    except Exception as _re:
+        logger.debug("rsv_check(%s): %s", az_basis, _re)
+
     if not m:
-        return jsonify({"iban_vorhanden": False, "vollmacht_vorhanden": False,
-                        "mandant_name": "", "mandant_email": ""})
+        return jsonify({
+            "iban_vorhanden":        False,
+            "vollmacht_vorhanden":   False,
+            "rechtsschutz_deckung":  rsv_vorhanden,
+            "mandant_name":          "",
+            "mandant_email":         "",
+        })
 
     firma   = (m.get("firma")   or "").strip()
     vorname = (m.get("vorname") or "").strip()
@@ -891,14 +909,15 @@ def mandant_checks():
     iban    = (m.get("iban") or "").strip()
 
     return jsonify({
-        "iban_vorhanden":      bool(iban),
-        "iban":                iban if iban else None,
-        "bic":                 (m.get("bic") or "").strip() or None,
-        "geldinstitut":        (m.get("geldinstitut") or "").strip() or None,
-        "mandant_name":        name,
-        "mandant_email":       (m.get("email") or "").strip() or None,
-        "vollmacht_vorhanden": vollmacht_wdm,
-        "az_roh":              az_basis,
+        "iban_vorhanden":        bool(iban),
+        "iban":                  iban if iban else None,
+        "bic":                   (m.get("bic") or "").strip() or None,
+        "geldinstitut":          (m.get("geldinstitut") or "").strip() or None,
+        "mandant_name":          name,
+        "mandant_email":         (m.get("email") or "").strip() or None,
+        "vollmacht_vorhanden":   vollmacht_wdm,
+        "rechtsschutz_deckung":  rsv_vorhanden,
+        "az_roh":                az_basis,
     })
 
 
