@@ -1775,7 +1775,7 @@ function RegulierungSection({ brutto, hq, dispatch, akteId, schaden, abrechnunge
   // ── posMap: Gefordert aus Schaden + Zahlungen aus Abrechnungen ────────────
   const posVorlage = React.useMemo(() => {
     const sd = schaden || {};
-    const art    = sd.abrechnungsart || null;
+    const art    = sd.abrechnungsberechnung?.abrechnungsart || sd.abrechnungsart || null;
     const repN   = parseFloat(sd.rep_gutachten_netto || sd.reparaturkosten || 0);
     const repRN  = parseFloat(sd.rep_rechnung_netto || 0);
     const effRep = repRN > 0 ? repRN : repN;
@@ -1959,7 +1959,7 @@ function RegulierungSection({ brutto, hq, dispatch, akteId, schaden, abrechnunge
       // Keine bestehende Position → neue Abrechnung anlegen
       const hatVorherigeZahlungen = (pos?.zahlungen?.length || 0) > 0;
       // fahrzeugschaden_netto → echten position_key je Abrechnungsart
-      const art = schaden?.abrechnungsart || null;
+      const art = schaden?.abrechnungsberechnung?.abrechnungsart || schaden?.abrechnungsart || null;
       const repRN = parseFloat(schaden?.rep_rechnung_netto || 0);
       let backendKey = posKey;
       if (posKey === "fahrzeugschaden_netto") {
