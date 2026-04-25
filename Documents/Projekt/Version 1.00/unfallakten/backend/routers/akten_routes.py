@@ -471,6 +471,42 @@ def aktivitaet_loeschen(akte_id: str, aktivitaet_id: int):
     return _j({"ok": True})
 
 
+@akten_bp.route("/<path:akte_id>/pwa-nachricht", methods=["POST"])
+@login_erforderlich
+def pwa_nachricht_senden(akte_id: str):
+    """
+    POST /akten/<az>/pwa-nachricht
+    Body: { "text": str, "vorlage_key": str (optional) }
+    Stub: speichert Nachricht als Aktivitätseintrag, sendet keine Push-Notification.
+    """
+    akte = hole_akte_by_id(akte_id)
+    if not akte:
+        return jsonify({"fehler": "Akte nicht gefunden"}), 404
+    az = akte.az
+
+    data = request.get_json(silent=True) or {}
+    text = (data.get("text") or "").strip()
+    vorlage_key = (data.get("vorlage_key") or "freitext").strip()
+    if not text:
+        return jsonify({"fehler": "text erforderlich"}), 422
+
+    benutzer_id = getattr(g, "benutzer_id", None)
+    beschreibung = f"[PWA:{vorlage_key}] {text[:500]}"
+
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO aktivitaeten
+                (akte_id, benutzer_id, aktion, beschreibung, tabelle)
+            VALUES (?, ?, 'pwa_nachricht', ?, 'pwa')
+            """,
+            (az, benutzer_id, beschreibung)
+        )
+        akt_id = cursor.lastrowid
+
+    return jsonify({"ok": True, "aktivitaet_id": akt_id})
+
+
 # ── Hilfsfunktion: Abschluss-Summary ─────────────────────────────────────────
 
 def _erzeuge_abschluss_summary(az):
