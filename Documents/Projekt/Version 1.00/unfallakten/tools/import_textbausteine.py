@@ -20,9 +20,18 @@ import sys
 from pathlib import Path
 
 try:
-    from docx import Document
+    from docx import Document as DocxDocument
 except ImportError:
-    sys.exit("python-docx nicht installiert. Bitte: pip install python-docx")
+    DocxDocument = None  # optional
+
+try:
+    from striprtf.striprtf import rtf_to_text
+except ImportError:
+    rtf_to_text = None
+
+if DocxDocument is None and rtf_to_text is None:
+    sys.exit("Weder python-docx noch striprtf installiert.\n"
+             "Bitte: pip install striprtf")
 
 # -- Pfade ---------------------------------------------------------------------
 
@@ -45,9 +54,22 @@ MAPPING: dict[str, int] = {
 
 # -- Hilfsfunktionen -----------------------------------------------------------
 
-def _lese_docx(pfad: Path) -> tuple[str, list[str]]:
-    """Extrahiert Text und Feldfunktions-Instruktionen aus einer Word-Datei."""
-    doc = Document(str(pfad))
+def _lese_datei(pfad: Path) -> tuple[str, list[str]]:
+    """Extrahiert Text und Feldfunktions-Instruktionen aus DOCX oder RTF."""
+    ext = pfad.suffix.lower()
+
+    if ext == ".rtf":
+        if rtf_to_text is None:
+            sys.exit("striprtf nicht installiert. Bitte: pip install striprtf")
+        raw = pfad.read_bytes().decode("latin-1", errors="replace")
+        text = rtf_to_text(raw).strip()
+        # RTF hat keine strukturierten Feldinstruktionen wie DOCX
+        return text, []
+
+    # DOCX
+    if DocxDocument is None:
+        sys.exit("python-docx nicht installiert. Bitte: pip install python-docx")
+    doc = DocxDocument(str(pfad))
     absaetze = []
     felder: list[str] = []
     gesehen: set[str] = set()
@@ -84,9 +106,14 @@ def run(schreiben: bool) -> None:
     if not DOCX_DIR.exists():
         sys.exit(f"Ordner nicht gefunden: {DOCX_DIR}")
 
-    dateien = sorted(DOCX_DIR.glob("*.docx"))
+    dateien = sorted(
+        list(DOCX_DIR.glob("*.docx")) +
+        list(DOCX_DIR.glob("*.DOCX")) +
+        list(DOCX_DIR.glob("*.rtf")) +
+        list(DOCX_DIR.glob("*.RTF"))
+    )
     if not dateien:
-        sys.exit(f"Keine .docx-Dateien in {DOCX_DIR}")
+        sys.exit(f"Keine .docx- oder .rtf-Dateien in {DOCX_DIR}")
 
     if not DB_PATH.exists():
         sys.exit(f"Datenbank nicht gefunden: {DB_PATH}")
@@ -107,7 +134,7 @@ def run(schreiben: bool) -> None:
         for pfad in dateien:
             name_key = pfad.stem.lower()
             kuerzungsart_id = MAPPING.get(name_key) or MAPPING.get(pfad.stem)
-            text, felder_im_dok = _lese_docx(pfad)
+            text, felder_im_dok = _lese_datei(pfad)
             platzhalter = _finde_platzhalter(text)
             alle_platzhalter.update(platzhalter)
 
