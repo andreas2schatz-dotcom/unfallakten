@@ -2237,7 +2237,8 @@ function RegulierungSection({ brutto, hq, dispatch, akteId, schaden, abrechnunge
                 title="Stellungnahme zu den Kürzungen als Word-Dokument generieren">
                 {stellungLaedt ? "⏳ …" : "📝 Stellungnahme"}
               </Btn>
-              <Btn onClick={() => setWizardOffen(true)} title="Geführter Stellungnahme-Wizard">
+              <Btn size="sm" variant="secondary"
+                onClick={() => setWizardOffen(true)} title="Geführter Stellungnahme-Wizard">
                 📋 Wizard
               </Btn>
               {abrechnungen.length > 0 && (
