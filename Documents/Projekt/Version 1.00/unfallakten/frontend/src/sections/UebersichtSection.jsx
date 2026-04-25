@@ -2168,6 +2168,31 @@ function UebersichtSection({ akte, st, dispatch }) {
   const [notizen, setNotizen] = useState(st.notizen || "");
   const [nChanged, setNC]     = useState(false);
   const [toast, setToast]     = useState("");
+  const [ibanCheck,   setIbanCheck]   = useState(null);
+  const [stripOffene, setStripOffene] = useState([]);
+  const [todosState,  setTodosState]  = useState([]);
+
+  const azRoh = akte.az_roh || akte.az || "";
+
+  React.useEffect(() => {
+    if (!azRoh.includes("/")) return;
+    request(`/ramicro/akte/mandant-checks?az=${encodeURIComponent(azRoh)}`)
+      .then(d => setIbanCheck(d))
+      .catch(() => setIbanCheck({ iban_vorhanden: null }));
+  }, [azRoh]);
+
+  React.useEffect(() => {
+    if (!akte.az) return;
+    apiTodos.liste(akte.az)
+      .then(r => setTodosState(r?.todos || []))
+      .catch(() => {});
+  }, [akte.az]);
+
+  const toggleStrip = (id) => {
+    setStripOffene(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
 
   // Aktivitäten beim ersten Rendern aus API laden
   useEffect(() => {
@@ -2349,34 +2374,56 @@ function UebersichtSection({ akte, st, dispatch }) {
 
   const azKlappKey = (akte.az_roh || akte.az || "").replace(/\//g, "-");
 
+  const mandantName = ibanCheck?.mandant_name || mandant?.name || "";
+
   return (
     <>
       {toast && <Toast msg={toast} onDone={() => setToast("")} />}
-      <div style={{ display:"flex", flexDirection:"column", gap:"1.25rem" }}>
 
-        {/* ── To-Dos & Wiedervorlagen (ganz oben) ── */}
-        <KlappAbschnitt titel="To-Dos & Wiedervorlagen" lsKey={`uebersicht-todos-${azKlappKey}`}>
-          <TodoKachelKompakt az={akte.az} akteId={akte.id} azRoh={akte.az_roh || akte.az} />
+      {/* ── Action Board ── */}
+      <div style={{ border:`1px solid ${T.border}`, borderRadius:10, overflow:"hidden", marginBottom:"1.25rem", boxShadow:"0 1px 4px rgba(0,0,0,.05)" }}>
+
+        <AkteActionBoardHeader
+          akte={akte}
+          azRoh={azRoh}
+          mandantName={mandantName}
+          onNavigate={null}
+        />
+
+        <StatusBand
+          ibanCheck={ibanCheck}
+          todos={todosState}
+          hq={akte.hq}
+        />
+
+        <FinanzBand
+          gesamtForderung={gesamtForderung}
+          gesamtReguliert={gesamtReguliert}
+          gesamtKuerzung={gesamtKuerzung}
+          anzahlSchreiben={abrechnungen.length}
+        />
+
+        <TodoWvSpalten az={akte.az} azRoh={azRoh} />
+
+        <AkkordeonStrip offene={stripOffene} onToggle={toggleStrip} />
+
+      </div>
+
+      {/* ── Ausklappbare Abschnitte ── */}
+      {stripOffene.includes("ramicro") && azRoh.includes("/") && (
+        <div style={{ marginBottom:"1rem" }}>
+          <RaMicroAkteUebersicht azRoh={azRoh} />
+        </div>
+      )}
+
+      {stripOffene.includes("historie") && (
+        <KlappAbschnitt titel="Forderungshistorie" lsKey={`uebersicht-historie-${azKlappKey}`}>
+          <ForderungshistorieKarte akteId={akte.id} />
         </KlappAbschnitt>
+      )}
 
-        {/* ── RA-Micro Live-Daten (nur bei gültigem AZ-Format ZAHL/JJ) ── */}
-        {(() => { const az = akte.az_roh || akte.az || ""; return az.includes("/") && az.length >= 4; })() && (
-          <RaMicroAkteUebersicht azRoh={akte.az_roh || akte.az} />
-        )}
-
-        {/* ── Notizen ── */}
-        <KlappAbschnitt titel="Notizen" lsKey={`uebersicht-notizen-${azKlappKey}`}>
-          <Card style={{ padding:"0.6rem 1rem", display:"flex", flexDirection:"column", gap:5 }}>
-            <textarea value={notizen} onChange={e => { setNotizen(e.target.value); setNC(true); }} rows={2}
-              placeholder="Interne Notizen …"
-              style={{ padding:"5px 8px", border:`1.5px solid ${T.border}`, borderRadius:6, fontSize:"0.875rem", color:T.text, background:T.surface, outline:"none", resize:"none" }}
-              onFocus={e => e.target.style.borderColor=T.accent} onBlur={e => e.target.style.borderColor=T.border} />
-            {nChanged && <Btn variant="gold" size="sm" onClick={async () => { dispatch({ type:"SET_NOTIZEN", akteId:akte.id, notizen }); setNC(false); setToast("Notizen gespeichert."); try { await apiAkten.aktualisieren(akte.id, { notizen }); } catch {} }}>{Ic.check} Speichern</Btn>}
-          </Card>
-        </KlappAbschnitt>
-
-        {/* ── Forderung vs. Regulierung ── */}
-        <KlappAbschnitt titel="Forderung vs. Regulierung" lsKey={`uebersicht-forderung-${azKlappKey}`}>
+      {stripOffene.includes("regulierung") && (
+        <div style={{ marginBottom:"1rem" }}>
           <Card style={{ background:"rgba(84,136,212,0.06)", border:"1px solid rgba(84,136,212,0.25)" }}>
             <CardHead title="Forderung vs. Regulierung – Positionsübersicht" />
             <RegulierungsTabelle
@@ -2385,26 +2432,11 @@ function UebersichtSection({ akte, st, dispatch }) {
               showCheckboxes={false}
               showKlageBadge={true}
             />
-            {hatRegulierung && (
-              <div style={{ padding:"0.75rem 1.4rem 1rem" }}>
-                <div style={{ height:8, background:T.border, borderRadius:4, overflow:"hidden" }}>
-                  <div style={{ height:"100%", width:`${regGrad}%`, background:regGrad>=100?`linear-gradient(90deg,${T.green},#34d399)`:`linear-gradient(90deg,${T.accent},${T.accentLight})`, borderRadius:4, transition:"width 0.8s" }} />
-                </div>
-                <div style={{ display:"flex", justifyContent:"space-between", marginTop:5, fontSize:"0.84rem", color:T.textMuted }}>
-                  <span>{regGrad} % reguliert · {abrechnungen.length} Schreiben</span>
-                  {klageSumme > 0 && <span style={{ color:T.red, fontWeight:600 }}>Klagepotential: {fmtEuro(klageSumme)}</span>}
-                </div>
-              </div>
-            )}
           </Card>
-        </KlappAbschnitt>
+        </div>
+      )}
 
-        {/* ── Forderungshistorie ── */}
-        <KlappAbschnitt titel="Forderungshistorie" lsKey={`uebersicht-historie-${azKlappKey}`}>
-          <ForderungshistorieKarte akteId={akte.id} />
-        </KlappAbschnitt>
-
-        {/* ── Akten-Chronik ── */}
+      {stripOffene.includes("chronik") && (
         <KlappAbschnitt titel="Akten-Chronik" lsKey={`uebersicht-chronik-${azKlappKey}`}>
           <AktenTimeline
             abrechnungen={abrechnungen}
@@ -2413,12 +2445,30 @@ function UebersichtSection({ akte, st, dispatch }) {
             onAktivitaetenChange={async () => {
               const data = await apiAkten.aktivitaeten(akte.id);
               if (data?.aktivitaeten)
-                dispatch({ type:"SET_AKTIVITAETEN", akteId: akte.id, aktivitaeten: data.aktivitaeten });
+                dispatch({ type:"SET_AKTIVITAETEN", akteId:akte.id, aktivitaeten:data.aktivitaeten });
             }}
           />
         </KlappAbschnitt>
+      )}
 
-      </div>
+      {stripOffene.includes("notizen") && (
+        <Card style={{ padding:"0.6rem 1rem", display:"flex", flexDirection:"column", gap:5 }}>
+          <textarea value={notizen} onChange={e => { setNotizen(e.target.value); setNC(true); }} rows={3}
+            placeholder="Interne Notizen …"
+            style={{ padding:"5px 8px", border:`1.5px solid ${T.border}`, borderRadius:6,
+              fontSize:"0.875rem", color:T.text, background:T.surface, outline:"none", resize:"none",
+              fontFamily:T.fontBody }}
+            onFocus={e => e.target.style.borderColor = T.accent}
+            onBlur={e => e.target.style.borderColor = T.border} />
+          {nChanged && (
+            <Btn variant="gold" size="sm" onClick={async () => {
+              dispatch({ type:"SET_NOTIZEN", akteId:akte.id, notizen });
+              setNC(false); setToast("Notizen gespeichert.");
+              try { await apiAkten.aktualisieren(akte.id, { notizen }); } catch {}
+            }}>{Ic.check} Speichern</Btn>
+          )}
+        </Card>
+      )}
     </>
   );
 }
