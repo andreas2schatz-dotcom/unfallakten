@@ -481,14 +481,14 @@ def pwa_nachricht_senden(akte_id: str):
     """
     akte = hole_akte_by_id(akte_id)
     if not akte:
-        return jsonify({"fehler": "Akte nicht gefunden"}), 404
+        return _err("Akte nicht gefunden.", 404)
     az = akte.az
 
     data = request.get_json(silent=True) or {}
     text = (data.get("text") or "").strip()
     vorlage_key = (data.get("vorlage_key") or "freitext").strip()
     if not text:
-        return jsonify({"fehler": "text erforderlich"}), 422
+        return _err("text erforderlich.", 422)
 
     benutzer_id = getattr(g, "benutzer_id", None)
     beschreibung = f"[PWA:{vorlage_key}] {text[:500]}"
