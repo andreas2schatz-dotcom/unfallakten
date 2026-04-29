@@ -17,7 +17,7 @@ import {
 
 // Immer synchron: Default-Tab + kleine Hilfskomponenten
 import UebersichtSection from "../sections/UebersichtSection.jsx";
-import { TodoSection, PwaNachrichtModal, StaDialog } from "../sections/UebersichtSection.jsx";
+import { PwaNachrichtModal, StaDialog } from "../sections/UebersichtSection.jsx";
 import RaMicroSachstandsCard from "../sections/RaMicroSachstandsCard.jsx";
 import AktionBadge from "../views/email_import/components/AktionBadge.jsx";
 
@@ -226,10 +226,9 @@ function AkteDetailView({ akte, st, dispatch }) {
       { id:"schaden",       label:`🚗 Schaden`,    ...sp(schadenOk,     !schadenOk     && st.schaden     !== undefined) },
       { id:"dokumente",     label: neueDokumente > 0 ? `📄 Dokumente (${dokumenteAnz}) 🔴${neueDokumente}` : `📄 Dokumente (${dokumenteAnz})` },
       { id:"regulierung",   label: neueAbrechnung ? `💶 Regulierung 🔴` : `💶 Regulierung`, ...sp(regulierungOk, false) },
-      { id:"gebuehren",     label:"⚖️ Gebühren" },
       { id:"klage",         label:`⚖ Klage`,        ...sp(klageStatus,   false) },
       { id:"word",          label:"📝 Word" },
-      { id:"todos",         label:`📋 To-Dos` },
+      { id:"gebuehren",     label:"⚖️ Gebühren" },
     ];
   }, [st.beteiligte, st.schaden, st.dokumente, st.abrechnungen, akte.status, besuchDok, besuchReg]);
 
@@ -322,7 +321,7 @@ function AkteDetailView({ akte, st, dispatch }) {
           {[
             { label:"💬 Nachricht → Mandant", stil:"primary", onClick:() => setZeigePwModal(true) },
             { label:"📤 STA senden",          stil:"warn",    onClick:() => setZeigeStaDialog(true) },
-            { label:"+ Todo",                 stil:"ghost",   onClick:() => setSec("todos") },
+            { label:"+ Todo",                 stil:"ghost",   onClick:() => setSec("uebersicht") },
             { label:"📄 Word",                stil:"ghost",   onClick:() => setSec("word") },
             { label:"⚖ Klage",               stil:"dimmed",  onClick:() => setSec("klage") },
           ].map(({ label, stil, onClick }) => {
@@ -393,9 +392,8 @@ function AkteDetailView({ akte, st, dispatch }) {
               onErledigt={() => setAktionErledigt(true)}
             />
           ) : null}
-          {/* Synchron: Übersicht + To-Dos */}
+          {/* Synchron: Übersicht */}
           {sec==="uebersicht" && <UebersichtSection akte={akte} st={st} dispatch={dispatch} onNavigate={setSec} />}
-          {sec==="todos"      && <TodoSection akteId={akte.id} az={akte.az} />}
           {/* Lazy: alle anderen Sections – werden erst bei erstem Tabwechsel geladen */}
           <Suspense fallback={
             <div style={{ display:"flex", justifyContent:"center", padding:"3rem 0" }}>
