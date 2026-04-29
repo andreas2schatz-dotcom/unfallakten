@@ -1780,6 +1780,67 @@ function TodoWvSpalten({ az, azRoh, onTodoChange, todos = [] }) {
   );
 }
 
+// ── PRD-18: Phasen-Strip ─────────────────────────────────────────────────────
+
+const _PHASEN_ORDER = ["onboarding", "erstforderung", "regulierung", "stellungnahme", "abschluss"];
+
+function berechnePhase({ akte, ibanCheck, schaden, abrechnungen, gesamtForderung, gesamtReguliert, gesamtKuerzung }) {
+  const hatIban       = !!ibanCheck?.iban_vorhanden;
+  const hatSchaden    = parseFloat(schaden?.gesamt_brutto || 0) > 0;
+  const hatAbrechnung = (abrechnungen || []).length > 0;
+  const hatKuerzung   = gesamtKuerzung > 0;
+  const vollreguliert = gesamtForderung > 0 && gesamtReguliert >= gesamtForderung * 0.99;
+  const statusKlage   = akte.status === "klage";
+  const istAbschluss  = vollreguliert || akte.status === "abgeschlossen" || statusKlage;
+
+  let aktiv;
+  if (istAbschluss)                     aktiv = "abschluss";
+  else if (hatAbrechnung && hatKuerzung) aktiv = "stellungnahme";
+  else if (hatAbrechnung)               aktiv = "regulierung";
+  else if (hatIban && hatSchaden)       aktiv = "erstforderung";
+  else                                  aktiv = "onboarding";
+
+  const aktivIdx     = _PHASEN_ORDER.indexOf(aktiv);
+  const phasenFertig = Object.fromEntries(_PHASEN_ORDER.map((p, i) => [p, i < aktivIdx]));
+  return { aktiv, istKlage: statusKlage, phasenFertig };
+}
+
+function PhasenStrip({ phase }) {
+  if (!phase) return null;
+  const { aktiv, istKlage, phasenFertig } = phase;
+  const PHASEN = [
+    { id: "onboarding",    label: "Onboarding" },
+    { id: "erstforderung", label: "Erstforderung" },
+    { id: "regulierung",   label: "Regulierung" },
+    { id: "stellungnahme", label: "Stellungnahme" },
+    { id: "abschluss",     label: istKlage ? "⚖ Klage" : "Abschluss" },
+  ];
+  return (
+    <div style={{ display:"flex", alignItems:"stretch", borderBottom:`1px solid ${T.border}`, overflow:"hidden" }}>
+      {PHASEN.map((p, i) => {
+        const fertig  = phasenFertig[p.id];
+        const isAktiv = aktiv === p.id;
+        const last    = i === PHASEN.length - 1;
+        const bg    = fertig ? T.greenBg  : isAktiv ? "#EEF3FF"  : T.white;
+        const color = fertig ? T.greenText : isAktiv ? T.accent   : T.textFaint;
+        const icon  = fertig ? "✓"        : isAktiv ? "▶"        : "○";
+        return (
+          <div key={p.id} style={{
+            flex:1, display:"flex", alignItems:"center", justifyContent:"center",
+            gap:4, padding:"6px 4px",
+            background:bg, color,
+            borderRight: last ? "none" : `1px solid ${T.border}`,
+            fontSize:"0.68rem", fontWeight:600,
+            letterSpacing:"0.04em", textTransform:"uppercase", whiteSpace:"nowrap",
+          }}>
+            <span>{icon}</span><span>{p.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function StatusBand({ ibanCheck, todos, hq }) {
   const vollmacht = ibanCheck?.vollmacht_vorhanden;
   const iban      = ibanCheck?.iban_vorhanden;
@@ -2354,6 +2415,8 @@ function UebersichtSection({ akte, st, dispatch, onNavigate }) {
   const regGrad         = netto > 0 ? Math.min(100, Math.round(gesamtReguliert / netto * 100)) : 0;
   const hatRegulierung  = abrechnungen.length > 0;
 
+  const phase = berechnePhase({ akte, ibanCheck, schaden, abrechnungen, gesamtForderung, gesamtReguliert, gesamtKuerzung });
+
   const InfoRow = ({ label, value }) => value ? (
     <div style={{ borderBottom:`1px solid ${T.borderSoft}`, padding:"6px 0", display:"flex", gap:12 }}>
       <span style={{ fontSize:"0.84rem", color:T.textFaint, width:110, flexShrink:0 }}>{label}</span>
@@ -2371,6 +2434,8 @@ function UebersichtSection({ akte, st, dispatch, onNavigate }) {
 
       {/* ── Action Board ── */}
       <div style={{ border:`1px solid ${T.border}`, borderRadius:10, overflow:"hidden", marginBottom:"1.25rem", boxShadow:"0 1px 4px rgba(0,0,0,.05)" }}>
+
+        <PhasenStrip phase={phase} />
 
         <StatusBand
           ibanCheck={ibanCheck}
