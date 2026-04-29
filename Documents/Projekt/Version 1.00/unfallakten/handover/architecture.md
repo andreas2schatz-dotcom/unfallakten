@@ -1,6 +1,6 @@
 # Projekt-Architektur – Unfallakten-Verwaltungssystem
 # Kanzlei Koch, Schatz & Kollegen
-> Stand: 2026-04-25 | Schema-Version 37 | Session v54
+> Stand: 2026-04-29 | Schema-Version 37 | Session v55
 
 ---
 
@@ -25,19 +25,20 @@ Browser (localhost:5173)
 ### AkteDetailView.jsx – Tab-Container
 Lädt beim Öffnen automatisch: Schaden, Beteiligte, Dokumente, Status, WDM (PRD-15 ✅).
 
-**Aktuelle Tab-Reihenfolge** (geplante Änderung PRD-16 in Klammern):
-| Tab-ID | Datei | Inhalt | Änderung PRD-16 |
+**Tab-Reihenfolge** (PRD-16 ✅ seit v55):
+| Pos | Tab-ID | Datei | Inhalt |
 |---|---|---|---|
-| `uebersicht` | `UebersichtSection.jsx` | Action Board: Header, FinanzBand, StatusBand, To-Dos, WVL | bleibt Position 1 |
-| `beteiligte` | `BeteiligteSection.jsx` | Mandant, Gegner, Zeugen – CRUD | bleibt Position 2 |
-| `unfalldetails` | `UnfalldetailsSection.jsx` | Unfalldetails (WDM + manuelle Eingabe) | bleibt Position 3 |
-| `schaden` | `SchadenSection.jsx` | Schadenpositionen, Belege-Kandidaten | bleibt Position 4 |
-| `dokumente` | `DokumenteSection.jsx` | Upload, Klassifizierung, E-Akte-Viewer, Inbox-Pattern | bleibt Position 5 |
-| `regulierung` | `RegulierungSection.jsx` | Abrechnungsschreiben + Kürzungsanalyse (Option B) | bleibt Position 6 |
-| `gebuehren` | `GebuehrenSection.jsx` | Gebührenassistent Nr. 2300 VV RVG (PRD-28) | → Position 9 |
-| `klage` | `KlageSection.jsx` | Klage-Wizard 10 Steps (PRD-26) | → Position 7 |
-| `word` | `WordSection.jsx` | Forderungsschreiben, WVB, sonstige Word-Dokumente | → Position 8 |
-| `todos` | `TodoSection` (aus UebersichtSection) | Aufgaben-Liste | → entfernen |
+| 1 | `uebersicht` | `UebersichtSection.jsx` | Action Board + Phasen-Strip (PRD-18 ✅) |
+| 2 | `beteiligte` | `BeteiligteSection.jsx` | Mandant, Gegner, Zeugen – CRUD |
+| 3 | `unfalldetails` | `UnfalldetailsSection.jsx` | Unfalldetails (WDM + manuelle Eingabe) |
+| 4 | `schaden` | `SchadenSection.jsx` | Schadenpositionen, Belege-Kandidaten |
+| 5 | `dokumente` | `DokumenteSection.jsx` | Upload, Klassifizierung, E-Akte-Viewer |
+| 6 | `regulierung` | `RegulierungSection.jsx` | Abrechnungsschreiben + Kürzungsanalyse (Option B) |
+| 7 | `klage` | `KlageSection.jsx` | Klage-Wizard 10 Steps (PRD-26) |
+| 8 | `word` | `WordSection.jsx` | Forderungsschreiben, WVB, sonstige Word-Dokumente |
+| 9 | `gebuehren` | `GebuehrenSection.jsx` | Gebührenassistent Nr. 2300 VV RVG (PRD-28) |
+
+To-Dos-Tab entfernt (v55) – Todos nur noch im Action Board (Übersicht).
 
 **Header** (navy, immer sichtbar):
 - AZ + Kurzbezeichnung/Langbezeichnung (aus RA-Micro)

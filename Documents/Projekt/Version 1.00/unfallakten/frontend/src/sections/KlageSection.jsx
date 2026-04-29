@@ -248,9 +248,18 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   }, [beklagte]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
-  // RVG neu berechnen wenn Positionen sich ändern
-  const klagebetrag = positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag||0), 0);
-  const swAusserg   = positionen.reduce((s, p) => s + (p.betrag || 0), 0); // außergerichtl. Streitwert
+  // Gesamte regulierte Zahlung (inkl. unzugeordneter Vorschüsse)
+  const gesamtReguliert = (daten?.abrechnungen || []).reduce(
+    (s, a) => s + (parseFloat(a.gesamt_reguliert) || 0), 0
+  );
+
+  // Außergerichtlicher Streitwert = Summe aller Schadenpositionen (Brutto-Forderung)
+  const swAusserg = positionen.reduce((s, p) => s + (p.betrag || 0), 0);
+  // Gerichtlicher Streitwert = angehakte Positionen minus bereits gezahlte Beträge
+  const klagebetrag = Math.max(0,
+    positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag || 0), 0)
+    - gesamtReguliert
+  );
   useEffect(() => {
     if (!daten) return;
     (async () => {
@@ -355,10 +364,28 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         if (k) _regMap[k] = (_regMap[k] || 0) + (parseFloat(rp.betrag_reguliert) || 0);
       });
     });
-    setWizardPos(positionen.map(p => ({
+    // Schritt 1: positions-gebundene Regulierungen abziehen
+    let _workPos = positionen.map(p => ({
       ...p,
       betrag: Math.max(0, (p.betrag || 0) - (_regMap[p.key] || 0)),
-    })));
+    }));
+    // Schritt 2: ungebundene Zahlungen (Vorschuss) gierig auf größte Positionen verteilen
+    const _posLevelPaid = Object.values(_regMap).reduce((s, v) => s + v, 0);
+    let _unassigned = Math.max(0, gesamtReguliert - _posLevelPaid);
+    if (_unassigned > 0.005) {
+      const _reductions = {};
+      [..._workPos].sort((a, b) => (b.betrag||0) - (a.betrag||0)).forEach(p => {
+        if (_unassigned <= 0.005) return;
+        const r = Math.min(_unassigned, p.betrag || 0);
+        _reductions[p.key] = r;
+        _unassigned -= r;
+      });
+      _workPos = _workPos.map(p => ({
+        ...p,
+        betrag: Math.max(0, (p.betrag || 0) - (_reductions[p.key] || 0)),
+      }));
+    }
+    setWizardPos(_workPos);
     setWizardMitSG(mitSG);
     setWizardSGMind(sgMind);
     setWizardSachverhaltText("");

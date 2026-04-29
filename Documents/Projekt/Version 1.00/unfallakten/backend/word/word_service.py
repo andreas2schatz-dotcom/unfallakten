@@ -480,9 +480,11 @@ def _lade_beteiligte_aus_ramicro(az: str) -> dict:
     Lädt Mandant und Gegner direkt aus RA-Micro.
 
     Fallback wenn Beteiligte nicht in SQLite erfasst sind.
-    Gibt {"mandant": dict|None, "gegner": dict|None} zurück.
+    Gibt {"mandant": dict|None, "gegner": dict|None, "alle_gegner": list} zurück.
+    "gegner" ist der erste/höchst-priorisierte Gegner (GHPV-Rang 0 für Briefe).
+    "alle_gegner" enthält alle klassifizierten Gegner-Einträge (für Klagewizard).
     """
-    result = {"mandant": None, "gegner": None}
+    result = {"mandant": None, "gegner": None, "alle_gegner": []}
     try:
         from ..ramicro.connector import (
             get_ramicro_connection, RaMicroNichtAktiv, RaMicroVerbindungsFehler
@@ -625,9 +627,12 @@ def _lade_beteiligte_aus_ramicro(az: str) -> dict:
 
             gruppe = _klassifiziere(row.get("art", 0), row.get("kz", ""))
             if gruppe == "mandant" and result["mandant"] is None:
-                result["mandant"] = _beteiligter_dict(dict(row), wdm)
-            elif gruppe == "gegner" and result["gegner"] is None:
                 d = _beteiligter_dict(dict(row), wdm)
+                d["id"] = adr_nr or 0
+                result["mandant"] = d
+            elif gruppe == "gegner":
+                d = _beteiligter_dict(dict(row), wdm)
+                d["id"] = adr_nr or 0
                 kz_up = (row.get("kz") or "").strip().upper()
                 # Firmennamen als versicherung setzen wenn kein Vorname oder sErsteAdresszeile gesetzt
                 if not d.get("vorname") or not d.get("vorname").strip():
@@ -635,7 +640,11 @@ def _lade_beteiligte_aus_ramicro(az: str) -> dict:
                 # Schadennummer aus Betreffzeile wenn GHPV-Beteiligter
                 if kz_up in ("GHPV", "GH", "GBEV", "GHV") and not d.get("schaden_nr"):
                     d["schaden_nr"] = d.get("betreff1") or d.get("betreff2") or None
-                result["gegner"] = d
+                # Erster Gegner bleibt in "gegner" (für Briefe/Word: GHPV-Priorität)
+                if result["gegner"] is None:
+                    result["gegner"] = d
+                # Alle Gegner sammeln (für Klagewizard)
+                result["alle_gegner"].append(d)
 
     except (RaMicroNichtAktiv, RaMicroVerbindungsFehler):
         pass

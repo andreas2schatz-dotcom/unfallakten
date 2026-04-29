@@ -576,19 +576,17 @@ def hole_klage_daten(akte_id: str):
     # Beteiligte via Model-Funktion (liefert Objekte mit .kuerzel, .schaden_nr etc.)
     beteiligte_objs = hole_beteiligte_by_akte(az)
 
-    # RA-Micro Fallback: wenn SQLite keinen Mandanten/Gegner enthält.
-    # Wichtig: 'gericht'-Einträge (von speichere_gericht) dürfen den Fallback
-    # nicht unterdrücken – daher Prüfung auf Parteien, nicht auf leere Liste.
+    # RA-Micro Ergänzung:
+    # – Mandant: nur laden wenn kein Mandant in SQLite
+    # – Gegner:  immer laden und per Namens-Dedup ergänzen, damit eine in SQLite
+    #   fälschlich als rolle="gegner" gespeicherte Versicherung den echten Gegner
+    #   aus RA-MICRO nicht verdrängt.
     ra_beteiligte = {}
-    _hat_parteien = any(
-        getattr(b, "rolle", "") in ("mandant", "gegner")
-        for b in beteiligte_objs
-    )
-    if not _hat_parteien:
-        try:
-            ra_beteiligte = _lade_beteiligte_aus_ramicro(az) or {}
-        except Exception as e:
-            logger.debug("RA-Micro Beteiligte Fallback: %s", e)
+    _hat_mandant  = any(getattr(b, "rolle", "") == "mandant" for b in beteiligte_objs)
+    try:
+        ra_beteiligte = _lade_beteiligte_aus_ramicro(az) or {}
+    except Exception as e:
+        logger.debug("RA-Micro Beteiligte Fallback: %s", e)
 
     # WDM-Daten für Klage laden (Verzug, Kennzeichen, Schadennummer)
     wdm = _lade_wdm_klage_vars(akte.aktenzeichen)
@@ -738,26 +736,48 @@ def hole_klage_daten(akte_id: str):
 
     alle_bet = [b_dict(b) for b in beteiligte_objs]
 
-    # RA-Micro Fallback: Parteien aus RA-Micro ergänzen wenn keine in SQLite
-    if not _hat_parteien and ra_beteiligte:
-        for rolle_key in ("mandant", "gegner"):
-            rb = ra_beteiligte.get(rolle_key)
-            if rb and isinstance(rb, dict):
-                alle_bet.append({
-                    "id":            rb.get("id", 0),
-                    "rolle":         rolle_key,
-                    "name":          rb.get("name") or "",
-                    "vorname":       rb.get("vorname") or "",
-                    "firma":         rb.get("firma") or "",
-                    "anschrift":     rb.get("anschrift") or "",
-                    "plz":           rb.get("plz") or "",
-                    "ort":           rb.get("ort") or "",
-                    "anrede":        rb.get("anrede") or "",
-                    "versicherung":  rb.get("versicherung") or "",
-                    "schaden_nr":    rb.get("schaden_nr") or "",
-                    "kfz_kennzeichen": rb.get("kfz_kennzeichen") or "",
-                    "kuerzel":       rb.get("kuerzel") or "",
-                })
+    # RA-Micro Ergänzung: Mandant nur wenn fehlt; alle Gegner per Namens-Dedup ergänzen.
+    # "alle_gegner" enthält alle Gegner-Einträge aus RA-MICRO (nicht nur den ersten/GHPV).
+    if ra_beteiligte:
+        _namen_bet = {
+            n for b in alle_bet
+            for n in (
+                (b.get("name") or "").strip().lower(),
+                (b.get("firma") or "").strip().lower(),
+                (b.get("versicherung") or "").strip().lower(),
+            ) if n
+        }
+
+        def _merge_ra(rb, rolle_key):
+            if not rb or not isinstance(rb, dict):
+                return
+            rb_name = (rb.get("name") or rb.get("firma") or rb.get("versicherung") or "").strip().lower()
+            if rb_name and rb_name in _namen_bet:
+                return
+            alle_bet.append({
+                "id":            rb.get("id", 0),
+                "rolle":         rolle_key,
+                "name":          rb.get("name") or "",
+                "vorname":       rb.get("vorname") or "",
+                "firma":         rb.get("firma") or "",
+                "anschrift":     rb.get("anschrift") or "",
+                "plz":           rb.get("plz") or "",
+                "ort":           rb.get("ort") or "",
+                "anrede":        rb.get("anrede") or "",
+                "versicherung":  rb.get("versicherung") or "",
+                "schaden_nr":    rb.get("schaden_nr") or "",
+                "kfz_kennzeichen": rb.get("kfz_kennzeichen") or "",
+                "kuerzel":       rb.get("kuerzel") or "",
+            })
+            _namen_bet.add(rb_name)  # Dedup auch für nachfolgende Einträge
+
+        # Mandant nur wenn in SQLite nicht vorhanden
+        if not _hat_mandant:
+            _merge_ra(ra_beteiligte.get("mandant"), "mandant")
+
+        # Alle Gegner aus RA-MICRO (GHPV + tatsächlicher Gegner), jeweils per Dedup
+        for rb in (ra_beteiligte.get("alle_gegner") or []):
+            _merge_ra(rb, "gegner")
     # Rollen und Vorschläge setzen
     for b in alle_bet:
         rolle   = (b.get("rolle") or "").lower()
