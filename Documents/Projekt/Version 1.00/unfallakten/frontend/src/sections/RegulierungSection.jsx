@@ -1776,28 +1776,8 @@ function RegulierungSection({ brutto, hq, dispatch, akteId, schaden, abrechnunge
   // ── posMap: Gefordert aus Schaden + Zahlungen aus Abrechnungen ────────────
   const posVorlage = React.useMemo(() => {
     const sd = schaden || {};
-    const art    = sd.abrechnungsberechnung?.abrechnungsart || sd.abrechnungsart || null;
-    const repN   = parseFloat(sd.rep_gutachten_netto || sd.reparaturkosten || 0);
-    const repRN  = parseFloat(sd.rep_rechnung_netto || 0);
-    const effRep = repRN > 0 ? repRN : repN;
-    const wbw    = parseFloat(sd.wiederbeschaffung || 0);
-    const rst    = parseFloat(sd.restwert || 0);
-    const nettoFzg = wbw - rst;
-    const ist130 = repRN > 0 && wbw > 0 && repRN > nettoFzg && repRN <= 1.3 * wbw;
-
-    // Fahrzeugschaden – eine Zeile, korrekter Betrag je Abrechnungsart
-    let fzgBetrag = 0;
-    if (art === "totalschaden" || (!art && wbw > 0 && (effRep === 0 || (!ist130 && effRep > nettoFzg)))) {
-      fzgBetrag = wbw > 0 ? nettoFzg : 0;
-    } else if (art === "fiktiv" || (!art && repN > 0 && (wbw === 0 || effRep <= nettoFzg))) {
-      fzgBetrag = repN;
-    } else if (art === "konkret" || (!art && repRN > 0)) {
-      fzgBetrag = ist130 ? repRN : (repRN > 0 ? repRN : repN);
-    } else if (wbw > 0) {
-      fzgBetrag = nettoFzg;
-    } else if (repN > 0) {
-      fzgBetrag = repN;
-    }
+    // PRD-14: Fahrzeugschaden kommt direkt aus Backend-Berechnung (Single Source of Truth)
+    const fzgBetrag = parseFloat(sd.abrechnungsberechnung?.fahrzeugschaden) || 0;
 
     const vorlage = [];
 
@@ -1959,14 +1939,10 @@ function RegulierungSection({ brutto, hq, dispatch, akteId, schaden, abrechnunge
 
       // Keine bestehende Position → neue Abrechnung anlegen
       const hatVorherigeZahlungen = (pos?.zahlungen?.length || 0) > 0;
-      // fahrzeugschaden_netto → echten position_key je Abrechnungsart
-      const art = schaden?.abrechnungsberechnung?.abrechnungsart || schaden?.abrechnungsart || null;
-      const repRN = parseFloat(schaden?.rep_rechnung_netto || 0);
+      // fahrzeugschaden_netto → echten position_key aus Backend-Berechnung
       let backendKey = posKey;
       if (posKey === "fahrzeugschaden_netto") {
-        if (art === "totalschaden") backendKey = "wiederbeschaffung";
-        else if (art === "konkret" || (!art && repRN > 0)) backendKey = "rep_rechnung_netto";
-        else backendKey = "rep_gutachten_netto";
+        backendKey = schaden?.abrechnungsberechnung?.fahrzeugschaden_key || "rep_gutachten_netto";
       }
       const kIds = kuerzungMap[posKey] || [];
       const payload = {

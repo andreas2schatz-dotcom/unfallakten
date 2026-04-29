@@ -405,7 +405,7 @@ function AkteDetailView({ akte, st, dispatch }) {
             {sec==="beteiligte"    && <BeteiligteSection beteiligte={st.beteiligte||[]} dispatch={dispatch} akteId={akte.id} />}
             {sec==="schaden"       && <SchadenSection schaden={st.schaden||{}} hq={akte.hq} dispatch={dispatch} akteId={akte.id} vorsteuer={(st.beteiligte||[]).find(b=>b.rolle==="mandant")?.vorsteuer==="Y"} dokumente={st.dokumente||[]} belegeKandidaten={st.belegeKandidaten||[]} />}
             {sec==="dokumente"     && <DokumenteSection dokumente={st.dokumente||[]} dispatch={dispatch} akteId={akte.id} akte={akte} belegeKandidaten={st.belegeKandidaten||[]} schaden={st.schaden||{}} vorsteuer={(st.beteiligte||[]).find(b=>b.rolle==="mandant")?.vorsteuer==="Y"} />}
-            {sec==="regulierung"   && <RegulierungSection brutto={st.schaden?.gesamt_brutto ?? liveBrutto} hq={akte.hq} dispatch={dispatch} akteId={akte.id} schaden={st.schaden||{}} abrechnungenCached={st.abrechnungen||[]} beteiligte={st.beteiligte||[]} dokumente={st.dokumente||[]} />}
+            {sec==="regulierung"   && <RegulierungSection brutto={liveBrutto} hq={akte.hq} dispatch={dispatch} akteId={akte.id} schaden={st.schaden||{}} abrechnungenCached={st.abrechnungen||[]} beteiligte={st.beteiligte||[]} dokumente={st.dokumente||[]} />}
             {sec==="gebuehren"     && <GebuehrenSection akteId={akte.id} akte={akte} />}
             {sec==="klage"         && <KlageSection akteId={akte.id} akte={akte} st={st} dispatch={dispatch} />}
             {sec==="word"          && <WordSection akte={akte} st={st} dispatch={dispatch} />}
