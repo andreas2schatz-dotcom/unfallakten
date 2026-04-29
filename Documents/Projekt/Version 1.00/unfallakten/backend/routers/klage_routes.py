@@ -777,6 +777,40 @@ def hole_klage_daten(akte_id: str):
         if not b.get("kfz_kennzeichen") and rolle == "gegner" and _wdm("varG-KZ"):
             b["kfz_kennzeichen"] = _wdm("varG-KZ")
 
+    # ── Synthetischer GHPV-Eintrag (§ 115 VVG: Klage gegen Fahrer UND Versicherung) ──
+    # Wenn WDM eine Haftpflichtversicherung kennt, aber kein eigenständiger
+    # Versicherungs-Beteiligter (ohne Personenname) in alle_bet existiert,
+    # wird ein synthetischer Eintrag ergänzt, damit der Nutzer beide Parteien
+    # als separate Beklagte auswählen kann.
+    _ghpv_wdm = (_wdm("varG-HV") or "").strip()
+    if _ghpv_wdm:
+        _ghpv_wdm_lower = _ghpv_wdm.lower()
+        _hat_reinen_ghpv = any(
+            not (b.get("vorname") or "").strip()
+            and (b.get("firma") or b.get("name") or "").strip().lower() == _ghpv_wdm_lower
+            for b in alle_bet if b.get("rolle_klage") == "beklagter"
+        )
+        if not _hat_reinen_ghpv:
+            alle_bet.append({
+                "id":                -1,
+                "rolle":             "versicherung",
+                "name":              _ghpv_wdm,
+                "vorname":           "",
+                "firma":             _ghpv_wdm,
+                "versicherung":      "",
+                "anschrift":         "",
+                "plz":               "",
+                "ort":               "",
+                "schaden_nr":        _wdm("varG-SNR") or "",
+                "kfz_kennzeichen":   "",
+                "kuerzel":           "GHPV",
+                "vertreter_name":    "",
+                "vertreter_funktion":"",
+                "ist_halter":        0,
+                "rolle_klage":       "beklagter",
+                "vorschlag_beklagter": True,
+            })
+
     # ── Verzugsdatum bestimmen ────────────────────────────────────────────────
     verzug_datum = None
     if letztes_forderung and letztes_forderung["datum"]:

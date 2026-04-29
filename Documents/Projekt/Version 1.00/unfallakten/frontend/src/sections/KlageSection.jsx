@@ -797,13 +797,19 @@ function KlageSection({ akteId, akte, st, dispatch }) {
               const bekl = beklagte.filter(b => b.rolle_klage !== "klaeger");
               const mehrere = bekl.length > 1;
               return bekl.map((b, i) => {
-                const name    = b.versicherung || b.firma || (`${b.vorname||""} ${b.name||""}`).trim() || "Unbekannt";
+                const personName = (`${b.vorname||""} ${b.name||""}`).trim();
+                // Personen haben Vorrang vor Firmen-/Versicherungsname (WDM-Enrichment darf nicht verstecken)
+                const name    = personName || b.versicherung || b.firma || "Unbekannt";
                 const anschr  = [b.anschrift, [b.plz, b.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ");
-                // istFirma: explizites versicherung- oder firma-Feld,
-                // ODER kein Vorname (= kein Mensch), aber Name vorhanden
-                const istFirma = !!(b.versicherung || b.firma
+                // istFirma nur wenn KEIN Personenname vorhanden
+                const istFirma = !personName && !!(b.versicherung || b.firma
                   || (!b.vorname && b.name && b.rolle !== "mandant"));
-                const extras  = [b.schaden_nr ? `Schaden-Nr. ${b.schaden_nr}` : null, b.kfz_kennzeichen||null].filter(Boolean);
+                // Versicherungsname als Extrainfo wenn Person bekannt
+                const extras  = [
+                  b.schaden_nr ? `Schaden-Nr. ${b.schaden_nr}` : null,
+                  b.kfz_kennzeichen || null,
+                  (personName && b.versicherung) ? `Vers.: ${b.versicherung}` : null,
+                ].filter(Boolean);
                 const nr      = mehrere ? ` zu ${i+1})` : "";
                 // Vertreter-Suffix für Adresszeile
                 const vName = b.vertreter_name || "";
@@ -850,7 +856,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                           {extras.join(" · ")}
                         </div>
                       )}
-                      {!b.versicherung && !b.firma && (
+                      {!!personName && (
                         <label style={{ display:"flex", alignItems:"center", gap:6, marginTop:4,
                           fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", cursor:"pointer",
                           color: T.textMuted }}>

@@ -911,11 +911,12 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
                     if (b.get("rolle_klage") or b.get("rolle") or "") not in ("klaeger", "mandant")
                     and b.get("checked", True)]
     for i, bek in enumerate(beklagte_gef):
-        bek_name    = bek.get("versicherung") or bek.get("firma") or \
-                      " ".join(filter(None, [bek.get("vorname"), bek.get("name")])) or "BEKLAGTE"
+        # Personen haben Vorrang: vorname+name zuerst, dann Firmen-/Versicherungsname
+        _bek_person = " ".join(filter(None, [bek.get("vorname"), bek.get("name")])).strip()
+        bek_name    = _bek_person or bek.get("firma") or bek.get("versicherung") or "BEKLAGTE"
         bek_anschr  = bek.get("anschrift") or ""
         bek_plz_ort = " ".join(filter(None, [bek.get("plz"), bek.get("ort")])) or ""
-        ist_firma   = bool(bek.get("firma") or bek.get("versicherung"))
+        ist_firma   = not _bek_person and bool(bek.get("firma") or bek.get("versicherung"))
         nr_suffix   = f" zu {i+1})" if len(beklagte_gef) > 1 else ""
         # Vertreter aus DB (gespeichert via Klage-Tab Lookup)
         vertreter_name = (bek.get("vertreter_name") or "").strip()
