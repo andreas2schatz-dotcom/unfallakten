@@ -161,7 +161,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
     try {
       const res = await apiSchaden.speichern(akteId, schadenData);
       const serverSchaden = res?.schaden || schadenData;
-      dispatch({ type:"SAVE_SCHADEN", akteId, schaden: { ...schadenData, gesamt_brutto: serverSchaden.gesamt_brutto ?? schadenBrutto } });
+      dispatch({ type:"SAVE_SCHADEN", akteId, schaden: { ...schadenData, gesamt_brutto: serverSchaden.gesamt_brutto ?? schadenBrutto, abrechnungsberechnung: serverSchaden.abrechnungsberechnung } });
       const n = Object.values(wdmSchadenDaten.schaden).filter(v => v > 0).length;
       const x = wdmExtras.length;
       setToast(`✓ ${n} Schadenpositionen${x>0?` + ${x} sonstige Schäden`:""} aus RA-Micro übernommen und gespeichert.`);
@@ -238,7 +238,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
       const res = await apiSchaden.speichern(akteId, schadenData);
       // Backend liefert korrektes gesamt_brutto zurück — diesen Wert nutzen
       const serverSchaden = res?.schaden || schadenData;
-      dispatch({ type:"SAVE_SCHADEN", akteId, schaden: { ...schadenData, gesamt_brutto: serverSchaden.gesamt_brutto ?? brutto } });
+      dispatch({ type:"SAVE_SCHADEN", akteId, schaden: { ...schadenData, gesamt_brutto: serverSchaden.gesamt_brutto ?? brutto, abrechnungsberechnung: serverSchaden.abrechnungsberechnung } });
       setSaving(false); setChg(false); setToast("✓ Schaden gespeichert.");
     } catch(err) {
       const msg = err?.message || String(err);
