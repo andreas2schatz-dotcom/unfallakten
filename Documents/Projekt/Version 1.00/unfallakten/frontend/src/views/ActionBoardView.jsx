@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { apiDashboard, apiWV, apiAkten } from "../api";
+import { apiDashboard, wiedervorlage as apiWV, akten as apiAkten } from "../api";
 
 // ─── Theme ───────────────────────────────────────────────────
 const T = {
