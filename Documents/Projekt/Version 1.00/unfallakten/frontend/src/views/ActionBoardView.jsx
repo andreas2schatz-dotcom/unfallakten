@@ -312,7 +312,7 @@ export default function ActionBoardView({ onOpenAkte }) {
       apiDashboard.nachrichtenNeu(),
       apiDashboard.ramicroFristen(),
     ]).then(([wv, ob, na, fr]) => {
-      if (wv.status === "fulfilled") setWvAlle(wv.value || []);
+      if (wv.status === "fulfilled") setWvAlle(wv.value?.wiedervorlagen || []);
       if (ob.status === "fulfilled") setOnboardingOffen(ob.value?.eintraege || []);
       if (na.status === "fulfilled") setNachrichten(na.value?.eintraege || []);
       if (fr.status === "fulfilled") setFristen(fr.value?.eintraege || []);
