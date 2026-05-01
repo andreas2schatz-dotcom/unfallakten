@@ -875,6 +875,15 @@ export const apiTodos = {
 
 export const apiDashboard = {
   actionItems: () => request('/dashboard/action-items'),
+
+  onboardingOffen: () =>
+    request("/dashboard/onboarding-offen"),
+
+  nachrichtenNeu: () =>
+    request("/dashboard/nachrichten-neu"),
+
+  ramicroFristen: () =>
+    request("/dashboard/ramicro-fristen"),
 };
 
 // ── Einstellungen ─────────────────────────────────────────────────────────────
