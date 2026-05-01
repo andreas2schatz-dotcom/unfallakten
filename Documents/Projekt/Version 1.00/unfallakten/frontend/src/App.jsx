@@ -9,7 +9,7 @@ import { TopNav, TabBar } from "./components/layout.jsx";
 import { useBackend } from "./components/common.jsx";
 
 // Lazy-geladene Views — werden erst beim ersten Aufruf heruntergeladen
-const DashboardView        = lazy(() => import("./views/DashboardView.jsx"));
+const ActionBoardView      = lazy(() => import("./views/ActionBoardView.jsx"));
 const StatistikenView      = lazy(() => import("./views/StatistikenView.jsx"));
 const AktensucheView       = lazy(() => import("./views/AktensucheView.jsx"));
 const EmailImportView      = lazy(() => import("./views/EmailImportView.jsx"));
@@ -235,7 +235,7 @@ function AppShell({ user, onLogout }) {
             </div>
           }>
           <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-            {active==="dashboard"        ? <DashboardView onOpenAkte={openAkte} aktenState={aktenState} onNavigate={setActive} />
+            {active==="dashboard"        ? <ActionBoardView onOpenAkte={openAkte} />
             : active==="statistiken"     ? <StatistikenView />
             : active==="aktensuche"      ? <AktensucheView onOpenAkte={openAkte} />
             : active==="email-import"    ? <EmailImportView onOpenAkte={openAkte} dispatch={dispatch} />
