@@ -322,7 +322,7 @@ def _lade_onboarding_offen(conn):
           AND (b.id IS NULL
                OR b.iban IS NULL
                OR trim(b.iban) = '')
-        ORDER BY a.az DESC
+        ORDER BY a.erstellt_am DESC
         LIMIT 20
     """).fetchall()
     return [dict(r) for r in rows]
@@ -331,7 +331,7 @@ def _lade_onboarding_offen(conn):
 def _lade_nachrichten_neu(conn):
     """
     Letzte 20 E-Mails aus email_import_log, neueste zuerst.
-    Nur Mails mit bekannter Akte (akte_id IS NOT NULL).
+    Nur Mails mit bekannter Akte.
     """
     rows = conn.execute("""
         SELECT
@@ -342,7 +342,6 @@ def _lade_nachrichten_neu(conn):
             'email'        AS kanal
         FROM email_import_log e
         JOIN unfallakte a ON a.az = e.akte_id
-        WHERE e.akte_id IS NOT NULL
         ORDER BY e.empfangen_am DESC
         LIMIT 20
     """).fetchall()
