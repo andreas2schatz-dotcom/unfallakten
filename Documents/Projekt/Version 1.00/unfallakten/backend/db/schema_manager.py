@@ -1961,6 +1961,20 @@ def _run_migration_28(conn: sqlite3.Connection) -> None:
       aktivlegitimation_datum    TEXT DEFAULT NULL
         Format: DD.MM.YYYY – Datum der Freigabeerklärung (Fälle C+E)
     """
+    # Check if unfalldetails table exists
+    table_exists = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='unfalldetails'"
+    ).fetchone() is not None
+
+    if not table_exists:
+        # Table doesn't exist yet - skip migration
+        logger.warning("Migration 28: Tabelle unfalldetails existiert nicht, überspringe Migration.")
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+            "VALUES (28, 'Migration 28 - Aktivlegitimation in unfalldetails (PRD-24) - SKIPPED')"
+        )
+        return
+
     vorhandene = {row[1] for row in conn.execute(
         "PRAGMA table_info(unfalldetails)").fetchall()}
 
