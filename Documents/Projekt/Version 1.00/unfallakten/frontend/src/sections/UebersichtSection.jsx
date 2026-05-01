@@ -5,6 +5,7 @@ import { HAFTUNGSART_CFG, TIMELINE_FILTER, TIMELINE_TYPE_CFG, POSITION_LABELS_FE
 import { fmtEuro } from "../config/utils.js";
 import { Card, CardHead, Btn, Toast } from "../components/common.jsx";
 import StaDialog from "../components/StaDialog.jsx";
+import OnboardingHub from "./OnboardingHub";
 import {
   akten as apiAkten,
   forderungen as apiForderungen,
@@ -2430,6 +2431,15 @@ function UebersichtSection({ akte, st, dispatch, onNavigate }) {
 
   return (
     <>
+      <OnboardingHub
+        az={akte.az}
+        beteiligte={st?.beteiligte || []}
+        schaden={st?.schaden || {}}
+        dokumente={st?.dokumente || []}
+        aktivitaeten={st?.aktivitaeten || []}
+        onTabWechsel={onNavigate}
+      />
+
       {toast && <Toast msg={toast} onDone={() => setToast("")} />}
 
       {/* ── Action Board ── */}
