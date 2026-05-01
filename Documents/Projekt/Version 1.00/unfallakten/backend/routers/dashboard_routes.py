@@ -15,6 +15,9 @@ from flask import Blueprint, jsonify, g
 
 from ..auth.middleware import login_erforderlich
 from ..db.database import get_connection
+from ..ramicro.connector import (
+    get_ramicro_connection, RaMicroNichtAktiv, RaMicroVerbindungsFehler
+)
 
 logger = logging.getLogger(__name__)
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
@@ -362,3 +365,116 @@ def nachrichten_neu():
     """Neueste E-Mails kanzleiweit — für Action Board Nachrichten-Spalte."""
     with get_connection() as conn:
         return _j({"eintraege": _lade_nachrichten_neu(conn)})
+
+
+# ══════════════════════════════════════════════════════════════
+#  GET /dashboard/ramicro-fristen
+# ══════════════════════════════════════════════════════════════
+#
+#  RA-MICRO Tabellen (MS SQL Server, pymssql, read-only):
+#    tblAktenWiedervorlagen  — Wiedervorlagen / harte Fristen
+#      dtWiedervorlage        DATE    — Fälligkeitsdatum
+#      sWiedervorlagegrund    NVARCHAR — Fristen-Art als Text
+#      iWiedervorlageGrund    INT     — Fristen-Art als Code
+#      GUIDAkte               GUID    — Join → tblAkten
+#    tblAkten
+#      sAktenNummer           NVARCHAR — Aktenzeichen (ohne SB-Kürzel)
+#      sAktenSachbearbeiter   NVARCHAR — SB-Kürzel
+#      sMandant               NVARCHAR — Mandanten-Kurzname
+#      dtAblage               DATE    — NULL / '1899-12-30' = aktiv
+#
+#  Fristen-Codes (empirisch, s. wiedervorlage_service.py):
+#    75 = Fristablauf, 5/6/11/16 = Stellungnahme, 58 = Verhandlungstermin
+#    21 = Klage, 46 = Berufung, 31 = Mahnbescheid, 22 = Urteil
+
+def _lade_ramicro_fristen():
+    # type: () -> list
+    """
+    Liest harte Fristen aus RA-MICRO (tblAktenWiedervorlagen) für die
+    nächsten 60 Tage. Gibt leere Liste zurück wenn RA-MICRO nicht erreichbar.
+    """
+    try:
+        heute_dt = date.today()
+        bis_dt   = heute_dt + timedelta(days=60)
+        # MS SQL Server erwartet Datumsstring im Format YYYY-MM-DD
+        heute_s  = heute_dt.isoformat()
+        bis_s    = bis_dt.isoformat()
+
+        with get_ramicro_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT TOP 50
+                    a.sAktenNummer              AS az_roh,
+                    a.sAktenSachbearbeiter      AS az_sb,
+                    a.sMandant                  AS mandant,
+                    w.dtWiedervorlage           AS frist_datum,
+                    w.sWiedervorlagegrund       AS frist_art_text,
+                    w.iWiedervorlageGrund       AS frist_art_code
+                FROM tblAktenWiedervorlagen w
+                INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
+                WHERE CAST(w.dtWiedervorlage AS DATE) BETWEEN %(von)s AND %(bis)s
+                  AND (a.dtAblage IS NULL OR CAST(a.dtAblage AS DATE) = '1899-12-30')
+                ORDER BY w.dtWiedervorlage ASC
+            """, {"von": heute_s, "bis": bis_s})
+            rows = cur.fetchall()
+
+        # Fristen-Code → lesbarer Text (Fallback-Mapping)
+        _GRUENDE = {
+            5: "Stellungnahme Gegner", 6: "Stellungnahme Mandant",
+            9: "Entscheidung/Gericht", 11: "Stellungnahme Mandant",
+            16: "Stellungnahme Gegner?", 21: "Klage", 22: "Urteil",
+            23: "Vergleich", 31: "Mahnbescheid", 46: "Berufung",
+            51: "Einspruch", 54: "Widerspruch", 55: "Beschwerde",
+            58: "Verhandlungstermin", 60: "Anhörungstermin", 75: "Fristablauf",
+        }
+
+        ergebnis = []
+        for r in rows:
+            az_roh = (r.get("az_roh") or "").strip()
+            az_sb  = (r.get("az_sb")  or "").strip()
+            az     = az_roh + az_sb if az_sb and not az_roh.upper().endswith(az_sb.upper()) else az_roh
+
+            frist_art_text = (r.get("frist_art_text") or "").strip()
+            frist_art_code = r.get("frist_art_code")
+            if not frist_art_text and frist_art_code:
+                try:
+                    frist_art_text = _GRUENDE.get(int(frist_art_code), f"Grund {frist_art_code}")
+                except (ValueError, TypeError):
+                    frist_art_text = ""
+
+            # dtWiedervorlage kommt als datetime.date oder datetime.datetime
+            frist_raw = r.get("frist_datum")
+            try:
+                if hasattr(frist_raw, "date"):
+                    fd = frist_raw.date()
+                elif isinstance(frist_raw, str):
+                    fd = date.fromisoformat(str(frist_raw)[:10])
+                else:
+                    fd = frist_raw  # bereits date
+                frist_iso = fd.isoformat()
+                tage = (fd - heute_dt).days
+            except Exception:
+                frist_iso = str(frist_raw)[:10] if frist_raw else ""
+                tage = 99
+
+            ergebnis.append({
+                "az":         az,
+                "mandant":    (r.get("mandant") or "").strip(),
+                "frist_art":  frist_art_text,
+                "frist_datum": frist_iso,
+                "tage_bis":   tage,
+            })
+        return ergebnis
+
+    except (RaMicroNichtAktiv, RaMicroVerbindungsFehler):
+        return []
+    except Exception as e:
+        logger.warning("ramicro_fristen Fehler: %s", e)
+        return []
+
+
+@dashboard_bp.route("/ramicro-fristen", methods=["GET"])
+@login_erforderlich
+def ramicro_fristen():
+    """Harte RA-MICRO Wiedervorlagen/Fristen für die nächsten 60 Tage."""
+    return _j({"eintraege": _lade_ramicro_fristen()})
