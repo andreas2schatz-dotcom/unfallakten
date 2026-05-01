@@ -93,6 +93,20 @@ class TestDashboardUebersicht(unittest.TestCase):
         resp = self.client.get("/dashboard/nachrichten-neu")
         self.assertEqual(resp.status_code, 401)
 
+    def test_ramicro_fristen_gibt_liste_zurueck(self):
+        """Endpoint /dashboard/ramicro-fristen liefert eintraege-Liste (leer wenn RA-MICRO nicht verbunden)."""
+        headers = self._auth_header()
+        resp = self.client.get("/dashboard/ramicro-fristen", headers=headers)
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertIn("eintraege", data)
+        self.assertIsInstance(data["eintraege"], list)
+
+    def test_ramicro_fristen_ohne_token_401(self):
+        """Ohne Token sollte 401 zurückgegeben werden."""
+        resp = self.client.get("/dashboard/ramicro-fristen")
+        self.assertEqual(resp.status_code, 401)
+
 
 if __name__ == "__main__":
     unittest.main()
