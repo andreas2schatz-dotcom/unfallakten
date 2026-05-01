@@ -387,6 +387,16 @@ def nachrichten_neu():
 #    75 = Fristablauf, 5/6/11/16 = Stellungnahme, 58 = Verhandlungstermin
 #    21 = Klage, 46 = Berufung, 31 = Mahnbescheid, 22 = Urteil
 
+_RAMICRO_GRUENDE = {
+    5: "Stellungnahme Gegner", 6: "Stellungnahme Mandant",
+    9: "Entscheidung/Gericht", 11: "Stellungnahme Mandant",
+    16: "Stellungnahme Gegner?", 21: "Klage", 22: "Urteil",
+    23: "Vergleich", 31: "Mahnbescheid", 46: "Berufung",
+    51: "Einspruch", 54: "Widerspruch", 55: "Beschwerde",
+    58: "Verhandlungstermin", 60: "Anhörungstermin", 75: "Fristablauf",
+}
+
+
 def _lade_ramicro_fristen():
     # type: () -> list
     """
@@ -418,16 +428,6 @@ def _lade_ramicro_fristen():
             """, {"von": heute_s, "bis": bis_s})
             rows = cur.fetchall()
 
-        # Fristen-Code → lesbarer Text (Fallback-Mapping)
-        _GRUENDE = {
-            5: "Stellungnahme Gegner", 6: "Stellungnahme Mandant",
-            9: "Entscheidung/Gericht", 11: "Stellungnahme Mandant",
-            16: "Stellungnahme Gegner?", 21: "Klage", 22: "Urteil",
-            23: "Vergleich", 31: "Mahnbescheid", 46: "Berufung",
-            51: "Einspruch", 54: "Widerspruch", 55: "Beschwerde",
-            58: "Verhandlungstermin", 60: "Anhörungstermin", 75: "Fristablauf",
-        }
-
         ergebnis = []
         for r in rows:
             az_roh = (r.get("az_roh") or "").strip()
@@ -438,7 +438,7 @@ def _lade_ramicro_fristen():
             frist_art_code = r.get("frist_art_code")
             if not frist_art_text and frist_art_code:
                 try:
-                    frist_art_text = _GRUENDE.get(int(frist_art_code), f"Grund {frist_art_code}")
+                    frist_art_text = _RAMICRO_GRUENDE.get(int(frist_art_code), f"Grund {frist_art_code}")
                 except (ValueError, TypeError):
                     frist_art_text = ""
 
