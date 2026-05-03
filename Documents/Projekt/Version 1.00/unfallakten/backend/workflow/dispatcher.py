@@ -23,6 +23,8 @@ from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
+PARSER_MIN_KONFIDENZ = 0.70
+
 # ── Registry laden ─────────────────────────────────────────────────────────────
 
 _REGISTRY_PATH = os.path.join(
@@ -253,6 +255,113 @@ def _pruefe_duplikat(pdf_hash, akte_az):
 
 # ── Hauptfunktion ─────────────────────────────────────────────────────────────
 
+def _kopiere_parse_ergebnis(quell_dok_id, ziel_dok_id):
+    # type: (int, int) -> None
+    """Kopiert parse_json, parse_status, parse_konfidenz und dokumentenklasse
+    eines Duplikat-Dokuments, statt es neu zu parsen."""
+    try:
+        from ..db.database import get_connection
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT parse_json, parse_status, parse_konfidenz, dokumentenklasse "
+                "FROM dokumente WHERE id = ?",
+                (quell_dok_id,),
+            ).fetchone()
+            if row:
+                conn.execute(
+                    "UPDATE dokumente SET parse_json = ?, parse_status = ?, "
+                    "parse_konfidenz = ?, dokumentenklasse = ? WHERE id = ?",
+                    (row["parse_json"], row["parse_status"],
+                     row["parse_konfidenz"], row["dokumentenklasse"], ziel_dok_id),
+                )
+        logger.info(
+            "Parse-Ergebnis von Dok %d nach Dok %d kopiert.", quell_dok_id, ziel_dok_id
+        )
+    except Exception as e:
+        logger.warning("Parse-Ergebnis kopieren fehlgeschlagen: %s", e)
+
+
+def _entscheide_klasse(domain_treffer, registry_treffer, meta, dateipfad):
+    # type: (Optional[Dict], Optional[Dict], Any, str) -> tuple
+    """
+    Entscheidet Dokumentenklasse, Konfidenz und Stufe anhand von
+    Domain-Treffer, Registry-Treffer und Classifier-Ergebnis.
+    Gibt (klasse, konfidenz, stufe) zurueck.
+    """
+    klasse = None
+    konfidenz = 0.0
+    stufe = "unbekannt"
+
+    bester_treffer = domain_treffer or registry_treffer
+
+    if bester_treffer:
+        hat_konflikt = bester_treffer.get("konflikt", False)
+        reg_klasse = bester_treffer["klasse"]
+
+        if hat_konflikt:
+            logger.info(
+                "Konflikt-Aufloesung: Klassen=%s, Classifier sagt=%s (konf=%.2f), rg=%d sv_rg=%d",
+                bester_treffer.get("klassen_gefunden"),
+                meta.dokumenttyp, meta.konfidenz, meta.rg_score, meta.sv_rg_score,
+            )
+            if meta.dokumenttyp and meta.dokumenttyp != "unbekannt" and meta.konfidenz >= 0.30:
+                klasse = meta.dokumenttyp
+                konfidenz = max(meta.konfidenz, 0.75)
+                stufe = "registry_konflikt+classifier"
+            elif reg_klasse == "gutachten" and meta.dokumenttyp in ("sv_rechnung", "rechnung"):
+                klasse = "sv_rechnung"
+                konfidenz = max(meta.konfidenz, 0.80)
+                stufe = "registry_konflikt+classifier_sv_rechnung"
+            elif reg_klasse == "gutachten" and meta.rg_score >= 1:
+                klasse = "sv_rechnung"
+                konfidenz = 0.75
+                stufe = "registry_konflikt_rg_signal"
+            else:
+                klasse = reg_klasse
+                konfidenz = 0.60
+                stufe = "registry_konflikt_fallback"
+
+        elif reg_klasse == "versicherung":
+            if meta.dokumenttyp in ("abrechnungsschreiben", "pruefbericht"):
+                klasse = meta.dokumenttyp
+                konfidenz = max(meta.konfidenz, 0.85)
+                stufe = bester_treffer["stufe"] + "+classifier"
+            else:
+                klasse = "abrechnungsschreiben"
+                konfidenz = 0.70
+                stufe = bester_treffer["stufe"] + "_default"
+        else:
+            if reg_klasse == "gutachten" and (
+                meta.dokumenttyp in ("sv_rechnung", "rechnung")
+                or meta.rg_score >= 1
+            ):
+                klasse = "sv_rechnung"
+                konfidenz = max(meta.konfidenz, 0.85)
+                stufe = bester_treffer["stufe"] + "+classifier_sv_rechnung"
+            else:
+                klasse = reg_klasse
+                konfidenz = bester_treffer["konfidenz"]
+                stufe = bester_treffer["stufe"]
+
+    elif meta.dokumenttyp and meta.dokumenttyp != "unbekannt" and meta.konfidenz >= 0.60:
+        klasse = meta.dokumenttyp
+        konfidenz = meta.konfidenz
+        stufe = "classifier"
+
+    # Gutachten-Guard: nur PDFs koennen ein Gutachten sein
+    if klasse == "gutachten":
+        ext = os.path.splitext(dateipfad)[1].lower().lstrip(".")
+        if ext != "pdf":
+            logger.info(
+                "Gutachten-Klasse verworfen (.%s ist kein PDF) -> sonstiges.", ext,
+            )
+            klasse = "sonstiges"
+            konfidenz = 0.40
+            stufe = stufe + "_gutachten_nicht_pdf"
+
+    return klasse, konfidenz, stufe
+
+
 def dispatch_dokument(dok_id, akte_az, dateipfad, benutzer_id=None, absender_domain=None,
                       ocr_text_override=None):
     # type: (int, str, str, Optional[int], Optional[str], Optional[str]) -> Dict[str, Any]
@@ -293,16 +402,18 @@ def dispatch_dokument(dok_id, akte_az, dateipfad, benutzer_id=None, absender_dom
     duplikat = _pruefe_duplikat(pdf_hash, akte_az)
     if duplikat and duplikat["dok_id"] != dok_id:
         logger.info(
-            "Duplikat erkannt: Dok %d ist identisch mit Dok %d (%s)",
+            "Duplikat erkannt: Dok %d ist identisch mit Dok %d (%s) – Parse-Ergebnis kopiert.",
             dok_id, duplikat["dok_id"], duplikat["dateiname"],
         )
-        # Duplikat-Warnung speichern, aber trotzdem weiter parsen
-        _speichere_warnung(
-            dok_id,
-            "Duplikat: Identisch mit Dokument '%s' (ID %d)" % (
-                duplikat["dateiname"], duplikat["dok_id"]
-            ),
-        )
+        _kopiere_parse_ergebnis(duplikat["dok_id"], dok_id)
+        _logge_dispatch(dok_id, akte_az, duplikat["klasse"], 1.0, "duplikat", benutzer_id)
+        return {
+            "klasse": duplikat["klasse"],
+            "konfidenz": 1.0,
+            "stufe": "duplikat",
+            "parse_status": "kopiert",
+            "parse_ergebnis": None,
+        }
 
     # ── Text extrahieren ───────────────────────────────────────────────────
     if ocr_text_override is not None:
@@ -358,100 +469,12 @@ def dispatch_dokument(dok_id, akte_az, dateipfad, benutzer_id=None, absender_dom
     # ── Stufe 1b: classify_document() (bestehendes System) ────────────────
     meta = classify_document(norm_text, has_image_pages)
 
-    # ── Klassifikations-Entscheidung ───────────────────────────────────────
-    # Prioritaet: Domain-Absender (0.98) > Registry eindeutig (0.95)
-    #             > Registry+Classifier (0.85) > Classifier allein (0.60+)
-    klasse = None
-    konfidenz = 0.0
-    stufe = "unbekannt"
     versicherer_kuerzel = meta.versicherer_kuerzel
     pruefdienstleister = meta.pruefdienstleister
 
-    # Besten Treffer waehlen (Domain-Absender hat Vorrang vor Text-Registry)
-    bester_treffer = domain_treffer or registry_treffer
-
-    if bester_treffer:
-        hat_konflikt = bester_treffer.get("konflikt", False)
-        reg_klasse = bester_treffer["klasse"]
-
-        if hat_konflikt:
-            # Mehrere Klassen im Text gefunden (z.B. SV-Name + Versicherer)
-            # → classify_document() entscheidet anhand von Kontext-Keywords
-            logger.info(
-                "Konflikt-Aufloesung: Klassen=%s, Classifier sagt=%s (konf=%.2f), rg=%d sv_rg=%d",
-                bester_treffer.get("klassen_gefunden"),
-                meta.dokumenttyp, meta.konfidenz, meta.rg_score, meta.sv_rg_score,
-            )
-            if meta.dokumenttyp and meta.dokumenttyp != "unbekannt" and meta.konfidenz >= 0.30:
-                klasse = meta.dokumenttyp
-                konfidenz = max(meta.konfidenz, 0.75)
-                stufe = "registry_konflikt+classifier"
-            elif reg_klasse == "gutachten" and meta.dokumenttyp in ("sv_rechnung", "rechnung"):
-                # Classifier hat Rechnungs-Typ erkannt, aber Konfidenz < 0.30
-                klasse = "sv_rechnung"
-                konfidenz = max(meta.konfidenz, 0.80)
-                stufe = "registry_konflikt+classifier_sv_rechnung"
-            elif reg_klasse == "gutachten" and meta.rg_score >= 1:
-                # Kein expliziter Rechnungs-Typ, aber mind. 1 Rechnungs-Signal im Text
-                # + Registry kennt den Absender als SV-Büro → Honorarrechnung
-                klasse = "sv_rechnung"
-                konfidenz = 0.75
-                stufe = "registry_konflikt_rg_signal"
-            else:
-                # Classifier auch unsicher → laengsten Marker nehmen
-                klasse = reg_klasse
-                konfidenz = 0.60
-                stufe = "registry_konflikt_fallback"
-
-        elif reg_klasse == "versicherung":
-            # Versicherer erkannt, aber: Abrechnungsschreiben oder Pruefbericht?
-            # classify_document() entscheidet
-            if meta.dokumenttyp in ("abrechnungsschreiben", "pruefbericht"):
-                klasse = meta.dokumenttyp
-                konfidenz = max(meta.konfidenz, 0.85)
-                stufe = bester_treffer["stufe"] + "+classifier"
-            else:
-                # Classifier unsicher, aber Versicherer bekannt
-                klasse = "abrechnungsschreiben"  # Default fuer Versicherungspost
-                konfidenz = 0.70
-                stufe = bester_treffer["stufe"] + "_default"
-        else:
-            # Eindeutige Klasse aus Registry (gutachten, reparaturrechnung, etc.)
-            # Sonderfall: Registry sagt "gutachten", Classifier erkennt eine Rechnung
-            # → Dokument ist eine SV-Honorarrechnung (nicht das Gutachten selbst)
-            # Gilt für sv_rechnung/rechnung UND für Dokumente bei denen mind. 1
-            # Rechnungs-Signal gefunden wurde (z.B. "IBAN", "Nettobetrag") –
-            # auch wenn der Classifier am Ende "gutachten" gewählt hat, weil das
-            # Dokument "Gutachten" im Text erwähnt (typisch: "Rechnung für Gutachten...")
-            if reg_klasse == "gutachten" and (
-                meta.dokumenttyp in ("sv_rechnung", "rechnung")
-                or meta.rg_score >= 1
-            ):
-                klasse = "sv_rechnung"
-                konfidenz = max(meta.konfidenz, 0.85)
-                stufe = bester_treffer["stufe"] + "+classifier_sv_rechnung"
-            else:
-                klasse = reg_klasse
-                konfidenz = bester_treffer["konfidenz"]
-                stufe = bester_treffer["stufe"]
-
-    elif meta.dokumenttyp and meta.dokumenttyp != "unbekannt" and meta.konfidenz >= 0.60:
-        # Kein Registry-Treffer, aber classify_document() hat erkannt
-        klasse = meta.dokumenttyp
-        konfidenz = meta.konfidenz
-        stufe = "classifier"
-
-    # ── Gutachten-Guard: nur PDFs können ein Gutachten sein ───────────────
-    if klasse == "gutachten":
-        ext = os.path.splitext(dateipfad)[1].lower().lstrip(".")
-        if ext != "pdf":
-            logger.info(
-                "Dok %d: Gutachten-Klasse verworfen (.%s ist kein PDF) → sonstiges.",
-                dok_id, ext,
-            )
-            klasse = "sonstiges"
-            konfidenz = 0.40
-            stufe = stufe + "_gutachten_nicht_pdf"
+    klasse, konfidenz, stufe = _entscheide_klasse(
+        domain_treffer, registry_treffer, meta, dateipfad
+    )
 
     # ── Stufe 3: Eskalation ────────────────────────────────────────────────
     if not klasse:
@@ -471,22 +494,26 @@ def dispatch_dokument(dok_id, akte_az, dateipfad, benutzer_id=None, absender_dom
 
     # ── Parser ausfuehren ──────────────────────────────────────────────────
     parse_ergebnis = None
-    parse_status = "erfolgreich"
+    parse_status = "ausstehend"
 
-    try:
-        parse_ergebnis = _fuehre_parser_aus(
-            klasse, norm_text, meta,
-            versicherer_kuerzel=versicherer_kuerzel,
-            pruefdienstleister=pruefdienstleister,
-            has_image_pages=has_image_pages,
+    if konfidenz >= PARSER_MIN_KONFIDENZ:
+        try:
+            parse_ergebnis = _fuehre_parser_aus(
+                klasse, norm_text, meta,
+                versicherer_kuerzel=versicherer_kuerzel,
+                pruefdienstleister=pruefdienstleister,
+                has_image_pages=has_image_pages,
+            )
+            parse_status = "erfolgreich" if parse_ergebnis is not None else "ausstehend"
+        except Exception as e:
+            logger.error("Parser-Fehler fuer Dok %d (klasse=%s): %s", dok_id, klasse, e, exc_info=True)
+            parse_status = "fehlgeschlagen"
+            parse_ergebnis = {"fehler": str(e)}
+    else:
+        logger.info(
+            "Dok %d: Konfidenz %.2f < %.2f – Parser uebersprungen (klasse=%s).",
+            dok_id, konfidenz, PARSER_MIN_KONFIDENZ, klasse,
         )
-    except Exception as e:
-        logger.error("Parser-Fehler fuer Dok %d (klasse=%s): %s", dok_id, klasse, e, exc_info=True)
-        parse_status = "fehlgeschlagen"
-        parse_ergebnis = {"fehler": str(e)}
-
-    if parse_ergebnis is None:
-        parse_status = "ausstehend"  # Klasse erkannt, aber kein Parser verfuegbar
 
     # ── Ergebnis persistieren ──────────────────────────────────────────────
     ergebnis_json = json.dumps(parse_ergebnis, ensure_ascii=False) if parse_ergebnis else None
@@ -509,6 +536,169 @@ def dispatch_dokument(dok_id, akte_az, dateipfad, benutzer_id=None, absender_dom
     }
 
 
+# ── Parser-Wrapper ────────────────────────────────────────────────────────────
+
+def _llm_aktiv():
+    # type: () -> bool
+    """Prueft ob LLM-Parsing aktiviert ist (Env + DB)."""
+    import os as _os
+    if _os.environ.get("LLM_ENABLED", "false").strip().lower() != "true":
+        return False
+    try:
+        from ..db.database import get_connection as _get_conn
+        with _get_conn() as _c:
+            _row = _c.execute(
+                "SELECT wert FROM konfiguration WHERE schluessel='llm_parsing_enabled'"
+            ).fetchone()
+            return (_row["wert"] == "true") if _row else False
+    except Exception:
+        return False
+
+
+def _parse_abrechnungsschreiben(norm_text, meta, versicherer_kuerzel,
+                                pruefdienstleister, has_image_pages):
+    # type: (str, Any, Optional[str], Optional[str], bool) -> Dict
+    from ..parsers.abrechnungsschreiben_parser import parse_abrechnungsschreiben
+    r = parse_abrechnungsschreiben(norm_text, versicherer_kuerzel, llm_aktiv=_llm_aktiv())
+    positionen = [
+        {
+            "art": p.art, "bezeichnung": p.bezeichnung,
+            "betrag_brutto": p.betrag_brutto, "betrag_netto": p.betrag_netto,
+            "mwst_betrag": p.mwst_betrag, "pruefbericht_abzug": p.pruefbericht_abzug,
+            "hinweis": p.hinweis, "konfidenz": round(p.konfidenz, 3),
+        }
+        for p in r.positionen
+    ]
+    zahlungen = [
+        {
+            "empfaenger": z.empfaenger, "betrag": z.betrag,
+            "datum": z.datum, "konto_hinweis": z.konto_hinweis,
+        }
+        for z in r.zahlungen
+    ]
+    return {
+        "dokumenttyp":      "abrechnungsschreiben",
+        "abrechnungsart":   r.abrechnungsart,
+        "gesamtbetrag":     r.gesamtbetrag,
+        "mwst_hinweis":     r.mwst_hinweis,
+        "positionen":       positionen,
+        "zahlungen":        zahlungen,
+        "parse_konfidenz":  round(r.konfidenz, 3),
+        "llm_verwendet":    r.llm_verwendet,
+        "llm_konflikt":     r.llm_konflikt,
+        "llm_gesamtbetrag": r.llm_gesamtbetrag,
+        "llm_positionen":   r.llm_positionen,
+        "warnungen":        [w for w in r.warnungen if "LLM" not in w],
+    }
+
+
+def _parse_pruefbericht(norm_text, meta, versicherer_kuerzel,
+                        pruefdienstleister, has_image_pages):
+    # type: (str, Any, Optional[str], Optional[str], bool) -> Dict
+    from ..parsers.pruefbericht_parser import parse_pruefbericht
+    r = parse_pruefbericht(norm_text, pruefdienstleister, has_image_pages)
+    ref_ws = None
+    if r.referenzwerkstatt:
+        w = r.referenzwerkstatt
+        ref_ws = {
+            "name": w.name, "adresse": w.adresse, "plz_ort": w.plz_ort,
+            "entfernung_km": w.entfernung_km,
+            "lohn_mechanik": w.lohn_mechanik, "lohn_elektrik": w.lohn_elektrik,
+            "lohn_karosserie": w.lohn_karosserie, "lohn_lack": w.lohn_lack,
+        }
+    return {
+        "dokumenttyp":                        "pruefbericht",
+        "pruefdienstleister":                 r.pruefdienstleister,
+        "vorgangsnummer":                     r.vorgangsnummer,
+        "reparaturkosten_netto_vor_pruefung": r.reparaturkosten_netto_vor_pruefung,
+        "abzug_technisch":                    r.abzug_technisch,
+        "abzug_werkstattalternative":         r.abzug_werkstattalternative,
+        "abzug_gesamt":                       r.abzug_gesamt,
+        "reparaturkosten_nach_pruefung":      r.reparaturkosten_nach_pruefung,
+        "referenzwerkstatt":                  ref_ws,
+        "ist_image_pdf":                      r.ist_image_pdf,
+        "parse_konfidenz":                    round(r.konfidenz, 3),
+        "warnungen":                          r.warnungen,
+    }
+
+
+def _parse_gutachten(norm_text, meta, versicherer_kuerzel,
+                     pruefdienstleister, has_image_pages):
+    # type: (str, Any, Optional[str], Optional[str], bool) -> Dict
+    from ..parsers.gutachten_parser import parse_gutachten
+    r = parse_gutachten(norm_text, pruefdienstleister, llm_aktiv=_llm_aktiv())
+    fz = r.fahrzeug
+    return {
+        "dokumenttyp":    "gutachten",
+        "sv_buero":       r.sv_buero,
+        "gutachter":      r.gutachter,
+        "auftragsnummer": r.auftragsnummer,
+        "fahrzeug": {
+            "hersteller": fz.hersteller, "typ": fz.typ,
+            "kennzeichen": fz.kennzeichen, "erstzulassung": fz.erstzulassung,
+            "kilometerstand": fz.kilometerstand, "farbe": fz.farbe, "vin": fz.vin,
+        },
+        "schadenart":                   r.schadenart,
+        "abrechnungsart":               r.abrechnungsart,
+        "wirtschaftlicher_totalschaden": r.wirtschaftlicher_totalschaden,
+        "reparaturkosten_netto":        r.reparaturkosten_netto,
+        "nutzungsausfall_tagessatz":    r.nutzungsausfall_tagessatz,
+        "nutzungsausfall_tage":         r.nutzungsausfall_tage,
+        "schadenpositionen": {
+            "reparaturkosten":    r.reparaturkosten_netto or r.reparaturkosten_brutto,
+            "rep_gutachten_netto": r.reparaturkosten_netto,
+            "wiederbeschaffung":  r.wiederbeschaffungswert,
+            "restwert":           r.restwert,
+            "wertminderung":      r.wertminderung,
+            "nutzungsausfall":    r.nutzungsausfall_gesamt,
+            "sv_kosten":          r.sv_kosten_netto or r.sv_kosten_brutto,
+            "sv_kosten_netto":    r.sv_kosten_netto,
+        },
+        "parse_konfidenz":                r.konfidenz,
+        "warnungen":                      r.warnungen,
+        "llm_verwendet":                  r.llm_verwendet,
+        "llm_konflikt":                   r.llm_konflikt,
+        "llm_wbw":                        r.llm_wbw,
+        "llm_restwert":                   r.llm_restwert,
+        "llm_reparaturkosten_netto":      r.llm_reparaturkosten_netto,
+        "llm_wertminderung":              r.llm_wertminderung,
+        "llm_nutzungsausfall_tagessatz":  r.llm_nutzungsausfall_tagessatz,
+        "llm_nutzungsausfall_tage":       r.llm_nutzungsausfall_tage,
+        "llm_sv_kosten_netto":            r.llm_sv_kosten_netto,
+        "llm_schadenart":                 r.llm_schadenart,
+    }
+
+
+def _parse_rechnung(norm_text, meta, versicherer_kuerzel,
+                    pruefdienstleister, has_image_pages):
+    # type: (str, Any, Optional[str], Optional[str], bool) -> Dict
+    from ..parsers.rechnung_parser import parse_rechnung
+    r = parse_rechnung(norm_text)
+    return {
+        "dokumenttyp":     meta.dokumenttyp if meta and meta.dokumenttyp else "rechnung",
+        "nettobetrag":     r.nettobetrag,
+        "mwst_betrag":     r.mwst_betrag,
+        "bruttobetrag":    r.bruttobetrag,
+        "rechnungsnummer": r.rechnungsnummer,
+        "rechnungsdatum":  r.rechnungsdatum,
+        "parse_konfidenz": round(r.konfidenz, 3),
+        "warnungen":       r.warnungen,
+    }
+
+
+# Klasse -> Parser-Funktion
+_PARSER_MAP = {
+    "abrechnungsschreiben": _parse_abrechnungsschreiben,
+    "pruefbericht":         _parse_pruefbericht,
+    "gutachten":            _parse_gutachten,
+    "sv_rechnung":          _parse_rechnung,
+    "rechnung":             _parse_rechnung,
+    "reparaturrechnung":    _parse_rechnung,
+    "mietwagenrechnung":    _parse_rechnung,
+    "werkstattrechnung":    _parse_rechnung,
+}
+
+
 # ── Parser-Routing ─────────────────────────────────────────────────────────────
 
 def _fuehre_parser_aus(klasse, norm_text, meta, versicherer_kuerzel=None,
@@ -517,166 +707,13 @@ def _fuehre_parser_aus(klasse, norm_text, meta, versicherer_kuerzel=None,
     """
     Ruft den passenden Parser auf.
     Gibt strukturiertes Ergebnis-Dict zurueck oder None wenn kein Parser existiert.
+    Neuen Parser registrieren: Eintrag in _PARSER_MAP hinzufuegen.
     """
-
-    if klasse == "abrechnungsschreiben":
-        from ..parsers.abrechnungsschreiben_parser import parse_abrechnungsschreiben
-        import os as _os
-        from ..db.database import get_connection as _get_conn
-        _env_on = _os.environ.get("LLM_ENABLED", "false").strip().lower() == "true"
-        _db_on  = False
-        if _env_on:
-            with _get_conn() as _c:
-                _row = _c.execute(
-                    "SELECT wert FROM konfiguration WHERE schluessel='llm_parsing_enabled'"
-                ).fetchone()
-                _db_on = (_row["wert"] == "true") if _row else False
-        r = parse_abrechnungsschreiben(norm_text, versicherer_kuerzel, llm_aktiv=_env_on and _db_on)
-        positionen = []
-        for p in r.positionen:
-            positionen.append({
-                "art": p.art,
-                "bezeichnung": p.bezeichnung,
-                "betrag_brutto": p.betrag_brutto,
-                "betrag_netto": p.betrag_netto,
-                "mwst_betrag": p.mwst_betrag,
-                "pruefbericht_abzug": p.pruefbericht_abzug,
-                "hinweis": p.hinweis,
-                "konfidenz": round(p.konfidenz, 3),
-            })
-        zahlungen = []
-        for z in r.zahlungen:
-            zahlungen.append({
-                "empfaenger": z.empfaenger,
-                "betrag": z.betrag,
-                "datum": z.datum,
-                "konto_hinweis": z.konto_hinweis,
-            })
-        return {
-            "dokumenttyp": "abrechnungsschreiben",
-            "abrechnungsart": r.abrechnungsart,
-            "gesamtbetrag": r.gesamtbetrag,
-            "mwst_hinweis": r.mwst_hinweis,
-            "positionen": positionen,
-            "zahlungen": zahlungen,
-            "parse_konfidenz": round(r.konfidenz, 3),
-            "llm_verwendet":    r.llm_verwendet,
-            "llm_konflikt":     r.llm_konflikt,
-            "llm_gesamtbetrag": r.llm_gesamtbetrag,
-            "llm_positionen":   r.llm_positionen,
-            "warnungen": [w for w in r.warnungen if "LLM" not in w],
-        }
-
-    elif klasse == "pruefbericht":
-        from ..parsers.pruefbericht_parser import parse_pruefbericht
-        r = parse_pruefbericht(norm_text, pruefdienstleister, has_image_pages)
-        ref_ws = None
-        if r.referenzwerkstatt:
-            w = r.referenzwerkstatt
-            ref_ws = {
-                "name": w.name,
-                "adresse": w.adresse,
-                "plz_ort": w.plz_ort,
-                "entfernung_km": w.entfernung_km,
-                "lohn_mechanik": w.lohn_mechanik,
-                "lohn_elektrik": w.lohn_elektrik,
-                "lohn_karosserie": w.lohn_karosserie,
-                "lohn_lack": w.lohn_lack,
-            }
-        return {
-            "dokumenttyp": "pruefbericht",
-            "pruefdienstleister": r.pruefdienstleister,
-            "vorgangsnummer": r.vorgangsnummer,
-            "reparaturkosten_netto_vor_pruefung": r.reparaturkosten_netto_vor_pruefung,
-            "abzug_technisch": r.abzug_technisch,
-            "abzug_werkstattalternative": r.abzug_werkstattalternative,
-            "abzug_gesamt": r.abzug_gesamt,
-            "reparaturkosten_nach_pruefung": r.reparaturkosten_nach_pruefung,
-            "referenzwerkstatt": ref_ws,
-            "ist_image_pdf": r.ist_image_pdf,
-            "parse_konfidenz": round(r.konfidenz, 3),
-            "warnungen": r.warnungen,
-        }
-
-    elif klasse == "gutachten":
-        from ..parsers.gutachten_parser import parse_gutachten
-        import os as _os
-        from ..db.database import get_connection as _get_conn
-        _env_on = _os.environ.get("LLM_ENABLED", "false").strip().lower() == "true"
-        _db_on  = False
-        if _env_on:
-            with _get_conn() as _c:
-                _row = _c.execute(
-                    "SELECT wert FROM konfiguration WHERE schluessel='llm_parsing_enabled'"
-                ).fetchone()
-                _db_on = (_row["wert"] == "true") if _row else False
-        r = parse_gutachten(norm_text, pruefdienstleister, llm_aktiv=_env_on and _db_on)
-        fz = r.fahrzeug
-        return {
-            "dokumenttyp": "gutachten",
-            "sv_buero": r.sv_buero,
-            "gutachter": r.gutachter,
-            "auftragsnummer": r.auftragsnummer,
-            "fahrzeug": {
-                "hersteller": fz.hersteller,
-                "typ": fz.typ,
-                "kennzeichen": fz.kennzeichen,
-                "erstzulassung": fz.erstzulassung,
-                "kilometerstand": fz.kilometerstand,
-                "farbe": fz.farbe,
-                "vin": fz.vin,
-            },
-            "schadenart": r.schadenart,
-            "abrechnungsart": r.abrechnungsart,
-            "wirtschaftlicher_totalschaden": r.wirtschaftlicher_totalschaden,
-            # Rohe Beträge für LLM-Vergleich im Frontend
-            "reparaturkosten_netto":       r.reparaturkosten_netto,
-            "nutzungsausfall_tagessatz":    r.nutzungsausfall_tagessatz,
-            "nutzungsausfall_tage":         r.nutzungsausfall_tage,
-            "schadenpositionen": {
-                "reparaturkosten": r.reparaturkosten_netto or r.reparaturkosten_brutto,
-                "rep_gutachten_netto": r.reparaturkosten_netto,
-                "wiederbeschaffung": r.wiederbeschaffungswert,
-                "restwert": r.restwert,
-                "wertminderung": r.wertminderung,
-                "nutzungsausfall": r.nutzungsausfall_gesamt,
-                "sv_kosten": r.sv_kosten_netto or r.sv_kosten_brutto,
-                "sv_kosten_netto": r.sv_kosten_netto,
-            },
-            "parse_konfidenz": r.konfidenz,
-            "warnungen": r.warnungen,
-            # LLM Shadow-Mode (PRD-31)
-            "llm_verwendet":              r.llm_verwendet,
-            "llm_konflikt":               r.llm_konflikt,
-            "llm_wbw":                    r.llm_wbw,
-            "llm_restwert":               r.llm_restwert,
-            "llm_reparaturkosten_netto":  r.llm_reparaturkosten_netto,
-            "llm_wertminderung":          r.llm_wertminderung,
-            "llm_nutzungsausfall_tagessatz": r.llm_nutzungsausfall_tagessatz,
-            "llm_nutzungsausfall_tage":   r.llm_nutzungsausfall_tage,
-            "llm_sv_kosten_netto":        r.llm_sv_kosten_netto,
-            "llm_schadenart":             r.llm_schadenart,
-        }
-
-    elif klasse in ("sv_rechnung", "rechnung", "reparaturrechnung",
-                    "mietwagenrechnung", "werkstattrechnung"):
-        from ..parsers.rechnung_parser import parse_rechnung
-        r = parse_rechnung(norm_text)
-        return {
-            "dokumenttyp": klasse,
-            "nettobetrag":   r.nettobetrag,
-            "mwst_betrag":   r.mwst_betrag,
-            "bruttobetrag":  r.bruttobetrag,
-            "rechnungsnummer": r.rechnungsnummer,
-            "rechnungsdatum":  r.rechnungsdatum,
-            "parse_konfidenz": round(r.konfidenz, 3),
-            "warnungen":     r.warnungen,
-        }
-
-    else:
-        # Klasse erkannt, aber noch kein Parser implementiert
+    parser_fn = _PARSER_MAP.get(klasse)
+    if parser_fn is None:
         logger.info("Kein Parser fuer klasse=%s – nur Klassifikation gespeichert.", klasse)
         return None
+    return parser_fn(norm_text, meta, versicherer_kuerzel, pruefdienstleister, has_image_pages)
 
 
 # ── Klassifikation korrigieren (Feedback-Loop) ─────────────────────────────────

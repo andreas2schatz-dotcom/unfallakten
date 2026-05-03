@@ -401,14 +401,14 @@ def _lade_ramicro_fristen():
     # type: () -> list
     """
     Liest harte Fristen aus RA-MICRO (tblAktenWiedervorlagen) für die
-    nächsten 60 Tage. Gibt leere Liste zurück wenn RA-MICRO nicht erreichbar.
+    letzten 7 Tage bis heute. Gibt leere Liste zurück wenn RA-MICRO nicht erreichbar.
     """
     try:
         heute_dt = date.today()
-        bis_dt   = heute_dt + timedelta(days=60)
+        von_dt   = heute_dt - timedelta(days=7)
         # MS SQL Server erwartet Datumsstring im Format YYYY-MM-DD
+        von_s    = von_dt.isoformat()
         heute_s  = heute_dt.isoformat()
-        bis_s    = bis_dt.isoformat()
 
         with get_ramicro_connection() as conn:
             cur = conn.cursor()
@@ -424,8 +424,8 @@ def _lade_ramicro_fristen():
                 INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
                 WHERE CAST(w.dtWiedervorlage AS DATE) BETWEEN %(von)s AND %(bis)s
                   AND (a.dtAblage IS NULL OR CAST(a.dtAblage AS DATE) = '1899-12-30')
-                ORDER BY w.dtWiedervorlage ASC
-            """, {"von": heute_s, "bis": bis_s})
+                ORDER BY w.dtWiedervorlage DESC
+            """, {"von": von_s, "bis": heute_s})
             rows = cur.fetchall()
 
         ergebnis = []

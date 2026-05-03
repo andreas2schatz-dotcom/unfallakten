@@ -35,8 +35,9 @@ function heuteISO() {
 //  Sub-Komponente: Fristen-Spalte (RA-MICRO)
 // ════════════════════════════════════════════════════════════════
 function FristenSpalte({ fristen, onOpenAkte }) {
-  const bg   = (t) => t <= 14 ? T.redBg   : t <= 30 ? T.amberBg   : T.greenBg;
-  const col  = (t) => t <= 14 ? T.red     : t <= 30 ? T.amber     : T.green;
+  const bg  = (t) => t === 0 ? T.amberBg : T.redBg;
+  const col = (t) => t === 0 ? T.amber   : T.red;
+  const tageLabel = (t) => t === 0 ? "heute" : `vor ${Math.abs(t)} Tag${Math.abs(t) !== 1 ? "en" : ""}`;
 
   return (
     <div style={{ borderRight: `1px solid ${T.border}`, padding: 12, overflowY: "auto", background: T.surface }}>
@@ -61,7 +62,7 @@ function FristenSpalte({ fristen, onOpenAkte }) {
             </div>
             <div style={{ fontSize: "0.75rem", color: "#475569", marginTop: 2 }}>{f.frist_art}</div>
             <div style={{ fontSize: "0.8rem", fontWeight: 700, color: col(f.tage_bis), marginTop: 3 }}>
-              {f.frist_datum} · {f.tage_bis} Tage
+              {f.frist_datum} · {tageLabel(f.tage_bis)}
             </div>
           </div>
         ))
@@ -360,7 +361,7 @@ export default function ActionBoardView({ onOpenAkte }) {
           Lade…
         </div>
       ) : (
-        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "220px 1fr 300px", overflow: "hidden" }}>
+        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "220px 1fr 2fr", overflow: "hidden" }}>
           <FristenSpalte     fristen={fristen}                                    onOpenAkte={oeffneAkte} />
           <HandlungSpalte    wvFaellig={wvFaellig} onboardingOffen={onboardingOffen} onOpenAkte={oeffneAkte} />
           <NachrichtenSpalte nachrichten={nachrichten}                             onOpenAkte={oeffneAkte} />

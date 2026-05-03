@@ -1,7 +1,8 @@
 """
-Hilfsfunktionen für PDF-Textextraktion und -vorverarbeitung.
+Hilfsfunktionen fuer PDF-Textextraktion und -vorverarbeitung.
 """
 import re
+import unicodedata
 import pdfplumber
 from typing import Optional
 
@@ -38,19 +39,38 @@ def extract_text_from_pdf(pdf_path: str) -> tuple[str, list[str], bool]:
 
 def normalize_text(text: str) -> str:
     """
-    Bereinigt PDF-Extraktionsartefakte:
-    - Entfernt 'new_line' Artefakte (Allianz Direct)
-    - Normalisiert Whitespace
-    - Entfernt Seitenköpfe/-füße
+    Bereinigt PDF-Extraktionsartefakte fuer Registry-Lookup, Classifier und Parser.
+
+    Reihenfolge ist bewusst gewaehlt:
+    1. Zeilenenden zuerst, damit nachfolgende Newline-Regeln konsistent greifen
+    2. Allianz-Direct-Artefakt vor Unicode-Normalisierung
+    3. NFKC loest Ligaturen auf (fi, fl, ff, ffi) - verbessert Registry-Trefferrate
+    4. Unsichtbare Zeichen nach NFKC, da NFKC diese nicht entfernt
+    5. Whitespace und Leerzeilen am Ende
     """
-    # Allianz Direct: literal "new_line" im Text
+    # 1. Zeilenenden vereinheitlichen (\r\n und \r -> \n)
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+
+    # 2. Allianz Direct: literal "new_line" im Text statt echtem Zeilenumbruch
     text = text.replace("new_line", "\n")
 
-    # Mehrfache Leerzeichen normalisieren
+    # 3. Form-Feed-Zeichen (Seitenumbruch-Artefakt mancher PDF-Bibliotheken)
+    text = text.replace("\f", "\n")
+
+    # 4. Unicode-Normalisierung: Ligaturen aufloesen (fi, fl, ff, ffi)
+    text = unicodedata.normalize("NFKC", text)
+
+    # 5. Unsichtbare Zeichen - NFKC laesst diese unveraendert
+    text = text.replace("\xad", "")           # Soft Hyphen
+    text = text.replace(" ", " ")        # Non-breaking Space
+    text = text.replace("\t", " ")            # Tab (Spalten-Layout)
+    text = re.sub(r"[​‌‍﻿]", "", text)  # Zero-Width-Zeichen
+
+    # 6. Mehrfache Leerzeichen -> ein Leerzeichen
     text = re.sub(r" {2,}", " ", text)
 
-    # Seitenumbruch-Artefakte
-    text = re.sub(r"\f", "\n", text)
+    # 7. Mehrfache Leerzeilen -> maximal zwei (Absatzstruktur fuer LLM erhalten)
+    text = re.sub(r"\n{3,}", "\n\n", text)
 
     return text
 
@@ -58,8 +78,8 @@ def normalize_text(text: str) -> str:
 def parse_betrag(betrag_str: str) -> Optional[float]:
     """
     Parst einen deutschen Geldbetragsstring zu float.
-    Unterstützt: '1.234,56', '1234,56', '1,234.56', '1234.56'
-    Ignoriert negative Vorzeichen (Abzüge werden separat behandelt).
+    Unterstuetzt: '1.234,56', '1234,56', '1,234.56', '1234.56'
+    Ignoriert negative Vorzeichen (Abzuege werden separat behandelt).
     """
     if not betrag_str:
         return None
@@ -95,8 +115,8 @@ def parse_betrag(betrag_str: str) -> Optional[float]:
 def find_betrag_near_label(text: str, label_pattern: str,
                             search_window: int = 150) -> Optional[float]:
     """
-    Sucht einen Geldbetrag in der Nähe eines Labels.
-    Gibt den ersten gefundenen Betrag nach dem Label zurück.
+    Sucht einen Geldbetrag in der Naehe eines Labels.
+    Gibt den ersten gefundenen Betrag nach dem Label zurueck.
     """
     betrag_re = re.compile(
         r"(-?\s*[\d]{1,3}(?:[.,]\d{3})*[.,]\d{2})\s*(?:EUR|€)?",
@@ -115,7 +135,7 @@ def find_betrag_near_label(text: str, label_pattern: str,
 
 def find_all_betraege(text: str) -> list[tuple[int, float]]:
     """
-    Findet alle Geldbeträge im Text mit ihrer Position.
+    Findet alle Geldbetraege im Text mit ihrer Position.
     Returns: Liste von (position, wert)
     """
     pattern = re.compile(
