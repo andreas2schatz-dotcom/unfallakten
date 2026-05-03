@@ -39,6 +39,7 @@
 | Regulierungs-Workflow Option B | 5 Phasen, Legacy-regulierung deprecated, Delete-Bug v14c gefixt | (aus: handover/backlog.md) |
 | KI-Parsing Regulierungsschreiben | Qwen Shadow-Mode, Modell-Switcher UI, Few-Shot, Datum-Fix | (aus: handover/backlog.md) |
 | Action Board Global + OnboardingHub | ActionBoardView (3 Spalten), OnboardingHub (7 Kacheln) | (aus: session_handover_v56.md) |
+| PRD-22c | Mandanten-Fragebogen: E-Mail-Parser, fragebogen_parser.py, DB-Tabelle fragebogen_erstkontakt, Verarbeitungslogik, Frontend (FragebogenErstkontaktKarte.jsx). Ausstehend: Website-Formular + PRD-22d (Akte-Anlage). | (Code-Prüfung 2026-05-03) |
 | B-08 | Netto/Brutto bei Vorsteuer-Mandant | (aus: session_handover_v38.md, v33) |
 | B-09 | Gegenstandswert + fehlende Schadenspositionen | (aus: session_handover_v38.md, v34) |
 
@@ -88,19 +89,10 @@ PRD vorhanden: `handover/PRD-25c_Mandantenkommunikation.md`
 
 ### Priorität: Mittel
 
-**PRD-22c – Mandanten-Fragebogen Session 4–5**
-Sessions 1–3 (Backend, Bestehende-Akte-Flow, Neuer-Mandant-Stub) lt. Handover v56 noch ausstehend. Session 4: Frontend `fragebogen_erstkontakt`-Liste in EmailImportView. Session 5: Tests + Abnahme.
-PRD vorhanden: `handover/PRD-22c_Mandanten_Fragebogen.md`
-(aus: session_handover_v56.md — Status konfliktiert mit backlog.md, siehe ❓)
-
 **PRD-32 Phase 2 – Rechnungstypen-Parser: Beleg-Mapping**
 Phase 1 (Subklassen im Classifier) ist fertig. Phase 2: erkannte Rechnungstypen automatisch der richtigen Schadenposition zuordnen (Standkosten → Standgeld-Position, Abschlepprechnung → Abschleppkosten-Position).
 Plan: `handover/PRD-32_Rechnungstypen_Parser.md`
 (aus: handover/backlog.md, session_handover_v55.md)
-
-**PRD-04 Erweiterte Dokumentenklassen (Klasse A/B/C)**
-Dispatcher-Erweiterung um Klassen-Hierarchien. Aufwand und genaue Spec noch offen.
-(aus: session_handover_v55.md)
 
 **PRD-05 – Betrag-Abgleich nach Upload**
 Nach Hochladen einer Rechnung automatisch Betrag gegen Schadenposition abgleichen.
@@ -166,10 +158,6 @@ Vier Phasen geplant. Kein Implementierungsstand im Unfallakten-Repo.
 ---
 
 ## ❓ Unklar
-
-**PRD-22c Status-Widerspruch**
-`handover/backlog.md` listet PRD-22c als `✅ Abgeschlossen`. `session_handover_v56.md` und MEMORY sagen: Sessions 4–5 (Frontend + Tests) noch ausstehend. `handover/PRD-22c_Mandanten_Fragebogen.md` zeigt alle 5 Sessions mit `⬜`. Welcher Stand ist korrekt?
-(aus: handover/backlog.md vs. session_handover_v56.md vs. handover/PRD-22c_Mandanten_Fragebogen.md)
 
 **PRD-29 DKz-Filter: erledigt oder offen?**
 `session_handover_v56.md` nennt „PRD-29 DKz-Filter: noch nicht gestartet". `handover/PRD-29_EAkte_Filter_DKz.md` sagt `✅ Implementiert` — das DKz-Feld existiert in der DB nicht, daher Lösung via Schlagwort `E-Brief`. Ist damit das ursprüngliche Ziel als vollständig erfüllt zu betrachten?
