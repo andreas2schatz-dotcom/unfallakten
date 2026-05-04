@@ -47,10 +47,6 @@
 
 ## 🔄 In Arbeit
 
-### Uncommitted Changes (main branch)
-`backend/routers/dashboard_routes.py` und `frontend/src/views/ActionBoardView.jsx` haben lokale Änderungen, die noch nicht committed sind. Inhalt: Fristen-Zeitfenster von „60 Tage voraus" auf „letzte 7 Tage", Label-Fix ("heute"/"vor N Tagen"), Spaltenbreite 300px → 2fr.
-(aus: git status, session_handover_v56.md)
-
 ### Action Board – Fristen-Spalte unvollständig
 Zeigt aktuell nur RA-MICRO Wiedervorlagen (`tblAktenWiedervorlagen`), keine „harten" Rechtsmittelfristen. Falls RA-MICRO eine separate Fristen-Tabelle führt, wäre Schritt 1 aus Task 2 des Plans zu wiederholen.
 (aus: session_handover_v56.md)
@@ -167,6 +163,3 @@ Vier Phasen geplant. Kein Implementierungsstand im Unfallakten-Repo.
 `session_handover_v55.md` listet „PRD-03 Klagegenerator Abschlusstest" als offene MITTEL-Aufgabe. Code wurde in v35–v36 implementiert. Ob ein Integrationstest jemals formal durchgeführt wurde, geht aus den Handovers nicht hervor.
 (aus: session_handover_v55.md, session_handover_v38.md)
 
-**Uncommitted Changes: intentional oder versehentlich?**
-`backend/routers/dashboard_routes.py` und `frontend/src/views/ActionBoardView.jsx` haben lokale Änderungen (M im git status), die nicht committed sind. Handover v56 erwähnt diese Änderungen als fertig. Unklar ob Commit absichtlich zurückgestellt oder vergessen.
-(aus: git status, session_handover_v56.md)
