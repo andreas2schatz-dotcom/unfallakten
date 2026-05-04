@@ -30,7 +30,6 @@
 | PRD-26 | Klage-Wizard 10-Step (Umbau) | (aus: handover/backlog.md) |
 | PRD-27 | ReguWizard – Stellungnahme-Wizard | (aus: session_handover_v55.md, 2e1e0fb) |
 | PRD-28 | Gebührenassistent Nr. 2300 VV RVG + Kostennote DOCX | (aus: handover/backlog.md) |
-| PRD-29 (Schmerzensgeld) | Schmerzensgeld-Ermittlungstool | (aus: handover/backlog.md) |
 | PRD-29b | E-Akte Auto-Parser: E-Brief-Filter via Schlagwort | (aus: handover/backlog.md, PRD-29_EAkte_Filter_DKz.md) |
 | PRD-30 | OCR + SSE-Streaming für Bild-PDFs (pytesseract, pdf2image) | (aus: handover/backlog.md) |
 | PRD-31 (KI) | KI-Parsing Gutachten: Shadow-Mode, Konflikt-Dialog, Korrektur-Endpoint | (aus: handover/backlog.md) |
@@ -97,6 +96,11 @@ Nach Hochladen einer Rechnung automatisch Betrag gegen Schadenposition abgleiche
 **PRD-03 – Klagegenerator Abschlusstest**
 Code wurde in v35–v36 implementiert und deployed. Ob ein formaler Abnahmetest je erfolgte, ist unklar. v55 listet ihn noch als offene MITTEL-Aufgabe.
 (aus: session_handover_v55.md)
+
+**PRD-29 – Schmerzensgeld-Ermittlungstool**
+Modal im Klage-Wizard: KI recherchiert Vergleichsurteile (dejure.org, lexetius.com), Anwalt legt Mindestbetrag fest, KI generiert Klagetext → Übernahme in Klageschrift + Forderungsschreiben. Schema-Migration 36 + 3 neue Endpoints. Noch nicht begonnen.
+Plan: `handover/PRD-29_Schmerzensgeld_Tool.md`
+(aus: handover/PRD-29_Schmerzensgeld_Tool.md — fälschlicherweise als erledigt markiert, 2026-05-04 korrigiert)
 
 ---
 
