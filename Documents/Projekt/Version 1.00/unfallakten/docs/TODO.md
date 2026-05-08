@@ -66,6 +66,10 @@ Spalte zeigt nur E-Mails aus `email_import_log`. Mandantenportal- und SV-Portal-
 
 ### Priorität: Kritisch / Bald (nächste 1–3 Sessions)
 
+**PRD-35 – Klage-Wizard Bug-Fixes**
+Bekannte Bugs im 10-Step Klage-Wizard beheben. Genaue Fehlerbeschreibung folgt in der Umsetzungs-Session.
+(aus: Nutzer-Feedback 2026-05-08)
+
 **PRD-33 – Klage-Wizard Feintuning**
 Qualitäts-Pass am generierten DOCX: Absätze/Leerzeilen in `klage_service.py`, Textbausteine inhaltlich überarbeiten (Sachverhalt, Anträge, Gebühren), Rubrum bei mehreren Beklagten, RVG-Betrag einbinden, Platzhalter-Kontrolle.
 Debugging-Vorbereitung: `handover/session_handover_v52.md` → Abschnitt „Nächste Session".
