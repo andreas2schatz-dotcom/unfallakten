@@ -14,7 +14,7 @@ import json
 import logging
 from flask import Blueprint, request, jsonify, g
 from ..auth.middleware import login_erforderlich
-from ..models.akte import hole_akte_by_id
+from ._helpers import pruefe_akte as _pruefe_akte
 from ..models.schaden import (
     setze_schadenpositionen, hole_schadenpositionen,
     erstelle_regulierung, hole_regulierungen_by_akte,
@@ -39,10 +39,6 @@ def _err(msg, status, **extra):
 
 def _body():
     return request.get_json(silent=True) or {}
-
-def _pruefe_akte(akte_id):
-    return hole_akte_by_id(akte_id)
-
 
 def _schaden_dict(s) -> dict:
     """Schadenposition → JSON-Dict für das Frontend."""

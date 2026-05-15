@@ -17,7 +17,7 @@ import json
 import logging
 from flask import Blueprint, request, jsonify, g, send_file
 from ..auth.middleware import login_erforderlich
-from ..models.akte import hole_akte_by_id
+from ._helpers import pruefe_akte as _pruefe_akte
 from ..models.dokument import (
     hole_dokumente_by_akte, GUELTIGE_TYPEN,
     aktualisiere_parse_status
@@ -41,9 +41,6 @@ def _j(daten, status=200):
 
 def _err(msg, status, **extra):
     return jsonify({"fehler": msg, "status": status, **extra}), status
-
-def _pruefe_akte(akte_id):
-    return hole_akte_by_id(akte_id)
 
 def _hole_dok_row(dokument_id: int):
     with get_connection() as conn:

@@ -13,7 +13,7 @@ Endpunkte:
 import logging
 from flask import Blueprint, request, jsonify, g
 from ..auth.middleware import login_erforderlich
-from ..models.akte import hole_akte_by_id
+from ._helpers import pruefe_akte as _pruefe_akte
 from ..models.schaden import (
     erstelle_beteiligten, hole_beteiligte_by_akte,
     aktualisiere_beteiligten, loesche_beteiligten,
@@ -59,11 +59,6 @@ def _b_dict(b) -> dict:
         "betreff3":   getattr(b, "betreff3",   "") or "",
         "ist_halter": int(getattr(b, "ist_halter", 0) or 0),
     }
-
-def _pruefe_akte(akte_id: str):
-    """Gibt Akte zurück oder None wenn nicht gefunden."""
-    return hole_akte_by_id(akte_id)
-
 
 @beteiligte_bp.route("", methods=["GET"])
 @login_erforderlich

@@ -20,7 +20,7 @@ import logging
 import json
 from flask import Blueprint, request, jsonify, g
 from ..auth.middleware import login_erforderlich
-from ..models.akte import hole_akte_by_id
+from ._helpers import pruefe_akte as _pruefe_akte
 from ..db.database import get_connection
 
 logger = logging.getLogger(__name__)
@@ -45,10 +45,6 @@ ROLLEN_LABEL = {
 
 def _j(d, s=200): return jsonify(d), s
 def _err(msg, s=400): return jsonify({"fehler": msg, "status": s}), s
-
-
-def _pruefe_akte(akte_id):
-    return hole_akte_by_id(akte_id)
 
 
 # ── Adresse aus RA-Micro laden ─────────────────────────────────────────────

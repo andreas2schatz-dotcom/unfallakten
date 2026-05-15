@@ -12,7 +12,7 @@ import io
 import logging
 from flask import Blueprint, request, jsonify, g, send_file
 from ..auth.middleware import login_erforderlich
-from ..models.akte import hole_akte_by_id
+from ._helpers import pruefe_akte as _pruefe_akte
 from ..word.word_service import (
     generiere_und_speichere, WordFehler, GUELTIGE_DOK_TYPEN
 )
@@ -27,10 +27,6 @@ def _j(daten, status=200):
 
 def _err(msg, status, **extra):
     return jsonify({"fehler": msg, "status": status, **extra}), status
-
-def _pruefe_akte(akte_id):
-    return hole_akte_by_id(akte_id)
-
 
 @word_bp.route("", methods=["POST"])
 @login_erforderlich

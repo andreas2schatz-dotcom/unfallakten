@@ -13,7 +13,7 @@ try:
     _WDM_VERFUEGBAR = True
 except ImportError:
     _WDM_VERFUEGBAR = False
-from ..models.akte import hole_akte_by_id
+from ._helpers import pruefe_akte as _pruefe_akte
 from ..services.portal_sync import _portal_flag
 from ..models.abrechnungsschreiben import (
     hole_abrechnungsschreiben_by_akte, hole_abrechnungsschreiben_by_id,
@@ -40,16 +40,6 @@ pruefbericht_bp = Blueprint("pruefbericht", __name__, url_prefix="/akten/<path:a
 def _j(d, s=200):     return jsonify(d), s
 def _err(m, s, **kw): return jsonify({"fehler": m, "status": s, **kw}), s
 def _body():           return request.get_json(silent=True) or {}
-def _pruefe_akte(aid):
-    """Akte in SQLite suchen; RA-Micro-Akten (Format X/YY) immer akzeptieren."""
-    akte = hole_akte_by_id(aid)
-    if akte:
-        return akte
-    # Akte existiert nur in RA-Micro (noch nicht in SQLite) → trotzdem erlauben
-    if aid and "/" in str(aid):
-        return True
-    return None
-
 def _parse_datum(datum_str: str) -> str:
     """Bug 7: Erzwingt YYYY-MM-DD. Leeres Datum → heutiges Datum."""
     s = (datum_str or "").strip()
