@@ -91,8 +91,8 @@ Ergebnis der Funktionsinventur (Session 2026-05-15): ~263 Funktionen in 61 Datei
 
 - ~~**PRD-36a – `_pruefe_akte` zentralisieren**~~ ✅ Erledigt (Commit 02b2819, 2026-05-15): `backend/routers/_helpers.py` mit `_normiere_az()` + `pruefe_akte()`. RA-MICRO-Fallback + AZ-Normierung (`112526` → `1125/26`) + `SimpleNamespace` statt `True`. 6 Routers bereinigt.
 - ~~**PRD-36b – Datum-Parsing vereinheitlichen**~~ ✅ Erledigt (Commit e4fa79f, 2026-05-15): `backend/utils/datum.py` mit `parse_datum()`, `datum_zu_iso()`, `iso_zu_ramicro()`. 5 Dateien bereinigt, 72 Zeilen entfernt.
-- **PRD-36c – `fmtEuro` im Frontend deduplizieren:** `fmtEur` in `sections/KlageWizard.jsx:43` ist identisch mit `fmtEuro` in `frontend/src/config/utils.js:1`. KlageWizard soll den Import aus utils.js verwenden.
-- **PRD-36d – Beteiligte-Serialisierer zusammenführen:** `_b_dict` (beteiligte_routes.py) und `_beteiligter_dict` (akten_routes.py) serialisieren dasselbe Objekt unterschiedlich. Soll in `backend/models/beteiligte.py` als Single Source of Truth landen.
+- ~~**PRD-36c – `fmtEuro` im Frontend deduplizieren**~~ ✅ Erledigt (2026-05-15): Lokale `fmtEur`-Definition aus `KlageWizard.jsx` entfernt, Import aus `frontend/src/config/utils.js`.
+- ~~**PRD-36d – Beteiligte-Serialisierer zusammenführen**~~ ✅ Erledigt (2026-05-15): `backend/models/beteiligte.py` mit `beteiligter_as_dict()` als Single Source of Truth. `_b_dict`/`_beteiligter_dict` in beiden Routers ersetzt. 7 Tests grün.
 
 (aus: Session 2026-05-15, Funktionsinventur-Analyse)
 

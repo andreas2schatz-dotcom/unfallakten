@@ -20,6 +20,7 @@ import logging
 from flask import Blueprint, request, jsonify, g
 from ..auth.middleware import login_erforderlich, nur_admin
 from ..db.database import get_connection
+from ..models.beteiligte import beteiligter_as_dict as _beteiligter_dict
 from ..models.akte import (
     erstelle_akte, erstelle_oder_hole_akte, hole_akte_by_id, hole_akte_by_aktenzeichen,
     liste_akten, aktualisiere_akte, loesche_akte, zaehle_akten_by_status
@@ -136,17 +137,6 @@ def _akte_liste_dict(akte) -> dict:
         "aktion_erforderlich": getattr(akte, "aktion_erforderlich", 0),
         "aktion_typ":          getattr(akte, "aktion_typ", None),
         "aktion_seit":         getattr(akte, "aktion_seit", None),
-    }
-
-def _beteiligter_dict(b) -> dict:
-    return {
-        "id": b.id, "akte_id": b.akte_id, "rolle": b.rolle,
-        "name": b.name, "vorname": b.vorname, "firma": b.firma,
-        "anschrift": b.anschrift, "plz": b.plz, "ort": b.ort,
-        "telefon": b.telefon, "email": b.email,
-        "kfz_kennzeichen": b.kfz_kennzeichen, "kfz_typ": b.kfz_typ,
-        "versicherung": b.versicherung, "vers_nr": b.vers_nr,
-        "schaden_nr": b.schaden_nr, "iban": b.iban, "notizen": b.notizen,
     }
 
 def _schaden_dict(s) -> dict:

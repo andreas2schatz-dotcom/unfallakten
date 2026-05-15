@@ -17,6 +17,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import T from "../config/theme.js";
+import { fmtEuro } from "../config/utils.js";
 import { apiGebuehren } from "../api.js";
 import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
 
@@ -39,12 +40,6 @@ const PLEX = "'Figtree',sans-serif";
 const MONO = "ui-monospace,monospace";
 
 // ── Hilfsfunktionen ────────────────────────────────────────────────────────────
-
-function fmtEur(v) {
-  return (v || 0).toLocaleString("de-DE", {
-    minimumFractionDigits: 2, maximumFractionDigits: 2,
-  }) + " €";
-}
 
 /**
  * Aktivlegitimations-Vorschautext (client-seitig, spiegelt klage_service).
@@ -179,7 +174,7 @@ function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguliert, we
 
   if (gesamtReguliert > 0) {
     lines.push(
-      `Die Beklagte hat eine Teilregulierung in Höhe von ${fmtEur(gesamtReguliert)} vorgenommen. ` +
+      `Die Beklagte hat eine Teilregulierung in Höhe von ${fmtEuro(gesamtReguliert)} vorgenommen. ` +
       `Die verbleibenden Kürzungen sind nicht gerechtfertigt, sodass die Klage in Höhe des offenen Restbetrages erhoben wird.`
     );
   } else {
@@ -783,18 +778,18 @@ function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind
                   </td>
                   <td style={{ padding: "8px", textAlign: "right",
                     fontFamily: MONO, fontSize: "0.875rem", color: T.textMuted }}>
-                    {fmtEur(gefordert)}
+                    {fmtEuro(gefordert)}
                   </td>
                   <td style={{ padding: "8px", textAlign: "right",
                     fontFamily: MONO, fontSize: "0.875rem",
                     color: reg > 0 ? T.green : T.textFaint }}>
-                    {reg > 0 ? fmtEur(reg) : "—"}
+                    {reg > 0 ? fmtEuro(reg) : "—"}
                   </td>
                   <td style={{ padding: "8px", textAlign: "right",
                     fontFamily: MONO, fontSize: "0.9rem",
                     fontWeight: p.checked ? 700 : 400,
                     color: p.checked ? T.navy : T.textMuted }}>
-                    {fmtEur(p.betrag)}
+                    {fmtEuro(p.betrag)}
                   </td>
                 </tr>
               );
@@ -808,7 +803,7 @@ function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind
               <td style={{ padding: "8px", textAlign: "right",
                 fontFamily: MONO, fontSize: "0.975rem",
                 fontWeight: 700, color: T.navy }}>
-                {fmtEur(klagebetrag)}
+                {fmtEuro(klagebetrag)}
               </td>
             </tr>
           </tbody>
@@ -833,14 +828,14 @@ function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind
                 })() : "—"}
                 {g.versicherung && <span style={{ marginLeft: 8 }}>{g.versicherung}</span>}
               </span>
-              <span style={{ color: T.green, fontWeight: 600 }}>{fmtEur(g.summe)}</span>
+              <span style={{ color: T.green, fontWeight: 600 }}>{fmtEuro(g.summe)}</span>
             </div>
           ))}
           <div style={{ display: "flex", justifyContent: "space-between",
             borderTop: `1px solid ${T.border}`, marginTop: 4, paddingTop: 4,
             fontFamily: MONO, fontSize: "0.875rem", fontWeight: 700, color: T.navy }}>
             <span>Summe reguliert</span>
-            <span>{fmtEur(regulGesamt)}</span>
+            <span>{fmtEuro(regulGesamt)}</span>
           </div>
         </div>
       )}
@@ -851,11 +846,11 @@ function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind
           color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em",
           marginBottom: "0.5rem" }}>Klagebetrag</div>
         <div style={{ fontFamily: MONO, fontSize: "1.25rem", fontWeight: 700, color: T.navy }}>
-          {fmtEur(klagebetrag + (mitSG ? sgMind : 0))}
+          {fmtEuro(klagebetrag + (mitSG ? sgMind : 0))}
         </div>
         {mitSG && sgMind > 0 && (
           <div style={{ fontFamily: PLEX, fontSize: "0.78rem", color: T.textMuted }}>
-            Sachschaden {fmtEur(klagebetrag)} + SG {fmtEur(sgMind)}
+            Sachschaden {fmtEuro(klagebetrag)} + SG {fmtEuro(sgMind)}
           </div>
         )}
       </div>
@@ -1000,7 +995,7 @@ function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, 
     const bloecke = selected.map((ka, i) => {
       const letter   = alphabet[i] || String(i + 1);
       const abzug    = kuerzungMap[ka.id] || 0;
-      const eur      = fmtEur(abzug);
+      const eur      = fmtEuro(abzug);
       const istLetzt = selected.length > 1 && i === selected.length - 1;
       const betragsatz = abzug > 0
         ? (istLetzt ? EINLEITUNG_LETZT(zuSuffix, eur) : EINLEITUNGS_VARIANTEN[i % 5](zuSuffix, eur))
@@ -1014,7 +1009,7 @@ function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, 
 
     const gesamtKuerzung = selected.reduce((s, ka) => s + (kuerzungMap[ka.id] || 0), 0);
     const schlusssatz = gesamtKuerzung > 0
-      ? `Insgesamt hat die Beklagte${zuSuffix} daher einen Betrag in Höhe von ${fmtEur(gesamtKuerzung)} zu Unrecht einbehalten.`
+      ? `Insgesamt hat die Beklagte${zuSuffix} daher einen Betrag in Höhe von ${fmtEuro(gesamtKuerzung)} zu Unrecht einbehalten.`
       : "";
 
     const lines = [
@@ -1242,7 +1237,7 @@ function StepRw({ hq, onHq, hb, onHb, abrechnungen, weiblich,
         }}>
           Regulierungsstand:{" "}
           <span style={{ color: gesamtReg > 0 ? T.navy : T.textFaint, fontWeight: 600 }}>
-            {gesamtReg > 0 ? fmtEur(gesamtReg) : "keine"}
+            {gesamtReg > 0 ? fmtEuro(gesamtReg) : "keine"}
           </span>
         </div>
 
@@ -1485,7 +1480,7 @@ function StepVerzug({ zinsenAb, rvgData, rvgOverride, weiblich,
             <div>Zinsen ab: <span style={{ fontFamily: MONO, color: T.navy }}>
               {zinsenAb === "verzug" ? "Verzugseintritt" : "Rechtshängigkeit"}
             </span></div>
-            <div>RVG: <span style={{ fontFamily: MONO, color: T.navy }}>{fmtEur(rvgGesamt)}</span></div>
+            <div>RVG: <span style={{ fontFamily: MONO, color: T.navy }}>{fmtEuro(rvgGesamt)}</span></div>
           </div>
         </div>
 
@@ -1565,7 +1560,7 @@ function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMind,
         <ZeileZusammenfassung icon="⚔" label="Beklagte"
           wert={beklagteG.map(b => b.versicherung || b.firma || b.name || "–").join(", ") || "–"} />
         <ZeileZusammenfassung icon="⚖" label="Klagebetrag"
-          wert={fmtEur(klagebetrag + (mitSG && sgMind > 0 ? sgMind : 0))} warn={keinPositionen} />
+          wert={fmtEuro(klagebetrag + (mitSG && sgMind > 0 ? sgMind : 0))} warn={keinPositionen} />
         <ZeileZusammenfassung icon="⏱" label="Zinsen ab"
           wert={wizardVerzugDatum ? `Verzugseintritt ${wizardVerzugDatum}` : "Rechtshängigkeit"} />
         <ZeileZusammenfassung icon="🏠" label="Aktivlegitimation"
@@ -1573,9 +1568,9 @@ function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMind,
             ? `${aktLegLabel} – ⚠ ungeklärt`
             : `${aktLegLabel}${aktLegTyp !== "eigentum" ? ` · ${freigabeLabel}` : ""}`}
           warn={aktLegFreigabe === "ungeklaert"} />
-        <ZeileZusammenfassung icon="💶" label={`RVG gerichtlich (SW: ${fmtEur(swGerichtlich)})`} wert={fmtEur(rvgGesamt)} />
-        <ZeileZusammenfassung icon="💶" label={`RVG außergerichtlich (SW: ${fmtEur(swAusserg || 0)})`}
-          wert={rvgAussGes > 0 ? fmtEur(rvgAussGes) : "–"} warn={rvgAussGes === 0} />
+        <ZeileZusammenfassung icon="💶" label={`RVG gerichtlich (SW: ${fmtEuro(swGerichtlich)})`} wert={fmtEuro(rvgGesamt)} />
+        <ZeileZusammenfassung icon="💶" label={`RVG außergerichtlich (SW: ${fmtEuro(swAusserg || 0)})`}
+          wert={rvgAussGes > 0 ? fmtEuro(rvgAussGes) : "–"} warn={rvgAussGes === 0} />
       </div>
 
       {(keinGericht || keinPositionen || firmenOhneVertreter.length > 0 || aktLegFreigabe === "ungeklaert" || lgWarnung) && (
@@ -1598,7 +1593,7 @@ function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMind,
           </div>}
           {lgWarnung && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: "#c05c00",
             padding: "7px 12px", background: "#c05c0015", borderRadius: 7, marginBottom: 6, border: "1px solid #c05c0030" }}>
-            ⚠ Streitwert {fmtEur(swGerichtlich)} überschreitet die LG-Grenze von {fmtEur(lgGrenzwert)} – zuständig ist das <strong>Landgericht</strong>, nicht das Amtsgericht.
+            ⚠ Streitwert {fmtEuro(swGerichtlich)} überschreitet die LG-Grenze von {fmtEuro(lgGrenzwert)} – zuständig ist das <strong>Landgericht</strong>, nicht das Amtsgericht.
           </div>}
         </div>
       )}
@@ -1849,11 +1844,11 @@ function StepAntraege({ positionen, mitSG, sgMind, beklagte, weiblich,
             color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em",
             marginBottom: "0.5rem" }}>Gerichtlicher Streitwert</div>
           <div style={{ fontFamily: MONO, fontSize: "1.1rem", fontWeight: 700, color: T.navy }}>
-            {fmtEur(sgGesamt)}
+            {fmtEuro(sgGesamt)}
           </div>
           {mitSG && sgMind > 0 && (
             <div style={{ fontFamily: PLEX, fontSize: "0.75rem", color: T.textMuted, marginTop: 2 }}>
-              Sachschaden {fmtEur(klagebetrag)} + SG {fmtEur(sgMind)}
+              Sachschaden {fmtEuro(klagebetrag)} + SG {fmtEuro(sgMind)}
             </div>
           )}
           <div style={{ fontFamily: PLEX, fontSize: "0.75rem", color: T.textMuted, marginTop: 4 }}>

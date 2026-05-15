@@ -14,6 +14,7 @@ import logging
 from flask import Blueprint, request, jsonify, g
 from ..auth.middleware import login_erforderlich
 from ._helpers import pruefe_akte as _pruefe_akte
+from ..models.beteiligte import beteiligter_as_dict as _b_dict
 from ..models.schaden import (
     erstelle_beteiligten, hole_beteiligte_by_akte,
     aktualisiere_beteiligten, loesche_beteiligten,
@@ -34,31 +35,6 @@ def _err(msg, status, **extra):
 
 def _body():
     return request.get_json(silent=True) or {}
-
-def _b_dict(b) -> dict:
-    return {
-        "id": b.id, "akte_id": b.akte_id, "rolle": b.rolle,
-        "name": b.name, "vorname": b.vorname, "firma": b.firma,
-        "anschrift": b.anschrift, "plz": b.plz, "ort": b.ort,
-        "telefon": b.telefon, "email": b.email,
-        "kfz_kennzeichen": b.kfz_kennzeichen, "kfz_typ": b.kfz_typ,
-        "versicherung": b.versicherung, "vers_nr": b.vers_nr,
-        "schaden_nr": b.schaden_nr, "iban": b.iban, "notizen": b.notizen,
-        "vollstaendiger_name": b.vollstaendiger_name,
-        # Migration 8
-        "anrede":     getattr(b, "anrede",     "") or "",
-        "vorsteuer":  getattr(b, "vorsteuer",  "N") or "N",
-        # Klage-Rubrum: Vertretungsberechtigter (gespeichert via Handelsregister-Lookup)
-        "vertreter_name":     getattr(b, "vertreter_name",     "") or "",
-        "vertreter_funktion": getattr(b, "vertreter_funktion", "") or "",
-        # RA-Micro-Felder (werden befüllt wenn aus RA-Micro synchronisiert)
-        "kuerzel":    getattr(b, "kuerzel",    "") or "",
-        "briefanrede":getattr(b, "briefanrede","") or "",
-        "betreff1":   getattr(b, "betreff1",   "") or "",
-        "betreff2":   getattr(b, "betreff2",   "") or "",
-        "betreff3":   getattr(b, "betreff3",   "") or "",
-        "ist_halter": int(getattr(b, "ist_halter", 0) or 0),
-    }
 
 @beteiligte_bp.route("", methods=["GET"])
 @login_erforderlich
