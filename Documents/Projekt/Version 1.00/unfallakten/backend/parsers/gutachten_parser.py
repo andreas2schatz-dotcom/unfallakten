@@ -20,6 +20,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Optional
 from .pdf_utils import parse_betrag, find_betrag_near_label, normalize_text
+from ..utils.datum import datum_zu_iso as _parse_datum_de
 
 logger = logging.getLogger(__name__)
 
@@ -150,14 +151,6 @@ def _find_betrag(text: str, labels: list[str], window: int = 80) -> Optional[flo
                     if v is not None and v > 0:
                         return v
     return None
-
-
-def _parse_datum_de(s: str) -> str:
-    """DD.MM.YYYY → YYYY-MM-DD"""
-    m = re.match(r"(\d{1,2})\.(\d{1,2})\.(\d{4})", s.strip())
-    if m:
-        return f"{m.group(3)}-{m.group(2).zfill(2)}-{m.group(1).zfill(2)}"
-    return ""
 
 
 def _extract_km(text: str) -> Optional[int]:

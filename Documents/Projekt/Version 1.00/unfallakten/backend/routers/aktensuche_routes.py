@@ -19,6 +19,7 @@ from ..auth.middleware import login_erforderlich
 from ..ramicro.connector import (
     get_ramicro_connection, RaMicroNichtAktiv, RaMicroVerbindungsFehler
 )
+from ..utils.datum import iso_zu_ramicro as _iso_zu_ttmmjj
 
 logger = logging.getLogger(__name__)
 aktensuche_bp = Blueprint("aktensuche", __name__, url_prefix="/aktensuche")
@@ -70,21 +71,6 @@ _COLS = """
     a.sMandant              AS mandant,
     kz_wdm.kz_wert          AS kennzeichen
 """
-
-
-def _iso_zu_ttmmjj(iso: str) -> str:
-    """
-    Wandelt ISO-Datum (2026-02-23) in das RA-Micro varU-TAG-Format (23.02.26) um.
-    Zweistelliges Jahr, da so in _tbl0WDMDaten gespeichert.
-    """
-    try:
-        if len(iso) == 10 and iso[4] == "-":
-            p = iso.split("-")
-            yy = p[0][2:]          # "2026" → "26"
-            return f"{p[2]}.{p[1]}.{yy}"
-    except Exception:
-        pass
-    return iso
 
 
 @aktensuche_bp.route("", methods=["GET"])

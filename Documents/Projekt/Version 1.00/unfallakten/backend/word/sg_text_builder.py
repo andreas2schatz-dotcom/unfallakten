@@ -11,6 +11,7 @@ Gibt ein Tupel (absaetze, beweis, vgl) zurück:
   beweis    – str: Beweisantritt-Zeile
   vgl       – str | None: Vergleichsurteil-Zeile (wenn sg_urteil_az gesetzt)
 """
+from ..utils.datum import parse_datum as _parse_datum
 
 
 def _eur_str(betrag: float) -> str:
@@ -36,26 +37,6 @@ def _fmt_datum(s: str) -> str:
     return s
 
 
-def _parse_datum(s: str):
-    """
-    Parst Datum aus ISO (YYYY-MM-DD) oder deutschem Format (DD.MM.YYYY).
-    Gibt ein datetime.date-Objekt zurück oder None bei Fehler.
-    """
-    if not s:
-        return None
-    from datetime import date
-    s = s.strip()
-    try:
-        # ISO-Format
-        if len(s) == 10 and s[4] == "-":
-            return date.fromisoformat(s)
-        # Deutsches Format DD.MM.YYYY
-        if len(s) == 10 and s[2] == ".":
-            d, m, y = s.split(".")
-            return date(int(y), int(m), int(d))
-    except Exception:
-        pass
-    return None
 
 
 def baue_sg_abschnitt(ps_data: dict, kl_nom: str, sg_mind: float):

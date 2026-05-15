@@ -14,6 +14,7 @@ try:
 except ImportError:
     _WDM_VERFUEGBAR = False
 from ._helpers import pruefe_akte as _pruefe_akte
+from ..utils.datum import datum_zu_iso as _datum_zu_iso
 from ..services.portal_sync import _portal_flag
 from ..models.abrechnungsschreiben import (
     hole_abrechnungsschreiben_by_akte, hole_abrechnungsschreiben_by_id,
@@ -40,21 +41,6 @@ pruefbericht_bp = Blueprint("pruefbericht", __name__, url_prefix="/akten/<path:a
 def _j(d, s=200):     return jsonify(d), s
 def _err(m, s, **kw): return jsonify({"fehler": m, "status": s, **kw}), s
 def _body():           return request.get_json(silent=True) or {}
-def _parse_datum(datum_str: str) -> str:
-    """Bug 7: Erzwingt YYYY-MM-DD. Leeres Datum → heutiges Datum."""
-    s = (datum_str or "").strip()
-    if not s:
-        return datetime.today().strftime("%Y-%m-%d")
-    # DD.MM.YYYY → YYYY-MM-DD konvertieren
-    try:
-        return datetime.strptime(s, "%d.%m.%Y").strftime("%Y-%m-%d")
-    except ValueError:
-        pass
-    try:
-        datetime.strptime(s, "%Y-%m-%d")
-        return s
-    except ValueError:
-        raise ValueError(f"Ungültiges Datumsformat: {datum_str!r}. Erwartet: YYYY-MM-DD")
 
 
 # ── Abrechnungsschreiben ──────────────────────────────────────────────────────
@@ -90,7 +76,7 @@ def erstelle_abrechnung(akte_id: str):
         return _err(f"Akte {akte_id} nicht gefunden.", 404)
     daten = _body()
     try:
-        datum = _parse_datum(daten.get("datum", ""))
+        datum = _datum_zu_iso(daten.get("datum", ""), leer_als_heute=True)
     except ValueError as e:
         return _err(str(e), 422, feld="datum")
     haftungsart = (daten.get("haftungsart") or "vollhaftung").strip()
@@ -240,7 +226,7 @@ def aktualisiere_abrechnung(akte_id: str, abid: int):
 
     daten = _body()
     try:
-        datum = _parse_datum(daten.get("datum", ""))
+        datum = _datum_zu_iso(daten.get("datum", ""), leer_als_heute=True)
     except ValueError as e:
         return _err(str(e), 422, feld="datum")
 
@@ -478,7 +464,7 @@ def neuer_pruefbericht(akte_id: str):
         return _err(f"Akte {akte_id} nicht gefunden.", 404)
     daten = _body()
     try:
-        datum = _parse_datum(daten.get("datum", ""))
+        datum = _datum_zu_iso(daten.get("datum", ""), leer_als_heute=True)
     except ValueError as e:
         return _err(str(e), 422, feld="datum")
     kuerzungen_raw  = daten.get("kuerzungen")

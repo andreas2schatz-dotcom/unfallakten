@@ -18,6 +18,7 @@ import logging
 from datetime import date, datetime, timedelta
 
 from ..db.database import get_connection
+from ..utils.datum import parse_datum as _parse_datum
 
 logger = logging.getLogger(__name__)
 
@@ -179,17 +180,6 @@ def _erstelle_todo(akte_az, text, faellig_am, frist_typ, regel_key, dok_id=None)
             (akte_az, text, faellig_am, frist_typ, dok_id, regel_key),
         )
         return cursor.lastrowid
-
-
-def _parse_datum(datum_str):
-    # type: (str) -> date | None
-    """Parst Datum aus YYYY-MM-DD, DD.MM.YYYY oder DD.MM.YY."""
-    for fmt in ("%Y-%m-%d", "%d.%m.%Y", "%d.%m.%y"):
-        try:
-            return datetime.strptime(datum_str.strip(), fmt).date()
-        except (ValueError, AttributeError):
-            continue
-    return None
 
 
 def _addiere_monate(d, monate):
