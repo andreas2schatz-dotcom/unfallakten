@@ -100,10 +100,12 @@ function BeteiligteSection({ beteiligte, dispatch, akteId }) {
                         <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
                           <div style={{ display:"flex", gap:4 }}>
                             <Btn size="sm" variant="secondary" onClick={() => { setEdit(b); setForm({...b}); setPOpen(true); }}>{Ic.edit}</Btn>
-                            <Btn size="sm" variant="danger"    onClick={async () => { if (confirm("Beteiligten entfernen?")) {
-                            try { await apiBeteiligte.loeschen(akteId, b.id); } catch { /* Demo */ }
-                            dispatch({ type:"DELETE_BETEILIGTER", akteId, id:b.id });
-                          }; }}>{Ic.trash}</Btn>
+                            {b.id != null && (
+                              <Btn size="sm" variant="danger" onClick={async () => { if (confirm("Beteiligten entfernen?")) {
+                                try { await apiBeteiligte.loeschen(akteId, b.id); } catch { /* Demo */ }
+                                dispatch({ type:"DELETE_BETEILIGTER", akteId, id:b.id });
+                              }; }}>{Ic.trash}</Btn>
+                            )}
                           </div>
                           {(b.rolle === "sachverstaendiger" || b.rolle === "mandant") && b.email && (
                             <Btn size="sm" variant="secondary" onClick={() => handlePortalEinladen(b)}>

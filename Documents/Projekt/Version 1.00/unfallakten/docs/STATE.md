@@ -44,8 +44,10 @@ Konfidenz-Schwelle: ≥ 0.85 für Auto-Import.
 ### Gebühren-Assistent (PRD-28)
 `backend/services/gebuehren_service.py` + `backend/word/gebuehren_word.py` — Nr. 2300 VV RVG, 12 VU-Sonderregeln, DOCX-Kostennote via docxtpl.
 
-### Klage-Wizard (PRD-26)
+### Klage-Wizard (PRD-26 + PRD-35)
 `backend/routers/klage_routes.py` + `frontend/src/sections/KlageWizard.jsx` — 10 Schritte, gerichtlicher Streitwert aus `gesamtReguliert`, alle Gegner aus RA-MICRO.
+PRD-35 Bug-Fixes abgeschlossen (Session 2026-05-10): vorsteuer in b_dict, wizardVerzugDatum Step 6, EinwändePanel-Preview, Manual-Edit-Schutz (wizardVerzugManuell), betragOriginal für Gefordert-Spalte.
+klage_service.py: RVG-Tabelle zeigt außergerichtl. Gegenstandswert (sw_ausserg); rvg_bereits_gezahlt-Abzug mit bedingten Tabellenzeilen. Weitere DOCX-Bugs folgen in nächster Session (PRD-33).
 
 ### Portal-Sync (PRD)
 `backend/services/portal_sync.py` — Outbox-Muster über `portal_sync_queue`, HMAC-SHA256-Signatur, Retry-Counter.
@@ -148,12 +150,11 @@ Trainingsdaten werden seit einiger Zeit gesammelt. Wann ist genug Datenvolumen v
 
 ## 5. Aktueller Sprint
 
-**Session 2026-05-03 — Backlog-Sichtung + Commit**
+**Session 2026-05-10 — PRD-35 Klage-Wizard Bug-Fixes + klage_service-Fixes**
 
-- TODO.md konsolidiert: PRD-17 → `[refining]`, PRD-19 → ✅, PRD-04 Erw. gestrichen
-- Uncommitted Changes committed (5f0a5ec)
-- PRD-04 Erweiterte Dokumentenklassen (A/B/C) bewusst gestrichen — kein Mehrwert,
-  Dokumente werden bei Bedarf (Klage/Forderungsschreiben) direkt abgerufen
+- PRD-35 alle 5 Bugs gefixt: vorsteuer, wizardVerzugDatum, EinwändePanel-Preview, wizardVerzugManuell, betragOriginal
+- klage_service.py: RVG-Tabelle außergerichtl. Gegenstandswert (sw_ausserg), overrides-Merge für rvg_ausserg/rvg_bereits_gezahlt
+- StepGebuehren: UI-Feld „Bereits gezahlt" mit Amber-Highlight und Live-Klageanteil-Anzeige
+- Neue Architektur-Entscheidungen in DECISIONS.md dokumentiert (betragOriginal, wizardVerzugManuell, overrides-Merge)
 
-**Nächste Session:** Nächste Priorität laut TODO.md: PRD-33 (Klage-Wizard Feintuning),
-PRD-NEW (Onboarding-Wizard Neue-Akte-Anlage) oder PRD-25c (Mandantenkommunikation).
+**Nächste Session:** PRD-33 — weitere Layout-/Inhaltsfehler in `klage_service.py` (generiertes DOCX). Benutzer hat weitere Bugs identifiziert, die noch nicht vollständig spezifiziert sind.

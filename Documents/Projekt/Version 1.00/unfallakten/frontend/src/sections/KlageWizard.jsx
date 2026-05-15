@@ -693,10 +693,23 @@ function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind
   const klagebetrag = positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag || 0), 0);
 
   // Provenance-Map: position_key → { gesamt, quellen[] }
+  // DB-Rohdaten verwenden die echten Schaden-Feldnamen; alles, was zum Fahrzeugschaden gehört,
+  // wird auf den Wizard-Key "fahrzeugschaden" normalisiert.
+  const _PROV_KEY_MAP = {
+    "reparatur_netto":     "fahrzeugschaden",
+    "reparatur_brutto":    "fahrzeugschaden",
+    "reparaturkosten":     "fahrzeugschaden",
+    "wba":                 "fahrzeugschaden",
+    "rep_gutachten_netto": "fahrzeugschaden",
+    "rep_rechnung_netto":  "fahrzeugschaden",
+    "rep_rechnung_brutto": "fahrzeugschaden",
+    "wiederbeschaffung":   "fahrzeugschaden",
+  };
   const provenanceMap = {};
   (abrechnungen || []).forEach(ab => {
     (ab.positionen || []).forEach(rp => {
-      const k      = rp.position_key;
+      const rawKey = rp.position_key;
+      const k      = _PROV_KEY_MAP[rawKey] || rawKey;
       const betrag = parseFloat(rp.betrag_reguliert) || 0;
       if (!k || betrag === 0) return;
       if (!provenanceMap[k]) provenanceMap[k] = { gesamt: 0, quellen: [] };
@@ -709,90 +722,128 @@ function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind
     });
   });
 
+  // Regulierungsstand: nach Datum+Versicherung gruppieren, Null-Einträge weglassen
+  const regulGruppen = (() => {
+    const map = new Map();
+    for (const ab of (abrechnungen || [])) {
+      const betrag = parseFloat(ab.gesamt_reguliert) || 0;
+      if (betrag <= 0.005) continue;
+      const key = `${ab.datum || ""}|${(ab.versicherung || "").trim()}`;
+      if (map.has(key)) {
+        map.get(key).summe += betrag;
+      } else {
+        map.set(key, { datum: ab.datum, versicherung: ab.versicherung || "", summe: betrag });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => (b.datum || "").localeCompare(a.datum || ""));
+  })();
+  const regulGesamt = regulGruppen.reduce((s, g) => s + g.summe, 0);
+
   return (
     <div>
-      {(abrechnungen?.length || 0) > 0 && (
-        <div style={{
-          marginBottom: "1.25rem", padding: "0.75rem 1rem",
-          background: T.surface, borderRadius: 8, border: `1px solid ${T.borderSoft}`,
-        }}>
+      <div style={{ marginBottom: "1.25rem" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
+          <thead>
+            <tr style={{ background: T.surface }}>
+              {["☑", "Position", "Gefordert", "Reguliert", "Klageanteil"].map((h, i) => (
+                <th key={h} style={{
+                  padding: "5px 8px", fontFamily: PLEX,
+                  fontSize: "0.72rem", fontWeight: 700, color: T.textMuted,
+                  textTransform: "uppercase", letterSpacing: "0.06em",
+                  textAlign: i === 0 ? "center" : i >= 2 ? "right" : "left",
+                  width: i === 0 ? 32 : "auto",
+                }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {positionen.map(p => {
+              const prov     = provenanceMap[p.key];
+              const reg      = prov?.gesamt || 0;
+              const vollReg  = reg > 0 && (p.betrag || 0) <= 0.005;
+              const gefordert = p.betragOriginal ?? ((p.betrag || 0) + reg);
+              return (
+                <tr key={p.key}
+                  style={{ borderBottom: `1px solid ${T.borderSoft}`,
+                    opacity: p.checked ? 1 : 0.55, cursor: "pointer" }}
+                  onClick={() => onTogglePos(p.key)}>
+                  <td style={{ padding: "8px", textAlign: "center" }}>
+                    <input type="checkbox" checked={!!p.checked}
+                      onChange={() => onTogglePos(p.key)}
+                      onClick={e => e.stopPropagation()}
+                      style={{ accentColor: T.navy, cursor: "pointer", width: 15, height: 15 }} />
+                  </td>
+                  <td style={{ padding: "8px", fontFamily: PLEX, fontSize: "0.9rem",
+                    color: p.checked ? T.navy : T.text, fontWeight: p.checked ? 600 : 400 }}>
+                    {p.label}
+                    {vollReg && (
+                      <span style={{ marginLeft: 8, fontSize: "0.72rem",
+                        color: T.green, fontWeight: 600 }}>✓ vollst. reguliert</span>
+                    )}
+                  </td>
+                  <td style={{ padding: "8px", textAlign: "right",
+                    fontFamily: MONO, fontSize: "0.875rem", color: T.textMuted }}>
+                    {fmtEur(gefordert)}
+                  </td>
+                  <td style={{ padding: "8px", textAlign: "right",
+                    fontFamily: MONO, fontSize: "0.875rem",
+                    color: reg > 0 ? T.green : T.textFaint }}>
+                    {reg > 0 ? fmtEur(reg) : "—"}
+                  </td>
+                  <td style={{ padding: "8px", textAlign: "right",
+                    fontFamily: MONO, fontSize: "0.9rem",
+                    fontWeight: p.checked ? 700 : 400,
+                    color: p.checked ? T.navy : T.textMuted }}>
+                    {fmtEur(p.betrag)}
+                  </td>
+                </tr>
+              );
+            })}
+            <tr style={{ borderTop: `2px solid ${T.border}`, background: T.surface }}>
+              <td colSpan={4} style={{ padding: "8px 8px 8px 0",
+                fontFamily: PLEX, fontSize: "0.875rem",
+                fontWeight: 700, color: T.navy, textAlign: "right" }}>
+                Klagebetrag (angehakte Positionen)
+              </td>
+              <td style={{ padding: "8px", textAlign: "right",
+                fontFamily: MONO, fontSize: "0.975rem",
+                fontWeight: 700, color: T.navy }}>
+                {fmtEur(klagebetrag)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {regulGruppen.length > 0 && (
+        <div style={{ marginBottom: "1.25rem", padding: "0.75rem 1rem",
+          background: T.surface, borderRadius: 8, border: `1px solid ${T.borderSoft}` }}>
           <div style={{ fontFamily: PLEX, fontSize: "0.72rem", fontWeight: 700,
             color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em",
             marginBottom: "0.5rem" }}>
             Bisheriger Regulierungsstand
           </div>
-          {abrechnungen.map((ab, i) => (
-            <div key={ab.id || i} style={{ display: "flex", justifyContent: "space-between",
+          {regulGruppen.map((g, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between",
               fontFamily: MONO, fontSize: "0.825rem", padding: "2px 0" }}>
-              <span style={{ color: T.textMuted }}>{ab.versicherung || "Abrechnung"} · {ab.datum || ""}</span>
-              <span style={{ color: T.navy, fontWeight: 600 }}>{fmtEur(parseFloat(ab.gesamt_reguliert) || 0)}</span>
+              <span style={{ color: T.textMuted }}>
+                {g.datum ? (() => {
+                  try { const [y,m,d] = g.datum.split("-"); return `${d}.${m}.${y}`; }
+                  catch { return g.datum; }
+                })() : "—"}
+                {g.versicherung && <span style={{ marginLeft: 8 }}>{g.versicherung}</span>}
+              </span>
+              <span style={{ color: T.green, fontWeight: 600 }}>{fmtEur(g.summe)}</span>
             </div>
           ))}
           <div style={{ display: "flex", justifyContent: "space-between",
             borderTop: `1px solid ${T.border}`, marginTop: 4, paddingTop: 4,
             fontFamily: MONO, fontSize: "0.875rem", fontWeight: 700, color: T.navy }}>
             <span>Summe reguliert</span>
-            <span>{fmtEur(abrechnungen.reduce((s, ab) => s + (parseFloat(ab.gesamt_reguliert) || 0), 0))}</span>
+            <span>{fmtEur(regulGesamt)}</span>
           </div>
         </div>
       )}
-
-      <div style={{ marginBottom: "1.25rem" }}>
-        <div style={{ fontFamily: PLEX, fontSize: "0.72rem", fontWeight: 700,
-          color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em",
-          marginBottom: "0.75rem" }}>
-          Klagepositionen – angehakt = eingeklagt
-        </div>
-        {positionen.map(p => {
-          const prov      = provenanceMap[p.key];
-          const reg       = prov?.gesamt || 0;
-          // p.betrag ist bereits der offene Betrag (oeffneWizard subtrahiert reguliert)
-          const vollReg   = reg > 0 && (p.betrag || 0) <= 0.005;
-          const gefordert = (p.betrag || 0) + reg; // ursprünglicher Forderungsbetrag
-          return (
-            <label key={p.key} style={{
-              display: "flex", alignItems: "flex-start", gap: 10,
-              padding: "8px 10px", borderRadius: 7, cursor: "pointer",
-              border: `1px solid ${p.checked ? T.navy : T.borderSoft}`,
-              background: p.checked ? `${T.navy}06` : T.white,
-              marginBottom: 4, transition: "all 0.12s",
-            }}>
-              <input type="checkbox" checked={p.checked}
-                onChange={() => onTogglePos(p.key)}
-                style={{ accentColor: T.navy, cursor: "pointer", width: 16, height: 16, marginTop: 2 }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: PLEX, fontSize: "0.875rem",
-                  color: p.checked ? T.navy : T.text, fontWeight: p.checked ? 600 : 400 }}>
-                  {p.label}
-                </div>
-                {vollReg && (
-                  <div style={{ fontFamily: PLEX, fontSize: "0.72rem", color: T.green, marginTop: 1 }}>
-                    vollständig reguliert
-                  </div>
-                )}
-                {!vollReg && reg > 0 && (
-                  <div style={{ fontFamily: MONO, fontSize: "0.72rem", color: T.textMuted, marginTop: 1 }}>
-                    <span>gefordert {fmtEur(gefordert)} · reguliert {fmtEur(reg)}</span>
-                    {(prov?.quellen?.length || 0) > 1 && (
-                      <div style={{ marginTop: 2 }}>
-                        {prov.quellen.map((q, i) => (
-                          <div key={i} style={{ paddingLeft: 8, fontSize: "0.65rem", color: T.textMuted }}>
-                            {q.datum} · {q.versicherung || "?"} · {fmtEur(q.betrag)}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              <span style={{ fontFamily: MONO, fontSize: "0.875rem",
-                color: p.checked ? T.navy : T.textMuted, fontWeight: p.checked ? 700 : 400 }}>
-                {fmtEur(p.betrag)}
-              </span>
-            </label>
-          );
-        })}
-      </div>
 
       <div style={{ background: T.surface, borderRadius: 8, padding: "0.75rem 1rem",
         border: `1px solid ${T.borderSoft}`, marginBottom: "1rem" }}>
@@ -957,7 +1008,7 @@ function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, 
       return [
         `**${letter}) ${ka.bezeichnung}**`,
         betragsatz,
-        (ka.standard_gegenargument || "").trim(),
+        (ka.textbaustein || ka.standard_gegenargument || "").trim(),
       ].filter(Boolean).join("\n");
     });
 
@@ -1053,10 +1104,13 @@ function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, 
                         }}>gekürzt</span>
                       )}
                     </div>
-                    {ka.standard_gegenargument && (
+                    {(ka.textbaustein || ka.standard_gegenargument) && (
                       <div style={{ fontFamily: PLEX, fontSize: "0.75rem",
                         color: T.textFaint, marginTop: 2, lineHeight: 1.55 }}>
-                        {ka.standard_gegenargument}
+                        {(() => {
+                          const t = (ka.textbaustein || ka.standard_gegenargument).trim();
+                          return t.length > 200 ? t.slice(0, 200) + " …" : t;
+                        })()}
                       </div>
                     )}
                   </div>
@@ -1261,18 +1315,22 @@ function StepRw({ hq, onHq, hb, onHb, abrechnungen, weiblich,
 
 // ── Step 6: Verzug & Kosten ────────────────────────────────────────────────────
 
-function buildVerzugAutoText(datum) {
-  return datum
-    ? `Der Verzug ist nach Ablauf der Zahlungsfrist bzw. dem ernsthaften und endgültigen Verweigern der Leistung am ${datum} eingetreten.\n\nBEWEIS: Schreiben vom ${datum}`
-    : `Verzug ist mit Rechtshängigkeit eingetreten.`;
+function buildVerzugAutoText(dokDatum, eintrittDatum) {
+  const vDat = eintrittDatum || dokDatum;
+  const bDat = dokDatum || eintrittDatum;
+  if (!vDat) return "Verzug ist mit Rechtshängigkeit eingetreten.";
+  return `Der Verzug ist nach Ablauf der Zahlungsfrist bzw. dem ernsthaften und endgültigen Verweigern der Leistung am ${vDat} eingetreten.\n\nBEWEIS: Schreiben vom ${bDat}`;
 }
 
 function StepVerzug({ zinsenAb, rvgData, rvgOverride, weiblich,
                       wizardVerzugDatum, onWizardVerzugDatum,
-                      wizardVerzugText, onWizardVerzugText }) {
-  const rvgGesamt      = rvgOverride ? parseFloat(rvgOverride) : (rvgData?.gesamt || 0);
-  const prevAutoRef    = useRef(wizardVerzugText);
-  const datepickerRef  = useRef(null);
+                      wizardVerzugDokDatum, onWizardVerzugDokDatum,
+                      wizardVerzugText, onWizardVerzugText,
+                      manuelleBearbeitung, onManuelleBearbeitung,
+                      verzugDokListe, verzugDokId, onVerzugDokId }) {
+  const rvgGesamt     = rvgOverride ? parseFloat(rvgOverride) : (rvgData?.gesamt || 0);
+  const pickerEinRef  = useRef(null);
+  const pickerDokRef  = useRef(null);
 
   function datumZuIso(de) {
     const m = (de || "").match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
@@ -1284,36 +1342,118 @@ function StepVerzug({ zinsenAb, rvgData, rvgOverride, weiblich,
     return `${d}.${mo}.${y}`;
   }
 
-  function handleDatumChange(val) {
+  function rebuildText(dokDat, einDat) {
+    if (manuelleBearbeitung) return;
+    onWizardVerzugText(buildVerzugAutoText(dokDat, einDat));
+  }
+
+  function handleEintrittChange(val) {
     onWizardVerzugDatum(val);
-    // Text nur neu generieren wenn er noch dem Auto-Text entspricht (kein manueller Edit)
-    if (wizardVerzugText === prevAutoRef.current) {
-      const neu = buildVerzugAutoText(val);
-      prevAutoRef.current = neu;
-      onWizardVerzugText(neu);
-    }
+    rebuildText(wizardVerzugDokDatum, val);
+  }
+
+  function handleDokDatumChange(val) {
+    onWizardVerzugDokDatum(val);
+    rebuildText(val, wizardVerzugDatum);
   }
 
   function handleReset() {
-    const neu = buildVerzugAutoText(wizardVerzugDatum);
-    prevAutoRef.current = neu;
-    onWizardVerzugText(neu);
+    onManuelleBearbeitung(false);
+    onWizardVerzugText(buildVerzugAutoText(wizardVerzugDokDatum, wizardVerzugDatum));
   }
+
+  const CalIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1" y="3" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.4"/>
+      <path d="M1 7h14" stroke="currentColor" strokeWidth="1.4"/>
+      <path d="M5 1v3M11 1v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+    </svg>
+  );
+
+  const calBtnStyle = {
+    padding: "6px 9px", borderRadius: 7, cursor: "pointer",
+    border: `1.5px solid ${T.border}`, background: T.white,
+    color: T.textMuted, fontSize: "1rem", lineHeight: 1,
+    display: "flex", alignItems: "center", flexShrink: 0,
+  };
 
   return (
     <div style={{ display: "flex", gap: "1.5rem", alignItems: "stretch" }}>
-      <div style={{ flex: "0 0 240px", display: "flex", flexDirection: "column", gap: "0.9rem" }}>
-        <AbschnittLabel text="Verzugsdatum" />
+      <div style={{ flex: "0 0 260px", display: "flex", flexDirection: "column", gap: "0.9rem" }}>
 
+        {/* ── Verzugsbegründendes Schreiben ── */}
+        <AbschnittLabel text="Verzugsbegründendes Schreiben" />
+
+        {/* Dokument-Auswahl */}
+        {(verzugDokListe?.length || 0) > 0 && (
+          <div>
+            <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.textMuted, marginBottom: 4 }}>
+              Schreiben auswählen
+            </div>
+            <select
+              value={verzugDokId ?? ""}
+              onChange={e => onVerzugDokId(e.target.value ? parseInt(e.target.value) : null)}
+              style={{
+                width: "100%", padding: "7px 8px", borderRadius: 7,
+                border: `1.5px solid ${T.border}`, fontFamily: PLEX,
+                fontSize: "0.825rem", background: T.white,
+              }}
+            >
+              <option value="">– kein Dokument –</option>
+              {verzugDokListe.map(d => (
+                <option key={d.id} value={d.id}>{d.dateiname}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Datum des Schreibens */}
         <div>
           <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.textMuted, marginBottom: 4 }}>
-            Datum (leer = Rechtshängigkeit)
+            Datum des Schreibens <span style={{ color: T.textFaint }}>(für BEWEIS-Zeile)</span>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", position: "relative" }}>
+            <input
+              type="text"
+              value={wizardVerzugDokDatum}
+              onChange={e => handleDokDatumChange(e.target.value)}
+              placeholder="TT.MM.JJJJ"
+              style={{
+                flex: 1, padding: "7px 10px", borderRadius: 7,
+                border: `1.5px solid ${wizardVerzugDokDatum ? T.navy : T.border}`,
+                fontFamily: MONO, fontSize: "0.875rem",
+                color: wizardVerzugDokDatum ? T.navy : T.textMuted,
+                background: T.white, boxSizing: "border-box",
+              }}
+            />
+            <button type="button" onClick={() => pickerDokRef.current?.showPicker?.()}
+              title="Kalender öffnen" style={calBtnStyle}>
+              <CalIcon />
+            </button>
+            <input ref={pickerDokRef} type="date"
+              value={datumZuIso(wizardVerzugDokDatum)}
+              onChange={e => handleDokDatumChange(isoZuDatum(e.target.value))}
+              style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0, right: 0 }}
+              tabIndex={-1} />
+          </div>
+          {wizardVerzugDokDatum && (
+            <div style={{ fontFamily: PLEX, fontSize: "0.72rem", color: T.textFaint, marginTop: 3 }}>
+              → BEWEIS: Schreiben vom {wizardVerzugDokDatum}
+            </div>
+          )}
+        </div>
+
+        <div style={{ borderTop: `1px solid ${T.borderSoft}`, paddingTop: "0.75rem" }}>
+          {/* ── Verzugseintritt ── */}
+          <AbschnittLabel text="Verzugseintritt" />
+          <div style={{ fontFamily: PLEX, fontSize: "0.75rem", color: T.textMuted, margin: "4px 0 6px" }}>
+            Tag nach Fristablauf oder Ablehnungsschreiben (leer = Rechtshängigkeit)
           </div>
           <div style={{ display: "flex", gap: 6, alignItems: "center", position: "relative" }}>
             <input
               type="text"
               value={wizardVerzugDatum}
-              onChange={e => handleDatumChange(e.target.value)}
+              onChange={e => handleEintrittChange(e.target.value)}
               placeholder="TT.MM.JJJJ"
               style={{
                 flex: 1, padding: "7px 10px", borderRadius: 7,
@@ -1323,31 +1463,15 @@ function StepVerzug({ zinsenAb, rvgData, rvgOverride, weiblich,
                 background: T.white, boxSizing: "border-box",
               }}
             />
-            <button
-              type="button"
-              onClick={() => datepickerRef.current?.showPicker?.()}
-              title="Kalender öffnen"
-              style={{
-                padding: "6px 9px", borderRadius: 7, cursor: "pointer",
-                border: `1.5px solid ${T.border}`, background: T.white,
-                color: T.textMuted, fontSize: "1rem", lineHeight: 1,
-                display: "flex", alignItems: "center", flexShrink: 0,
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="1" y="3" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.4"/>
-                <path d="M1 7h14" stroke="currentColor" strokeWidth="1.4"/>
-                <path d="M5 1v3M11 1v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-              </svg>
+            <button type="button" onClick={() => pickerEinRef.current?.showPicker?.()}
+              title="Kalender öffnen" style={calBtnStyle}>
+              <CalIcon />
             </button>
-            <input
-              ref={datepickerRef}
-              type="date"
+            <input ref={pickerEinRef} type="date"
               value={datumZuIso(wizardVerzugDatum)}
-              onChange={e => handleDatumChange(isoZuDatum(e.target.value))}
+              onChange={e => handleEintrittChange(isoZuDatum(e.target.value))}
               style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0, right: 0 }}
-              tabIndex={-1}
-            />
+              tabIndex={-1} />
           </div>
           {!wizardVerzugDatum && (
             <div style={{ fontFamily: PLEX, fontSize: "0.72rem", color: T.amber, marginTop: 3 }}>
@@ -1357,22 +1481,11 @@ function StepVerzug({ zinsenAb, rvgData, rvgOverride, weiblich,
         </div>
 
         <div style={{ borderTop: `1px solid ${T.borderSoft}`, paddingTop: "0.75rem" }}>
-          <AbschnittLabel text="Zinsen ab" />
-          <div style={{
-            fontFamily: MONO, fontSize: "0.875rem", fontWeight: 600,
-            color: T.navy, marginTop: 2,
-          }}>
-            {zinsenAb === "verzug" ? "Verzugseintritt" : "Rechtshängigkeit"}
-          </div>
-          <div style={{ fontFamily: PLEX, fontSize: "0.72rem", color: T.textFaint, marginTop: 4 }}>
-            Einstellung aus Klage-Tab
-          </div>
-        </div>
-
-        <div style={{ borderTop: `1px solid ${T.borderSoft}`, paddingTop: "0.75rem" }}>
           <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.textMuted, lineHeight: 1.7 }}>
+            <div>Zinsen ab: <span style={{ fontFamily: MONO, color: T.navy }}>
+              {zinsenAb === "verzug" ? "Verzugseintritt" : "Rechtshängigkeit"}
+            </span></div>
             <div>RVG: <span style={{ fontFamily: MONO, color: T.navy }}>{fmtEur(rvgGesamt)}</span></div>
-            <div style={{ marginTop: 4 }}>Schlussformel: automatisch.</div>
           </div>
         </div>
 
@@ -1389,7 +1502,7 @@ function StepVerzug({ zinsenAb, rvgData, rvgOverride, weiblich,
         </button>
       </div>
 
-      <DokumentCard editText={wizardVerzugText} onEditText={onWizardVerzugText} />
+      <DokumentCard editText={wizardVerzugText} onEditText={val => { onManuelleBearbeitung(true); onWizardVerzugText(val); }} />
     </div>
   );
 }
@@ -1810,16 +1923,19 @@ const VG_OPTIONEN = [
 
 function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
                          rvgAussergOv, onRvgAussergOv,
+                         rvgBereitsGezahlt, onRvgBereitsGezahlt,
                          gebuehrenText, onGebuehrenText,
                          beklagte, weiblich,
                          zinsenAb, verzug,
                          antraegeText, onAntraegeText,
                          gespeichertGb, onGespeichertGb, akteId }) {
-  const beklagteGef = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked);
-  const nrSuffix    = beklagteGef.length > 1 ? " (zu 1)" : "";
-  const kl_akk      = weiblich ? "die Klägerin" : "den Kläger";  // Akkusativ: zahlen an…
-  const zinsDat     = zinsenAb === "verzug" && verzug ? `seit dem ${verzug}` : "seit Rechtshängigkeit";
-  const rvgGesamt   = rvgAussergOv ? parseFloat(rvgAussergOv) : (rvgAussergData?.gesamt || 0);
+  const beklagteGef  = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked);
+  const nrSuffix     = beklagteGef.length > 1 ? " (zu 1)" : "";
+  const kl_akk       = weiblich ? "die Klägerin" : "den Kläger";
+  const zinsDat      = zinsenAb === "verzug" && verzug ? `seit dem ${verzug}` : "seit Rechtshängigkeit";
+  const rvgGesamt    = rvgAussergOv ? parseFloat(rvgAussergOv) : (rvgAussergData?.gesamt || 0);
+  const bereitsGez   = parseFloat(rvgBereitsGezahlt) || 0;
+  const rvgNetto     = Math.max(0, rvgGesamt - bereitsGez);
 
   // PRD-28: Inline-Assistent State (Modus B)
   const [gbAntworten, setGbAntworten]   = useState({});
@@ -1874,7 +1990,7 @@ function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
   };
 
   function baueGebuehrenAntrag(betrag) {
-    const b = betrag || rvgGesamt;
+    const b = betrag !== undefined ? betrag : rvgNetto;
     return (
       `Die Beklagte${nrSuffix} wird verurteilt, an ${kl_akk} weitere ` +
       `${b.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € ` +
@@ -1885,9 +2001,15 @@ function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
 
   useEffect(() => {
     if (!gebuehrenText && rvgGesamt > 0) {
-      onGebuehrenText(baueGebuehrenAntrag(rvgGesamt));
+      onGebuehrenText(baueGebuehrenAntrag());
     }
   }, [rvgGesamt]); // eslint-disable-line
+
+  useEffect(() => {
+    if (rvgGesamt > 0) {
+      onGebuehrenText(baueGebuehrenAntrag());
+    }
+  }, [bereitsGez]); // eslint-disable-line
 
   // Platzhalter in antraegeText ersetzen sobald gebuehrenText gesetzt
   useEffect(() => {
@@ -2041,7 +2163,9 @@ function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
               value={rvgAussergOv}
               onChange={e => {
                 onRvgAussergOv(e.target.value);
-                if (e.target.value) onGebuehrenText(baueGebuehrenAntrag(parseFloat(e.target.value)));
+                if (e.target.value) onGebuehrenText(baueGebuehrenAntrag(
+                  Math.max(0, parseFloat(e.target.value) - bereitsGez)
+                ));
               }}
               placeholder={rvgAussergData ? rvgAussergData.gesamt.toFixed(2) : ""}
               style={{ width: 120, padding: "6px 8px",
@@ -2050,6 +2174,29 @@ function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
                 background: T.white, color: T.navy }} />
             <span style={{ fontFamily: PLEX, fontSize: "0.85rem", color: T.textMuted }}>€</span>
           </div>
+        </div>
+
+        <div>
+          <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.textMuted, marginBottom: 4 }}>
+            Bereits gezahlt (abziehen)
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input type="number" min="0" step="0.01"
+              value={rvgBereitsGezahlt}
+              onChange={e => onRvgBereitsGezahlt(e.target.value)}
+              placeholder="0,00"
+              style={{ width: 120, padding: "6px 8px",
+                border: `1.5px solid ${bereitsGez > 0 ? T.amber : T.border}`, borderRadius: 7,
+                fontFamily: MONO, fontSize: "0.9rem", outline: "none",
+                background: T.white, color: T.navy }} />
+            <span style={{ fontFamily: PLEX, fontSize: "0.85rem", color: T.textMuted }}>€</span>
+          </div>
+          {bereitsGez > 0 && (
+            <div style={{ fontFamily: MONO, fontSize: "0.72rem", color: T.navy,
+              fontWeight: 700, marginTop: 4 }}>
+              Klageanteil: {fNr(rvgNetto)}
+            </div>
+          )}
         </div>
 
         <div style={{ fontFamily: PLEX, fontSize: "0.72rem", color: T.textFaint }}>
@@ -2097,10 +2244,14 @@ export default function KlageWizard({
   // Step 8 (Verzug)
   wizardVerzugText, onWizardVerzugText,
   wizardVerzugDatum, onWizardVerzugDatum,
+  wizardVerzugDokDatum, onWizardVerzugDokDatum,
+  wizardVerzugManuell, onWizardVerzugManuell,
+  verzugDokListe, verzugDokId, onVerzugDokId,
   // Step 9 (Außergerichtl. Gebühren)
   swAusserg,
   wizardRvgAussergData, onRvgAussergData,
   wizardRvgAussergOv, onRvgAussergOv,
+  wizardRvgBereitsGezahlt, onRvgBereitsGezahlt,
   wizardGebuehrenText, onGebuehrenText,
   gespeichertGb, onGespeichertGb,
   wizardAkteId,
@@ -2245,7 +2396,7 @@ export default function KlageWizard({
               <StepAntraege
                 positionen={positionen}   mitSG={mitSG}   sgMind={sgMind}
                 beklagte={beklagte}       weiblich={weiblich}
-                zinsenAb={zinsenAb}       verzug={verzug}
+                zinsenAb={zinsenAb}       verzug={wizardVerzugDatum || verzug}
                 unfalldatum={unfalldatum}
                 mitFestSg={wizardMitFestSg}   onMitFestSg={onMitFestSg}
                 mitFestSach={wizardMitFestSach} onMitFestSach={onMitFestSach}
@@ -2269,12 +2420,18 @@ export default function KlageWizard({
             {step === 8 && (
               <StepVerzug
                 zinsenAb={zinsenAb}
-                rvgData={rvgData}         rvgOverride={rvgOverride}
+                rvgData={rvgData}               rvgOverride={rvgOverride}
                 weiblich={weiblich}
                 wizardVerzugDatum={wizardVerzugDatum}
                 onWizardVerzugDatum={onWizardVerzugDatum}
+                wizardVerzugDokDatum={wizardVerzugDokDatum}
+                onWizardVerzugDokDatum={onWizardVerzugDokDatum}
                 wizardVerzugText={wizardVerzugText}
                 onWizardVerzugText={onWizardVerzugText}
+                manuelleBearbeitung={wizardVerzugManuell}
+                onManuelleBearbeitung={onWizardVerzugManuell}
+                verzugDokListe={verzugDokListe}
+                verzugDokId={verzugDokId}       onVerzugDokId={onVerzugDokId}
               />
             )}
 
@@ -2283,6 +2440,7 @@ export default function KlageWizard({
                 swAusserg={swAusserg}
                 rvgAussergData={wizardRvgAussergData} onRvgAussergData={onRvgAussergData}
                 rvgAussergOv={wizardRvgAussergOv}     onRvgAussergOv={onRvgAussergOv}
+                rvgBereitsGezahlt={wizardRvgBereitsGezahlt} onRvgBereitsGezahlt={onRvgBereitsGezahlt}
                 gebuehrenText={wizardGebuehrenText}   onGebuehrenText={onGebuehrenText}
                 beklagte={beklagte}                   weiblich={weiblich}
                 zinsenAb={zinsenAb}                   verzug={verzug}

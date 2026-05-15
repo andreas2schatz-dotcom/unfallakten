@@ -39,6 +39,7 @@
 | KI-Parsing Regulierungsschreiben | Qwen Shadow-Mode, Modell-Switcher UI, Few-Shot, Datum-Fix | (aus: handover/backlog.md) |
 | Action Board Global + OnboardingHub | ActionBoardView (3 Spalten), OnboardingHub (7 Kacheln) | (aus: session_handover_v56.md) |
 | PRD-22c | Mandanten-Fragebogen: E-Mail-Parser, fragebogen_parser.py, DB-Tabelle fragebogen_erstkontakt, Verarbeitungslogik, Frontend (FragebogenErstkontaktKarte.jsx). Ausstehend: Website-Formular + PRD-22d (Akte-Anlage). | (Code-Prüfung 2026-05-03) |
+| PRD-35 | Klage-Wizard Bug-Fixes (5 Bugs): vorsteuer in b_dict, wizardVerzugDatum in Step 6, EinwändePanel-Preview, StepVerzug Manual-Edit-Schutz (wizardVerzugManuell), StepSchaden Gefordert-Spalte (betragOriginal). + klage_service: RVG außergerichtl. Gegenstandswert, rvg_bereits_gezahlt Abzug. | (Session 2026-05-10) |
 | B-08 | Netto/Brutto bei Vorsteuer-Mandant | (aus: session_handover_v38.md, v33) |
 | B-09 | Gegenstandswert + fehlende Schadenspositionen | (aus: session_handover_v38.md, v34) |
 
@@ -66,14 +67,11 @@ Spalte zeigt nur E-Mails aus `email_import_log`. Mandantenportal- und SV-Portal-
 
 ### Priorität: Kritisch / Bald (nächste 1–3 Sessions)
 
-**PRD-35 – Klage-Wizard Bug-Fixes**
-Bekannte Bugs im 10-Step Klage-Wizard beheben. Genaue Fehlerbeschreibung folgt in der Umsetzungs-Session.
-(aus: Nutzer-Feedback 2026-05-08)
-
-**PRD-33 – Klage-Wizard Feintuning**
-Qualitäts-Pass am generierten DOCX: Absätze/Leerzeilen in `klage_service.py`, Textbausteine inhaltlich überarbeiten (Sachverhalt, Anträge, Gebühren), Rubrum bei mehreren Beklagten, RVG-Betrag einbinden, Platzhalter-Kontrolle.
+**PRD-33 – Klage-Wizard Feintuning (klage_service.py)**
+Qualitäts-Pass am generierten DOCX. Bereits gefixt (Session 2026-05-10): RVG-Tabelle zeigt jetzt außergerichtl. Gegenstandswert; `rvg_bereits_gezahlt`-Abzug mit bedingten Tabellenzeilen.
+Noch offen: weitere Layout-/Inhaltsfehler im generierten DOCX (Absätze, Textbausteine, Rubrum bei mehreren Beklagten, Platzhalter-Kontrolle).
 Debugging-Vorbereitung: `handover/session_handover_v52.md` → Abschnitt „Nächste Session".
-(aus: handover/backlog.md, session_handover_v55.md)
+(aus: handover/backlog.md, session_handover_v55.md, Session 2026-05-10)
 
 **PRD-NEW – Onboarding-Wizard (Neue-Akte-Anlage)**
 Stub `NeueAkteModal` existiert seit v54 in `AktensucheView.jsx` (AZ, Unfalldatum, Unfallort, Notizen). Echte Akte-Anlage-Logik fehlt vollständig. Hängt an PRD-22d-Konzept (neuer Mandant → Akte anlegen).

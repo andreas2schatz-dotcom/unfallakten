@@ -159,8 +159,10 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [mitSG, setMitSG]       = useState(false);
   const [sgMind, setSGMind]     = useState(0);
   const [showSgAssistent, setShowSgAssistent] = useState(false);
-  const [zinsenAb, setZinsenAb] = useState("verzug");
-  const [verzug, setVerzug]     = useState("");
+  const [zinsenAb, setZinsenAb]       = useState("verzug");
+  const [verzug, setVerzug]           = useState("");
+  const [verzugDokListe, setVerzugDokListe] = useState([]);
+  const [verzugDokId, setVerzugDokId]       = useState(null);
   const [rvgOverride, setRvgOv] = useState("");
   const [rvgData, setRvgData]   = useState(null);
 
@@ -177,8 +179,10 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [auslandsunfall, setAuslandsunfall] = useState(false);
   const [wizardUnfallText, setWizardUnfallText] = useState("");
   const [wizardRwText, setWizardRwText]         = useState("");
-  const [wizardVerzugText, setWizardVerzugText]   = useState("");
-  const [wizardVerzugDatum, setWizardVerzugDatum] = useState("");
+  const [wizardVerzugText, setWizardVerzugText]       = useState("");
+  const [wizardVerzugDatum, setWizardVerzugDatum]     = useState("");
+  const [wizardVerzugDokDatum, setWizardVerzugDokDatum] = useState("");
+  const [wizardVerzugManuell, setWizardVerzugManuell] = useState(false);
   const [kiLaedt, setKiLaedt]                     = useState(false);
   const [lgGrenzwert, setLgGrenzwert]             = useState(10000);
   // PRD-26: neue Wizard-States
@@ -189,8 +193,9 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [wizardMitFestSg, setWizardMitFestSg]       = useState(false);
   const [wizardMitFestSach, setWizardMitFestSach]   = useState(false);
   const [wizardAntraegeText, setWizardAntraegeText] = useState("");
-  const [wizardRvgAussergData, setWizardRvgAussergData] = useState(null);
-  const [wizardRvgAussergOv, setWizardRvgAussergOv]     = useState("");
+  const [wizardRvgAussergData, setWizardRvgAussergData]         = useState(null);
+  const [wizardRvgAussergOv, setWizardRvgAussergOv]             = useState("");
+  const [wizardRvgBereitsGezahlt, setWizardRvgBereitsGezahlt]   = useState("");
   const [wizardGebuehrenText, setWizardGebuehrenText]   = useState("");
   const [gespeichertGb, setGespeichertGb]               = useState(null); // PRD-28: gespeicherte Gebührenberechnung
 
@@ -205,7 +210,17 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           ...b,
           checked: !!b.vorschlag_beklagter,
         })));
-        setVerzug(res.verzug_datum || "");
+        const initVerzug = res.verzug_datum || "";
+        setVerzug(initVerzug);
+        setWizardVerzugDokDatum(initVerzug);
+        setWizardVerzugDatum(initVerzug);
+        const vdl = res.verzug_dokumente || [];
+        setVerzugDokListe(vdl);
+        // Vorauswahl: mahnschreiben/verzugsschreiben bevorzugen
+        const prioritaetsDok = vdl.find(d =>
+          d.dokumentenklasse === "mahnschreiben" || d.dokumentenklasse === "verzugsschreiben"
+        ) || vdl[0];
+        setVerzugDokId(prioritaetsDok?.id ?? null);
         setRvgData(res.rvg || null);
         if (res.lg_grenzwert) setLgGrenzwert(res.lg_grenzwert);
         // Gericht-Vorschlag automatisch setzen
@@ -255,20 +270,59 @@ function KlageSection({ akteId, akte, st, dispatch }) {
 
   // Außergerichtlicher Streitwert = Summe aller Schadenpositionen (Brutto-Forderung)
   const swAusserg = positionen.reduce((s, p) => s + (p.betrag || 0), 0);
-  // Gerichtlicher Streitwert = angehakte Positionen minus bereits gezahlte Beträge
+
+  // Per-Position offene Beträge — selbe _KEY_MAP-Logik wie oeffneWizard()
+  const _KLAGEN_KEY_MAP = {
+    "reparatur_netto":     "fahrzeugschaden",
+    "reparatur_brutto":    "fahrzeugschaden",
+    "reparaturkosten":     "fahrzeugschaden",
+    "wba":                 "fahrzeugschaden",
+    "rep_gutachten_netto": "fahrzeugschaden",
+    "rep_rechnung_netto":  "fahrzeugschaden",
+    "rep_rechnung_brutto": "fahrzeugschaden",
+    "wiederbeschaffung":   "fahrzeugschaden",
+  };
+  const _posRegMap = {};
+  (daten?.abrechnungen || []).forEach(ab => {
+    (ab.positionen || []).forEach(rp => {
+      const k = _KLAGEN_KEY_MAP[rp.position_key] || rp.position_key;
+      if (k) _posRegMap[k] = (_posRegMap[k] || 0) + (parseFloat(rp.betrag_reguliert) || 0);
+    });
+  });
+  let posOffen = positionen.map(p => ({
+    ...p,
+    reguliertPos: _posRegMap[p.key] || 0,
+    offenBetrag:  Math.max(0, (p.betrag || 0) - (_posRegMap[p.key] || 0)),
+  }));
+  const _posLevelPaid = Object.values(_posRegMap).reduce((s, v) => s + v, 0);
+  let _unassignedK = Math.max(0, gesamtReguliert - _posLevelPaid);
+  if (_unassignedK > 0.005) {
+    const _red = {};
+    [...posOffen].sort((a, b) => (b.offenBetrag || 0) - (a.offenBetrag || 0)).forEach(p => {
+      if (_unassignedK <= 0.005) return;
+      const r = Math.min(_unassignedK, p.offenBetrag || 0);
+      _red[p.key] = r;
+      _unassignedK -= r;
+    });
+    posOffen = posOffen.map(p => ({
+      ...p,
+      reguliertPos: (p.reguliertPos || 0) + (_red[p.key] || 0),
+      offenBetrag:  Math.max(0, (p.offenBetrag || 0) - (_red[p.key] || 0)),
+    }));
+  }
+  // Gerichtlicher Streitwert = Summe der offenen Beträge angehakter Positionen
   const klagebetrag = Math.max(0,
-    positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag || 0), 0)
-    - gesamtReguliert
+    posOffen.filter(p => p.checked).reduce((s, p) => s + (p.offenBetrag || 0), 0)
   );
   useEffect(() => {
     if (!daten) return;
     (async () => {
       try {
-        const res = await apiKlage.rvgBerechnen(akteId, { streitwert: klagebetrag });
+        const res = await apiKlage.rvgBerechnen(akteId, { streitwert: swAusserg });
         setRvgData(res.rvg);
       } catch {}
     })();
-  }, [klagebetrag]);
+  }, [swAusserg]);
 
   // Step 9: RVG auf außergerichtl. Streitwert berechnen wenn Step 9 erreicht
   useEffect(() => {
@@ -326,7 +380,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         positionen:            positionen,
         mit_schmerzensgeld:    mitSG,
         schmerzensgeld_mindest: sgMind,
-        verzugsdatum:          zinsenAb === "verzug" ? verzug : null,
+        verzugsdatum:          zinsenAb === "verzug" ? (wizardVerzugDatum || verzug) : null,
         zinsen_ab:             zinsenAb,
         rvg:                   rvgData,
         rvg_override:          rvgOverride ? parseFloat(rvgOverride) : null,
@@ -351,10 +405,14 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     // Offene Beträge vorausberechnen (gefordert − reguliert je Position)
     // Fahrzeugschaden-Keys aus dem Abrechnung-Parser → Wizard-Key "fahrzeugschaden"
     const _KEY_MAP = {
-      "reparatur_netto":  "fahrzeugschaden",
-      "reparatur_brutto": "fahrzeugschaden",
-      "reparaturkosten":  "fahrzeugschaden",
-      "wba":              "fahrzeugschaden", // Totalschaden: Wiederbeschaffungsaufwand
+      "reparatur_netto":     "fahrzeugschaden",
+      "reparatur_brutto":    "fahrzeugschaden",
+      "reparaturkosten":     "fahrzeugschaden",
+      "wba":                 "fahrzeugschaden",
+      "rep_gutachten_netto": "fahrzeugschaden",
+      "rep_rechnung_netto":  "fahrzeugschaden",
+      "rep_rechnung_brutto": "fahrzeugschaden",
+      "wiederbeschaffung":   "fahrzeugschaden",
     };
     const _regMap = {};
     (daten?.abrechnungen || []).forEach(ab => {
@@ -367,6 +425,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     // Schritt 1: positions-gebundene Regulierungen abziehen
     let _workPos = positionen.map(p => ({
       ...p,
+      betragOriginal: p.betrag || 0,
       betrag: Math.max(0, (p.betrag || 0) - (_regMap[p.key] || 0)),
     }));
     // Schritt 2: ungebundene Zahlungen (Vorschuss) gierig auf größte Positionen verteilen
@@ -446,11 +505,14 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         ];
     setWizardRwText(rw_lines.join("\n\n"));
 
-    // ── Verzug: Datum aus WDM (varVERZUGAB via verzug_datum), Fallback Rechtshängigkeit ──
-    const verzugDatum = verzug || "";
-    setWizardVerzugDatum(verzugDatum);
-    const vdat = verzugDatum ? `spätestens am ${verzugDatum}` : "mit Rechtshängigkeit";
-    setWizardVerzugText(`Verzug ist ${vdat} eingetreten.`);
+    // Verzug-States nur initialisieren wenn noch leer (Kachel 5 könnte sie bereits befüllt haben)
+    const verzugDatum = wizardVerzugDatum || wizardVerzugDokDatum || verzug || "";
+    if (!wizardVerzugDokDatum) setWizardVerzugDokDatum(verzugDatum);
+    if (!wizardVerzugDatum)    setWizardVerzugDatum(verzugDatum);
+    setWizardVerzugText(verzugDatum
+      ? `Der Verzug ist nach Ablauf der Zahlungsfrist bzw. dem ernsthaften und endgültigen Verweigern der Leistung am ${verzugDatum} eingetreten.\n\nBEWEIS: Schreiben vom ${verzugDatum}`
+      : "Verzug ist mit Rechtshängigkeit eingetreten.");
+    setWizardVerzugManuell(false);
 
     // PRD-26: neue States initialisieren
     setWizardMaxStep(1);
@@ -460,6 +522,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setWizardAntraegeText("");
     setWizardRvgAussergData(null);
     setWizardRvgAussergOv("");
+    setWizardRvgBereitsGezahlt("");
     setWizardGebuehrenText("");
 
     setWizardStep(1);
@@ -507,6 +570,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         antraege_override:                 wizardAntraegeText || null,
         rvg_ausserg:                       wizardRvgAussergData,
         rvg_ausserg_override:              wizardRvgAussergOv ? parseFloat(wizardRvgAussergOv) : null,
+        rvg_bereits_gezahlt:               wizardRvgBereitsGezahlt ? parseFloat(wizardRvgBereitsGezahlt) : null,
       };
       await apiKlage.generieren(akteId, {
         gericht,
@@ -591,13 +655,18 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           kuerzungsarten={daten?.kuerzungsarten || []}
           onKiHaftung={handleKiHaftung} kiLaedt={kiLaedt}
           // Step 8: Verzug
-          wizardVerzugText={wizardVerzugText}   onWizardVerzugText={setWizardVerzugText}
-          wizardVerzugDatum={wizardVerzugDatum} onWizardVerzugDatum={setWizardVerzugDatum}
+          wizardVerzugText={wizardVerzugText}         onWizardVerzugText={setWizardVerzugText}
+          wizardVerzugDatum={wizardVerzugDatum}       onWizardVerzugDatum={setWizardVerzugDatum}
+          wizardVerzugDokDatum={wizardVerzugDokDatum} onWizardVerzugDokDatum={setWizardVerzugDokDatum}
+          wizardVerzugManuell={wizardVerzugManuell}   onWizardVerzugManuell={setWizardVerzugManuell}
+          verzugDokListe={verzugDokListe}
+          verzugDokId={verzugDokId}                   onVerzugDokId={setVerzugDokId}
           // Step 9: Außergerichtl. Gebühren
           swAusserg={swAusserg}
-          wizardRvgAussergData={wizardRvgAussergData} onRvgAussergData={setWizardRvgAussergData}
-          wizardRvgAussergOv={wizardRvgAussergOv}     onRvgAussergOv={setWizardRvgAussergOv}
-          wizardGebuehrenText={wizardGebuehrenText}   onGebuehrenText={setWizardGebuehrenText}
+          wizardRvgAussergData={wizardRvgAussergData}       onRvgAussergData={setWizardRvgAussergData}
+          wizardRvgAussergOv={wizardRvgAussergOv}           onRvgAussergOv={setWizardRvgAussergOv}
+          wizardRvgBereitsGezahlt={wizardRvgBereitsGezahlt} onRvgBereitsGezahlt={setWizardRvgBereitsGezahlt}
+          wizardGebuehrenText={wizardGebuehrenText}         onGebuehrenText={setWizardGebuehrenText}
           gespeichertGb={gespeichertGb}               onGespeichertGb={setGespeichertGb}
           wizardAkteId={akteId}
           // Shared
@@ -901,7 +970,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                         </div>
                       )}
                     </div>
-                    {b.vorschlag_beklagter && (
+                    {b.kuerzel && ["GHPV","GH","GHV","GBEV","HPV"].includes(b.kuerzel.toUpperCase()) && (
                       <span style={{ background:`${T.amber}18`, color:T.amber,
                         border:`1px solid ${T.amber}30`, borderRadius:6, padding:"2px 7px",
                         fontSize:"0.77rem", fontWeight:600, flexShrink:0 }}>GHPV</span>
@@ -978,70 +1047,138 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         <Card>
           <KlageCardHead nr={3} title={`Schadenpositionen & Regulierung – Klagebetrag: ${fmtEuro(klagebetrag)}`} />
           <div style={{ padding:"0.75rem 1.25rem 0" }}>
-            {/* Checkbox-Liste aus positionen-State (Quelle der Wahrheit für Klagebetrag) */}
-            {positionen.length === 0 && (
+            {posOffen.length === 0 && (
               <div style={{ color:T.amber, fontFamily:"'Figtree',sans-serif",
                 fontSize:"0.875rem", marginBottom:"0.75rem" }}>
                 ⚠ Keine Schadenpositionen erfasst. Bitte zuerst Schaden erfassen.
               </div>
             )}
-            {positionen.map(p => (
-              <div key={p.key} style={{ display:"flex", alignItems:"center", gap:12,
-                padding:"7px 0", borderBottom:`1px solid ${T.borderSoft}` }}>
-                <input type="checkbox" checked={!!p.checked} onChange={() => togglePos(p.key)}
-                  style={{ width:16, height:16, cursor:"pointer", flexShrink:0 }}/>
-                <div style={{ flex:1, fontFamily:"'Figtree',sans-serif",
-                  fontSize:"0.925rem", color:p.checked ? T.text : T.textMuted }}>{p.label}</div>
-                <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.925rem",
-                  fontWeight:600, color:T.navy, flexShrink:0 }}>{fmtEuro(p.betrag)}</span>
-              </div>
-            ))}
+            {posOffen.length > 0 && (
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.875rem" }}>
+                <thead>
+                  <tr style={{ background:T.surface }}>
+                    {["☑","Position","Gefordert","Reguliert","Klageanteil"].map((h, i) => (
+                      <th key={h} style={{
+                        padding:"5px 8px", fontFamily:"'Figtree',sans-serif",
+                        fontSize:"0.72rem", fontWeight:700, color:T.textMuted,
+                        textTransform:"uppercase", letterSpacing:"0.06em",
+                        textAlign: i === 0 ? "center" : i >= 2 ? "right" : "left",
+                        width: i === 0 ? 32 : "auto",
+                      }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {posOffen.map(p => {
+                    const vollReg = p.reguliertPos > 0 && p.offenBetrag <= 0.005;
+                    return (
+                      <tr key={p.key}
+                        style={{ borderBottom:`1px solid ${T.borderSoft}`,
+                          opacity: p.checked ? 1 : 0.55, cursor:"pointer" }}
+                        onClick={() => togglePos(p.key)}>
+                        <td style={{ padding:"8px", textAlign:"center" }}>
+                          <input type="checkbox" checked={!!p.checked}
+                            onChange={() => togglePos(p.key)}
+                            onClick={e => e.stopPropagation()}
+                            style={{ width:15, height:15, cursor:"pointer" }}/>
+                        </td>
+                        <td style={{ padding:"8px", fontFamily:"'Figtree',sans-serif",
+                          fontSize:"0.9rem", color: p.checked ? T.text : T.textMuted }}>
+                          {p.label}
+                          {vollReg && (
+                            <span style={{ marginLeft:8, fontSize:"0.72rem",
+                              color:T.green, fontWeight:600 }}>✓ vollst. reguliert</span>
+                          )}
+                        </td>
+                        <td style={{ padding:"8px", textAlign:"right",
+                          fontFamily:"ui-monospace,monospace", fontSize:"0.875rem",
+                          color:T.textMuted }}>{fmtEuro(p.betrag)}</td>
+                        <td style={{ padding:"8px", textAlign:"right",
+                          fontFamily:"ui-monospace,monospace", fontSize:"0.875rem",
+                          color: p.reguliertPos > 0 ? T.green : T.textFaint }}>
+                          {p.reguliertPos > 0 ? fmtEuro(p.reguliertPos) : "—"}
+                        </td>
+                        <td style={{ padding:"8px", textAlign:"right",
+                          fontFamily:"ui-monospace,monospace", fontSize:"0.9rem",
+                          fontWeight: p.checked ? 700 : 400,
+                          color: p.checked ? T.navy : T.textMuted }}>
+                          {fmtEuro(p.offenBetrag)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr style={{ borderTop:`2px solid ${T.border}`, background:T.surface }}>
+                    <td colSpan={4} style={{ padding:"8px 8px 8px 0",
+                      fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+                      fontWeight:700, color:T.navy, textAlign:"right" }}>
+                      Klagebetrag (angehakte Positionen)
+                    </td>
+                    <td style={{ padding:"8px", textAlign:"right",
+                      fontFamily:"ui-monospace,monospace", fontSize:"0.975rem",
+                      fontWeight:700, color:T.navy }}>
+                      {fmtEuro(klagebetrag)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
           </div>
 
           {/* Trennlinie + Regulierungsübersicht */}
-          {((daten?.abrechnungen?.length || 0) > 0) && (
-            <div style={{ marginTop:"1rem", borderTop:`2px solid ${T.borderSoft}` }}>
-              <div style={{ padding:"0.5rem 1.25rem 0.25rem",
-                fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem",
-                fontWeight:600, color:T.textMuted, textTransform:"uppercase",
-                letterSpacing:"0.07em" }}>
-                Regulierungsstand – {(daten?.abrechnungen || []).length} Abrechnungsschreiben
+          {(() => {
+            // Gruppieren nach Datum + Versicherung, Nulleinträge ignorieren
+            const gruppenMap = new Map();
+            for (const ab of (daten?.abrechnungen || [])) {
+              const betrag = parseFloat(ab.gesamt_reguliert) || 0;
+              if (betrag <= 0.005) continue;
+              const key = `${ab.datum || ""}|${(ab.versicherung || "").trim()}`;
+              if (gruppenMap.has(key)) {
+                gruppenMap.get(key).summe += betrag;
+              } else {
+                gruppenMap.set(key, { datum: ab.datum, versicherung: ab.versicherung || "", summe: betrag });
+              }
+            }
+            const gruppen = Array.from(gruppenMap.values())
+              .sort((a, b) => (b.datum || "").localeCompare(a.datum || ""));
+            if (gruppen.length === 0) return null;
+            return (
+              <div style={{ marginTop:"1rem", borderTop:`2px solid ${T.borderSoft}` }}>
+                <div style={{ padding:"0.5rem 1.25rem 0.25rem",
+                  fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem",
+                  fontWeight:600, color:T.textMuted, textTransform:"uppercase",
+                  letterSpacing:"0.07em" }}>
+                  Regulierungsstand – {gruppen.length} Zahlung{gruppen.length !== 1 ? "en" : ""}
+                </div>
+                <div style={{ padding:"0.25rem 1.25rem 0.5rem",
+                  borderBottom:`1px solid ${T.borderSoft}` }}>
+                  {gruppen.map((g, i) => (
+                    <div key={i} style={{ display:"flex", justifyContent:"space-between",
+                      alignItems:"center", padding:"3px 0",
+                      fontFamily:"'Figtree',sans-serif", fontSize:"0.86rem" }}>
+                      <span style={{ color:T.textMid }}>
+                        {g.datum ? (() => {
+                          try { const [y,m,d] = g.datum.split("-"); return `${d}.${m}.${y}`; }
+                          catch { return g.datum; }
+                        })() : "—"}
+                        {g.versicherung && <span style={{ color:T.textFaint, marginLeft:8 }}>{g.versicherung}</span>}
+                      </span>
+                      <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.86rem",
+                        color:T.green }}>
+                        {fmtEuro(g.summe)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {/* Positionsaufschlüsselung */}
+                <RegulierungsTabelle
+                  schaden={daten?.schaden || {}}
+                  abrechnungen={daten?.abrechnungen || []}
+                  showCheckboxes={false}
+                  showKlageBadge={false}
+                />
               </div>
-              {/* Abrechnungsschreiben-Liste */}
-              <div style={{ padding:"0.25rem 1.25rem 0.5rem",
-                borderBottom:`1px solid ${T.borderSoft}` }}>
-                {(daten?.abrechnungen || []).map((ab, i) => (
-                  <div key={ab.id||i} style={{ display:"flex", justifyContent:"space-between",
-                    alignItems:"center", padding:"3px 0",
-                    fontFamily:"'Figtree',sans-serif", fontSize:"0.86rem" }}>
-                    <span style={{ color:T.textMid }}>
-                      {ab.datum
-                        ? (() => {
-                            try {
-                              const [y,m,d] = ab.datum.split("-");
-                              return `${d}.${m}.${y}`;
-                            } catch { return ab.datum; }
-                          })()
-                        : "—"}
-                      {ab.versicherung && <span style={{ color:T.textFaint, marginLeft:8 }}>{ab.versicherung}</span>}
-                      {ab.referenz_nr && <span style={{ color:T.textFaint, marginLeft:6, fontSize:"0.78rem" }}>Ref: {ab.referenz_nr}</span>}
-                    </span>
-                    <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.86rem",
-                      color:T.green }}>
-                      {fmtEuro(ab.gesamt_reguliert || 0)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              {/* Regulierungstabelle read-only */}
-              <RegulierungsTabelle
-                schaden={daten?.schaden || {}}
-                abrechnungen={daten?.abrechnungen || []}
-                showCheckboxes={false}
-                showKlageBadge={false}
-              />
-            </div>
-          )}
+            );
+          })()}
         </Card>
 
         {/* 3c) Personenschaden */}
@@ -1087,8 +1224,9 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         {/* 4) Zinsen + Verzug */}
         <Card>
           <KlageCardHead nr={5} title="Zinsen und Verzug" />
-          <div style={{ padding:"0.75rem 1.25rem", display:"flex",
-            flexDirection:"column", gap:"0.75rem" }}>
+          <div style={{ padding:"0.75rem 1.25rem", display:"flex", flexDirection:"column", gap:"1rem" }}>
+
+            {/* Zinsart-Auswahl */}
             <div style={{ display:"flex", gap:16 }}>
               <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer",
                 fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem" }}>
@@ -1101,32 +1239,74 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                 Ab Rechtshängigkeit
               </label>
             </div>
-            {zinsenAb === "verzug" && (
-              <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
-                  color:T.textMuted, whiteSpace:"nowrap" }}>Verzugsdatum:</label>
-                <input type="date" value={(() => {
-                    // Anzeige als YYYY-MM-DD für input[type=date]
-                    if (!verzug) return "";
-                    // DD.MM.YYYY → YYYY-MM-DD
-                    const m = verzug.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-                    if (m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
-                    return verzug; // bereits ISO
-                  })()}
-                  onChange={e => {
-                    const v = e.target.value;
-                    if (!v) { setVerzug(""); return; }
-                    // YYYY-MM-DD → DD.MM.YYYY
-                    const [y,mo,d] = v.split("-");
-                    setVerzug(`${d}.${mo}.${y}`);
-                  }}
-                  style={{ ...inS, width:160 }}/>
-                {verzug && (
-                  <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
-                    color:T.green }}>✓ Aus letztem Mahnschreiben vorbelegt</span>
-                )}
+
+            {zinsenAb === "verzug" && (<>
+
+              {/* Dokument-Karten */}
+              {verzugDokListe.length > 0 && (
+                <div>
+                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", fontWeight:600,
+                    color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:6 }}>
+                    Verzugsbegründendes Schreiben
+                  </div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                    {verzugDokListe.map(dok => {
+                      const sel = verzugDokId === dok.id;
+                      const klasseLabel = { mahnschreiben:"Mahnschreiben", verzugsschreiben:"Verzugsschreiben", forderungsschreiben:"Forderungsschreiben" }[dok.dokumentenklasse] || dok.dokumentenklasse;
+                      return (
+                        <button key={dok.id} onClick={() => setVerzugDokId(dok.id)}
+                          style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px",
+                            background: sel ? T.accentPale : T.white,
+                            border: `1.5px solid ${sel ? T.accent : T.border}`,
+                            borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+                            color:T.text, cursor:"pointer", textAlign:"left", width:"100%",
+                            transition:"border-color 0.15s, background 0.15s" }}
+                          onMouseEnter={e => { if (!sel) { e.currentTarget.style.borderColor=T.accent; e.currentTarget.style.background=T.accentPale; }}}
+                          onMouseLeave={e => { if (!sel) { e.currentTarget.style.borderColor=T.border; e.currentTarget.style.background=T.white; }}}>
+                          <span style={{ color:T.red, fontSize:"1rem", flexShrink:0 }}>📄</span>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontWeight:600 }}>{dok.dateiname}</div>
+                            <div style={{ fontSize:"0.75rem", color:T.textFaint }}>{klasseLabel}{dok.hochgeladen_am ? " · " + String(dok.hochgeladen_am).slice(0,10) : ""}</div>
+                          </div>
+                          {sel && <span style={{ fontSize:"0.78rem", fontWeight:600, color:T.accent, flexShrink:0 }}>✓ Ausgewählt</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Zwei Datumsfelder */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                {[
+                  { label:"Datum des Schreibens", val:wizardVerzugDokDatum, set: v => { setWizardVerzugDokDatum(v); setVerzug(v); } },
+                  { label:"Datum Verzugseintritt", val:wizardVerzugDatum,    set: v => { setWizardVerzugDatum(v);    setVerzug(v); } },
+                ].map(({ label, val, set }) => {
+                  const iso = (() => {
+                    if (!val) return "";
+                    const m = val.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+                    return m ? `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}` : val;
+                  })();
+                  return (
+                    <div key={label}>
+                      <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", fontWeight:600,
+                        color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:4 }}>
+                        {label}
+                      </div>
+                      <input type="date" value={iso}
+                        onChange={e => {
+                          const v = e.target.value;
+                          if (!v) { set(""); return; }
+                          const [y,mo,d] = v.split("-");
+                          set(`${d}.${mo}.${y}`);
+                        }}
+                        style={{ ...inS, width:"100%" }}/>
+                    </div>
+                  );
+                })}
               </div>
-            )}
+
+            </>)}
           </div>
         </Card>
 
@@ -1173,7 +1353,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
               <div style={{ background:T.surface, borderRadius:8, padding:"0.75rem 1rem",
                 marginBottom:"0.75rem", fontFamily:"ui-monospace,monospace", fontSize:"0.875rem" }}>
                 {[
-                  { label:"Gegenstandswert",                                          val: klagebetrag,                  bold: false },
+                  { label:"Gegenstandswert",                                          val: swAusserg,                    bold: false },
                   { label:`Geschäftsgebühr §§ 13, 14 Nr. 2300 VV RVG (${rvgData.faktor})`, val: rvgData.gebuehr_netto,   bold: false },
                   { label:"Post u. Telekommunikation Nr. 7002 VV RVG",               val: rvgData.post_pauschale,       bold: false },
                   { label:"Zwischensumme netto",                                      val: rvgData.zwischen_netto,       bold: false, faint: true },

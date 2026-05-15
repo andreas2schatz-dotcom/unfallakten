@@ -492,33 +492,85 @@ def get_aktivlegitimation_text(details: dict, kl_einf: str, anrede: str) -> str:
 # ── Vorlage ───────────────────────────────────────────────────────────────────
 _VORLAGE = Path(__file__).parent / "klagevorlage.docx"
 
+# ── Unterschrift (identisch mit forderungsschreiben_wv.py) ────────────────────
+_SIG_RID   = "rId18"
+_SIG_MEDIA = "word/media/image2.png"
 
-def _render_docx(vorlage: Path, replacements: dict, ooxml_blocks: dict) -> bytes:
+_SA_DRAWING_XML = (
+    '<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"'
+    ' wp14:anchorId="14E4ED95" wp14:editId="029D3954">'
+    '<wp:extent cx="981075" cy="485775"/>'
+    '<wp:effectExtent l="0" t="0" r="0" b="0"/>'
+    '<wp:docPr id="742740175" name="Bild 1"/>'
+    '<wp:cNvGraphicFramePr>'
+    '<a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>'
+    '</wp:cNvGraphicFramePr>'
+    '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+    '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+    '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+    '<pic:nvPicPr>'
+    '<pic:cNvPr id="0" name="Picture 1"/>'
+    '<pic:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></pic:cNvPicPr>'
+    '</pic:nvPicPr>'
+    '<pic:blipFill>'
+    '<a:blip r:embed="rId18">'
+    '<a:extLst><a:ext uri="{28A0092B-C50C-407E-A947-70E740481C1C}">'
+    '<a14:useLocalDpi xmlns:a14="http://schemas.microsoft.com/office/drawing/2010/main" val="0"/>'
+    '</a:ext></a:extLst>'
+    '</a:blip>'
+    '<a:srcRect/><a:stretch><a:fillRect/></a:stretch>'
+    '</pic:blipFill>'
+    '<pic:spPr bwMode="auto">'
+    '<a:xfrm><a:off x="0" y="0"/><a:ext cx="981075" cy="485775"/></a:xfrm>'
+    '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'
+    '<a:noFill/><a:ln><a:noFill/></a:ln>'
+    '</pic:spPr>'
+    '</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>'
+)
+
+
+def _render_docx(vorlage: Path, replacements: dict, ooxml_blocks: dict,
+                 unterschrift: Optional[bytes] = None) -> bytes:
     """
     Öffnet DOCX-Vorlage, ersetzt einfache Platzhalter (String) und
     OOXML-Blöcke (ganzen <w:p>-Absatz), gibt DOCX-Bytes zurück.
-    Identisch zum Forderungsschreiben-System.
+    Identisch zum Forderungsschreiben-System inkl. Unterschrift-Einbettung.
     """
     import zipfile as _zf, re as _re, io as _io
     with open(vorlage, "rb") as f:
         vb = f.read()
 
     output = _io.BytesIO()
-    with _zf.ZipFile(_io.BytesIO(vb), "r") as zin,          _zf.ZipFile(output, "w", _zf.ZIP_DEFLATED) as zout:
+    sig_written = False
+    with _zf.ZipFile(_io.BytesIO(vb), "r") as zin, \
+         _zf.ZipFile(output, "w", _zf.ZIP_DEFLATED) as zout:
         for item in zin.infolist():
             data = zin.read(item.filename)
-            if item.filename == "word/document.xml":
+            if item.filename == "word/_rels/document.xml.rels" and unterschrift:
+                rels_xml = data.decode("utf-8")
+                if _SIG_RID not in rels_xml:
+                    rel_entry = (
+                        f'<Relationship Id="{_SIG_RID}" '
+                        f'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" '
+                        f'Target="media/image2.png"/>'
+                    )
+                    rels_xml = rels_xml.replace("</Relationships>", rel_entry + "</Relationships>")
+                    data = rels_xml.encode("utf-8")
+            elif item.filename == "word/document.xml":
                 xml = data.decode("utf-8")
-                # Gesplittete Platzhalter zusammenführen
                 xml = _merge_split_placeholders(xml, list(replacements.keys()))
-                # Einfache String-Ersetzung
                 for key, value in replacements.items():
                     xml = xml.replace(key, value)
-                # OOXML-Blöcke: ganzer Absatz wird ersetzt
                 for ph, block in ooxml_blocks.items():
                     xml = _inject_block(xml, ph, block)
                 data = xml.encode("utf-8")
+            elif item.filename == _SIG_MEDIA and unterschrift:
+                data = unterschrift
+                sig_written = True
             zout.writestr(item, data)
+        # Vorlage hat kein image2.png-Placeholder → neu hinzufügen
+        if unterschrift and not sig_written:
+            zout.writestr(_SIG_MEDIA, unterschrift)
     return output.getvalue()
 
 
@@ -614,7 +666,7 @@ def _funktion_aus_rechtsform_str(firmenname: str) -> str:
     n = (firmenname or "").upper()
     if any(x in n for x in ("GMBH", " KG", "OHG", "GBR", "UG")):
         return "Geschäftsführer"
-    if any(x in n for x in (" AG", " SE", "KGAA")):
+    if any(x in n for x in (" AG", " SE", "KGAA", "E. V.", "E.V.", " EV ", " EV,")):
         return "Vorstand"
     return "gesetzlichen Vertreter"
 
@@ -629,7 +681,7 @@ def _vertretungs_hinweis(firmenname: str) -> str:
     n = (firmenname or "").upper()
     if any(x in n for x in ("GMBH", "GBR", " KG", "OHG", "GMBH & CO")):
         return "– vertreten durch den/die Geschäftsführer –"
-    if any(x in n for x in (" AG", "SE ", " SE,", " KGA", "KGAA")):
+    if any(x in n for x in (" AG", "SE ", " SE,", " KGA", "KGAA", "E. V.", "E.V.", " EV ", " EV,")):
         return "– vertreten durch den Vorstand –"
     return "– vertreten durch den gesetzlichen Vertreter –"
 
@@ -637,22 +689,28 @@ def _sachverhalt_override_xml(text):
     # type: (str) -> str
     """
     Wandelt einen sachverhalt_override-Freitext in OOXML um.
-    Trennzeichen: \\n\\n = neuer Absatz, \\n = neue Zeile innerhalb Block.
     BEWEIS:\\t-Zeilen werden mit Tab-Stop-Formatierung gerendert.
+    Aller andere Text wird als ein einzelner Fließtext-Absatz (Blocksatz) zusammengeführt.
     """
     xml = ""
+    fliess_teile = []
     for block in text.split("\n\n"):
         block = block.strip()
         if not block:
             continue
         if block.startswith("BEWEIS:\t") or block.upper().startswith("BEWEIS: "):
+            if fliess_teile:
+                xml += _p(" ".join(fliess_teile))
+                fliess_teile = []
             xml += _beweis(block[block.index("\t") + 1:].strip()
                            if "\t" in block else block[len("BEWEIS:"):].strip())
         else:
             for zeile in block.split("\n"):
                 z = zeile.strip()
                 if z:
-                    xml += _p(z)
+                    fliess_teile.append(z)
+    if fliess_teile:
+        xml += _p(" ".join(fliess_teile))
     return xml
 
 
@@ -691,6 +749,118 @@ def _build_aktivlegitimation_xml(details: dict, kl_einf: str, anrede: str) -> st
     return xml
 
 
+from .forderungsschreiben_wv import (
+    _unterschrift_bytes,
+    _hole_sb_info,
+)
+
+_REGULIERUNG_LABEL_MAP = {
+    "fahrzeugschaden":       "Fahrzeugschaden",
+    "reparaturkosten":       "Reparaturkosten lt. Gutachten (netto)",
+    "rep_gutachten_netto":   "Reparaturkosten lt. Gutachten (netto)",
+    "rep_rechnung_netto":    "Reparaturkosten lt. Rechnung (netto)",
+    "rep_rechnung_brutto":   "Reparaturkosten lt. Rechnung (brutto)",
+    "reparatur_netto":       "Reparaturkosten (netto)",
+    "reparatur_brutto":      "Reparaturkosten (brutto)",
+    "wiederbeschaffung":     "Wiederbeschaffungswert",
+    "wbw":                   "Wiederbeschaffungswert",
+    "wbw_netto":             "Wiederbeschaffungswert (netto)",
+    "wbw_brutto":            "Wiederbeschaffungswert (brutto)",
+    "wba":                   "Wiederbeschaffungsaufwand",
+    "restwert":              "abzgl. Restwert",
+    "wertminderung":         "Merkantile Wertminderung",
+    "nutzungsausfall":       "Nutzungsausfallschaden",
+    "mietwagenkosten":       "Mietwagenkosten",
+    "mietwagenkosten_netto": "Mietwagenkosten (netto)",
+    "sv_kosten":             "Sachverständigenkosten",
+    "kostennb":              "Nachbesichtigungskosten",
+    "abschleppkosten":       "Abschleppkosten",
+    "standkosten":           "Standkosten",
+    "standkosten_netto":     "Standkosten (netto)",
+    "anabmeldekosten":       "An-/Abmeldekosten",
+    "restkraftstoff":        "Restkraftstoff",
+    "schmerzensgeld":        "Schmerzensgeld",
+    "verdienstausfall":      "Verdienstausfall",
+    "haushalt":              "Haushaltsführungsschaden",
+    "unkostenpauschale":     "Unkostenpauschale",
+    "kostenpauschale":       "Unkostenpauschale",
+    "ra_gebuehren":          "Rechtsanwaltsgebühren (vorgerichtlich)",
+    "vorschuss":             "Vorschuss",
+    "mwst_abzug":            "MwSt.-Abzug",
+    "pruefbericht_abzug":    "Prüfbericht-Abzug",
+    "sonstiges":             "Sonstige Schäden",
+}
+
+
+def _baue_regulierungs_tbl_xml(reg_agg: dict, body_width: int = 9163) -> tuple:
+    """
+    Baut eine Zahlungs-Tabelle aus reg_agg (position_key → {gesamt_reguliert}).
+    Gibt (xml, gesamt_reguliert) zurück. xml ist leer wenn reg_agg leer ist.
+    """
+    positionen = []
+    for key, daten in reg_agg.items():
+        betrag = float(daten.get("gesamt_reguliert") or 0)
+        if betrag == 0:
+            continue
+        if key.startswith("sonstiges_wdm_"):
+            label = "Sonstige Schäden"
+        else:
+            label = _REGULIERUNG_LABEL_MAP.get(key, key.replace("_", " ").title())
+        positionen.append((label, betrag))
+
+    if not positionen:
+        return "", 0.0
+
+    gesamt = round(sum(b for _, b in positionen), 2)
+    col_l  = int(body_width * 0.75)
+    col_r  = body_width - col_l
+
+    RPR = ('<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
+           '<w:sz w:val="24"/><w:szCs w:val="24"/>')
+    RPR_B = RPR + '<w:b/><w:bCs/>'
+
+    def _zeile(label, betrag, fett=False):
+        rpr = RPR_B if fett else RPR
+        ws  = _eur_str(betrag)
+        return (
+            f'<w:tr>'
+            f'<w:tc><w:tcPr><w:tcW w:w="{col_l}" w:type="dxa"/></w:tcPr>'
+            f'<w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr>'
+            f'<w:r><w:rPr>{rpr}</w:rPr><w:t xml:space="preserve">{_esc(label)}</w:t></w:r></w:p></w:tc>'
+            f'<w:tc><w:tcPr><w:tcW w:w="{col_r}" w:type="dxa"/></w:tcPr>'
+            f'<w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/>'
+            f'<w:jc w:val="right"/></w:pPr>'
+            f'<w:r><w:rPr>{rpr}</w:rPr><w:t>{_esc(ws)}</w:t></w:r></w:p></w:tc>'
+            f'</w:tr>'
+        )
+
+    header = (
+        f'<w:tr>'
+        f'<w:tc><w:tcPr><w:tcW w:w="{col_l}" w:type="dxa"/></w:tcPr>'
+        f'<w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr>'
+        f'<w:r><w:rPr>{RPR_B}</w:rPr><w:t>Geleistete Zahlung</w:t></w:r></w:p></w:tc>'
+        f'<w:tc><w:tcPr><w:tcW w:w="{col_r}" w:type="dxa"/></w:tcPr>'
+        f'<w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/>'
+        f'<w:jc w:val="right"/></w:pPr>'
+        f'<w:r><w:rPr>{RPR_B}</w:rPr><w:t>Betrag</w:t></w:r></w:p></w:tc>'
+        f'</w:tr>'
+    )
+
+    xml = (
+        f'<w:tbl><w:tblPr><w:tblW w:w="{body_width}" w:type="dxa"/>'
+        '<w:tblBorders>'
+        '<w:top w:val="none"/><w:left w:val="none"/>'
+        '<w:bottom w:val="none"/><w:right w:val="none"/>'
+        '<w:insideH w:val="none"/><w:insideV w:val="none"/>'
+        '</w:tblBorders></w:tblPr>'
+        + header
+        + "".join(_zeile(l, b) for l, b in positionen)
+        + _zeile("Gesamtzahlung", gesamt, fett=True)
+        + '</w:tbl>'
+    )
+    return xml, gesamt
+
+
 def generiere_klageschrift(akte_daten: dict) -> bytes:
     """
     Generiert die Klageschrift als DOCX-Bytes.
@@ -709,6 +879,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     details         = akte_daten.get("unfalldetails") or {}
     cfg             = akte_daten.get("klage_config") or {}
     abrechnungen    = akte_daten.get("abrechnungen") or []
+    reg_agg         = akte_daten.get("reg_agg") or {}
     ps_data         = akte_daten.get("personenschaden") or {}  # PRD-29
 
     # ── Beklagte / GHPV ──────────────────────────────────────────────────────
@@ -746,28 +917,40 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     mandant_name    = " ".join(filter(None, [mandant.get("vorname"), mandant.get("name")]))                       or mandant.get("firma") or "KLÄGER"
     mandant_anschr  = mandant.get("anschrift") or ""
     mandant_plz_ort = " ".join(filter(None, [mandant.get("plz"), mandant.get("ort")])) or ""
-    anrede_m        = (mandant.get("anrede") or "").lower()
+    _anrede_raw = (mandant.get("anrede") or "").strip()
+    # Normalisierung: RA-MICRO liefert sAnrede numerisch ("1"=Herr, "2"=Frau)
+    if _anrede_raw == "1":   _anrede_raw = "Herr"
+    elif _anrede_raw == "2": _anrede_raw = "Frau"
+    anrede_m = _anrede_raw.lower()
     vorsteuer       = (mandant.get("vorsteuer") or "N").upper() in ("J", "JA", "Y", "1")
 
-    klaeger_liste    = [b for b in beklagte_liste
-                        if (b.get("rolle_klage") or b.get("rolle") or "") in ("klaeger", "mandant")]
+    # Deduplizierung nach ID: doppelte Mandanten-Einträge (SQLite-Bug) dürfen
+    # mehrere_klaeger nicht fälschlicherweise auf True setzen.
+    _kl_seen = set()
+    klaeger_liste = []
+    for b in beklagte_liste:
+        if b.get("rolle_klage") == "klaeger":
+            bid = b.get("id") or id(b)
+            if bid not in _kl_seen:
+                _kl_seen.add(bid)
+                klaeger_liste.append(b)
     mehrere_klaeger  = len(klaeger_liste) > 1
 
     if mehrere_klaeger:
         kl_art  = "der"; kl_bez = "Kläger"; kl_nom = "Die Kläger"; kl_dat = "die Kläger"
-        kl_einf = "Kläger"
+        kl_einf = "Kläger"; kl_gesch = "Geschädigte"
         nicht_vst = "nicht vorsteuerabzugsberechtigten"
     elif anrede_m in ("herr", "herrn"):
         kl_art  = "des"; kl_bez = "Klägers"; kl_nom = "Der Kläger"; kl_dat = "den Kläger"
-        kl_einf = "Kläger"
+        kl_einf = "Kläger"; kl_gesch = "Geschädigter"
         nicht_vst = "nicht vorsteuerabzugsberechtigter" if not vorsteuer else "vorsteuerabzugsberechtigter"
     elif anrede_m == "frau":
         kl_art  = "der"; kl_bez = "Klägerin"; kl_nom = "Die Klägerin"; kl_dat = "die Klägerin"
-        kl_einf = "Klägerin"
+        kl_einf = "Klägerin"; kl_gesch = "Geschädigte"
         nicht_vst = "nicht vorsteuerabzugsberechtigte" if not vorsteuer else "vorsteuerabzugsberechtigte"
     else:
         kl_art  = "des"; kl_bez = "Klägers"; kl_nom = "Der Kläger"; kl_dat = "den Kläger"
-        kl_einf = "Kläger"
+        kl_einf = "Kläger"; kl_gesch = "Geschädigter"
         nicht_vst = "nicht vorsteuerabzugsberechtigter" if not vorsteuer else "vorsteuerabzugsberechtigter"
 
     # ── Positionen / Gegenstandswert ─────────────────────────────────────────
@@ -795,6 +978,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     mit_feststellung_sach = bool(cfg.get("mit_feststellung_sach"))
     rvg_ausserg           = cfg.get("rvg_ausserg") or {}
     rvg_ausserg_override  = cfg.get("rvg_ausserg_override")
+    rvg_bereits_gezahlt   = round(float(cfg.get("rvg_bereits_gezahlt") or 0), 2)
     # BE-3: Welcher Betrag kommt in den RVG-Antrag?
     if rvg_ausserg_override is not None:
         rvg_antrag_betrag = float(rvg_ausserg_override)
@@ -802,6 +986,9 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         rvg_antrag_betrag = float(rvg_ausserg["gesamt"])
     else:
         rvg_antrag_betrag = float(rvg["gesamt"])
+    # Bereits gezahlten Anteil abziehen → nur offener Rest wird eingeklagt
+    if rvg_bereits_gezahlt > 0:
+        rvg_antrag_betrag = round(max(0.0, rvg_antrag_betrag - rvg_bereits_gezahlt), 2)
 
     # ── Schmerzensgeld ───────────────────────────────────────────────────────
     mit_sg  = bool(cfg.get("mit_schmerzensgeld"))
@@ -872,14 +1059,17 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
 
     # ── {{KLAEGER_BLOCK}} ─────────────────────────────────────────────────
     klaeger_xml = ""
-    klaeger_objs = [b for b in beklagte_liste
-                    if (b.get("rolle_klage") or b.get("rolle") or "") in ("klaeger", "mandant")]
+    # klaeger_liste wurde oben bereits dedupliziert – direkt verwenden
+    klaeger_objs = klaeger_liste
     for i, kl in enumerate(klaeger_objs):
         kl_name    = " ".join(filter(None, [kl.get("vorname"), kl.get("name")])) or kl.get("firma") or "KLÄGER"
         kl_anschr  = kl.get("anschrift") or ""
         kl_plz_ort = " ".join(filter(None, [kl.get("plz"), kl.get("ort")])) or ""
         # Rollenbezeichnung mit Nummer wenn mehrere Kläger
-        kl_anrede  = (kl.get("anrede") or "").lower()
+        _kl_anrede_raw = (kl.get("anrede") or "").strip()
+        if _kl_anrede_raw == "1":   _kl_anrede_raw = "Herr"
+        elif _kl_anrede_raw == "2": _kl_anrede_raw = "Frau"
+        kl_anrede  = _kl_anrede_raw.lower()
         if mehrere_klaeger:
             nr = i + 1
             if kl_anrede in ("frau",):
@@ -903,7 +1093,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     kanzlei_ort_rb = kanzlei.get("ort")     or "63067 Offenbach"
     klaeger_xml += _lz()
     klaeger_xml += _p(f"Prozessbevollmächtigte: {kanzlei_name}, {kanzlei_str_rb}, {kanzlei_ort_rb}")
-    klaeger_xml += _lz()
+    # klaeger_xml += _lz()
 
     # ── {{HPV_BLOCK}} ─────────────────────────────────────────────────────
     hpv_xml = ""
@@ -916,7 +1106,9 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         bek_name    = _bek_person or bek.get("firma") or bek.get("versicherung") or "BEKLAGTE"
         bek_anschr  = bek.get("anschrift") or ""
         bek_plz_ort = " ".join(filter(None, [bek.get("plz"), bek.get("ort")])) or ""
-        ist_firma   = not _bek_person and bool(bek.get("firma") or bek.get("versicherung"))
+        # ist_firma: firma oder versicherung gesetzt → Vertretungshinweis einblenden
+        # (kein _bek_person-Check: Organisationen wie "DBGK e. V." haben name, kein vorname)
+        ist_firma   = bool(bek.get("firma") or bek.get("versicherung"))
         nr_suffix   = f" zu {i+1})" if len(beklagte_gef) > 1 else ""
         # Vertreter aus DB (gespeichert via Klage-Tab Lookup)
         vertreter_name = (bek.get("vertreter_name") or "").strip()
@@ -1069,14 +1261,15 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     if details.get("sachverhalt_override"):
         # Wizard hat einen kombinierten Sachverhalt-Text übergeben (Einleitung +
         # Beklagten-Block + AktLeg in einem). Überschreibt die Auto-Generierung.
-        einleitung_xml = _lz() + _p("1.) Sachverhalt", fett=True) + _lz()
+        einleitung_xml = _lz() + _p("1.) Sachverhalt", fett=True)
         einleitung_xml += _sachverhalt_override_xml(details["sachverhalt_override"])
         aktivleg_xml   = ""
     else:
         einleitung_xml  = _lz() + _p("1.) Sachverhalt", fett=True)
-        einleitung_xml += _lz()
-        einleitung_xml += _p(
-            f"{kl_nom} macht als {nicht_vst} {kl_einf} Schadensersatzforderungen "
+
+        # Alle Einleitungssätze zu einem Fließtext-Absatz zusammenführen
+        intro_satz = (
+            f"{kl_nom} macht als {nicht_vst} {kl_gesch} Schadensersatzforderungen "
             f"aus einem Verkehrsunfall vom {unfalltag} in {unfallort} geltend."
             if unfalltag else
             f"{kl_nom} macht Schadensersatzforderungen aus einem Verkehrsunfall "
@@ -1090,21 +1283,17 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         )
         if schadennummer:
             beklagte_satz += f" Sie führt den Vorgang unter der Schadennummer {schadennummer}."
-        einleitung_xml += _p(beklagte_satz)
 
-        # K-04: Aktivlegitimation + Mandant-Kennzeichen
         mandant_kz = (details.get("_wdm_mandant_kz") or
                       mandant.get("kfz_kennzeichen") or "").strip()
         eigentuemer = "Eigentümerin" if anrede_m == "frau" else "Eigentümer"
-        if mandant_kz:
-            einleitung_xml += _p(
-                f"{kl_nom} ist {eigentuemer} des bei dem Unfall beschädigten "
-                f"Fahrzeugs mit dem amtlichen Kennzeichen {mandant_kz}."
-            )
-        else:
-            einleitung_xml += _p(
-                f"{kl_nom} ist {eigentuemer} des bei dem Unfall beschädigten Fahrzeugs."
-            )
+        eigentuemer_satz = (
+            f"{kl_nom} ist {eigentuemer} des bei dem Unfall beschädigten "
+            f"Fahrzeugs mit dem amtlichen Kennzeichen {mandant_kz}."
+            if mandant_kz else
+            f"{kl_nom} ist {eigentuemer} des bei dem Unfall beschädigten Fahrzeugs."
+        )
+        einleitung_xml += _p(f"{intro_satz} {beklagte_satz} {eigentuemer_satz}")
         aktivleg_xml = _build_aktivlegitimation_xml(details, kl_nom, anrede_m)
 
     # ── {{UNFALLHERGANG}} ─────────────────────────────────────────────────
@@ -1117,7 +1306,6 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     ea_beh = details.get("ermittlungsakte_behoerde") or ""
 
     unfall_xml  = _lz() + _p("2.) Unfallhergang", fett=True)
-    unfall_xml += _lz()
     if schilderung:
         unfall_xml += _p(schilderung)
     else:
@@ -1147,9 +1335,10 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         k = _pos_key_map.get(p.get("key",""))
         if k and p.get("betrag"):
             schaden_raw.setdefault(k, p["betrag"])
+    schaden_gesamt = klagebetrag
     try:
         from .forderungsschreiben_wv import _baue_tabelle as _bt
-        tabelle_xml, _ = _bt(
+        tabelle_xml, schaden_gesamt = _bt(
             schaden_raw,
             einleitung="Der entstandene Schaden berechnet sich wie folgt:",
             vorsteuer=vorsteuer
@@ -1162,9 +1351,9 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         )
         tabelle_xml += _p(f"Gesamt: {_eur_str(klagebetrag)}", fett=True)
 
+    reg_tbl_xml, gesamt_reguliert_tbl = _baue_regulierungs_tbl_xml(reg_agg)
 
     schaden_xml  = _lz() + _p("3.) Unfallschaden", fett=True)
-    schaden_xml += _lz()
     schaden_xml += _p("Durch den Unfall ist ein Schaden entstanden, der sich wie folgt zusammensetzt:")
     schaden_xml += tabelle_xml
     schaden_xml += _lz()
@@ -1172,11 +1361,22 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     schaden_xml += _lz()
     schaden_xml += _p("Einholung eines gerichtlichen Sachverständigengutachtens.", fett=True)
 
+    if reg_tbl_xml:
+        schaden_xml += _lz()
+        schaden_xml += _p("Die Beklagte hat folgende Zahlungen auf den Schaden geleistet:")
+        schaden_xml += reg_tbl_xml
+        schaden_xml += _lz()
+        _differenz = round(schaden_gesamt - gesamt_reguliert_tbl, 2)
+        schaden_xml += _p(
+            f"Die Differenz des geforderten Gesamtbetrages in Höhe von {_eur_str(schaden_gesamt)} "
+            f"abzgl. der oben gezeigten geleisteten Zahlungen in Höhe von {_eur_str(gesamt_reguliert_tbl)} "
+            f"beträgt {_eur_str(_differenz)} und wird mit dem Klageantrag zu 1 geltend gemacht."
+        )
+
     # ── {{RECHTLICHE_WUERDIGUNG}} ─────────────────────────────────────────
     rw_text_override = (details.get("rw_text_override") or "").strip()
     if rw_text_override:
         rw_xml = _lz() + _p("4.) Rechtliche Würdigung", fett=True)
-        rw_xml += _lz()
         for _line in rw_text_override.split("\n"):
             _line = _line.strip()
             if not _line:
@@ -1187,33 +1387,32 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
                 rw_xml += _p(_line)
     else:
         haftungsbegruendung = details.get("haftungsbegruendung") or ""
-        gesamt_reguliert    = sum(float(a.get("gesamt_reguliert") or 0) for a in abrechnungen)
-
-        if gesamt_reguliert > 0:
-            regulierung_satz = (
-                f"Die Beklagte hat eine Teilregulierung in Höhe von {_eur_str(gesamt_reguliert)} "
-                f"vorgenommen. Die verbleibenden Kürzungen sind nicht gerechtfertigt, "
-                f"sodass die Klage in Höhe des offenen Restbetrages erhoben wird."
-            )
-        else:
-            regulierung_satz = (
-                "Die Beklagte hat bislang keine Regulierung vorgenommen. "
-                "Da trotz mehrfacher Fristsetzung keine Zahlung erfolgte, war die Klage notwendig."
-            )
 
         rw_xml  = _lz() + _p("3.) Rechtliche Würdigung", fett=True)
-        rw_xml += _lz()
         rw_xml += _p(f"Der bei der Beklagten versicherte Unfallgegner verursachte den Unfall "
                      f"durch {haftungsbegruendung or 'sein schuldhaftes Verhalten'}. "
                      f"Die Haftungsquote beträgt {int(hq)} %.")
-        rw_xml += _p(regulierung_satz)
+        # Regulierungshinweis nur wenn keine positions-genaue Tabelle vorhanden
+        if not reg_tbl_xml:
+            gesamt_reguliert = sum(float(a.get("gesamt_reguliert") or 0) for a in abrechnungen)
+            if gesamt_reguliert > 0:
+                rw_xml += _p(
+                    f"Die Beklagte hat eine Teilregulierung in Höhe von {_eur_str(gesamt_reguliert)} € "
+                    f"vorgenommen. Die verbleibenden Kürzungen sind nicht gerechtfertigt, "
+                    f"sodass die Klage in Höhe des offenen Restbetrages erhoben wird."
+                )
+            else:
+                rw_xml += _p(
+                    "Die Beklagte hat bislang keine Regulierung vorgenommen. "
+                    "Da trotz mehrfacher Fristsetzung keine Zahlung erfolgte, war die Klage notwendig."
+                )
         if hq < 100:
             rw_xml += _p(f"Die Mithaftungsquote des {kl_dat} beträgt {int(100-hq)} %. "
                          f"Die Klageforderung wurde entsprechend gekürzt.")
 
     # ── {{SCHMERZENSGELD}} ────────────────────────────────────────────────
     if mit_sg:
-        sg_xml = _p("5.) Schmerzensgeld", fett=True) + _lz()
+        sg_xml = _p("5.) Schmerzensgeld", fett=True)
         sg_absaetze, sg_beweis, sg_vgl = baue_sg_abschnitt(ps_data, kl_nom, sg_mind)
         for absatz in sg_absaetze:
             sg_xml += _p(absatz)
@@ -1263,6 +1462,11 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
             f'</w:tr>'
         )
 
+    # Außergerichtlicher Streitwert: aus rvg_ausserg (hat .streitwert wenn vom rvg-berechnen-Endpoint),
+    # Fallback auf klagebetrag damit die Tabelle nie leer bleibt.
+    sw_ausserg = round(float(rvg_ausserg.get("streitwert") or 0), 2) or klagebetrag
+    rvg_fuer_tab = rvg_ausserg if rvg_ausserg.get("gesamt") else rvg
+    rvg_brutto = round(float(rvg_ausserg_override or rvg_fuer_tab.get("gesamt") or 0), 2)
     rvg_tabelle = (
         '<w:tbl><w:tblPr><w:tblW w:w="9163" w:type="dxa"/>'
         '<w:tblBorders>'
@@ -1270,14 +1474,19 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/>'
         '<w:insideH w:val="single" w:sz="2" w:space="0" w:color="CCCCCC"/>'
         '</w:tblBorders></w:tblPr>'
-        + _rvg_tbl_zeile(f"Gegenstandswert:", _eur_str(klagebetrag), fett=True)
-        + _rvg_tbl_zeile(f"Geschäftsgebühr §§ 13, 14, Nr. 2300 VV RVG ({rvg.get('faktor',1.3)}):",
-                         _eur_str(rvg.get("gebuehr_netto", 0)))
+        + _rvg_tbl_zeile(f"Gegenstandswert:", _eur_str(sw_ausserg), fett=True)
+        + _rvg_tbl_zeile(f"Geschäftsgebühr §§ 13, 14, Nr. 2300 VV RVG ({rvg_fuer_tab.get('faktor', 1.3)}):",
+                         _eur_str(rvg_fuer_tab.get("gebuehr_netto", 0)))
         + _rvg_tbl_zeile("Post u. Telekommunikation Nr. 7002 VV RVG:",
-                         _eur_str(rvg.get("post_pauschale", 0)))
-        + _rvg_tbl_zeile("Zwischensumme netto:", _eur_str(rvg.get("zwischen_netto", 0)), fett=True)
-        + _rvg_tbl_zeile("19 % Umsatzsteuer:", _eur_str(rvg.get("ust", 0)))
-        + _rvg_tbl_zeile("Gesamtbetrag:", _eur_str(rvg.get("gesamt", 0)), fett=True)
+                         _eur_str(rvg_fuer_tab.get("post_pauschale", 0)))
+        + _rvg_tbl_zeile("Zwischensumme netto:", _eur_str(rvg_fuer_tab.get("zwischen_netto", 0)), fett=True)
+        + _rvg_tbl_zeile("19 % Umsatzsteuer:", _eur_str(rvg_fuer_tab.get("ust", 0)))
+        + _rvg_tbl_zeile("Gesamtbetrag:", _eur_str(rvg_brutto), fett=True)
+        + (
+            _rvg_tbl_zeile("abzüglich bereits gezahlter Kosten:", f"- {_eur_str(rvg_bereits_gezahlt)}")
+            + _rvg_tbl_zeile("Klageanteil (offen):", _eur_str(rvg_antrag_betrag), fett=True)
+            if rvg_bereits_gezahlt > 0 else ""
+          )
         + '</w:tbl>'
     )
 
@@ -1286,7 +1495,6 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
 
     vk_nr   = 5 + int(mit_sg)  # 5 ohne SG, 6 mit SG
     vk_xml  = _lz() + _p(f"{vk_nr}.) Vorgerichtliche Rechtsanwaltsgebühren", fett=True)
-    vk_xml += _lz()
     vk_xml += _p(
         f"Der Klageantrag zu {rvg_antrag_nr}. ergibt sich aus den vorgerichtlich entstandenen "
         f"Gebühren, für die {bek_nom} ebenfalls {bek_haften}. "
@@ -1311,20 +1519,29 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     vk_xml += rvg_tabelle
 
     # ── {{SCHLUSSFORMEL}} ─────────────────────────────────────────────────
-    # K-15: Sachbearbeiter-Name wie im Forderungsschreiben
-    bearbeiter_name = ""
-    if mandant:
-        # Versuche Sachbearbeiter aus Kanzleidaten
-        bearbeiter_name = akte_daten.get("kanzlei", {}).get("sachbearbeiter", "")
+    # K-15: Sachbearbeiter aus RA-MICRO (identisch mit Forderungsschreiben)
+    sb_kuerzel  = akte.get("sachbearbeiter") or ""
+    sb          = _hole_sb_info(sb_kuerzel)
+    unterschrift = _unterschrift_bytes(sb_kuerzel)
+    sb_name     = sb.get("name") or "Koch, Schatz & Kollegen"
+    sb_titel    = sb.get("titel") or "Rechtsanwälte"
+
+    PPR_SL = '<w:pPr><w:jc w:val="both"/></w:pPr>'
+    RPR_SL = ('<w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
+              '<w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>')
+
+    def _psl(text: str = "") -> str:
+        t = f'<w:t xml:space="preserve">{_esc(text)}</w:t>' if text else "<w:t/>"
+        return f'<w:p>{PPR_SL}<w:r>{RPR_SL}{t}</w:r></w:p>'
+
     sl_xml  = _p("Sollte das Gericht noch weiteren Vortrag für notwendig erachten, "
                  "so wird um einen richterlichen Hinweis gebeten.")
-    sl_xml += _lz()
-    sl_xml += _p(kanzlei_str)
-    sl_xml += _lz()
-    if bearbeiter_name:
-        sl_xml += _p(f"Rechtsanwalt {bearbeiter_name}")
-    else:
-        sl_xml += _p("Rechtsanwalt")
+    sl_xml += f'<w:p>{PPR_SL}</w:p>'
+    if unterschrift:
+        sl_xml += (f'<w:p>{PPR_SL}<w:r><w:rPr><w:noProof/></w:rPr>'
+                   f'{_SA_DRAWING_XML}</w:r></w:p>')
+    sl_xml += _psl(sb_name)
+    sl_xml += _psl(sb_titel)
 
     # ════════════════════════════════════════════════════════════════════════
     # ZUSAMMENFÜHREN UND RENDERN
@@ -1347,7 +1564,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         "{{SCHLUSSFORMEL}}":          sl_xml,
     }
 
-    return _render_docx(_VORLAGE, replacements, ooxml_blocks)
+    return _render_docx(_VORLAGE, replacements, ooxml_blocks, unterschrift)
 
 def _xml_antrag(nr: int, text: str) -> str:
     """Nummerierten Klageantrag als OOXML-Absatz."""

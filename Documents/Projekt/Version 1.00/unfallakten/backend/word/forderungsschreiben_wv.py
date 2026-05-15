@@ -74,8 +74,10 @@ _SA_DRAWING_XML = (
 _GRAMMATIK: dict = {
     "m": {
         "@pp2A":  "seiner",   # Possessiv Genitiv
+        "@a1A":   "unser",    # Artikel Nominativ
         "@a2A":   "unseres",  # Artikel Genitiv
-        "@a3P":   "unserem",  # Artikel Dativ
+        "@a3P":   "unserem",  # Artikel Dativ (legacy key)
+        "@A3A":   "unserem",  # Artikel Dativ (RA-MICRO Großschreibung)
         "@S1A":   "",         # Mandant-Suffix Nominativ → "Mandant"
         "@S2A":   "en",       # Mandant-Suffix Akkusativ/Genitiv → "Mandanten"
         "@S3A":   "en",       # Mandant-Suffix Genitiv attrib.
@@ -90,8 +92,10 @@ _GRAMMATIK: dict = {
     },
     "f": {
         "@pp2A":  "ihrer",
+        "@a1A":   "unsere",
         "@a2A":   "unserer",
         "@a3P":   "unserer",
+        "@A3A":   "unserer",
         "@S1A":   "in",       # → "Mandantin"
         "@S2A":   "in",
         "@S3A":   "in",
@@ -108,8 +112,10 @@ _GRAMMATIK: dict = {
         # Plural: Eheleute, Rechtsanwälte
         # "unserer Mandanten" (Genitiv Plural)
         "@pp2A":  "ihrer",
+        "@a1A":   "unsere",
         "@a2A":   "unserer",
         "@a3P":   "unseren",
+        "@A3A":   "unseren",
         "@S1A":   "en",       # → "Mandanten"
         "@S2A":   "en",
         "@S3A":   "en",

@@ -84,11 +84,11 @@ function AkteDetailView({ akte, st, dispatch }) {
         })
         .catch(() => {});
     }
-    // Beteiligte laden
-    if (!st.beteiligte) {
+    // Beteiligte laden — auch nach Delete (leere Liste neu aus RA-MICRO holen)
+    if (!st.beteiligte || !st.beteiligte.length) {
       apiBeteiligte.liste(id)
         .then(res => {
-          if (res?.beteiligte?.length) dispatch({ type:"SET_BETEILIGTE", akteId:id, beteiligte:res.beteiligte });
+          dispatch({ type:"SET_BETEILIGTE", akteId:id, beteiligte: res?.beteiligte || [] });
         })
         .catch(() => {});
     }

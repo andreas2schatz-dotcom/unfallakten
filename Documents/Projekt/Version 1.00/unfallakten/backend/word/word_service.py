@@ -484,7 +484,7 @@ def _lade_beteiligte_aus_ramicro(az: str) -> dict:
     "gegner" ist der erste/höchst-priorisierte Gegner (GHPV-Rang 0 für Briefe).
     "alle_gegner" enthält alle klassifizierten Gegner-Einträge (für Klagewizard).
     """
-    result = {"mandant": None, "gegner": None, "alle_gegner": []}
+    result = {"mandant": None, "gegner": None, "alle_gegner": [], "sonstige": []}
     try:
         from ..ramicro.connector import (
             get_ramicro_connection, RaMicroNichtAktiv, RaMicroVerbindungsFehler
@@ -562,7 +562,9 @@ def _lade_beteiligte_aus_ramicro(az: str) -> dict:
             kz_up = (kz or "").strip().upper()
             if art == 1 and kz_up not in ("SB", "SO", "G"):
                 return "mandant"
-            if art in (2, 4, 9) and kz_up not in ("HP", "HPV", "KASK"):
+            # Nicht-Beklagte: eigene Versicherungen, Anwälte, Sachverständige, Abwickler
+            _nicht_gegner = ("HP", "HPV", "KASK", "GBEV", "SAB")
+            if art in (2, 4, 9) and kz_up not in _nicht_gegner and not kz_up.startswith("SV"):
                 return "gegner"
             return "andere"
 
@@ -602,6 +604,7 @@ def _lade_beteiligte_aus_ramicro(az: str) -> dict:
                 "versicherung": None,
                 "schaden_nr":  None,
                 "kfz_kennzeichen": wdm.get("varG-KZ") or wdm.get("varM-KZ") or "",
+                "kuerzel":     (r.get("kz") or "").strip().upper(),
                 "betreff1":    _ersetze(r.get("sBetreffZeile1") or ""),
                 "betreff2":    _ersetze(r.get("sBetreffZeile2") or ""),
                 "betreff3":    _ersetze(r.get("sBetreffZeile3") or ""),
@@ -645,6 +648,12 @@ def _lade_beteiligte_aus_ramicro(az: str) -> dict:
                     result["gegner"] = d
                 # Alle Gegner sammeln (für Klagewizard)
                 result["alle_gegner"].append(d)
+            else:
+                kz_sonst = (row.get("kz") or "").strip().upper()
+                d = _beteiligter_dict(dict(row), wdm)
+                d["id"] = adr_nr or 0
+                d["rolle"] = "sachverstaendiger" if kz_sonst.startswith("SV") else "sonstiger"
+                result["sonstige"].append(d)
 
     except (RaMicroNichtAktiv, RaMicroVerbindungsFehler):
         pass

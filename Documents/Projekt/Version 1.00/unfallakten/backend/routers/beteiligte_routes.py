@@ -111,38 +111,53 @@ def liste(akte_id: str):
             "betreff3":    b.get("betreff3", ""),
         }
 
-    # ── Fall 1: SQLite ist komplett leer → vollständig aus RA-Micro laden ──────
-    if not beteiligte:
-        try:
-            from ..word.word_service import _lade_beteiligte_aus_ramicro
-            ra = _lade_beteiligte_aus_ramicro(akte_id)
-            ra_liste = []
-            for ra_rolle, b in (("mandant", ra.get("mandant")), ("gegner", ra.get("gegner"))):
-                if b and (rolle is None or rolle == ra_rolle):
-                    ra_liste.append(_ra_eintrag(ra_rolle, b))
-            if ra_liste:
-                return _j({"beteiligte": ra_liste, "quelle": "ramicro"})
-        except Exception as e:
-            logger.debug("RA-Micro-Fallback für Beteiligte (komplett leer): %s", e)
-        return _j({"beteiligte": []})
+    # Single Source of Truth: RA-MICRO ist primär.
+    # SQLite liefert nur eigene Ergänzungen (manuell angelegte Einträge / Anreicherungen).
+    # RA-MICRO-Einträge werden immer hinzugefügt, sofern kein namensgleicher SQLite-Eintrag existiert.
+    sqlite_liste = [_b_dict(b) for b in beteiligte]
+    try:
+        from ..word.word_service import _lade_beteiligte_aus_ramicro
+        ra = _lade_beteiligte_aus_ramicro(akte_id)
+        if ra:
+            namen_sqlite = {
+                n for b in sqlite_liste
+                for n in filter(None, [
+                    (b.get("name") or "").strip().lower(),
+                    (b.get("firma") or "").strip().lower(),
+                ])
+            }
+            hat_mandant = any(b.get("rolle") == "mandant" for b in sqlite_liste)
 
-    # ── Fall 2: SQLite hat Beteiligte, aber kein Gegner → Gegner aus RA-Micro ergänzen ──
-    # Dies ist der häufige Fall: Mandant steht in SQLite, GHPV-Versicherung nur in RA-Micro.
-    hat_gegner = any(b.rolle == "gegner" for b in beteiligte)
-    if not hat_gegner and (rolle is None or rolle == "gegner"):
-        try:
-            from ..word.word_service import _lade_beteiligte_aus_ramicro
-            ra = _lade_beteiligte_aus_ramicro(akte_id)
-            ra_gegner = ra.get("gegner")
-            if ra_gegner:
-                # SQLite-Beteiligte + RA-Micro-Gegner zusammenführen
-                sqlite_liste = [_b_dict(b) for b in beteiligte]
-                sqlite_liste.append(_ra_eintrag("gegner", ra_gegner))
-                return _j({"beteiligte": sqlite_liste, "quelle": "gemischt"})
-        except Exception as e:
-            logger.debug("RA-Micro-Fallback für fehlenden Gegner: %s", e)
+            def _merge(rb, ra_rolle):
+                if not rb:
+                    return
+                rb_name = (rb.get("name") or rb.get("firma") or "").strip().lower()
+                if rb_name and rb_name in namen_sqlite:
+                    return
+                sqlite_liste.append(_ra_eintrag(ra_rolle, rb))
+                if rb_name:
+                    namen_sqlite.add(rb_name)
 
-    return _j({"beteiligte": [_b_dict(b) for b in beteiligte]})
+            def _gegner_rolle(rb):
+                kz = (rb.get("kuerzel") or "").strip().upper()
+                if kz.startswith("SV"):
+                    return "sachverstaendiger"
+                if kz == "SAB":
+                    return "sonstiger"
+                return "gegner"
+
+            if not hat_mandant:
+                _merge(ra.get("mandant"), "mandant")
+            for rb in (ra.get("alle_gegner") or []):
+                _merge(rb, _gegner_rolle(rb))
+            for rb in (ra.get("sonstige") or []):
+                _merge(rb, rb.get("rolle") or "sonstiger")
+    except Exception as e:
+        logger.debug("RA-Micro-Merge Beteiligte: %s", e)
+
+    if rolle:
+        sqlite_liste = [b for b in sqlite_liste if b.get("rolle") == rolle]
+    return _j({"beteiligte": sqlite_liste})
 
 
 @beteiligte_bp.route("", methods=["POST"])

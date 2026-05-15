@@ -61,6 +61,7 @@ MAPPING: dict[str, int] = {
     "ghpvkz":                            13,   # Kennzeichen / Schilderkosten
     # 14 Wunschkennzeichen: kein Textbaustein
     "ghpfup":                            15,   # Unkostenpauschale
+    "ghpfup.doc":                        15,   # Unkostenpauschale (ghpfup.DOC.rtf)
     "ghpfnagewerbe":                     16,   # Nutzungsausfall
     "ghpfsvkosten":                      17,   # Kürzung Sachverständigenrechnung
     # 18 Mietwagenrechnung: kein Textbaustein

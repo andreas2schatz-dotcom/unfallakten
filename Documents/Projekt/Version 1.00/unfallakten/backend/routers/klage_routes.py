@@ -15,6 +15,7 @@ import io
 import json
 import logging
 import os
+import re
 import uuid
 from pathlib import Path
 from flask import Blueprint, request, jsonify, g, send_file
@@ -25,6 +26,8 @@ from ..models.schaden import hole_schadenpositionen, hole_regulierungen_by_akte
 from ..models.dokument import registriere_dokument
 from ..word.klage_service import berechne_rvg, generiere_klageschrift, berechne_fahrzeugschaden
 from ..word.word_service import KANZLEI_INFO, _lade_beteiligte_aus_ramicro
+from ..word.forderungsschreiben_wv import _grammatik_vars
+from ..word.stellungnahme_service import ersetze_platzhalter
 from ..models.schaden import (
     hole_schadenpositionen, hole_beteiligte_by_akte
 )
@@ -40,6 +43,75 @@ klage_bp = Blueprint("klage", __name__,
 
 def _j(d, s=200): return jsonify(d), s
 def _err(msg, s=400): return jsonify({"fehler": msg}), s
+
+
+def _rvg_anlagedatum(az: str, sqlite_erstellt_am: str = None) -> str:
+    """Bestimmt das Anlagedatum für die RVG-Tabellenauswahl (Stichtag 01.06.2025).
+
+    Priorität:
+    1. RA-Micro tblAkten.dtErstellt (exaktes Datum – schlägt alle anderen)
+    2. Jahr aus AZ-Format 'NNN/YY' → YYYY-01-01
+       Korrekt für alle Jahre ≠ 2025; für 2025er-Akten gilt Fallback auf alten Tarif
+       (konservative Seite – besser Gebühr unterschätzen als überschätzen).
+    3. SQLite erstellt_am (spiegelt Import-Datum, nicht Mandatseröffnung).
+    """
+    # 1. RA-Micro
+    try:
+        from ..ramicro.connector import get_ramicro_connection
+        az_basis = az.strip()
+        with get_ramicro_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT TOP 1 a.dtAnlage AS anlagedatum
+                FROM tblAkten a
+                WHERE a.sAktenNummer LIKE %(like)s
+                  AND (a.dtAblage IS NULL OR CAST(a.dtAblage AS DATE) = '1899-12-30')
+                ORDER BY a.sAktenNummer ASC
+            """, {"like": f"{az_basis}%"})
+            row = cur.fetchone()
+            if row and row["anlagedatum"]:
+                return str(row["anlagedatum"])[:10]
+    except Exception:
+        pass
+
+    # 2. Jahr aus Aktenzeichen ('322/25' → 2025-01-01)
+    m = re.search(r'/(\d{2})', az.strip())
+    if m:
+        yy   = int(m.group(1))
+        year = 2000 + yy if yy < 70 else 1900 + yy
+        return f"{year}-01-01"
+
+    # 3. SQLite-Fallback
+    return sqlite_erstellt_am or ""
+
+
+_BRIEF_OPENER = [
+    r'wir danken f[üu]r ihr',
+    r'wir beziehen uns auf ihr schreiben',
+    r'reparaturnachweise liegen dieser email',
+]
+
+def _bereite_textbaustein_vor(text: str, grammatik_vars: dict, kontext: dict) -> str:
+    if not text:
+        return text
+    # &&*Maske-Zeilen entfernen
+    text = re.sub(r'^(&&\*)[^\n]*\n?', '', text, flags=re.MULTILINE)
+    # Erste nicht-leere Zeile entfernen wenn sie ein Brief-Opener ist
+    zeilen = text.split('\n')
+    for i, z in enumerate(zeilen):
+        if z.strip():
+            if any(re.search(m, z, re.IGNORECASE) for m in _BRIEF_OPENER):
+                zeilen[i] = ''
+            break
+    text = '\n'.join(zeilen)
+    # ?? → [FEHLT]
+    text = text.replace('??', '[FEHLT]')
+    # Grammatik-Variablen ersetzen
+    for key, val in grammatik_vars.items():
+        text = text.replace(f'<{key}>', val)
+    # Wert-Platzhalter ersetzen (unbekannte → [FEHLT: <XYZ>])
+    text = ersetze_platzhalter(text, kontext)
+    return text.strip()
 
 
 def _lade_wdm_klage_vars(az: str) -> dict:
@@ -68,6 +140,7 @@ def _lade_wdm_klage_vars(az: str) -> dict:
         "varM-FAHRER", "varG-FAHRER",
         "varG-KZ", "varM-KZ",
         "varG-HV",                              # HPV-Name
+        "varG-SNR",                             # Schadennummer Gegner
         "varG-VN",                              # Versicherungsnummer Gegner
         "varQUOTEG", "varVERZUGAB", "varSCHREIBENVERZUG",
         "varEA-AZ", "varEA-ADRESS", "varPOLIZEI",
@@ -545,7 +618,7 @@ def hole_klage_daten(akte_id: str):
         kuerzungsarten_katalog = []
         try:
             ka_rows = conn.execute(
-                """SELECT id, bezeichnung, kategorie, standard_gegenargument, hinweis_intern
+                """SELECT id, bezeichnung, kategorie, standard_gegenargument, hinweis_intern, textbaustein
                    FROM kuerzungsarten WHERE aktiv = 1 ORDER BY sortierung"""
             ).fetchall()
             kuerzungsarten_katalog = [dict(r) for r in ka_rows]
@@ -560,6 +633,28 @@ def hole_klage_daten(akte_id: str):
                 "SELECT MAX(datum) AS datum FROM forderung_positionen WHERE akte_id = ?",
                 (az,)
             ).fetchone()
+        except Exception:
+            pass
+
+        # Verzug-Dokumente: Mahnschreiben + Verzugsschreiben + Forderungsschreiben aus E-Akte
+        # Sortierung: mahnschreiben/verzugsschreiben zuerst (für Vorauswahl im Frontend)
+        verzug_dokumente = []
+        try:
+            vdok_rows = conn.execute(
+                """SELECT id, dateiname, dokumentenklasse, hochgeladen_am
+                   FROM dokumente
+                   WHERE akte_id = ?
+                     AND dokumentenklasse IN ('mahnschreiben', 'verzugsschreiben', 'forderungsschreiben')
+                   ORDER BY
+                     CASE dokumentenklasse
+                       WHEN 'mahnschreiben'   THEN 1
+                       WHEN 'verzugsschreiben' THEN 2
+                       ELSE 3
+                     END,
+                     hochgeladen_am DESC""",
+                (az,)
+            ).fetchall()
+            verzug_dokumente = [dict(r) for r in vdok_rows]
         except Exception:
             pass
 
@@ -641,6 +736,43 @@ def hole_klage_daten(akte_id: str):
     )
     _vorsteuer = str(getattr(_mandant_vst, "vorsteuer", "N") or "N").upper() in ("J", "Y", "JA", "1")
     fzg = berechne_fahrzeugschaden(schaden_dict, vorsteuer=_vorsteuer)
+
+    # Textbaustein-Platzhalter für Einwände-Panel aufbereiten
+    try:
+        _rggdat = next(
+            (dict(ab)["datum"] for ab in abrechnungen
+             if float(dict(ab).get("gesamt_reguliert") or 0) > 0),
+            ""
+        )
+        _sv_bet = next(
+            (b for b in beteiligte_objs if getattr(b, "rolle", "") == "sachverstaendiger"), None
+        )
+        _gutachter = " ".join(filter(None, [
+            (getattr(_sv_bet, "vorname", "") or "").strip(),
+            (getattr(_sv_bet, "name",    "") or "").strip(),
+        ])).strip()
+        _mand_ra   = (ra_beteiligte or {}).get("mandant") or {}
+        _mand_anr  = (_mand_ra.get("anrede") or getattr(_mandant_vst, "anrede", "") or "").strip()
+        _mand_name = (_mand_ra.get("name")   or getattr(_mandant_vst, "name",   "") or "").strip()
+        _gram = _grammatik_vars(_mand_anr, _mand_name)
+        _tb_kontext = {
+            "RGGDAT":     _rggdat,
+            "GUTACHTER":  _gutachter,
+            "FKLASSE":    "",
+            "NUTZUNGSA":  str(s("nutzungsausfall") or ""),
+            "NABETRAG":   "",
+            "REPDAUER":   "",
+            "KOSTENNB":   str(s("kostennb") or ""),
+            "SCHMGELD":   str(s("schmerzensgeld") or ""),
+            "SGVORSCHUSS": "",
+        }
+        for ka in kuerzungsarten_katalog:
+            if ka.get("textbaustein"):
+                ka["textbaustein"] = _bereite_textbaustein_vor(
+                    ka["textbaustein"], _gram, _tb_kontext
+                )
+    except Exception as _e:
+        logger.debug("Textbaustein-Aufbereitung: %s", _e)
 
     # Alle möglichen Positionen
     pos_definitionen = [
@@ -732,6 +864,7 @@ def hole_klage_daten(akte_id: str):
             "vertreter_name":    _get("vertreter_name"),
             "vertreter_funktion":_get("vertreter_funktion"),
             "ist_halter":        int(_get("ist_halter", 0)),
+            "vorsteuer":         _get("vorsteuer") or "N",
         }
 
     alle_bet = [b_dict(b) for b in beteiligte_objs]
@@ -783,19 +916,34 @@ def hole_klage_daten(akte_id: str):
         rolle   = (b.get("rolle") or "").lower()
         kz      = (b.get("kuerzel") or "").upper()
         ist_mandant = rolle == "mandant"
-        ist_ghpv    = kz in ("GHPV", "GH", "GHV", "GBEV", "HPV") or rolle == "gegner"
 
-        # Klage-Rolle: Mandant → Kläger, alle anderen Gegner/GHPV → Beklagte
-        b["rolle_klage"]        = "klaeger" if ist_mandant else "beklagter"
-        b["vorschlag_beklagter"] = ist_ghpv and not ist_mandant
+        # Haftpflichtversicherung des Gegners (direkt Beklagte nach § 115 VVG)
+        # GBEV = Gegnerbevollmächtigter (Anwalt) → kein Beklagter
+        ist_ghpv = kz in ("GHPV", "GH", "GHV")
+
+        # Echter Gegner: G1/G2/G3 (explizit), SB/SO und leer (Auffangklasse) wenn rolle=="gegner"
+        # Nicht-Beklagte explizit ausschließen: eigene Versicherungen, Anwalt, SV, Abwickler
+        _kein_beklagter = {"HP", "HPV", "KASK", "GBEV", "SAB"}
+        ist_echter_gegner = (
+            bool(re.match(r'^G\d+$', kz))
+            or (rolle == "gegner" and kz not in _kein_beklagter and not kz.startswith("SV"))
+        )
+
+        soll_beklagter = (ist_ghpv or ist_echter_gegner) and not ist_mandant
+
+        b["rolle_klage"]        = "klaeger" if ist_mandant else ("beklagter" if soll_beklagter else "nicht_partei")
+        b["vorschlag_beklagter"] = soll_beklagter
 
         # WDM-Anreicherung: Schadennummer + Kennzeichen wenn in SQLite leer
-        if not b.get("schaden_nr") and _wdm("varG-SNR") and b["vorschlag_beklagter"]:
+        if not b.get("schaden_nr") and _wdm("varG-SNR") and soll_beklagter:
             b["schaden_nr"] = _wdm("varG-SNR")
-        if not b.get("versicherung") and _wdm("varG-HV") and b["vorschlag_beklagter"]:
+        if not b.get("versicherung") and _wdm("varG-HV") and soll_beklagter:
             b["versicherung"] = _wdm("varG-HV")
-        if not b.get("kfz_kennzeichen") and rolle == "gegner" and _wdm("varG-KZ"):
+        if not b.get("kfz_kennzeichen") and ist_echter_gegner and _wdm("varG-KZ"):
             b["kfz_kennzeichen"] = _wdm("varG-KZ")
+
+    # Nur Kläger und Beklagte ins Frontend — Zeugen, SV, sonstige Beteiligte ausblenden
+    alle_bet = [b for b in alle_bet if b.get("rolle_klage") in ("klaeger", "beklagter")]
 
     # ── Synthetischer GHPV-Eintrag (§ 115 VVG: Klage gegen Fahrer UND Versicherung) ──
     # Wenn WDM eine Haftpflichtversicherung kennt, aber kein eigenständiger
@@ -886,8 +1034,9 @@ def hole_klage_daten(akte_id: str):
     alle_bet = [b for b in alle_bet if (b.get("rolle") or "").lower() != "gericht"]
 
     # ── RVG-Vorberechnung ─────────────────────────────────────────────────────
-    klagebetrag = sum(p["betrag"] for p in pos_definitionen if p["checked"])
-    rvg = berechne_rvg(klagebetrag, erstellt_am=akte.erstellt_am)
+    klagebetrag  = sum(p["betrag"] for p in pos_definitionen if p["checked"])
+    _anlagedatum = _rvg_anlagedatum(az, akte.erstellt_am)
+    rvg = berechne_rvg(klagebetrag, erstellt_am=_anlagedatum)
     rvg["streitwert"] = klagebetrag
 
     # ── Aktivlegitimation aus unfalldetails + Fahrer-Ermittlung ──────────────
@@ -956,6 +1105,7 @@ def hole_klage_daten(akte_id: str):
         "positionen":         [p for p in pos_definitionen if p["betrag"] > 0],
         "unfalldetails":      _ud_dict,
         "verzug_datum":       verzug_datum,
+        "verzug_dokumente":   verzug_dokumente,
         "rvg":                rvg,
         "abrechnungen":       [
             {**dict(a), "positionen": ab_positionen.get(a["id"], [])}
@@ -984,9 +1134,9 @@ def rvg_berechnen(akte_id: str):
         faktor     = float(d.get("faktor") or 1.3)
     except (TypeError, ValueError):
         return _err("streitwert und faktor müssen Zahlen sein.", 422)
-    akte = hole_akte_by_id(akte_id)
-    rvg = berechne_rvg(streitwert, faktor,
-                       erstellt_am=akte.erstellt_am if akte else None)
+    akte         = hole_akte_by_id(akte_id)
+    _anlagedatum = _rvg_anlagedatum(akte_id, akte.erstellt_am if akte else None)
+    rvg = berechne_rvg(streitwert, faktor, erstellt_am=_anlagedatum)
     rvg["streitwert"] = streitwert
     return _j({"rvg": rvg})
 
@@ -1013,6 +1163,13 @@ def generiere_klage(akte_id: str):
     # None = kein Override → Backend nutzt DB-Wert
     # Wert = Override → Wizard-Wert hat Vorrang
     overrides = body.get("overrides") or {}
+
+    # rvg_ausserg + rvg_ausserg_override + rvg_bereits_gezahlt kommen aus overrides
+    # (Wizard Step 9), müssen explizit in klage_cfg eingemergt werden damit
+    # klage_service.py sie via cfg.get() findet.
+    for _key in ("rvg_ausserg", "rvg_ausserg_override", "rvg_bereits_gezahlt"):
+        if overrides.get(_key) is not None:
+            klage_cfg[_key] = overrides[_key]
 
     def _override(key, db_val):
         """Override vorhanden und nicht None → nehmen. Sonst DB-Wert."""
@@ -1079,6 +1236,28 @@ def generiere_klage(akte_id: str):
                FROM abrechnungsschreiben WHERE akte_id = ? ORDER BY datum""",
             (az,)
         ).fetchall()
+        ab_positionen = {}
+        if abrechnungen:
+            ab_ids       = tuple(a["id"] for a in abrechnungen)
+            placeholders = ",".join(["?"] * len(ab_ids))
+            for p in conn.execute(
+                f"SELECT * FROM regulierung_positionen WHERE abrechnungsschreiben_id IN ({placeholders})",
+                ab_ids,
+            ).fetchall():
+                ab_positionen.setdefault(p["abrechnungsschreiben_id"], []).append(dict(p))
+
+    reg_agg = {}
+    for ab_row in abrechnungen:
+        for p in ab_positionen.get(ab_row["id"], []):
+            key    = p.get("position_key") or "sonstiges"
+            betrag = float(p.get("betrag_reguliert") or 0)
+            if betrag == 0:
+                continue
+            if key not in reg_agg:
+                reg_agg[key] = {"gesamt_reguliert": 0.0}
+            reg_agg[key]["gesamt_reguliert"] = round(
+                reg_agg[key]["gesamt_reguliert"] + betrag, 2
+            )
 
     # Mandant via Model-Funktion
     beteiligte_objs = hole_beteiligte_by_akte(az)
@@ -1166,6 +1345,7 @@ def generiere_klage(akte_id: str):
             ),
         },
         "abrechnungen":  [dict(a) for a in abrechnungen],
+        "reg_agg":       reg_agg,
         "klage_config":  klage_cfg,
         "schaden":      schaden_dict,  # für _baue_tabelle in klage_service
     }
