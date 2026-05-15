@@ -86,6 +86,16 @@ PRD vorhanden: `handover/PRD-25c_Mandantenkommunikation.md`
 
 ### Priorität: Mittel
 
+**PRD-36 – Code-Konsolidierung: Duplikate aus Funktionsinventur (2026-05-15)**
+Ergebnis der Funktionsinventur (Session 2026-05-15): ~263 Funktionen in 61 Dateien analysiert. 4 konkrete Duplikat-Gruppen identifiziert:
+
+- ~~**PRD-36a – `_pruefe_akte` zentralisieren**~~ ✅ Erledigt (Commit 02b2819, 2026-05-15): `backend/routers/_helpers.py` mit `_normiere_az()` + `pruefe_akte()`. RA-MICRO-Fallback + AZ-Normierung (`112526` → `1125/26`) + `SimpleNamespace` statt `True`. 6 Routers bereinigt.
+- ~~**PRD-36b – Datum-Parsing vereinheitlichen**~~ ✅ Erledigt (Commit e4fa79f, 2026-05-15): `backend/utils/datum.py` mit `parse_datum()`, `datum_zu_iso()`, `iso_zu_ramicro()`. 5 Dateien bereinigt, 72 Zeilen entfernt.
+- **PRD-36c – `fmtEuro` im Frontend deduplizieren:** `fmtEur` in `sections/KlageWizard.jsx:43` ist identisch mit `fmtEuro` in `frontend/src/config/utils.js:1`. KlageWizard soll den Import aus utils.js verwenden.
+- **PRD-36d – Beteiligte-Serialisierer zusammenführen:** `_b_dict` (beteiligte_routes.py) und `_beteiligter_dict` (akten_routes.py) serialisieren dasselbe Objekt unterschiedlich. Soll in `backend/models/beteiligte.py` als Single Source of Truth landen.
+
+(aus: Session 2026-05-15, Funktionsinventur-Analyse)
+
 **PRD-32 Phase 2 – Rechnungstypen-Parser: Beleg-Mapping**
 Phase 1 (Subklassen im Classifier) ist fertig. Phase 2: erkannte Rechnungstypen automatisch der richtigen Schadenposition zuordnen (Standkosten → Standgeld-Position, Abschlepprechnung → Abschleppkosten-Position).
 Plan: `handover/PRD-32_Rechnungstypen_Parser.md`
