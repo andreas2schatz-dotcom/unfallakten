@@ -40,6 +40,7 @@
 | Action Board Global + OnboardingHub | ActionBoardView (3 Spalten), OnboardingHub (7 Kacheln) | (aus: session_handover_v56.md) |
 | PRD-22c | Mandanten-Fragebogen: E-Mail-Parser, fragebogen_parser.py, DB-Tabelle fragebogen_erstkontakt, Verarbeitungslogik, Frontend (FragebogenErstkontaktKarte.jsx). Ausstehend: Website-Formular + PRD-22d (Akte-Anlage). | (Code-Prüfung 2026-05-03) |
 | PRD-35 | Klage-Wizard Bug-Fixes (5 Bugs): vorsteuer in b_dict, wizardVerzugDatum in Step 6, EinwändePanel-Preview, StepVerzug Manual-Edit-Schutz (wizardVerzugManuell), StepSchaden Gefordert-Spalte (betragOriginal). + klage_service: RVG außergerichtl. Gegenstandswert, rvg_bereits_gezahlt Abzug. | (Session 2026-05-10) |
+| PRD-36 (a–d) | Code-Konsolidierung: `_pruefe_akte` → `_helpers.py`, Datum-Parsing → `utils/datum.py`, `fmtEur` → Import aus `utils.js`, Beteiligte-Serialisierer → `models/beteiligte.py`. 7 TDD-Tests. | (Session 2026-05-15) |
 | B-08 | Netto/Brutto bei Vorsteuer-Mandant | (aus: session_handover_v38.md, v33) |
 | B-09 | Gegenstandswert + fehlende Schadenspositionen | (aus: session_handover_v38.md, v34) |
 
@@ -85,16 +86,6 @@ PRD vorhanden: `handover/PRD-25c_Mandantenkommunikation.md`
 ---
 
 ### Priorität: Mittel
-
-**PRD-36 – Code-Konsolidierung: Duplikate aus Funktionsinventur (2026-05-15)**
-Ergebnis der Funktionsinventur (Session 2026-05-15): ~263 Funktionen in 61 Dateien analysiert. 4 konkrete Duplikat-Gruppen identifiziert:
-
-- ~~**PRD-36a – `_pruefe_akte` zentralisieren**~~ ✅ Erledigt (Commit 02b2819, 2026-05-15): `backend/routers/_helpers.py` mit `_normiere_az()` + `pruefe_akte()`. RA-MICRO-Fallback + AZ-Normierung (`112526` → `1125/26`) + `SimpleNamespace` statt `True`. 6 Routers bereinigt.
-- ~~**PRD-36b – Datum-Parsing vereinheitlichen**~~ ✅ Erledigt (Commit e4fa79f, 2026-05-15): `backend/utils/datum.py` mit `parse_datum()`, `datum_zu_iso()`, `iso_zu_ramicro()`. 5 Dateien bereinigt, 72 Zeilen entfernt.
-- ~~**PRD-36c – `fmtEuro` im Frontend deduplizieren**~~ ✅ Erledigt (2026-05-15): Lokale `fmtEur`-Definition aus `KlageWizard.jsx` entfernt, Import aus `frontend/src/config/utils.js`.
-- ~~**PRD-36d – Beteiligte-Serialisierer zusammenführen**~~ ✅ Erledigt (2026-05-15): `backend/models/beteiligte.py` mit `beteiligter_as_dict()` als Single Source of Truth. `_b_dict`/`_beteiligter_dict` in beiden Routers ersetzt. 7 Tests grün.
-
-(aus: Session 2026-05-15, Funktionsinventur-Analyse)
 
 **PRD-32 Phase 2 – Rechnungstypen-Parser: Beleg-Mapping**
 Phase 1 (Subklassen im Classifier) ist fertig. Phase 2: erkannte Rechnungstypen automatisch der richtigen Schadenposition zuordnen (Standkosten → Standgeld-Position, Abschlepprechnung → Abschleppkosten-Position).
