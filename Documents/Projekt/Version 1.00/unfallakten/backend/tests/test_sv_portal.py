@@ -130,8 +130,17 @@ from backend.app import erstelle_app
 
 @pytest.fixture
 def app_client():
-    """Flask-Testclient – verwendet echte In-Memory-DB des App-Kontexts."""
+    """Flask-Testclient – bereinigt sv_portal_accounts vor und nach jedem Test."""
+    from backend.db.database import get_connection
     app = erstelle_app(test_config={"TESTING": True})
+
+    def _cleanup():
+        with app.app_context():
+            with get_connection() as conn:
+                conn.execute("DELETE FROM sv_portal_accounts")
+                conn.commit()
+
+    _cleanup()
     with app.test_client() as c:
         rv = c.post("/auth/login",
                     json={"email": "koch@anwalt-offenbach.de", "passwort": "Kanzlei2024!"},
@@ -140,6 +149,7 @@ def app_client():
         token = data.get("access_token", "")
         c.environ_base["HTTP_AUTHORIZATION"] = f"Bearer {token}"
         yield c
+    _cleanup()
 
 
 def test_sv_portal_liste_leer(app_client):
