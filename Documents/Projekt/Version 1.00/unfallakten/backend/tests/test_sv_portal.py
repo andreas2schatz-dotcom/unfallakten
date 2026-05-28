@@ -71,3 +71,53 @@ def test_migration_41_email_unique(fresh_conn):
 def test_migration_41_ist_idempotent(fresh_conn):
     _run_migration_41(fresh_conn)
     _run_migration_41(fresh_conn)  # Darf keinen Fehler werfen
+
+
+from unittest.mock import patch, MagicMock
+from backend.ramicro.adress_service import hole_adresse_by_nr
+from backend.ramicro.connector import RaMicroNichtAktiv, RaMicroVerbindungsFehler
+
+
+def _mock_cursor(row):
+    """Hilfsfunktion: gibt Cursor-Mock mit fetchone()-Ergebnis zurück."""
+    cur = MagicMock()
+    cur.fetchone.return_value = row
+    conn = MagicMock()
+    conn.cursor.return_value = cur
+    return conn
+
+
+def test_hole_adresse_by_nr_gibt_dict_zurueck():
+    fake_row = {
+        "adressnr": 4721,
+        "name": "Seifert",
+        "vorname": "Karl",
+        "email": "k.seifert@sv-buero.de",
+    }
+    mock_conn = _mock_cursor(fake_row)
+    with patch("backend.ramicro.adress_service.get_ramicro_connection") as mock_ctx:
+        mock_ctx.return_value.__enter__ = lambda s: mock_conn
+        mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
+        result = hole_adresse_by_nr(4721)
+    assert result == {
+        "adressnr": 4721,
+        "name": "Seifert",
+        "vorname": "Karl",
+        "email": "k.seifert@sv-buero.de",
+    }
+
+
+def test_hole_adresse_by_nr_gibt_none_bei_nicht_gefunden():
+    mock_conn = _mock_cursor(None)
+    with patch("backend.ramicro.adress_service.get_ramicro_connection") as mock_ctx:
+        mock_ctx.return_value.__enter__ = lambda s: mock_conn
+        mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
+        result = hole_adresse_by_nr(9999)
+    assert result is None
+
+
+def test_hole_adresse_by_nr_gibt_none_bei_ramicro_inaktiv():
+    with patch("backend.ramicro.adress_service.get_ramicro_connection") as mock_ctx:
+        mock_ctx.side_effect = RaMicroNichtAktiv("deaktiviert")
+        result = hole_adresse_by_nr(1)
+    assert result is None
