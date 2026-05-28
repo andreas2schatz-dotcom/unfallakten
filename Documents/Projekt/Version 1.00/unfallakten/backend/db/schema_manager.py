@@ -292,6 +292,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     38: "-- migration_38_portal_sync",  # Handled by _run_migration_38
     39: "-- migration_39_gutachten_nr",  # Handled by _run_migration_39
     40: "-- migration_40_stellungnahme_texte",  # Handled by _run_migration_40
+    41: "-- migration_41_sv_portal_accounts",  # Handled by _run_migration_41
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -437,6 +438,8 @@ def run_migrations() -> None:
                 _run_migration_39(conn)
             elif version == 40:
                 _run_migration_40(conn)
+            elif version == 41:
+                _run_migration_41(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
@@ -2352,3 +2355,22 @@ CREATE TABLE IF NOT EXISTS stellungnahme_texte (
         (40, "Migration 40 – stellungnahme_texte fuer ReguWizard-Persistenz"),
     )
     logger.info("Migration 40 abgeschlossen.")
+
+
+def _run_migration_41(conn: sqlite3.Connection) -> None:
+    """Migration 41: sv_portal_accounts – SV-Portal-Account-Verwaltung."""
+    conn.executescript("""
+CREATE TABLE IF NOT EXISTS sv_portal_accounts (
+    adressnr              INTEGER PRIMARY KEY,
+    name                  TEXT    NOT NULL,
+    vorname               TEXT,
+    email                 TEXT    NOT NULL UNIQUE,
+    portal_aktiv          INTEGER NOT NULL DEFAULT 1
+                          CHECK(portal_aktiv IN (0,1)),
+    einladung_gesendet_am TEXT,
+    angelegt_am           TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+);
+INSERT OR IGNORE INTO schema_version (version, beschreibung)
+VALUES (41, 'Migration 41 – sv_portal_accounts: SV-Portal-Account-Verwaltung');
+    """)
+    logger.info("Migration 41 abgeschlossen.")
