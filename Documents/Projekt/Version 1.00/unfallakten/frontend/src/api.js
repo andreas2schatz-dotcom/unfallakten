@@ -979,3 +979,41 @@ export const apiGebuehren = {
                                method: 'PUT', body: JSON.stringify(body) }),
   word:       (az)        => request(`/akten/${az}/gebuehren/word`, { method: 'POST' }),
 };
+
+// ─────────────────────────────────────────────────────────────
+// SV-PORTAL
+// ─────────────────────────────────────────────────────────────
+export const apiSvPortal = {
+  liste: () =>
+    request('/einstellungen/sv-portal'),
+
+  vorschau: (adressnr) =>
+    request(`/einstellungen/sv-portal/vorschau/${adressnr}`),
+
+  anlegen: (adressnr) =>
+    request('/einstellungen/sv-portal', {
+      method: 'POST',
+      body: JSON.stringify({ adressnr }),
+    }),
+
+  loeschen: (adressnr) =>
+    request(`/einstellungen/sv-portal/${adressnr}`, { method: 'DELETE' }),
+
+  toggleAktiv: (adressnr, aktiv) =>
+    request(`/einstellungen/sv-portal/${adressnr}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ portal_aktiv: aktiv ? 1 : 0 }),
+    }),
+
+  einladungSenden: (adressnr) =>
+    request(`/einstellungen/sv-portal/${adressnr}/einladung`, { method: 'POST' }),
+
+  akten: (adressnr) =>
+    request(`/einstellungen/sv-portal/${adressnr}/akten`),
+
+  togglePortalAktiv: (akte_az, aktiv) =>
+    request(
+      `/einstellungen/sv-portal/akten/${encodeURIComponent(akte_az)}/portal_aktiv`,
+      { method: 'PATCH', body: JSON.stringify({ portal_aktiv: aktiv ? 1 : 0 }) }
+    ),
+};
