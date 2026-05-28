@@ -1,3 +1,5 @@
+import os
+os.environ.setdefault("FLASK_SECRET_KEY", "test-secret-key-sv-portal")
 import sqlite3
 import pytest
 from backend.db.schema_manager import _run_migration_41
@@ -121,3 +123,72 @@ def test_hole_adresse_by_nr_gibt_none_bei_ramicro_inaktiv():
         mock_ctx.side_effect = RaMicroNichtAktiv("deaktiviert")
         result = hole_adresse_by_nr(1)
     assert result is None
+
+
+from backend.app import erstelle_app
+
+
+@pytest.fixture
+def app_client():
+    """Flask-Testclient – verwendet echte In-Memory-DB des App-Kontexts."""
+    app = erstelle_app(test_config={"TESTING": True})
+    with app.test_client() as c:
+        rv = c.post("/auth/login",
+                    json={"email": "koch@anwalt-offenbach.de", "passwort": "Kanzlei2024!"},
+                    content_type="application/json")
+        data = rv.get_json() or {}
+        token = data.get("access_token", "")
+        c.environ_base["HTTP_AUTHORIZATION"] = f"Bearer {token}"
+        yield c
+
+
+def test_sv_portal_liste_leer(app_client):
+    rv = app_client.get("/einstellungen/sv-portal")
+    assert rv.status_code == 200
+    assert rv.get_json() == []
+
+
+def test_sv_portal_anlegen_und_loeschen(app_client):
+    with patch("backend.routers.sv_portal_routes.hole_adresse_by_nr") as mock_lookup:
+        mock_lookup.return_value = {
+            "adressnr": 4721,
+            "name": "Seifert",
+            "vorname": "Karl",
+            "email": "k.seifert@sv-buero.de",
+        }
+        rv = app_client.post("/einstellungen/sv-portal",
+                             json={"adressnr": 4721},
+                             content_type="application/json")
+    assert rv.status_code == 201
+    data = rv.get_json()
+    assert data["adressnr"] == 4721
+    assert data["email"] == "k.seifert@sv-buero.de"
+
+    rv2 = app_client.delete("/einstellungen/sv-portal/4721")
+    assert rv2.status_code == 200
+    assert rv2.get_json()["geloescht"] is True
+
+    rv3 = app_client.get("/einstellungen/sv-portal")
+    assert rv3.get_json() == []
+
+
+def test_sv_portal_einladung_setzt_zeitstempel(app_client):
+    with patch("backend.routers.sv_portal_routes.hole_adresse_by_nr") as mock_lookup:
+        mock_lookup.return_value = {
+            "adressnr": 100, "name": "X", "vorname": "", "email": "x@test.de"
+        }
+        app_client.post("/einstellungen/sv-portal",
+                        json={"adressnr": 100}, content_type="application/json")
+    rv = app_client.post("/einstellungen/sv-portal/100/einladung")
+    assert rv.status_code == 200
+    data = rv.get_json()
+    assert data["einladung_gesendet_am"] is not None
+
+
+def test_sv_portal_toggle_portal_aktiv_akte_404(app_client):
+    rv = app_client.patch(
+        "/einstellungen/sv-portal/akten/999%2F99/portal_aktiv",
+        json={"portal_aktiv": 1},
+        content_type="application/json",
+    )
+    assert rv.status_code == 404
