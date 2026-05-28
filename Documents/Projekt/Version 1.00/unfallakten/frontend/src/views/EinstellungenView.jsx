@@ -6,6 +6,7 @@ import { Card, CardHead, Btn, Toast } from "../components/common.jsx";
 import {
   emailImport as apiEmail,
   apiEinstellungen,
+  apiSvPortal,
 } from "../api.js";
 
 function EinstellungenView() {
@@ -44,6 +45,17 @@ function EinstellungenView() {
   const [lgGrenzwertLaedt, setLgGrenzwertLaedt] = useState(false);
   const [lgGrenzwertSpeich, setLgGrenzwertSpeich] = useState(false);
 
+  // SV-Portal
+  const [svListe,         setSvListe]         = useState([]);
+  const [svLaedt,         setSvLaedt]         = useState(false);
+  const [svAusgewaehlt,   setSvAusgewaehlt]   = useState(null); // adressnr
+  const [svAkten,         setSvAkten]         = useState([]);
+  const [svAktenLaedt,    setSvAktenLaedt]    = useState(false);
+  const [svForm,          setSvForm]          = useState({ adressnr: "", vorschau: null, fehler: "" });
+  const [svFormLaedt,     setSvFormLaedt]     = useState(false);
+  const [svFormSpeichert, setSvFormSpeichert] = useState(false);
+  const [svEinladung,     setSvEinladung]     = useState({}); // adressnr → bool
+
   // Klassifikations-Trainingsdaten
   const [training, setTraining] = useState(null);
 
@@ -54,6 +66,46 @@ function EinstellungenView() {
       setVorlagen(res?.vorlagen || []);
     } catch { setVorlagen([]); }
     finally { setLaedt(false); }
+  };
+
+  const ladeSvListe = async () => {
+    setSvLaedt(true);
+    try { setSvListe(await apiSvPortal.liste()); }
+    catch { setSvListe([]); }
+    finally { setSvLaedt(false); }
+  };
+
+  const ladeSvAkten = async (adressnr) => {
+    setSvAktenLaedt(true);
+    try { setSvAkten(await apiSvPortal.akten(adressnr)); }
+    catch { setSvAkten([]); }
+    finally { setSvAktenLaedt(false); }
+  };
+
+  const svVorschauLaden = async () => {
+    const nr = parseInt(svForm.adressnr);
+    if (!nr) return;
+    setSvFormLaedt(true);
+    try {
+      const d = await apiSvPortal.vorschau(nr);
+      setSvForm(p => ({ ...p, vorschau: d, fehler: "" }));
+    } catch(e) {
+      setSvForm(p => ({ ...p, vorschau: null, fehler: e?.message || "Adressnummer nicht gefunden." }));
+    } finally { setSvFormLaedt(false); }
+  };
+
+  const svAnlegen = async () => {
+    const nr = parseInt(svForm.adressnr);
+    if (!nr) return;
+    setSvFormSpeichert(true);
+    try {
+      await apiSvPortal.anlegen(nr);
+      setSvForm({ adressnr: "", vorschau: null, fehler: "" });
+      await ladeSvListe();
+      setToast("SV-Portal-Zugang angelegt.");
+    } catch(e) {
+      setSvForm(p => ({ ...p, fehler: e?.message || "Fehler beim Anlegen." }));
+    } finally { setSvFormSpeichert(false); }
   };
 
   useEffect(() => {
@@ -82,6 +134,14 @@ function EinstellungenView() {
       .catch(() => {})
       .finally(() => setLlmLaedt(false));
   }, []);
+
+  useEffect(() => {
+    if (tab === "sv_portal") ladeSvListe();
+  }, [tab]);
+
+  useEffect(() => {
+    if (svAusgewaehlt !== null) ladeSvAkten(svAusgewaehlt);
+  }, [svAusgewaehlt]);
 
   const speichereNeu = async () => {
     if (!neuForm.name || !neuForm.domain) return;
@@ -150,6 +210,7 @@ function EinstellungenView() {
           {[
             ["versicherer",   "🏦 Versicherer"],
             ["gutachter",     "🔍 Gutachter"],
+            ["sv_portal",      "🔗 SV-Portal"],
             ["absender",      "📋 Alle Vorlagen"],
             ["imap",          "📧 IMAP"],
             ["fristen",       "⏱ Fristen"],
@@ -163,7 +224,7 @@ function EinstellungenView() {
                 borderBottom: tab===id ? `2px solid ${T.accent}` : "2px solid transparent",
                 marginBottom:-1 }}>
               {label}
-              {id !== "imap" && id !== "fristen" && id !== "ki" && id !== "zustaendigkeit" && (
+              {id !== "imap" && id !== "fristen" && id !== "ki" && id !== "zustaendigkeit" && id !== "sv_portal" && (
                 <span style={{ marginLeft:6, background:T.surface, color:T.textMuted,
                   borderRadius:10, padding:"1px 7px", fontSize:"0.8rem", fontWeight:400 }}>
                   {id === "versicherer" ? vorlagen.filter(v => v.kategorie==="versicherung").length
@@ -665,8 +726,307 @@ function EinstellungenView() {
           </div>
         )}
 
+        {/* SV-Portal Tab */}
+        {tab === "sv_portal" && (
+          <div style={{ display:"flex", height:"calc(100vh - 200px)", minHeight:480,
+            border:`1px solid ${T.border}`, borderRadius:10, overflow:"hidden",
+            background:T.white }}>
+
+            {/* ── Linke Spalte: SV-Liste ── */}
+            <div style={{ width:260, borderRight:`1px solid ${T.border}`,
+              display:"flex", flexDirection:"column", flexShrink:0 }}>
+
+              {/* Neu-anlegen-Formular */}
+              <div style={{ padding:"12px", borderBottom:`1px solid ${T.border}` }}>
+                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
+                  fontWeight:700, color:T.textMuted, marginBottom:6, textTransform:"uppercase",
+                  letterSpacing:"0.06em" }}>RA-MICRO-Adressnr.</div>
+                <div style={{ display:"flex", gap:6, marginBottom: svForm.vorschau || svForm.fehler ? 8 : 0 }}>
+                  <input
+                    type="number" min={1} placeholder="z.B. 4721"
+                    value={svForm.adressnr}
+                    onChange={e => setSvForm(p => ({...p, adressnr: e.target.value, vorschau: null, fehler:""}))}
+                    style={{ flex:1, padding:"6px 8px", border:`1px solid ${T.border}`,
+                      borderRadius:6, fontFamily:"ui-monospace,monospace",
+                      fontSize:"0.875rem", outline:"none" }}
+                  />
+                  <Btn onClick={svVorschauLaden}
+                    disabled={svFormLaedt || !svForm.adressnr}
+                    style={{ padding:"6px 10px", fontSize:"0.8rem" }}>
+                    {svFormLaedt ? "…" : "Laden"}
+                  </Btn>
+                </div>
+                {svForm.fehler && (
+                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
+                    color:T.red, marginBottom:6 }}>{svForm.fehler}</div>
+                )}
+                {svForm.vorschau && (
+                  <div style={{ background:T.offWhite, border:`1px solid ${T.border}`,
+                    borderRadius:6, padding:"7px 10px", marginBottom:8 }}>
+                    <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem",
+                      fontWeight:700, color:T.text }}>
+                      {svForm.vorschau.vorname} {svForm.vorschau.name}
+                    </div>
+                    <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.75rem",
+                      color:T.textMuted }}>{svForm.vorschau.email || "⚠ Keine E-Mail"}</div>
+                  </div>
+                )}
+                {svForm.vorschau && svForm.vorschau.email && (
+                  <Btn onClick={svAnlegen} disabled={svFormSpeichert}
+                    style={{ width:"100%", fontSize:"0.8rem" }}>
+                    {svFormSpeichert ? "Anlegen …" : "＋ Zugang anlegen"}
+                  </Btn>
+                )}
+              </div>
+
+              {/* SV-Liste */}
+              <div style={{ flex:1, overflowY:"auto" }}>
+                {svLaedt ? (
+                  <div style={{ padding:"1.5rem", textAlign:"center", color:T.textFaint,
+                    fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}>Lade …</div>
+                ) : svListe.length === 0 ? (
+                  <div style={{ padding:"1.5rem", textAlign:"center", color:T.textFaint,
+                    fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}>
+                    Noch keine SV-Accounts.<br/>Adressnummer eingeben um zu beginnen.
+                  </div>
+                ) : svListe.map(sv => {
+                  const istAusgewaehlt = svAusgewaehlt === sv.adressnr;
+                  const dotFarbe = !sv.portal_aktiv ? T.textFaint
+                    : sv.einladung_gesendet_am ? "#22c55e" : "#f59e0b";
+                  return (
+                    <div key={sv.adressnr}
+                      onClick={() => setSvAusgewaehlt(sv.adressnr)}
+                      style={{ padding:"9px 12px", cursor:"pointer",
+                        borderBottom:`1px solid ${T.borderSoft}`,
+                        background: istAusgewaehlt ? "#eff6ff" : "transparent",
+                        borderRight: istAusgewaehlt ? `3px solid ${T.accent}` : "3px solid transparent",
+                        display:"flex", alignItems:"center", gap:8,
+                        opacity: sv.portal_aktiv ? 1 : 0.5 }}>
+                      <div style={{ width:30, height:30, borderRadius:"50%",
+                        background:"#dbeafe", display:"flex", alignItems:"center",
+                        justifyContent:"center", fontSize:"0.7rem", fontWeight:800,
+                        color:"#1e40af", flexShrink:0 }}>
+                        {(sv.vorname?.[0] || "")}{ (sv.name?.[0] || "")}
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem",
+                          fontWeight:700, color:T.text, whiteSpace:"nowrap",
+                          overflow:"hidden", textOverflow:"ellipsis" }}>
+                          {sv.vorname} {sv.name}
+                        </div>
+                        <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.72rem",
+                          color:T.textMuted, whiteSpace:"nowrap", overflow:"hidden",
+                          textOverflow:"ellipsis" }}>{sv.email}</div>
+                      </div>
+                      <div style={{ width:8, height:8, borderRadius:"50%",
+                        background:dotFarbe, flexShrink:0 }} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ── Rechte Spalte: Detail ── */}
+            <div style={{ flex:1, display:"flex", flexDirection:"column",
+              background:T.offWhite, overflow:"hidden" }}>
+              {!svAusgewaehlt ? (
+                <div style={{ flex:1, display:"flex", alignItems:"center",
+                  justifyContent:"center", color:T.textFaint,
+                  fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem" }}>
+                  ← SV aus der Liste auswählen
+                </div>
+              ) : (() => {
+                const sv = svListe.find(s => s.adressnr === svAusgewaehlt);
+                if (!sv) return null;
+                const dotFarbe = !sv.portal_aktiv ? T.textFaint
+                  : sv.einladung_gesendet_am ? "#22c55e" : "#f59e0b";
+                const statusText = !sv.portal_aktiv ? "Deaktiviert"
+                  : sv.einladung_gesendet_am ? "Aktiv im Portal" : "Einladung ausstehend";
+                const sichtbar = svAkten.filter(a => a.portal_aktiv).length;
+                return (
+                  <>
+                    {/* SV-Header */}
+                    <div style={{ padding:"14px 18px 12px", background:T.white,
+                      borderBottom:`1px solid ${T.border}`,
+                      display:"flex", alignItems:"flex-start", gap:12 }}>
+                      <div style={{ width:42, height:42, borderRadius:"50%",
+                        background:"#dbeafe", display:"flex", alignItems:"center",
+                        justifyContent:"center", fontSize:"0.95rem", fontWeight:800,
+                        color:"#1e40af", flexShrink:0 }}>
+                        {(sv.vorname?.[0]||"")}{(sv.name?.[0]||"")}
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"1rem",
+                          fontWeight:800, color:T.navy }}>
+                          {sv.vorname} {sv.name}
+                        </div>
+                        <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.8rem",
+                          color:T.textMuted, marginTop:1 }}>
+                          {sv.email} · Nr. {sv.adressnr}
+                        </div>
+                        <div style={{ marginTop:6, display:"flex", alignItems:"center", gap:8 }}>
+                          <span style={{ display:"inline-flex", alignItems:"center", gap:4,
+                            padding:"2px 9px", borderRadius:10, fontSize:"0.73rem",
+                            fontWeight:700, background: dotFarbe + "18",
+                            color:dotFarbe, border:`1px solid ${dotFarbe}44` }}>
+                            ● {statusText}
+                          </span>
+                          {sv.einladung_gesendet_am && (
+                            <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.73rem",
+                              color:T.textFaint }}>
+                              Eingeladen: {sv.einladung_gesendet_am.slice(0,10)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", gap:6, flexShrink:0 }}>
+                        <Btn
+                          disabled={svEinladung[sv.adressnr]}
+                          style={{ fontSize:"0.78rem", padding:"6px 11px",
+                            background:"transparent", color:T.textMuted,
+                            border:`1px solid ${T.border}` }}
+                          onClick={async () => {
+                            setSvEinladung(p => ({...p, [sv.adressnr]: true}));
+                            try {
+                              await apiSvPortal.einladungSenden(sv.adressnr);
+                              await ladeSvListe();
+                              setToast("Einladungs-Zeitstempel gesetzt.");
+                            } catch(e) { setToast(e?.message || "Fehler."); }
+                            finally { setSvEinladung(p => ({...p, [sv.adressnr]: false})); }
+                          }}>
+                          {svEinladung[sv.adressnr] ? "…" : "✉ Einladung vermerken"}
+                        </Btn>
+                        <Btn
+                          style={{ fontSize:"0.78rem", padding:"6px 11px",
+                            background: sv.portal_aktiv ? "transparent" : T.navy,
+                            color: sv.portal_aktiv ? T.red : T.white,
+                            border: sv.portal_aktiv ? `1px solid #fca5a5` : "none" }}
+                          onClick={async () => {
+                            try {
+                              await apiSvPortal.toggleAktiv(sv.adressnr, sv.portal_aktiv ? 0 : 1);
+                              await ladeSvListe();
+                              setToast(sv.portal_aktiv ? "SV deaktiviert." : "SV aktiviert.");
+                            } catch(e) { setToast(e?.message || "Fehler."); }
+                          }}>
+                          {sv.portal_aktiv ? "Deaktivieren" : "Aktivieren"}
+                        </Btn>
+                        <Btn
+                          style={{ fontSize:"0.78rem", padding:"6px 11px",
+                            background:"transparent", color:T.red,
+                            border:`1px solid #fca5a5` }}
+                          onClick={async () => {
+                            if (!window.confirm(`SV-Account für ${sv.vorname} ${sv.name} wirklich löschen?`)) return;
+                            try {
+                              await apiSvPortal.loeschen(sv.adressnr);
+                              setSvAusgewaehlt(null);
+                              setSvAkten([]);
+                              await ladeSvListe();
+                              setToast("SV-Account gelöscht.");
+                            } catch(e) { setToast(e?.message || "Fehler."); }
+                          }}>
+                          Löschen
+                        </Btn>
+                      </div>
+                    </div>
+
+                    {/* Akten-Liste */}
+                    <div style={{ flex:1, overflowY:"auto", padding:"14px 18px" }}>
+                      <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem",
+                        fontWeight:800, color:T.textMuted, textTransform:"uppercase",
+                        letterSpacing:"0.07em", marginBottom:10,
+                        display:"flex", alignItems:"center", gap:8 }}>
+                        Zugeordnete Akten
+                        <span style={{ background:T.surface, color:T.textMuted,
+                          border:`1px solid ${T.border}`, borderRadius:8,
+                          padding:"1px 7px", fontSize:"0.72rem",
+                          fontWeight:600, textTransform:"none", letterSpacing:0 }}>
+                          {svAkten.length}
+                        </span>
+                        <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem",
+                          color:T.textFaint, fontWeight:400, textTransform:"none",
+                          letterSpacing:0 }}>
+                          — SV ist in diesen Akten als Sachverständiger eingetragen
+                        </span>
+                      </div>
+
+                      {svAktenLaedt ? (
+                        <div style={{ color:T.textFaint, fontFamily:"'Figtree',sans-serif",
+                          fontSize:"0.875rem" }}>Lade …</div>
+                      ) : svAkten.length === 0 ? (
+                        <div style={{ color:T.textFaint, fontFamily:"'Figtree',sans-serif",
+                          fontSize:"0.875rem" }}>
+                          Keine Akten gefunden. Voraussetzung: SV muss in einer Akte als
+                          Sachverständiger eingetragen sein und dieselbe E-Mail-Adresse haben.
+                        </div>
+                      ) : svAkten.map(akte => (
+                        <div key={akte.az} style={{ background:T.white,
+                          border:`1px solid ${T.border}`, borderRadius:8,
+                          padding:"9px 12px", marginBottom:6,
+                          display:"flex", alignItems:"center", gap:10,
+                          opacity: akte.portal_aktiv ? 1 : 0.65 }}>
+                          <div style={{ fontFamily:"ui-monospace,monospace",
+                            fontSize:"0.8rem", fontWeight:700, color:T.navy, minWidth:75 }}>
+                            {akte.az}
+                          </div>
+                          <div style={{ flex:1, fontFamily:"'Figtree',sans-serif",
+                            fontSize:"0.82rem", color:T.text, whiteSpace:"nowrap",
+                            overflow:"hidden", textOverflow:"ellipsis" }}>
+                            {akte.kurzbezeichnung || "—"}
+                          </div>
+                          <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.73rem",
+                            color:T.textFaint, flexShrink:0 }}>
+                            {akte.unfalldatum || ""}
+                          </div>
+                          {/* Toggle portal_aktiv */}
+                          <div
+                            onClick={async () => {
+                              const neuerWert = akte.portal_aktiv ? 0 : 1;
+                              try {
+                                await apiSvPortal.togglePortalAktiv(akte.az, neuerWert);
+                                setSvAkten(prev => prev.map(a =>
+                                  a.az === akte.az ? {...a, portal_aktiv: neuerWert} : a
+                                ));
+                              } catch(e) { setToast(e?.message || "Fehler."); }
+                            }}
+                            style={{ width:36, height:20, borderRadius:10,
+                              background: akte.portal_aktiv ? "#22c55e" : T.border,
+                              position:"relative", cursor:"pointer",
+                              transition:"background 0.2s", flexShrink:0 }}>
+                            <div style={{ position:"absolute", top:2,
+                              left: akte.portal_aktiv ? 18 : 2,
+                              width:16, height:16, borderRadius:8,
+                              background:"#fff",
+                              boxShadow:"0 1px 3px rgba(0,0,0,.2)",
+                              transition:"left 0.2s" }} />
+                          </div>
+                          <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem",
+                            fontWeight:600, minWidth:45, flexShrink:0,
+                            color: akte.portal_aktiv ? "#22c55e" : T.textFaint }}>
+                            {akte.portal_aktiv ? "Sichtbar" : "Gesperrt"}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Info-Leiste */}
+                    <div style={{ padding:"8px 18px", background:"#eff6ff",
+                      borderTop:`1px solid #bfdbfe`,
+                      fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
+                      color:"#1d4ed8", display:"flex", alignItems:"center", gap:6,
+                      flexShrink:0 }}>
+                      ℹ {sv.vorname} {sv.name} sieht aktuell{" "}
+                      <strong style={{ margin:"0 3px" }}>{sichtbar} von {svAkten.length} Akten</strong>
+                      {" "}im Portal.
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+
         {/* Versicherer / Gutachter / Alle Vorlagen Tabs */}
-        {tab !== "imap" && tab !== "fristen" && tab !== "ki" && tab !== "zustaendigkeit" && (
+        {tab !== "imap" && tab !== "fristen" && tab !== "ki" && tab !== "zustaendigkeit" && tab !== "sv_portal" && (
           <div>
             {/* Neue Vorlage anlegen */}
             <Card style={{ marginBottom:"1.25rem" }}>
