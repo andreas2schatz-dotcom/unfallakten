@@ -14,7 +14,6 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
   const [tab, setTab]           = useState(initialTab || "versicherer");
   useEffect(() => {
     if (initialTab) {
-      setTab(initialTab);
       onTabMounted?.();
     }
   }, [initialTab]);
@@ -1135,18 +1134,18 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
           <div style={{ maxWidth: 680 }}>
             <Card>
               <CardHead title="System-Status" />
-              {sysLaedt && <p style={{ color: T.textSub, padding: "1rem" }}>Wird geladen…</p>}
+              {sysLaedt && <p style={{ color: T.textMuted, padding: "1rem" }}>Wird geladen…</p>}
               {!sysLaedt && sysStatus && (
                 <div style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
 
                   {/* RA-Micro */}
-                  <div style={{ background: T.cardBg, borderRadius: 8, padding: "0.75rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ background: T.surface, borderRadius: 8, padding: "0.75rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                       <span style={{ width: 12, height: 12, borderRadius: "50%", display: "inline-block", flexShrink: 0,
                         background: sysStatus.ramicro.ok === true ? "#2ecc71" : sysStatus.ramicro.ok === false ? "#e74c3c" : "#f39c12" }} />
                       <div>
                         <div style={{ color: T.text, fontWeight: 600 }}>RA-Micro Datenbank</div>
-                        <div style={{ color: T.textSub, fontSize: "0.8rem" }}>
+                        <div style={{ color: T.textMuted, fontSize: "0.8rem" }}>
                           {sysStatus.ramicro.ok === true && "Verbunden"}
                           {sysStatus.ramicro.ok === false && `Nicht erreichbar${sysStatus.ramicro.fehler ? ` – ${sysStatus.ramicro.fehler}` : ""}`}
                           {sysStatus.ramicro.ok === null && "Noch nicht geprüft"}
@@ -1157,7 +1156,6 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                       </div>
                     </div>
                     <Btn
-                      label={sysRetryLaedt ? "…" : "↺ Neu versuchen"}
                       disabled={sysRetryLaedt}
                       onClick={async () => {
                         setSysRetryLaedt(true);
@@ -1167,31 +1165,31 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                         } catch {}
                         finally { setSysRetryLaedt(false); }
                       }}
-                    />
+                    >{sysRetryLaedt ? "…" : "↺ Neu versuchen"}</Btn>
                   </div>
 
                   {/* IMAP */}
-                  <div style={{ color: T.textSub, fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", padding: "0.5rem 0 0.25rem" }}>E-Mail (IMAP)</div>
-                  <div style={{ background: T.cardBg, borderRadius: 8, padding: "0.75rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ color: T.textMuted, fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", padding: "0.5rem 0 0.25rem" }}>E-Mail (IMAP)</div>
+                  <div style={{ background: T.surface, borderRadius: 8, padding: "0.75rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                       <span style={{ width: 10, height: 10, borderRadius: "50%", display: "inline-block", flexShrink: 0,
                         background: sysStatus.imap?.konfiguriert ? (sysStatus.imap.ok === true ? "#2ecc71" : sysStatus.imap.ok === false ? "#e74c3c" : "#f39c12") : "#888" }} />
                       <div>
                         <div style={{ color: T.text, fontWeight: 600 }}>{sysStatus.imap?.konfiguriert ? "IMAP konfiguriert" : "IMAP nicht konfiguriert"}</div>
-                        <div style={{ color: T.textSub, fontSize: "0.8rem" }}>
-                          {sysStatus.imap?.konfiguriert ? "Wird in US-02 um Polling erweitert" : "EMAIL_HOST, EMAIL_USER, EMAIL_PASSWORD in .env setzen"}
+                        <div style={{ color: T.textMuted, fontSize: "0.8rem" }}>
+                          {sysStatus.imap?.konfiguriert ? "Automatisches Polling noch nicht aktiv" : "EMAIL_HOST, EMAIL_USER, EMAIL_PASSWORD in .env setzen"}
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* SV-Portal */}
-                  <div style={{ color: T.textSub, fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", padding: "0.5rem 0 0.25rem" }}>Externe Dienste</div>
-                  <div style={{ background: T.cardBg, borderRadius: 8, padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <div style={{ color: T.textMuted, fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", padding: "0.5rem 0 0.25rem" }}>Externe Dienste</div>
+                  <div style={{ background: T.surface, borderRadius: 8, padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
                     <span style={{ width: 10, height: 10, borderRadius: "50%", display: "inline-block", flexShrink: 0, background: "#888" }} />
                     <div>
                       <div style={{ color: T.text, fontWeight: 600 }}>SV-Portal</div>
-                      <div style={{ color: T.textSub, fontSize: "0.8rem" }}>Noch nicht eingerichtet (US-03)</div>
+                      <div style={{ color: T.textMuted, fontSize: "0.8rem" }}>Noch nicht eingerichtet (US-03)</div>
                     </div>
                   </div>
 

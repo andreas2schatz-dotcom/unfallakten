@@ -192,7 +192,8 @@ def erstelle_app(test_config: dict = None) -> Flask:
             replace_existing=True,
         )
         scheduler.start()
-        _check_ramicro()
+        import threading as _threading
+        _threading.Thread(target=_check_ramicro, daemon=True).start()
         logger.info("APScheduler gestartet: RA-Micro Health-Check alle 60s")
 
     @app.cli.command("sync-portal")
