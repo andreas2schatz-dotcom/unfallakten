@@ -7,7 +7,7 @@ import AnhangZeile from "./AnhangZeile.jsx";
 import InAkteButton from "./InAkteButton.jsx";
 import RegulierungBestaetigenButton from "./RegulierungBestaetigenButton.jsx";
 
-function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
+function EmailKarte({ entry: e, seite, onOpenAkte, onOpenEmail, zuordnungState: zs,
                       onOeffneZuordnung, onSchliessZuordnung, onSucheAkten, onZuordnen,
                       onInAkteImportiert, letzter }) {
   const [expanded, setExpanded]   = useState(false);
@@ -100,6 +100,16 @@ function EmailKarte({ entry: e, seite, onOpenAkte, zuordnungState: zs,
                 color:T.textMuted, marginLeft:"auto", flexShrink:0, whiteSpace:"nowrap" }}>
                 {e.empfangen_am ? String(e.empfangen_am).slice(0,16) : ""}
               </span>
+              {onOpenEmail && (
+                <button
+                  onClick={ev => { ev.stopPropagation(); onOpenEmail(e); }}
+                  style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 9px",
+                    background:T.navy, color:T.white, border:"none", borderRadius:5,
+                    fontFamily:"'Figtree',sans-serif", fontSize:"0.795rem",
+                    fontWeight:600, cursor:"pointer", flexShrink:0 }}>
+                  ▶ öffnen
+                </button>
+              )}
             </div>
             <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem",
               color:T.textMid, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
