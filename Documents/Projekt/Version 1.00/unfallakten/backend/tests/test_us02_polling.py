@@ -261,5 +261,93 @@ class TestFuehrePollingDurch(unittest.TestCase):
         self.assertGreater(call_count["n"], 1)
 
 
+import json
+
+
+def _make_app():
+    os.environ["FLASK_SECRET_KEY"] = "test-us02"
+    from backend.app import erstelle_app
+    return erstelle_app(test_config={"TESTING": True})
+
+
+class TestImapPollingEndpoints(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = _make_app()
+        cls.client = cls.app.test_client()
+        with cls.app.app_context():
+            from backend.db.database import get_connection
+            from backend.auth.jwt_handler import erstelle_access_token
+            with get_connection() as conn:
+                row = conn.execute(
+                    "SELECT id FROM benutzer WHERE email=? AND aktiv=1 LIMIT 1",
+                    ("schatz@anwalt-offenbach.de",),
+                ).fetchone()
+                benutzer_id = row["id"] if row else 1
+            cls.token = erstelle_access_token(benutzer_id, "admin")
+
+    def _auth(self):
+        return {"Authorization": f"Bearer {self.token}"}
+
+    def test_get_gibt_vier_accounts_zurueck(self):
+        resp = self.client.get("/system/imap-polling", headers=self._auth())
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertIn("accounts", data)
+        self.assertEqual(len(data["accounts"]), 4)
+        self.assertEqual(
+            {a["account"] for a in data["accounts"]},
+            {"unfall", "termin", "bussgeld", "info"},
+        )
+
+    def test_get_felder_vollstaendig(self):
+        resp = self.client.get("/system/imap-polling", headers=self._auth())
+        acc = json.loads(resp.data)["accounts"][0]
+        for feld in ("account", "aktiv", "intervall_min", "passwort_vorhanden",
+                     "letzter_lauf", "letzter_status", "letzter_fehler"):
+            self.assertIn(feld, acc)
+
+    def test_patch_setzt_intervall_auf_alle_accounts(self):
+        resp = self.client.patch(
+            "/system/imap-polling", json={"intervall_min": 15}, headers=self._auth()
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        for acc in data["accounts"]:
+            self.assertEqual(acc["intervall_min"], 15)
+        # Cleanup: Intervall zurücksetzen
+        self.client.patch(
+            "/system/imap-polling", json={"intervall_min": 5}, headers=self._auth()
+        )
+
+    def test_patch_deaktiviert_account(self):
+        resp = self.client.patch(
+            "/system/imap-polling",
+            json={"accounts": {"termin": False}},
+            headers=self._auth(),
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        termin = next(a for a in data["accounts"] if a["account"] == "termin")
+        self.assertFalse(termin["aktiv"])
+        # Cleanup
+        self.client.patch(
+            "/system/imap-polling",
+            json={"accounts": {"termin": True}},
+            headers=self._auth(),
+        )
+
+    def test_patch_ungueltige_intervall_gibt_422(self):
+        resp = self.client.patch(
+            "/system/imap-polling", json={"intervall_min": 9999}, headers=self._auth()
+        )
+        self.assertEqual(resp.status_code, 422)
+
+    def test_get_ohne_auth_gibt_401_oder_403(self):
+        resp = self.client.get("/system/imap-polling")
+        self.assertIn(resp.status_code, (401, 403))
+
+
 if __name__ == "__main__":
     unittest.main()
