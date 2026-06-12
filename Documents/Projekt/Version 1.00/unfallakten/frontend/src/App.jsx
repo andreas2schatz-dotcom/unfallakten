@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useReducer, useMemo, lazy, Suspense, useRef, useEffect } from "react";
-import { auth as apiAuth, ramicroListe, emailImport } from "./api.js";
+import { auth as apiAuth, ramicroListe, emailImport, apiSystem } from "./api.js";
 import T from "./config/theme.js";
 import Ic from "./config/icons.jsx";
 import { INITIAL_STATE } from "./config/constants.js";
@@ -98,6 +98,18 @@ function AppShell({ user, onLogout }) {
   const [pendingEmailId, setPendingEmailId] = useState(null);
   const { online }               = useBackend();
 
+  const [systemStatus,           setSystemStatus]           = useState(null);
+  const [pendingEinstellungenTab, setPendingEinstellungenTab] = useState(null);
+
+  useEffect(() => {
+    const poll = async () => {
+      try { setSystemStatus(await apiSystem.getStatus()); } catch {}
+    };
+    poll();
+    const id = setInterval(poll, 30000);
+    return () => clearInterval(id);
+  }, []);
+
   const handleLogout = useCallback(async () => {
     await apiAuth.logout().catch(() => {});
     onLogout();
@@ -162,6 +174,26 @@ function AppShell({ user, onLogout }) {
   return (
     <div style={{ height:"100vh", display:"flex", flexDirection:"column", overflow:"hidden" }}>
       <TopNav user={user} onLogout={handleLogout} backendOnline={online} />
+      {systemStatus?.ramicro?.ok === false && (
+        <div style={{ background:"#c0392b", color:"white", padding:"7px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0, fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}>
+          <span>
+            ⚠ <strong>RA-Micro nicht erreichbar</strong>
+            {systemStatus.ramicro.letzter_sync_vor_s != null && (
+              <span style={{ fontWeight:400 }}>
+                {" — letzter Sync vor "}
+                {systemStatus.ramicro.letzter_sync_vor_s < 60
+                  ? "wenigen Sekunden"
+                  : `${Math.round(systemStatus.ramicro.letzter_sync_vor_s / 60)} Minuten`}
+              </span>
+            )}
+          </span>
+          <button
+            onClick={() => { setActive("einstellungen"); setPendingEinstellungenTab("system_status"); }}
+            style={{ background:"rgba(255,255,255,0.25)", color:"white", border:"none", borderRadius:4, padding:"4px 12px", cursor:"pointer", fontSize:"0.825rem", fontFamily:"'Figtree',sans-serif" }}>
+            → System-Status öffnen
+          </button>
+        </div>
+      )}
 
       {/* Haupt-Layout: Seitenmenü + Inhalt */}
       <div style={{ flex:1, display:"flex", overflow:"hidden" }}>
@@ -251,7 +283,7 @@ function AppShell({ user, onLogout }) {
             : active==="email-import"    ? <EmailImportView onOpenAkte={openAkte} dispatch={dispatch} initialEmailId={pendingEmailId} onEmailGeoffnet={onEmailGeoffnet} />
             : active==="wiedervorlage"   ? <WiedervorlageView onOpenAkte={openAkte} />
             : active==="kuerzungskatalog"? <KuerzungskatalogSection />
-            : active==="einstellungen"   ? <EinstellungenView />
+            : active==="einstellungen"   ? <EinstellungenView initialTab={pendingEinstellungenTab} onTabMounted={() => setPendingEinstellungenTab(null)} />
             : activeTab?.akte            ? <AkteDetailView akte={activeTab.akte} st={aktenState[activeTab.akte.id]||{}} dispatch={dispatch} />
             : null}
           </div>
