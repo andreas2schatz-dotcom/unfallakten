@@ -294,6 +294,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     40: "-- migration_40_stellungnahme_texte",  # Handled by _run_migration_40
     41: "-- migration_41_sv_portal_accounts",  # Handled by _run_migration_41
     42: "-- migration_42_eml_dateityp",  # Handled by _run_migration_42
+    43: "-- migration_43_imap_polling",  # Handled by _run_migration_43
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -346,6 +347,33 @@ def _run_migration_42(conn: sqlite3.Connection) -> None:
         (42, "Migration 42 – .eml dateityp sonstiges + dokumentenklasse email"),
     )
     logger.info("Migration 42: .eml-Zeilen korrigiert.")
+
+
+def _run_migration_43(conn: sqlite3.Connection) -> None:
+    """Erstellt imap_polling_config Tabelle mit 4 Account-Seed-Rows."""
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS imap_polling_config (
+            account        TEXT PRIMARY KEY,
+            aktiv          INTEGER NOT NULL DEFAULT 1,
+            intervall_min  INTEGER NOT NULL DEFAULT 5,
+            letzter_lauf   TEXT,
+            letzter_status TEXT,
+            letzter_fehler TEXT
+        );
+        INSERT OR IGNORE INTO imap_polling_config (account, aktiv, intervall_min)
+            VALUES ('unfall',   1, 5);
+        INSERT OR IGNORE INTO imap_polling_config (account, aktiv, intervall_min)
+            VALUES ('termin',   1, 5);
+        INSERT OR IGNORE INTO imap_polling_config (account, aktiv, intervall_min)
+            VALUES ('bussgeld', 1, 5);
+        INSERT OR IGNORE INTO imap_polling_config (account, aktiv, intervall_min)
+            VALUES ('info',     1, 5);
+    """)
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
+        (43, "Migration 43 – imap_polling_config (US-02)"),
+    )
+    logger.info("Migration 43: imap_polling_config angelegt.")
 
 
 def create_schema() -> None:
@@ -459,6 +487,8 @@ def run_migrations() -> None:
                 _run_migration_41(conn)
             elif version == 42:
                 _run_migration_42(conn)
+            elif version == 43:
+                _run_migration_43(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
