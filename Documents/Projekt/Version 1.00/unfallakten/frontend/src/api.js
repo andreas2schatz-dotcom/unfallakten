@@ -1037,4 +1037,9 @@ export const apiSvPortal = {
 export const apiSystem = {
   getStatus: () => request("/system/status"),
   retryRamicro: () => request("/system/ramicro/retry", { method: "POST" }),
+  getImapPolling: () => request("/system/imap-polling"),
+  patchImapPolling: (data) => request("/system/imap-polling", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  }),
 };
