@@ -14,8 +14,6 @@ from .import_service import fuehre_import_lauf_durch
 
 logger = logging.getLogger(__name__)
 
-ACCOUNTS = ["unfall", "termin", "bussgeld", "info"]
-
 
 def _env(key: str) -> str:
     return os.environ.get(key, "").strip()
