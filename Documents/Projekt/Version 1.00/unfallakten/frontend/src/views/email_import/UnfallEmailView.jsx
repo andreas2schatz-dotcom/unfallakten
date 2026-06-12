@@ -46,7 +46,7 @@ function gruppiereNachZeit(emails) {
 //  Wird in EmailImportView.jsx als Tab gerendert.
 // ══════════════════════════════════════════════════════════════
 
-function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId }) {
+function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet }) {
   const [log, setLog]               = useState([]);
   const [importing, setImporting]   = useState(false);
   const [importStep, setStep]       = useState(-1);
@@ -108,6 +108,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId }) {
     if (entry) {
       setGeoeffneteEmail(entry);
       letzteInitialId.current = initialEmailId;
+      if (onEmailGeoffnet) onEmailGeoffnet();
     }
   }, [initialEmailId, log]);
 

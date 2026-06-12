@@ -126,6 +126,10 @@ function AppShell({ user, onLogout }) {
     setPendingEmailId(logId);
   }, []);
 
+  const onEmailGeoffnet = useCallback(() => {
+    setPendingEmailId(null);
+  }, []);
+
   const closeTab = useCallback((tabId) => {
     setTabs(prev => {
       const filtered = prev.filter(t => t.id!==tabId);
@@ -244,7 +248,7 @@ function AppShell({ user, onLogout }) {
             {active==="dashboard"        ? <ActionBoardView onOpenAkte={openAkte} onOpenEmail={openEmail} />
             : active==="statistiken"     ? <StatistikenView />
             : active==="aktensuche"      ? <AktensucheView onOpenAkte={openAkte} />
-            : active==="email-import"    ? <EmailImportView onOpenAkte={openAkte} dispatch={dispatch} initialEmailId={pendingEmailId} />
+            : active==="email-import"    ? <EmailImportView onOpenAkte={openAkte} dispatch={dispatch} initialEmailId={pendingEmailId} onEmailGeoffnet={onEmailGeoffnet} />
             : active==="wiedervorlage"   ? <WiedervorlageView onOpenAkte={openAkte} />
             : active==="kuerzungskatalog"? <KuerzungskatalogSection />
             : active==="einstellungen"   ? <EinstellungenView />
