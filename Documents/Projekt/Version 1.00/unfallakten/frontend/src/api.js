@@ -390,7 +390,11 @@ export const emailImport = {
     }
   },
   // Anhaenge + .eml in Akte importieren
-  inAkte:     (logId) => request(`/email/import/log/${logId}/in-akte`, { method: 'POST' }),
+  inAkte: (logId, erzwingen = false) =>
+    request(`/email/import/log/${logId}/in-akte`, {
+      method: 'POST',
+      body: JSON.stringify({ erzwingen }),
+    }),
   // Regulierungsschreiben bestaetigen
   regulierungBestaetigen: (logId) => request(`/email/import/log/${logId}/regulierung-bestaetigen`, { method: 'POST' }),
   // Aktion-Badge erledigt markieren
@@ -987,6 +991,9 @@ export const apiSvPortal = {
   liste: () =>
     request('/einstellungen/sv-portal'),
 
+  suche: (q) =>
+    request(`/einstellungen/sv-portal/suche?q=${encodeURIComponent(q)}`),
+
   vorschau: (adressnr) =>
     request(`/einstellungen/sv-portal/vorschau/${adressnr}`),
 
@@ -1010,6 +1017,12 @@ export const apiSvPortal = {
 
   akten: (adressnr) =>
     request(`/einstellungen/sv-portal/${adressnr}/akten`),
+
+  alleToggle: (adressnr, aktiv) =>
+    request(`/einstellungen/sv-portal/${adressnr}/akten/alle`, {
+      method: 'PATCH',
+      body: JSON.stringify({ portal_aktiv: aktiv ? 1 : 0 }),
+    }),
 
   togglePortalAktiv: (akte_az, aktiv) =>
     request(
