@@ -2,7 +2,6 @@ import logging
 from datetime import datetime
 
 from ..ramicro.connector import verbindung_pruefen
-from ..email_import.imap_client import ist_konfiguriert
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +18,8 @@ def check_ramicro() -> None:
         if jetzt_ok:
             logger.info("RA-Micro: Verbindung wiederhergestellt")
         else:
-            logger.warning("RA-Micro: Verbindung unterbrochen – %s", result.get("meldung", ""))
+            logger.warning("RA-Micro: Verbindung unterbrochen – %s",
+                           result.get("meldung", ""))
     _cache["ramicro"] = {
         "ok": jetzt_ok,
         "letzter_sync_ts": datetime.now(),
@@ -27,21 +27,28 @@ def check_ramicro() -> None:
     }
 
 
+def hole_accounts():
+    from ..email_import.polling_service import hole_accounts as _hole_accounts
+    return _hole_accounts()
+
+
 def get_status() -> dict:
     rm = _cache["ramicro"]
     letzter_sync_vor_s = None
     if rm["letzter_sync_ts"] is not None:
-        letzter_sync_vor_s = int((datetime.now() - rm["letzter_sync_ts"]).total_seconds())
+        letzter_sync_vor_s = int(
+            (datetime.now() - rm["letzter_sync_ts"]).total_seconds()
+        )
     try:
-        imap_konfig = ist_konfiguriert()
+        imap_accounts = hole_accounts()
     except Exception:
-        imap_konfig = False
+        imap_accounts = []
     return {
         "ramicro": {
             "ok": rm["ok"],
             "letzter_sync_vor_s": letzter_sync_vor_s,
             "fehler": rm["fehler"],
         },
-        "imap": {"ok": None, "konfiguriert": imap_konfig},
+        "imap": imap_accounts,
         "sv_portal": {"ok": None, "konfiguriert": False},
     }

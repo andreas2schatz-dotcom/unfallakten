@@ -55,9 +55,11 @@ class TestGetStatus(unittest.TestCase):
 
     def test_response_enthaelt_imap_und_sv_portal_keys(self):
         hs = _reload()
-        status = hs.get_status()
+        with patch("backend.system.health_service.hole_accounts", return_value=[]):
+            status = hs.get_status()
         self.assertIn("imap", status)
         self.assertIn("sv_portal", status)
+        self.assertIsInstance(status["imap"], list)
         self.assertFalse(status["sv_portal"]["konfiguriert"])
 
 
