@@ -15,6 +15,7 @@ Verwendung:
 import os
 import logging
 from flask import Flask, jsonify
+from flask_apscheduler import APScheduler
 from .db.schema_manager import init_db
 from .routers.abrechnungsschreiben_routes import abrechnung_bp, pruefbericht_bp
 from .routers.akten_routes import akten_bp
@@ -45,6 +46,7 @@ from .routers.todos_routes import todos_bp
 from .routers.wiedervorlage_routes import wiedervorlage_bp
 from .routers.word_routes import word_bp
 from .routers.portal_routes import portal_bp
+from .routers.system_routes import system_bp
 
 
 logging.basicConfig(
@@ -173,7 +175,25 @@ def erstelle_app(test_config: dict = None) -> Flask:
     app.register_blueprint(wiedervorlage_bp)
     app.register_blueprint(word_bp)
     app.register_blueprint(portal_bp)
+    app.register_blueprint(system_bp)
     logger.info("Alle Blueprints registriert.")
+
+    # ── APScheduler: Hintergrund-Health-Checks ────────────────────────────────
+    if not app.testing:
+        from .system.health_service import check_ramicro as _check_ramicro
+        scheduler = APScheduler()
+        app.config["SCHEDULER_API_ENABLED"] = False
+        scheduler.init_app(app)
+        scheduler.add_job(
+            id="health_ramicro",
+            func=_check_ramicro,
+            trigger="interval",
+            seconds=60,
+            replace_existing=True,
+        )
+        scheduler.start()
+        _check_ramicro()
+        logger.info("APScheduler gestartet: RA-Micro Health-Check alle 60s")
 
     @app.cli.command("sync-portal")
     def sync_portal_cmd():

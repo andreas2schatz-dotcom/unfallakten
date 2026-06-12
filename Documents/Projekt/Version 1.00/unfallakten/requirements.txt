@@ -5,6 +5,7 @@
 
 # ── Webframework ──────────────────────────────────────────────────────────────
 Flask==3.1.2
+flask-apscheduler==1.13.1   # Hintergrund-Jobs (Health-Checks, später IMAP-Polling)
 Werkzeug==3.1.3             # HTTP-Utilities (Teil von Flask)
 
 # ── Produktions-WSGI-Server ───────────────────────────────────────────────────
