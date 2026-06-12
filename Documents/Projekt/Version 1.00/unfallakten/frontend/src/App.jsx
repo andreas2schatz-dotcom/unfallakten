@@ -95,6 +95,7 @@ function AppShell({ user, onLogout }) {
   const [tabs, setTabs]          = useState([]);
   const [active, setActive]      = useState("dashboard");   // "dashboard" | "email-import" | "wiedervorlage" | "akte-N"
   const [aktenState, dispatch]   = useReducer(reducer, INITIAL_STATE);
+  const [pendingEmailId, setPendingEmailId] = useState(null);
   const { online }               = useBackend();
 
   const handleLogout = useCallback(async () => {
@@ -119,6 +120,11 @@ function AppShell({ user, onLogout }) {
       ramicroListe.onDemand(az).catch(() => {});
     }
   }, [aktenState]);
+
+  const openEmail = useCallback(({ logId }) => {
+    setActive("email-import");
+    setPendingEmailId(logId);
+  }, []);
 
   const closeTab = useCallback((tabId) => {
     setTabs(prev => {
@@ -235,10 +241,10 @@ function AppShell({ user, onLogout }) {
             </div>
           }>
           <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-            {active==="dashboard"        ? <ActionBoardView onOpenAkte={openAkte} />
+            {active==="dashboard"        ? <ActionBoardView onOpenAkte={openAkte} onOpenEmail={openEmail} />
             : active==="statistiken"     ? <StatistikenView />
             : active==="aktensuche"      ? <AktensucheView onOpenAkte={openAkte} />
-            : active==="email-import"    ? <EmailImportView onOpenAkte={openAkte} dispatch={dispatch} />
+            : active==="email-import"    ? <EmailImportView onOpenAkte={openAkte} dispatch={dispatch} initialEmailId={pendingEmailId} />
             : active==="wiedervorlage"   ? <WiedervorlageView onOpenAkte={openAkte} />
             : active==="kuerzungskatalog"? <KuerzungskatalogSection />
             : active==="einstellungen"   ? <EinstellungenView />
