@@ -173,7 +173,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
             setImapIntervall(d.imap[0].intervall_min ?? 5);
           }
         })
-        .catch(e => setToast("System-Status Fehler: " + (e?.message || String(e))))
+        .catch(() => {})
         .finally(() => setSysLaedt(false));
     }
   }, [tab]);
