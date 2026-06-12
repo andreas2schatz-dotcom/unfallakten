@@ -139,7 +139,7 @@ function HandlungSpalte({ wvFaellig, onboardingOffen, onOpenAkte }) {
 // ════════════════════════════════════════════════════════════════
 //  Sub-Komponente: Nachrichten
 // ════════════════════════════════════════════════════════════════
-function NachrichtenSpalte({ nachrichten, onOpenAkte }) {
+function NachrichtenSpalte({ nachrichten, onOpenAkte, onOpenEmail }) {
   const [aktiveTab, setAktiveTab] = useState("email");
 
   const TabBtn = ({ id, label, anzahl }) => (
@@ -174,7 +174,13 @@ function NachrichtenSpalte({ nachrichten, onOpenAkte }) {
           nachrichten.map((m, i) => (
             <div
               key={i}
-              onClick={() => onOpenAkte(m.az)}
+              onClick={() => {
+                if (onOpenEmail && m.log_id) {
+                  onOpenEmail({ az: m.az, logId: m.log_id });
+                } else {
+                  onOpenAkte(m.az);
+                }
+              }}
               style={{
                 background: T.bg, borderRadius: 5,
                 padding: "7px 10px", marginBottom: 6,
@@ -298,7 +304,7 @@ function NeueAkteModal({ onClose, onOpenAkte }) {
 // ════════════════════════════════════════════════════════════════
 //  Haupt-Komponente: ActionBoardView
 // ════════════════════════════════════════════════════════════════
-export default function ActionBoardView({ onOpenAkte }) {
+export default function ActionBoardView({ onOpenAkte, onOpenEmail }) {
   const [wvAlle,          setWvAlle]          = useState([]);
   const [onboardingOffen, setOnboardingOffen]  = useState([]);
   const [nachrichten,     setNachrichten]      = useState([]);
@@ -364,7 +370,7 @@ export default function ActionBoardView({ onOpenAkte }) {
         <div style={{ flex: 1, display: "grid", gridTemplateColumns: "220px 1fr 2fr", overflow: "hidden" }}>
           <FristenSpalte     fristen={fristen}                                    onOpenAkte={oeffneAkte} />
           <HandlungSpalte    wvFaellig={wvFaellig} onboardingOffen={onboardingOffen} onOpenAkte={oeffneAkte} />
-          <NachrichtenSpalte nachrichten={nachrichten}                             onOpenAkte={oeffneAkte} />
+          <NachrichtenSpalte nachrichten={nachrichten} onOpenAkte={oeffneAkte} onOpenEmail={onOpenEmail} />
         </div>
       )}
 
