@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import T from "../../config/theme.js";
 import Ic from "../../config/icons.jsx";
 import { IMAP_CONFIG, IMPORT_STEPS, normalisiereLogEintrag } from "../../config/constants.js";
@@ -7,6 +7,7 @@ import { emailImport as apiEmail, request } from "../../api.js";
 import ImapKonfigDialog from "./components/ImapKonfigDialog.jsx";
 import FragebogenErstkontaktKarte from "./components/FragebogenErstkontaktKarte.jsx";
 import EmailKarte from "./components/EmailKarte.jsx";
+import EmailDetailView from "./EmailDetailView.jsx";
 
 
 const STREAM_CHIPS = [
@@ -45,7 +46,7 @@ function gruppiereNachZeit(emails) {
 //  Wird in EmailImportView.jsx als Tab gerendert.
 // ══════════════════════════════════════════════════════════════
 
-function UnfallEmailView({ onOpenAkte, dispatch }) {
+function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId }) {
   const [log, setLog]               = useState([]);
   const [importing, setImporting]   = useState(false);
   const [importStep, setStep]       = useState(-1);
@@ -61,12 +62,18 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
   const [streamSuche,    setStreamSuche]    = useState("");
   const [ansichtsModus,  setAnsichtsModus]  = useState("stream");
   const [laedt,          setLaedt]          = useState(true);
+  const [geoeffneteEmail, setGeoeffneteEmail] = useState(null);
+  const letzteInitialId = useRef(null);
 
   const onInAkteImportiert = useCallback((logId, res) => {
     setLog(prev => prev.map(e => e.id === logId
       ? { ...e, in_akte_importiert: 1, in_akte_importiert_am: res?.importiert_am }
       : e
     ));
+    setGeoeffneteEmail(prev => prev?.id === logId
+      ? { ...prev, in_akte_importiert: 1, in_akte_importiert_am: res?.importiert_am }
+      : prev
+    );
     const eintrag = log.find(e => e.id === logId);
     const akteRaw = eintrag?.akte_az || eintrag?.akte_id;
     const akteId  = akteRaw ? akteRaw.replace(/[A-Z]{2,3}$/i, "").trim() : null;
@@ -93,6 +100,16 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
       .then(d => { if (d?.eintraege) setFragebogenListe(d.eintraege); })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!initialEmailId || initialEmailId === letzteInitialId.current) return;
+    if (log.length === 0) return;
+    const entry = log.find(e => e.id === initialEmailId);
+    if (entry) {
+      setGeoeffneteEmail(entry);
+      letzteInitialId.current = initialEmailId;
+    }
+  }, [initialEmailId, log]);
 
   const angezeigteKfg = imapCfg ?? IMAP_CONFIG;
   const verbunden     = cfgStatus?.verbindung_ok ?? false;
@@ -122,9 +139,15 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
       setTimeout(r, 400 + Math.random() * 160);
     });
     const animPromise = (async () => { for (let i = 0; i < IMPORT_STEPS.length; i++) await tick(); })();
-    const apiPromise  = apiEmail.starten().catch(() => null);
-    await Promise.all([animPromise, apiPromise.then(() => {})]);
-    const res = await apiPromise;
+    const apiPromise  = apiEmail.starten();
+    let res = null;
+    let importFehler = null;
+    try {
+      [, res] = await Promise.all([animPromise, apiPromise]);
+    } catch (err) {
+      await animPromise.catch(() => {});
+      importFehler = err?.message || "Import fehlgeschlagen";
+    }
 
     if (res?.details) {
       const gueltig = res.details.filter(e => e.betreff);
@@ -137,19 +160,10 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
         .then(d => { if (d?.eintraege) setFragebogenListe(d.eintraege); })
         .catch(() => {});
     } else {
-      const demo = [
-        { id:Date.now(),   empfangen_am:new Date().toISOString(), absender:"rv-info@ruv.de", von_name:"R+V Versicherung",
-          betreff:"Weitere Unterlagen zu AZ 1087/24", erkannt_az:"1087/24", erkannt_kfz:null,
-          match_methode:"aktenzeichen", akte_id:"1087/24", akte_az:"1087/24",
-          anhaenge_anzahl:1, status:"zugeordnet", als_gelesen:false, absender_kategorie:"versicherung" },
-        { id:Date.now()+1, empfangen_am:new Date().toISOString(), absender:"gutachter@xyz.de", von_name:"Büro Meier",
-          betreff:"Gutachten Unfall B44 – neue Akte?", erkannt_az:null, erkannt_kfz:"OF-AB 123",
-          match_methode:null, akte_id:null, akte_az:null,
-          anhaenge_anzahl:1, status:"nicht_zugeordnet", als_gelesen:false, absender_kategorie:"gutachter" },
-      ];
-      setLog(prev => [...demo, ...prev]);
-      setResult({ neu:2, zugeordnet:1, anhaenge:1 });
-      setToast("Import abgeschlossen (Demo-Modus).");
+      setToast(importFehler
+        ? `Import fehlgeschlagen: ${importFehler}`
+        : "Import fehlgeschlagen. Bitte IMAP-Konfiguration prüfen."
+      );
     }
     setImporting(false); setStep(-1);
   };
@@ -202,6 +216,14 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
                  brutto: 0, hq: 100, unfalldatum: "", unfallort: "" });
   };
 
+  const handleOpenEmail = useCallback((entry) => {
+    setGeoeffneteEmail(entry);
+  }, []);
+
+  const handleEmailZurueck = useCallback(() => {
+    setGeoeffneteEmail(null);
+  }, []);
+
   const fragebogenAlsBearbeitet = async (id) => {
     try {
       await apiEmail.fragebogenErstkontaktStatus(id, "bearbeitet");
@@ -216,6 +238,15 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
     <>
       {toast && <Toast msg={toast} onDone={() => setToast("")}/>}
 
+      {geoeffneteEmail ? (
+        <EmailDetailView
+          entry={geoeffneteEmail}
+          onBack={handleEmailZurueck}
+          onOpenAkte={handleOpenAkte}
+          onInAkteImportiert={onInAkteImportiert}
+        />
+      ) : (
+        <>
       {/* Aktionszeile: Verbindungsstatus + Import-Button */}
       <div style={{ display:"flex", gap:10, alignItems:"center", justifyContent:"flex-end", marginBottom:"1.25rem", flexWrap:"wrap" }}>
         <div onClick={() => setShowKonfigDialog(true)}
@@ -343,6 +374,7 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
                       entry={e}
                       seite="nicht_zugeordnet"
                       onOpenAkte={handleOpenAkte}
+                      onOpenEmail={handleOpenEmail}
                       zuordnungState={zuordnungState[e.id]}
                       onOeffneZuordnung={oeffneZuordnung}
                       onSchliessZuordnung={schliessZuordnung}
@@ -611,6 +643,7 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
                     entry={e}
                     seite={e.status === "zugeordnet" ? "zugeordnet" : "nicht_zugeordnet"}
                     onOpenAkte={handleOpenAkte}
+                    onOpenEmail={handleOpenEmail}
                     zuordnungState={zuordnungState[e.id]}
                     onOeffneZuordnung={oeffneZuordnung}
                     onSchliessZuordnung={schliessZuordnung}
@@ -637,6 +670,8 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
             setToast("Konfiguration gespeichert. Bitte Server neu starten.");
           }}
         />
+      )}
+        </>
       )}
     </>
   );
