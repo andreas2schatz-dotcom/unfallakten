@@ -28,6 +28,7 @@ export default defineConfig(({ mode }) => ({
       '/stellungnahme': { target: process.env.VITE_BACKEND_URL || 'http://localhost:5000', changeOrigin: true },
       '/dashboard':     { target: process.env.VITE_BACKEND_URL || 'http://localhost:5000', changeOrigin: true },
       '/einstellungen': { target: process.env.VITE_BACKEND_URL || 'http://localhost:5000', changeOrigin: true },
+      '/system':        { target: process.env.VITE_BACKEND_URL || 'http://localhost:5000', changeOrigin: true },
     },
   },
 
