@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import T from "../../../config/theme.js";
 import Ic from "../../../config/icons.jsx";
-import { request } from "../../../api.js";
+import { emailImport as apiEmail } from "../../../api.js";
 
 function InAkteButton({ entry: e, onImportiert, onOpenAkte }) {
   const [laedt, setLaedt]         = useState(false);
@@ -13,11 +13,7 @@ function InAkteButton({ entry: e, onImportiert, onOpenAkte }) {
   const doImport = async (erzwingen = false) => {
     setLaedt(true); setFehler(null); setBestaetigen(false);
     try {
-      const res = await request(`/email/import/log/${e.id}/in-akte`, {
-        method: "POST",
-        body: JSON.stringify({ erzwingen }),
-        headers: { "Content-Type": "application/json" },
-      });
+      const res = await apiEmail.inAkte(e.id, erzwingen);
       if (res?.ok) {
         onImportiert(res);
         if (onOpenAkte) onOpenAkte(e);
