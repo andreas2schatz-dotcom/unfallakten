@@ -1030,3 +1030,11 @@ export const apiSvPortal = {
       { method: 'PATCH', body: JSON.stringify({ portal_aktiv: aktiv ? 1 : 0 }) }
     ),
 };
+
+// ─────────────────────────────────────────────────────────────
+// SYSTEM HEALTH
+// ─────────────────────────────────────────────────────────────
+export const apiSystem = {
+  getStatus: () => request("/system/status"),
+  retryRamicro: () => request("/system/ramicro/retry", { method: "POST" }),
+};
