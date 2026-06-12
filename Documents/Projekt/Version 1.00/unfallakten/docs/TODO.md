@@ -161,6 +161,59 @@ Vier Phasen geplant. Kein Implementierungsstand im Unfallakten-Repo.
 
 ---
 
+## 👤 UserStories (externes Review, Sprint 1)
+
+> Quelle: Externes Review 2026-06-12. Eigenständige Sektion — nicht mischen mit internen PRDs.
+> Gemeinsame Voraussetzung für US-01 + US-02: Background-Scheduler (APScheduler o.ä.) muss einmalig eingerichtet werden.
+
+---
+
+**~~PRD-US01 — RA-Micro Heartbeat & Verbindungs-Banner~~** ✅ *(Session 2026-06-12)*
+Hintergrund-Task prüft alle 60s die RA-Micro-Verbindung; bei Abbruch erscheint ein Banner im Header.
+- Backend: `verbindung_pruefen()` alle 60s in Background-Worker, Status im App-State (in-memory)
+- Neuer Endpoint `GET /ramicro/status` liefert `{ ok, letzter_sync_vor_s }`
+- Frontend: Header-Komponente pollt den Endpoint, zeigt Banner „RA-Micro nicht erreichbar — letzter Sync vor X Minuten"
+- Automatische Wiederverbindung nach erfolgreicher Prüfung
+
+**~~PRD-US02 — IMAP Auto-Polling~~** ✅ *(Session 2026-06-12)*
+E-Mail-Import läuft automatisch für alle vier Accounts (unfall@, termin@, bussgeld@, info@) ohne manuellen Klick.
+- APScheduler-Job alle 60s, importiert pro Account wenn konfiguriertes Intervall abgelaufen (Standard: 5 min)
+- Per-Account Toggle + Intervall (5/10/15/30 min) im Health-Dashboard konfigurierbar
+- Schema-43: `imap_polling_config`, Endpoint `GET/PATCH /system/imap-polling`, 31 Tests
+
+**PRD-US03 — SV-Portal: Upload-Empfang (Kanzlei-Seite)** *(aus S1.3 Teil A, P0, Aufwand: L)*
+Das Kanzlei-Backend nimmt Datei-Uploads vom SV-Portal-Server entgegen und verknüpft sie mit der Akte.
+- Neuer Endpoint `POST /sv-portal/upload` (Auth via API-Key oder JWT)
+- Empfangene PDFs landen als Dokument in der Akten-Dokumente-Liste (innerhalb 30s sichtbar)
+- Audit-Trail-Tabelle: `sv_portal_uploads` (sv_id, az, dateiname, zeitstempel, hochgeladen_von)
+- Action Board: Neuer Eintrag bei eingehendem Upload (eigene Notification-Gruppe)
+- **Voraussetzung: PRD-US04 muss existieren** — ohne Gegenstelle gibt es niemanden, der uploadet
+
+**PRD-US04 — SV-Portal-Server (Gegenstelle)** *(aus S1.3 Teil B, P0, Aufwand: XL — eigenes Projekt)*
+Der SV-Portal-Server ist eine eigenständige Web-Applikation, auf die Sachverständige zugreifen.
+- Entspricht `handover/PORTAL-B2_SV_Cockpit.md` — dort liegt die Planung
+- SV authentifiziert sich, sieht seine zugewiesenen Akten, lädt PDFs hoch
+- Sendet Uploads via REST an PRD-US03-Endpoint des Kanzlei-Backends
+- Dieses PRD ist **nicht im Unfallakten-Repo** umsetzbar — separates Deployment nötig
+- Blockiert: PRD-US03 ist ohne dieses System nicht testbar
+
+**PRD-US05 — E-Akte Hover-Vorschau im Dashboard** *(aus S1.4, P1, Aufwand: S)*
+In der Akten-Suchliste zeigt ein Hover eine kleine Dokumenten-Vorschau der E-Akte.
+- Hover über Akten-Zeile in `AktensucheView` → Tooltip/Popover mit den letzten 3–5 E-Akte-Dokumenten
+- Klick auf Dokument im Hover → öffnet Akten-Detail direkt im Dokumente-Tab
+- Kein neuer API-Endpoint nötig (bestehender `GET /akten/<az>/eakte/liste` reicht)
+
+**~~PRD-US06 — Health-Dashboard UI~~** ✅ *(Session 2026-06-12)*
+Neuer Tab „System-Status" in den Einstellungen fasst alle Service-Indikatoren auf einer Seite zusammen.
+- Tab „System-Status" in `EinstellungenView.jsx` (neben den bestehenden Tabs)
+- 5 Indikatoren mit Grün/Gelb/Rot + Last-Sync-Timestamp:
+  - RA-Micro (nutzt `GET /wiedervorlage/status`)
+  - IMAP `unfall@`, `termin@`, `bussgeld@` (nutzt `GET /email/import/status`, aufgeteilt pro Account)
+  - SV-Portal (nutzt ggf. PRD-US03-Status-Endpoint)
+- Polling alle 30s im Frontend; keine neuen Backend-Endpoints nötig (Daten existieren bereits)
+
+---
+
 ## ❓ Unklar
 
 **PRD-29 DKz-Filter: erledigt oder offen?**
