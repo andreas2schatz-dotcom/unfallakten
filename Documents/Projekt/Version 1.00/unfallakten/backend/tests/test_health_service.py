@@ -14,10 +14,6 @@ def _reload():
 
 class TestCheckRamicro(unittest.TestCase):
 
-    def setUp(self):
-        hs = _reload()
-        hs._cache["ramicro"] = {"ok": None, "letzter_sync_ts": None, "fehler": None}
-
     def test_ok_setzt_cache_ok_true(self):
         hs = _reload()
         with patch.object(hs, "verbindung_pruefen", return_value={"status": "ok", "host": "x", "datenbank": "RAMICRO"}):
@@ -41,10 +37,6 @@ class TestCheckRamicro(unittest.TestCase):
 
 
 class TestGetStatus(unittest.TestCase):
-
-    def setUp(self):
-        hs = _reload()
-        hs._cache["ramicro"] = {"ok": None, "letzter_sync_ts": None, "fehler": None}
 
     def test_letzter_sync_vor_s_ist_none_wenn_nie_gecheckt(self):
         hs = _reload()
