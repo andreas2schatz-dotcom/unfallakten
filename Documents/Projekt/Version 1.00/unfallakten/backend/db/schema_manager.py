@@ -351,7 +351,7 @@ def _run_migration_42(conn: sqlite3.Connection) -> None:
 
 def _run_migration_43(conn: sqlite3.Connection) -> None:
     """Erstellt imap_polling_config Tabelle mit 4 Account-Seed-Rows."""
-    conn.executescript("""
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS imap_polling_config (
             account        TEXT PRIMARY KEY,
             aktiv          INTEGER NOT NULL DEFAULT 1,
@@ -359,16 +359,13 @@ def _run_migration_43(conn: sqlite3.Connection) -> None:
             letzter_lauf   TEXT,
             letzter_status TEXT,
             letzter_fehler TEXT
-        );
-        INSERT OR IGNORE INTO imap_polling_config (account, aktiv, intervall_min)
-            VALUES ('unfall',   1, 5);
-        INSERT OR IGNORE INTO imap_polling_config (account, aktiv, intervall_min)
-            VALUES ('termin',   1, 5);
-        INSERT OR IGNORE INTO imap_polling_config (account, aktiv, intervall_min)
-            VALUES ('bussgeld', 1, 5);
-        INSERT OR IGNORE INTO imap_polling_config (account, aktiv, intervall_min)
-            VALUES ('info',     1, 5);
+        )
     """)
+    for account in ("unfall", "termin", "bussgeld", "info"):
+        conn.execute(
+            "INSERT OR IGNORE INTO imap_polling_config (account, aktiv, intervall_min) VALUES (?, 1, 5)",
+            (account,),
+        )
     conn.execute(
         "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
         (43, "Migration 43 – imap_polling_config (US-02)"),
