@@ -38,6 +38,7 @@
 | Regulierungs-Workflow Option B | 5 Phasen, Legacy-regulierung deprecated, Delete-Bug v14c gefixt | (aus: handover/backlog.md) |
 | KI-Parsing Regulierungsschreiben | Qwen Shadow-Mode, Modell-Switcher UI, Few-Shot, Datum-Fix | (aus: handover/backlog.md) |
 | Action Board Global + OnboardingHub | ActionBoardView (3 Spalten), OnboardingHub (7 Kacheln) | (aus: session_handover_v56.md) |
+| E-Mail-Workflow Redesign | EmailDetailView (2-spaltig), ActionBoard→Detail-Navigation, DokumenteSection E-Mail-Gruppe, Migration 42 (.eml dateityp), api.js inAkte mit erzwingen | (Session 2026-06-12) |
 | PRD-22c | Mandanten-Fragebogen: E-Mail-Parser, fragebogen_parser.py, DB-Tabelle fragebogen_erstkontakt, Verarbeitungslogik, Frontend (FragebogenErstkontaktKarte.jsx). Ausstehend: Website-Formular + PRD-22d (Akte-Anlage). | (Code-Prüfung 2026-05-03) |
 | PRD-35 | Klage-Wizard Bug-Fixes (5 Bugs): vorsteuer in b_dict, wizardVerzugDatum in Step 6, EinwändePanel-Preview, StepVerzug Manual-Edit-Schutz (wizardVerzugManuell), StepSchaden Gefordert-Spalte (betragOriginal). + klage_service: RVG außergerichtl. Gegenstandswert, rvg_bereits_gezahlt Abzug. | (Session 2026-05-10) |
 | PRD-36 (a–d) | Code-Konsolidierung: `_pruefe_akte` → `_helpers.py`, Datum-Parsing → `utils/datum.py`, `fmtEur` → Import aus `utils.js`, Beteiligte-Serialisierer → `models/beteiligte.py`. 7 TDD-Tests. | (Session 2026-05-15) |
@@ -52,9 +53,9 @@
 Zeigt aktuell nur RA-MICRO Wiedervorlagen (`tblAktenWiedervorlagen`), keine „harten" Rechtsmittelfristen. Falls RA-MICRO eine separate Fristen-Tabelle führt, wäre Schritt 1 aus Task 2 des Plans zu wiederholen.
 (aus: session_handover_v56.md)
 
-### Action Board – Nachrichten-Spalte Placeholder
-Spalte zeigt nur E-Mails aus `email_import_log`. Mandantenportal- und SV-Portal-Nachrichten sind als Placeholder angelegt; echte Integration hängt an PRD-25c.
-(aus: session_handover_v56.md)
+### Action Board – Nachrichten-Spalte
+Klick auf E-Mail navigiert jetzt direkt zur E-Mail-Detail-Seite (EmailDetailView). Mandantenportal- und SV-Portal-Nachrichten sind weiterhin als Placeholder angelegt; echte Integration hängt an PRD-25c.
+(aus: session_handover_v56.md, Session 2026-06-12)
 
 ### Pre-existing Testfehler (kein Blocker)
 `test_prd23b.py` (7 Failures) und `test_modul8.py` (16 Errors) schlagen seit vor PRD-31 fehl — nicht durch aktuelle Sessions verursacht, noch nicht behoben.

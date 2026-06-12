@@ -1,8 +1,8 @@
 # Projektstatus – Momentaufnahme
 
-**Generiert:** 2026-05-02 · **Zuletzt aktualisiert:** 2026-05-03  
-**Schema-Version:** 40  
-**Test-Suite:** 544 Tests gesammelt · 269 grün · 259 rot · 16 Errors (Details: Abschnitt 3)
+**Generiert:** 2026-05-02 · **Zuletzt aktualisiert:** 2026-06-12  
+**Schema-Version:** 42  
+**Test-Suite:** 552 Tests gesammelt · 276 grün · 260 rot · 16 Errors (Details: Abschnitt 3)
 
 ---
 
@@ -14,7 +14,7 @@ Vollständig implementierte Module mit Tests oder nachgewiesenem Laufzeit-Einsat
 `backend/auth/` — JWT (HS256), PBKDF2-HMAC-SHA256 (260k Iterationen), Middleware mit SSE-Fallback via `?token=`. Admin-Bootstrap beim Start. Tests in `test_modul2` (laufen wenn `FLASK_SECRET_KEY` gesetzt).
 
 ### Datenbankschema + Migrations
-`backend/db/schema_manager.py` — 40 Migrations, idempotent. WAL-Modus, FK-Constraints, 64 MB Cache. Migration 5 (AZ als PK) ist der kritische Pivot; alle nachfolgenden Tabellen referenzieren `az TEXT`.
+`backend/db/schema_manager.py` — 42 Migrations, idempotent. WAL-Modus, FK-Constraints, 64 MB Cache. Migration 5 (AZ als PK) ist der kritische Pivot; alle nachfolgenden Tabellen referenzieren `az TEXT`. Migration 42 (2026-06-12): `.eml`-Dateien erhalten `dateityp='sonstiges'` + `dokumentenklasse='email'` statt bisheriger Workaround-`dateityp='docx'`.
 
 ### RA-MICRO-Connector
 `backend/ramicro/connector.py` — pymssql 2.3.1, TDS 7.0, `RAMICRO_AKTIV`-Flag. Zwei Datenbanken: `RAMICRO` (Akten/WDM) und `raEloakte` (E-Akte-Metadaten). Read-only garantiert.
@@ -32,8 +32,9 @@ Konfidenz-Schwelle: ≥ 0.85 für Auto-Import.
 ### Rechnungs-Parser (PRD-23b)
 `backend/parsers/` — Registry-basiert (Gutachten, Versicherung, SV-Rechnung, Abschleppkosten, Standkosten). 59 Tests grün. Cache über `rechnung_parse_cache`-Tabelle.
 
-### E-Mail-Import (PRD-22d)
-`backend/email_import/` — IMAP4_SSL (Port 993), 3 Postfächer (unfall@/termin@/bussgeld@), Smart-Inbox, Fragebogen-Erkennung. Import-Log in `email_import_log`.
+### E-Mail-Import + E-Mail-Workflow (PRD-22d + Redesign 2026-06-12)
+`backend/email_import/` — IMAP4_SSL (Port 993), 3 Postfächer (unfall@/termin@/bussgeld@), Smart-Inbox, Fragebogen-Erkennung. Import-Log in `email_import_log`.  
+**Neu (2026-06-12):** `EmailDetailView.jsx` (2-spaltig: Metadaten/Anhänge links, E-Mail-Text/PDF-Vorschau rechts). Klick im Action Board öffnet direkt die Detail-Seite. E-Mail-Gruppe in `DokumenteSection.jsx` klappbar. `nachrichten-neu`-Endpoint liefert `log_id`. `emailImport.inAkte(logId, erzwingen)` in api.js.
 
 ### OCR + SSE-Streaming (PRD-30)
 `backend/services/ocr_service.py` — Tesseract + pdf2image, 300 DPI, Deutsch (deu). SSE-Endpoint mit `?token=`-Auth-Fallback.
@@ -150,11 +151,16 @@ Trainingsdaten werden seit einiger Zeit gesammelt. Wann ist genug Datenvolumen v
 
 ## 5. Aktueller Sprint
 
-**Session 2026-05-10 — PRD-35 Klage-Wizard Bug-Fixes + klage_service-Fixes**
+**Session 2026-06-12 — E-Mail-Workflow Redesign**
 
-- PRD-35 alle 5 Bugs gefixt: vorsteuer, wizardVerzugDatum, EinwändePanel-Preview, wizardVerzugManuell, betragOriginal
-- klage_service.py: RVG-Tabelle außergerichtl. Gegenstandswert (sw_ausserg), overrides-Merge für rvg_ausserg/rvg_bereits_gezahlt
-- StepGebuehren: UI-Feld „Bereits gezahlt" mit Amber-Highlight und Live-Klageanteil-Anzeige
-- Neue Architektur-Entscheidungen in DECISIONS.md dokumentiert (betragOriginal, wizardVerzugManuell, overrides-Merge)
+- `EmailDetailView.jsx` neu: 2-spaltige Detail-Seite mit PDF-Vorschau im Rechts-Panel
+- `ActionBoardView.jsx` / `App.jsx`: Klick auf E-Mail öffnet Detail-Seite direkt (nicht mehr Akte-Übersicht)
+- `DokumenteSection.jsx`: E-Mail-Gruppe klappbar am Ende des Dokumente-Tabs
+- `EmailKarte.jsx`: „▶ öffnen"-Button im Stream
+- `UnfallEmailView.jsx`: `geoeffneteEmail`-State, `initialEmailId`-Prop, `onEmailGeoffnet`-Callback
+- `api.js`: `emailImport.inAkte(logId, erzwingen)` mit JSON-Body, `InAkteButton` refaktoriert
+- Migration 42: `.eml` dateityp='sonstiges', dokumentenklasse='email'
+- `nachrichten-neu`: liefert `log_id` Feld
+- 12 Commits gepusht, 7 relevante Backend-Tests grün
 
-**Nächste Session:** PRD-33 — weitere Layout-/Inhaltsfehler in `klage_service.py` (generiertes DOCX). Benutzer hat weitere Bugs identifiziert, die noch nicht vollständig spezifiziert sind.
+**Nächste Session:** PRD-33 (Klage-Wizard DOCX-Bugs) oder PRD-25c (Mandantenkommunikation). Außerdem: noch unstaged Dateien aus vorheriger Session committen (backend/ramicro/adress_service.py, Router-Dateien, EinstellungenView.jsx).
