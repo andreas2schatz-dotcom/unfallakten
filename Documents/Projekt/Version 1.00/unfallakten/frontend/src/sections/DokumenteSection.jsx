@@ -45,6 +45,8 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
   const [belegMap, setBelegMap]               = useState({}); // {position_key: beleg}
   const [belegVorschau, setBelegVorschau]     = useState(null); // dokument_id
   const [belegVorschauUrl, setBelegVorschauUrl] = useState(null);
+  const [emailAnhangVorschau, setEmailAnhangVorschau] = useState(null); // {logId, index, name}
+  const [emailAnhangUrl,     setEmailAnhangUrl]     = useState(null);
   const [batchParserLaden, setBatchParserLaden] = useState(false);
   const [batchParserFortschritt, setBatchParserFortschritt] = useState(0);
   const [batchParserTotal, setBatchParserTotal] = useState(0);
@@ -157,6 +159,23 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
       .catch(() => { setBelegVorschauUrl(null); setBelegVorschau(null); setToast("Vorschau fehlgeschlagen"); });
     return () => { if (belegVorschauUrl) URL.revokeObjectURL(belegVorschauUrl); };
   }, [belegVorschau]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // E-Mail-Anhang Vorschau (Blob-URL)
+  useEffect(() => {
+    if (!emailAnhangVorschau) {
+      if (emailAnhangUrl) { URL.revokeObjectURL(emailAnhangUrl); setEmailAnhangUrl(null); }
+      return;
+    }
+    const { logId, index } = emailAnhangVorschau;
+    const token = tokenStore.getAccess();
+    fetch(`${API_BASE}/email/import/log/${logId}/anhang/${index}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then(r => { if (!r.ok) throw new Error(); return r.blob(); })
+      .then(blob => setEmailAnhangUrl(URL.createObjectURL(blob)))
+      .catch(() => { setEmailAnhangUrl(null); setEmailAnhangVorschau(null); setToast("Vorschau fehlgeschlagen"); });
+    return () => { if (emailAnhangUrl) URL.revokeObjectURL(emailAnhangUrl); };
+  }, [emailAnhangVorschau]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Dokumente-Liste frisch aus der DB laden und in State schreiben
   const ladeDokumenteListe = async () => {
@@ -1383,23 +1402,41 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                         {meta.anhaenge.map(anh => {
                           const isPdf = (anh.ext === "pdf") || (anh.name || "").toLowerCase().endsWith(".pdf");
                           return (
-                            <div key={anh.index}
-                              style={{ display:"flex", alignItems:"center", gap:8 }}>
-                              <span style={{ color: isPdf ? T.red : T.blue, display:"flex", fontSize:"0.9rem", flexShrink:0 }}>
-                                {isPdf ? Ic.pdf : Ic.attach}
-                              </span>
-                              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
-                                color:T.text, flex:1 }}>
-                                {anh.name || `Anhang ${anh.index + 1}`}
-                              </span>
-                              <button
-                                onClick={() => oeffneEmailAnhang(em.id, anh.index, anh.name || "anhang")}
-                                style={{ background:"none", border:`1px solid ${T.border}`,
-                                  borderRadius:5, padding:"2px 10px", cursor:"pointer",
-                                  fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem",
-                                  color:T.textMid }}>
-                                Öffnen
-                              </button>
+                            <div key={anh.index} style={{ display:"flex", flexDirection:"column" }}>
+                              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                <span style={{ color: isPdf ? T.red : T.blue, display:"flex", fontSize:"0.9rem", flexShrink:0 }}>
+                                  {isPdf ? Ic.pdf : Ic.attach}
+                                </span>
+                                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+                                  color:T.text, flex:1 }}>
+                                  {anh.name || `Anhang ${anh.index + 1}`}
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    const key = `${em.id}-${anh.index}`;
+                                    const aktiv = emailAnhangVorschau && `${emailAnhangVorschau.logId}-${emailAnhangVorschau.index}` === key;
+                                    setEmailAnhangVorschau(aktiv ? null : { logId: em.id, index: anh.index, name: anh.name });
+                                  }}
+                                  style={{ background:"none", border:`1px solid ${T.border}`,
+                                    borderRadius:5, padding:"2px 10px", cursor:"pointer",
+                                    fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem",
+                                    color: emailAnhangVorschau && `${emailAnhangVorschau.logId}-${emailAnhangVorschau.index}` === `${em.id}-${anh.index}` ? T.accent : T.textMid }}>
+                                  {emailAnhangVorschau && `${emailAnhangVorschau.logId}-${emailAnhangVorschau.index}` === `${em.id}-${anh.index}` ? "▼ Schließen" : "▶ Vorschau"}
+                                </button>
+                              </div>
+                              {emailAnhangVorschau && `${emailAnhangVorschau.logId}-${emailAnhangVorschau.index}` === `${em.id}-${anh.index}` && (
+                                <div style={{ marginTop:6 }}>
+                                  {!emailAnhangUrl ? (
+                                    <div style={{ height:80, display:"flex", alignItems:"center", justifyContent:"center", color:T.textMuted, fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}>
+                                      <div style={{ width:16, height:16, border:`2px solid ${T.border}`, borderTopColor:T.navy, borderRadius:"50%", animation:"spin 0.7s linear infinite", marginRight:8 }} />
+                                      PDF wird geladen…
+                                    </div>
+                                  ) : (
+                                    <iframe src={emailAnhangUrl} title={anh.name}
+                                      style={{ width:"100%", height:500, border:`1px solid ${T.border}`, borderRadius:6 }} />
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
