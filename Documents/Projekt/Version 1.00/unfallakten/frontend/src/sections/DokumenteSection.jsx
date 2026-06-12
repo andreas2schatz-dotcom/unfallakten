@@ -9,6 +9,7 @@ import {
   eakte as apiEakte,
   belege as apiBelege,
   schaden as apiSchaden,
+  emailImport as apiEmail,
   tokenStore,
   API_BASE,
 } from "../api.js";
@@ -65,6 +66,12 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
   const [inlineWahl, setInlineWahl]           = useState({});
   const [inlineAnnehmenLaden, setInlineAnnehmenLaden] = useState(null);
   const [highlightPos, setHighlightPos]       = useState(null);
+
+  // ── E-Mail-Gruppe ──────────────────────────────────────────────────────────
+  const [emailDoks, setEmailDoks]         = useState([]);
+  const [emailGruppeGeladen, setEmailGruppeGeladen] = useState(false);
+  const [emailExpanded, setEmailExpanded] = useState({});
+  const [emailMeta, setEmailMeta]         = useState({});
 
   const belegAnzahl = Object.keys(belegMap).length;
   const belegTotal = SCHADEN_F.length;
@@ -175,6 +182,14 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
     if (!akteId) return;
     ladeBelegeKandidaten();
   }, [akteId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!akteId) return;
+    apiEmail.log({ akte_id: akteId, limit: 50 })
+      .then(d => { if (d?.log) setEmailDoks(d.log); })
+      .catch(() => {})
+      .finally(() => setEmailGruppeGeladen(true));
+  }, [akteId]);
 
   // Batch-Parser (PRD-23b)
   const handleBatchParser = async () => {
@@ -612,6 +627,27 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
     const klasseLabel = dokData.dokumentenklasse ? (DOK_TYPEN.find(t => t.value===dokData.dokumentenklasse)?.label || dokData.dokumentenklasse) : null;
     setToast(`${f.name} hochgeladen${klasseLabel ? ` · Erkannt als ${klasseLabel}` : (typ==="pdf" ? " und geparst" : "")}.`);
     if (typ === "pdf") ladeBelegeKandidaten();
+  };
+
+  const toggleEmailExpand = async (id) => {
+    const neuOffen = !emailExpanded[id];
+    setEmailExpanded(prev => ({ ...prev, [id]: neuOffen }));
+    if (neuOffen && !emailMeta[id]) {
+      try {
+        const meta = await apiEmail.meta(id);
+        setEmailMeta(prev => ({ ...prev, [id]: meta }));
+      } catch {
+        setEmailMeta(prev => ({ ...prev, [id]: { anhaenge: [], body_text: "" } }));
+      }
+    }
+  };
+
+  const oeffneEmailAnhang = async (logId, index, name) => {
+    try {
+      await apiEmail.anhangOeffnen(logId, index, name);
+    } catch {
+      alert("Anhang konnte nicht geöffnet werden.");
+    }
   };
 
   return (
@@ -1289,6 +1325,93 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
             )}
           </Card>
         )}
+
+      {/* ── E-Mail-Gruppe ──────────────────────────────────────────────────── */}
+      {emailGruppeGeladen && emailDoks.length > 0 && (
+        <Card style={{ marginTop:"1.25rem" }}>
+          <CardHead title={`📧 E-Mails (${emailDoks.length})`} />
+          {emailDoks.map((em, i) => {
+            const istOffen = !!emailExpanded[em.id];
+            const meta     = emailMeta[em.id];
+            return (
+              <div key={em.id} style={{ borderBottom: i < emailDoks.length - 1 ? `1px solid ${T.borderSoft}` : "none" }}>
+                <div
+                  onClick={() => toggleEmailExpand(em.id)}
+                  style={{ display:"flex", alignItems:"center", gap:10,
+                    padding:"10px 1.25rem", cursor:"pointer",
+                    background: istOffen ? T.accentPale : "transparent",
+                    transition:"background 0.1s" }}
+                  onMouseEnter={ev => { if (!istOffen) ev.currentTarget.style.background = T.surface; }}
+                  onMouseLeave={ev => { if (!istOffen) ev.currentTarget.style.background = "transparent"; }}>
+                  <span style={{ color:T.blue, display:"flex", flexShrink:0 }}>📧</span>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.925rem",
+                      fontWeight:500, color:T.text,
+                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      {em.von_name || em.absender || "Unbekannt"}
+                      {em.betreff ? ` · ${em.betreff}` : ""}
+                    </div>
+                  </div>
+                  <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.8rem",
+                    color:T.textMuted, flexShrink:0 }}>
+                    {em.empfangen_am ? String(em.empfangen_am).slice(0, 10) : ""}
+                    {(em.anhaenge_anzahl || 0) > 0 ? ` · ${em.anhaenge_anzahl} Anhang${em.anhaenge_anzahl > 1 ? "hänge" : ""}` : ""}
+                  </span>
+                  <svg viewBox="0 0 24 24" fill={T.textFaint}
+                    style={{ width:13, height:13, flexShrink:0,
+                      transform: istOffen ? "rotate(180deg)" : "none", transition:"transform 0.2s" }}>
+                    <path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/>
+                  </svg>
+                </div>
+                {istOffen && (
+                  <div style={{ padding:"0 1.25rem 12px 2.75rem",
+                    background:T.accentPale, borderTop:`1px solid ${T.border}` }}>
+                    {meta?.body_text ? (
+                      <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem",
+                        color:T.textMid, marginTop:10, marginBottom:10,
+                        whiteSpace:"pre-wrap", maxHeight:120, overflowY:"auto",
+                        background:T.white, border:`1px solid ${T.border}`,
+                        borderRadius:6, padding:"8px 10px", lineHeight:1.5 }}>
+                        {meta.body_text.slice(0, 400)}{meta.body_text.length > 400 ? " …" : ""}
+                      </div>
+                    ) : !meta ? (
+                      <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem",
+                        color:T.textMuted, marginTop:10 }}>Lade …</div>
+                    ) : null}
+                    {(meta?.anhaenge || []).length > 0 && (
+                      <div style={{ display:"flex", flexDirection:"column", gap:4, marginTop: meta?.body_text ? 0 : 10 }}>
+                        {meta.anhaenge.map(anh => {
+                          const isPdf = (anh.ext === "pdf") || (anh.name || "").toLowerCase().endsWith(".pdf");
+                          return (
+                            <div key={anh.index}
+                              style={{ display:"flex", alignItems:"center", gap:8 }}>
+                              <span style={{ color: isPdf ? T.red : T.blue, display:"flex", fontSize:"0.9rem", flexShrink:0 }}>
+                                {isPdf ? Ic.pdf : Ic.attach}
+                              </span>
+                              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+                                color:T.text, flex:1 }}>
+                                {anh.name || `Anhang ${anh.index + 1}`}
+                              </span>
+                              <button
+                                onClick={() => oeffneEmailAnhang(em.id, anh.index, anh.name || "anhang")}
+                                style={{ background:"none", border:`1px solid ${T.border}`,
+                                  borderRadius:5, padding:"2px 10px", cursor:"pointer",
+                                  fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem",
+                                  color:T.textMid }}>
+                                Öffnen
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </Card>
+      )}
 
       </div>
 
