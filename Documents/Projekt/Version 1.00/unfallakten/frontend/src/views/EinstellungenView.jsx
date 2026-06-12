@@ -72,6 +72,8 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
   const [sysStatus,      setSysStatus]      = useState(null);
   const [sysLaedt,       setSysLaedt]       = useState(false);
   const [sysRetryLaedt,  setSysRetryLaedt]  = useState(false);
+  const [imapIntervall,  setImapIntervall]  = useState(5);
+  const [imapSpeichert,  setImapSpeichert]  = useState(false);
 
   const ladeVorlagen = async () => {
     setLaedt(true);
@@ -165,10 +167,30 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
     if (tab === "system_status") {
       setSysLaedt(true);
       apiSystem.getStatus()
-        .then(setSysStatus)
+        .then(d => {
+          setSysStatus(d);
+          if (Array.isArray(d.imap) && d.imap.length > 0) {
+            setImapIntervall(d.imap[0].intervall_min ?? 5);
+          }
+        })
         .catch(() => {})
         .finally(() => setSysLaedt(false));
     }
+  }, [tab]);
+
+  useEffect(() => {
+    if (tab !== "system_status") return;
+    const id = setInterval(() => {
+      apiSystem.getStatus()
+        .then(d => {
+          setSysStatus(d);
+          if (Array.isArray(d.imap) && d.imap.length > 0) {
+            setImapIntervall(prev => d.imap[0].intervall_min ?? prev);
+          }
+        })
+        .catch(() => {});
+    }, 30_000);
+    return () => clearInterval(id);
   }, [tab]);
 
   useEffect(() => {
@@ -1168,20 +1190,97 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                     >{sysRetryLaedt ? "…" : "↺ Neu versuchen"}</Btn>
                   </div>
 
-                  {/* IMAP */}
-                  <div style={{ color: T.textMuted, fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", padding: "0.5rem 0 0.25rem" }}>E-Mail (IMAP)</div>
-                  <div style={{ background: T.surface, borderRadius: 8, padding: "0.75rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                      <span style={{ width: 10, height: 10, borderRadius: "50%", display: "inline-block", flexShrink: 0,
-                        background: sysStatus.imap?.konfiguriert ? (sysStatus.imap.ok === true ? "#2ecc71" : sysStatus.imap.ok === false ? "#e74c3c" : "#f39c12") : "#888" }} />
-                      <div>
-                        <div style={{ color: T.text, fontWeight: 600 }}>{sysStatus.imap?.konfiguriert ? "IMAP konfiguriert" : "IMAP nicht konfiguriert"}</div>
-                        <div style={{ color: T.textMuted, fontSize: "0.8rem" }}>
-                          {sysStatus.imap?.konfiguriert ? "Automatisches Polling noch nicht aktiv" : "EMAIL_HOST, EMAIL_USER, EMAIL_PASSWORD in .env setzen"}
+                  {/* IMAP Polling */}
+                  <div style={{ color: T.textMuted, fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", padding: "0.5rem 0 0.25rem" }}>E-Mail Polling</div>
+
+                  <div style={{ background: T.surface, borderRadius: 8, padding: "0.75rem 1rem", marginBottom: 6, display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.875rem", fontWeight: 600, color: T.text, flexShrink: 0 }}>Intervall:</span>
+                    <select
+                      value={imapIntervall}
+                      onChange={e => setImapIntervall(parseInt(e.target.value))}
+                      style={{ padding: "4px 8px", border: `1px solid ${T.border}`, borderRadius: 6, fontFamily: "'Figtree',sans-serif", fontSize: "0.875rem", background: T.white }}
+                    >
+                      {[5, 10, 15, 30].map(v => (
+                        <option key={v} value={v}>{v} Minuten</option>
+                      ))}
+                    </select>
+                    <Btn
+                      disabled={imapSpeichert || !Array.isArray(sysStatus?.imap)}
+                      style={{ fontSize: "0.8rem", padding: "5px 12px" }}
+                      onClick={async () => {
+                        setImapSpeichert(true);
+                        try {
+                          const res = await apiSystem.patchImapPolling({ intervall_min: imapIntervall });
+                          setSysStatus(prev => ({ ...prev, imap: res.accounts }));
+                          setToast("Polling-Intervall gespeichert.");
+                        } catch { setToast("Fehler beim Speichern."); }
+                        finally { setImapSpeichert(false); }
+                      }}
+                    >
+                      {imapSpeichert ? "Speichern …" : "Speichern"}
+                    </Btn>
+                  </div>
+
+                  {(Array.isArray(sysStatus?.imap) ? sysStatus.imap : []).map(acc => {
+                    const dotFarbe = !acc.passwort_vorhanden ? "#888"
+                      : acc.letzter_status === "ok"     ? "#2ecc71"
+                      : acc.letzter_status === "fehler"  ? "#e74c3c"
+                      : "#f39c12";
+                    return (
+                      <div key={acc.account} style={{ background: T.surface, borderRadius: 8, padding: "0.65rem 1rem", marginBottom: 6, display: "flex", alignItems: "center", gap: 12 }}>
+                        <span style={{ width: 10, height: 10, borderRadius: "50%", display: "inline-block", flexShrink: 0, background: dotFarbe }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontFamily: "'Figtree',sans-serif", color: T.text, fontWeight: 600, fontSize: "0.875rem" }}>
+                            {acc.account}@anwalt-offenbach.de
+                          </div>
+                          <div style={{ fontFamily: "'Figtree',sans-serif", color: T.textMuted, fontSize: "0.78rem" }}>
+                            {!acc.passwort_vorhanden
+                              ? `EMAIL_PASSWORD_${acc.account.toUpperCase()} fehlt in .env`
+                              : acc.letzter_lauf
+                                ? `Letzter Lauf: ${acc.letzter_lauf.slice(0, 16).replace("T", " ")}`
+                                : "Noch nie gelaufen"}
+                            {acc.letzter_fehler && (
+                              <span style={{ color: "#e74c3c", marginLeft: 8 }}>
+                                — {acc.letzter_fehler}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div
+                          onClick={async () => {
+                            if (!acc.passwort_vorhanden) return;
+                            try {
+                              const res = await apiSystem.patchImapPolling({
+                                accounts: { [acc.account]: !acc.aktiv },
+                              });
+                              setSysStatus(prev => ({ ...prev, imap: res.accounts }));
+                            } catch { setToast("Fehler beim Speichern."); }
+                          }}
+                          title={acc.passwort_vorhanden ? "" : "Passwort fehlt in .env"}
+                          style={{
+                            width: 42, height: 24, borderRadius: 12,
+                            background: acc.aktiv && acc.passwort_vorhanden ? "#2ecc71" : T.border,
+                            position: "relative",
+                            cursor: acc.passwort_vorhanden ? "pointer" : "not-allowed",
+                            opacity: acc.passwort_vorhanden ? 1 : 0.45,
+                            transition: "background 0.2s", flexShrink: 0,
+                          }}>
+                          <div style={{
+                            position: "absolute", top: 3,
+                            left: acc.aktiv && acc.passwort_vorhanden ? 21 : 3,
+                            width: 18, height: 18, borderRadius: 9, background: "#fff",
+                            transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                          }} />
                         </div>
                       </div>
+                    );
+                  })}
+
+                  {!Array.isArray(sysStatus?.imap) && sysLaedt && (
+                    <div style={{ color: T.textFaint, fontFamily: "'Figtree',sans-serif", fontSize: "0.875rem", padding: "0.5rem 0" }}>
+                      Lade …
                     </div>
-                  </div>
+                  )}
 
                   {/* SV-Portal */}
                   <div style={{ color: T.textMuted, fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", padding: "0.5rem 0 0.25rem" }}>Externe Dienste</div>
