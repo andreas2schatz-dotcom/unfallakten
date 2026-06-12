@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
 import { KATEGORIEN } from "../config/constants.js";
@@ -7,10 +7,17 @@ import {
   emailImport as apiEmail,
   apiEinstellungen,
   apiSvPortal,
+  apiSystem,
 } from "../api.js";
 
-function EinstellungenView() {
-  const [tab, setTab]           = useState("versicherer");
+function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
+  const [tab, setTab]           = useState(initialTab || "versicherer");
+  useEffect(() => {
+    if (initialTab) {
+      setTab(initialTab);
+      onTabMounted?.();
+    }
+  }, [initialTab]);
   const [vorlagen, setVorlagen] = useState([]);
   const [laedt, setLaedt]       = useState(true);
   const [toast, setToast]       = useState("");
@@ -55,9 +62,17 @@ function EinstellungenView() {
   const [svFormLaedt,     setSvFormLaedt]     = useState(false);
   const [svFormSpeichert, setSvFormSpeichert] = useState(false);
   const [svEinladung,     setSvEinladung]     = useState({}); // adressnr → bool
+  const [svSuchVorschlaege, setSvSuchVorschlaege] = useState([]);
+  const [svSuchOffen,     setSvSuchOffen]     = useState(false);
+  const [svSuchLaedt,     setSvSuchLaedt]     = useState(false);
+  const svSuchRef = useRef(null);
 
   // Klassifikations-Trainingsdaten
   const [training, setTraining] = useState(null);
+
+  const [sysStatus,      setSysStatus]      = useState(null);
+  const [sysLaedt,       setSysLaedt]       = useState(false);
+  const [sysRetryLaedt,  setSysRetryLaedt]  = useState(false);
 
   const ladeVorlagen = async () => {
     setLaedt(true);
@@ -82,17 +97,28 @@ function EinstellungenView() {
     finally { setSvAktenLaedt(false); }
   };
 
-  const svVorschauLaden = async () => {
-    const nr = parseInt(svForm.adressnr);
+  useEffect(() => {
+    function handleOutside(e) {
+      if (svSuchRef.current && !svSuchRef.current.contains(e.target)) {
+        setSvSuchOffen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
+
+  const svVorschauLadenNr = async (nr) => {
     if (!nr) return;
     setSvFormLaedt(true);
     try {
       const d = await apiSvPortal.vorschau(nr);
-      setSvForm(p => ({ ...p, vorschau: d, fehler: "" }));
+      setSvForm(p => ({ ...p, adressnr: String(nr), vorschau: d, fehler: "" }));
     } catch(e) {
       setSvForm(p => ({ ...p, vorschau: null, fehler: e?.message || "Adressnummer nicht gefunden." }));
     } finally { setSvFormLaedt(false); }
   };
+
+  const svVorschauLaden = () => svVorschauLadenNr(parseInt(svForm.adressnr));
 
   const svAnlegen = async () => {
     const nr = parseInt(svForm.adressnr);
@@ -137,6 +163,13 @@ function EinstellungenView() {
 
   useEffect(() => {
     if (tab === "sv_portal") ladeSvListe();
+    if (tab === "system_status") {
+      setSysLaedt(true);
+      apiSystem.getStatus()
+        .then(setSysStatus)
+        .catch(() => {})
+        .finally(() => setSysLaedt(false));
+    }
   }, [tab]);
 
   useEffect(() => {
@@ -216,6 +249,7 @@ function EinstellungenView() {
             ["fristen",       "⏱ Fristen"],
             ["ki",            "✦ KI-Assistent"],
             ["zustaendigkeit","⚖ Zuständigkeit"],
+            ["system_status",  "⚙ System-Status"],
           ].map(([id, label]) => (
             <button key={id} onClick={() => { setTab(id); setSuche(""); }}
               style={{ padding:"8px 18px", border:"none", background:"transparent",
@@ -224,7 +258,7 @@ function EinstellungenView() {
                 borderBottom: tab===id ? `2px solid ${T.accent}` : "2px solid transparent",
                 marginBottom:-1 }}>
               {label}
-              {id !== "imap" && id !== "fristen" && id !== "ki" && id !== "zustaendigkeit" && id !== "sv_portal" && (
+              {id !== "imap" && id !== "fristen" && id !== "ki" && id !== "zustaendigkeit" && id !== "sv_portal" && id !== "system_status" && (
                 <span style={{ marginLeft:6, background:T.surface, color:T.textMuted,
                   borderRadius:10, padding:"1px 7px", fontSize:"0.8rem", fontWeight:400 }}>
                   {id === "versicherer" ? vorlagen.filter(v => v.kategorie==="versicherung").length
@@ -740,21 +774,69 @@ function EinstellungenView() {
               <div style={{ padding:"12px", borderBottom:`1px solid ${T.border}` }}>
                 <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
                   fontWeight:700, color:T.textMuted, marginBottom:6, textTransform:"uppercase",
-                  letterSpacing:"0.06em" }}>RA-MICRO-Adressnr.</div>
-                <div style={{ display:"flex", gap:6, marginBottom: svForm.vorschau || svForm.fehler ? 8 : 0 }}>
-                  <input
-                    type="number" min={1} placeholder="z.B. 4721"
-                    value={svForm.adressnr}
-                    onChange={e => setSvForm(p => ({...p, adressnr: e.target.value, vorschau: null, fehler:""}))}
-                    style={{ flex:1, padding:"6px 8px", border:`1px solid ${T.border}`,
-                      borderRadius:6, fontFamily:"ui-monospace,monospace",
-                      fontSize:"0.875rem", outline:"none" }}
-                  />
-                  <Btn onClick={svVorschauLaden}
-                    disabled={svFormLaedt || !svForm.adressnr}
-                    style={{ padding:"6px 10px", fontSize:"0.8rem" }}>
-                    {svFormLaedt ? "…" : "Laden"}
-                  </Btn>
+                  letterSpacing:"0.06em" }}>Sachverständigen suchen</div>
+                <div ref={svSuchRef} style={{ position:"relative", marginBottom: svForm.vorschau || svForm.fehler ? 8 : 0 }}>
+                  <div style={{ position:"relative" }}>
+                    <input
+                      type="text" placeholder="Name oder Adressnr."
+                      value={svForm.adressnr}
+                      onChange={async e => {
+                        const q = e.target.value;
+                        setSvForm(p => ({...p, adressnr: q, vorschau: null, fehler:""}));
+                        if (q.length < 2) { setSvSuchVorschlaege([]); setSvSuchOffen(false); return; }
+                        setSvSuchLaedt(true); setSvSuchOffen(true);
+                        try { setSvSuchVorschlaege(await apiSvPortal.suche(q)); }
+                        catch { setSvSuchVorschlaege([]); }
+                        finally { setSvSuchLaedt(false); }
+                      }}
+                      onKeyDown={e => { if (e.key === "Escape") setSvSuchOffen(false); }}
+                      style={{ width:"100%", padding:"6px 28px 6px 8px", border:`1px solid ${T.border}`,
+                        borderRadius:6, fontFamily:"ui-monospace,monospace",
+                        fontSize:"0.875rem", outline:"none", boxSizing:"border-box" }}
+                    />
+                    {svSuchLaedt && (
+                      <div style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)",
+                        width:11, height:11, border:"2px solid rgba(0,0,0,0.12)",
+                        borderTopColor:T.navy, borderRadius:"50%",
+                        animation:"spin 0.7s linear infinite" }}/>
+                    )}
+                  </div>
+                  {svSuchOffen && (
+                    <div style={{ position:"absolute", top:"calc(100% + 2px)", left:0, right:0, zIndex:300,
+                      background:T.white, border:`1px solid ${T.border}`,
+                      borderRadius:8, boxShadow:"0 4px 16px rgba(0,0,0,0.13)", overflow:"hidden" }}>
+                      {svSuchVorschlaege.length > 0 ? (
+                        <div style={{ maxHeight:200, overflowY:"auto" }}>
+                          {svSuchVorschlaege.map(sv => (
+                            <button key={sv.adressnr}
+                              onMouseDown={() => {
+                                setSvSuchOffen(false);
+                                setSvSuchVorschlaege([]);
+                                svVorschauLadenNr(sv.adressnr);
+                              }}
+                              style={{ width:"100%", textAlign:"left", padding:"8px 10px",
+                                background:"transparent", border:"none",
+                                borderBottom:`1px solid ${T.borderSoft}`,
+                                cursor:"pointer" }}
+                              onMouseEnter={e => e.currentTarget.style.background = "#eff6ff"}
+                              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem",
+                                fontWeight:700, color:T.text }}>
+                                {sv.vorname} {sv.name}
+                              </div>
+                              <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.72rem",
+                                color:T.textMuted }}>
+                                Nr. {sv.adressnr}{sv.email ? ` · ${sv.email}` : ""}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      ) : !svSuchLaedt ? (
+                        <div style={{ padding:"9px 10px", fontFamily:"'Figtree',sans-serif",
+                          fontSize:"0.8rem", color:T.textMuted }}>Keine Einträge gefunden.</div>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
                 {svForm.fehler && (
                   <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
@@ -931,22 +1013,49 @@ function EinstellungenView() {
 
                     {/* Akten-Liste */}
                     <div style={{ flex:1, overflowY:"auto", padding:"14px 18px" }}>
-                      <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem",
-                        fontWeight:800, color:T.textMuted, textTransform:"uppercase",
-                        letterSpacing:"0.07em", marginBottom:10,
-                        display:"flex", alignItems:"center", gap:8 }}>
-                        Zugeordnete Akten
-                        <span style={{ background:T.surface, color:T.textMuted,
-                          border:`1px solid ${T.border}`, borderRadius:8,
-                          padding:"1px 7px", fontSize:"0.72rem",
-                          fontWeight:600, textTransform:"none", letterSpacing:0 }}>
-                          {svAkten.length}
-                        </span>
-                        <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem",
-                          color:T.textFaint, fontWeight:400, textTransform:"none",
-                          letterSpacing:0 }}>
-                          — SV ist in diesen Akten als Sachverständiger eingetragen
-                        </span>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+                        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem",
+                          fontWeight:800, color:T.textMuted, textTransform:"uppercase",
+                          letterSpacing:"0.07em", display:"flex", alignItems:"center", gap:6 }}>
+                          Akten in RA-MICRO
+                          <span style={{ background:T.surface, color:T.textMuted,
+                            border:`1px solid ${T.border}`, borderRadius:8,
+                            padding:"1px 7px", fontSize:"0.72rem",
+                            fontWeight:600, textTransform:"none", letterSpacing:0 }}>
+                            {svAkten.length}
+                          </span>
+                        </div>
+                        <div style={{ flex:1 }} />
+                        {(() => {
+                          const alleAn = svAkten.length > 0 && svAkten.every(a => a.portal_aktiv);
+                          return (
+                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
+                                color: alleAn ? "#22c55e" : T.textMuted, fontWeight:600 }}>
+                                {alleAn ? "Alle freigegeben" : "Alle sperren / freigeben"}
+                              </span>
+                              <div
+                                onClick={async () => {
+                                  const neuerWert = alleAn ? 0 : 1;
+                                  try {
+                                    await apiSvPortal.alleToggle(sv.adressnr, neuerWert);
+                                    setSvAkten(prev => prev.map(a => ({...a, portal_aktiv: neuerWert, im_system: true})));
+                                    setToast(neuerWert ? "Alle Akten freigegeben." : "Alle Akten gesperrt.");
+                                  } catch(e) { setToast(e?.message || "Fehler."); }
+                                }}
+                                style={{ width:44, height:24, borderRadius:12,
+                                  background: alleAn ? "#22c55e" : T.border,
+                                  position:"relative", cursor:"pointer",
+                                  transition:"background 0.2s", flexShrink:0 }}>
+                                <div style={{ position:"absolute", top:3,
+                                  left: alleAn ? 22 : 3,
+                                  width:18, height:18, borderRadius:9,
+                                  background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,.25)",
+                                  transition:"left 0.2s" }} />
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {svAktenLaedt ? (
@@ -955,8 +1064,7 @@ function EinstellungenView() {
                       ) : svAkten.length === 0 ? (
                         <div style={{ color:T.textFaint, fontFamily:"'Figtree',sans-serif",
                           fontSize:"0.875rem" }}>
-                          Keine Akten gefunden. Voraussetzung: SV muss in einer Akte als
-                          Sachverständiger eingetragen sein und dieselbe E-Mail-Adresse haben.
+                          Keine Akten in RA-MICRO gefunden.
                         </div>
                       ) : svAkten.map(akte => (
                         <div key={akte.az} style={{ background:T.white,
@@ -969,22 +1077,21 @@ function EinstellungenView() {
                             {akte.az}
                           </div>
                           <div style={{ flex:1, fontFamily:"'Figtree',sans-serif",
-                            fontSize:"0.82rem", color:T.text, whiteSpace:"nowrap",
-                            overflow:"hidden", textOverflow:"ellipsis" }}>
+                            fontSize:"0.82rem", color: akte.im_system ? T.text : T.textFaint,
+                            whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
                             {akte.kurzbezeichnung || "—"}
                           </div>
                           <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.73rem",
                             color:T.textFaint, flexShrink:0 }}>
                             {akte.unfalldatum || ""}
                           </div>
-                          {/* Toggle portal_aktiv */}
                           <div
                             onClick={async () => {
                               const neuerWert = akte.portal_aktiv ? 0 : 1;
                               try {
                                 await apiSvPortal.togglePortalAktiv(akte.az, neuerWert);
                                 setSvAkten(prev => prev.map(a =>
-                                  a.az === akte.az ? {...a, portal_aktiv: neuerWert} : a
+                                  a.az === akte.az ? {...a, portal_aktiv: neuerWert, im_system: true} : a
                                 ));
                               } catch(e) { setToast(e?.message || "Fehler."); }
                             }}
@@ -995,8 +1102,7 @@ function EinstellungenView() {
                             <div style={{ position:"absolute", top:2,
                               left: akte.portal_aktiv ? 18 : 2,
                               width:16, height:16, borderRadius:8,
-                              background:"#fff",
-                              boxShadow:"0 1px 3px rgba(0,0,0,.2)",
+                              background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,.2)",
                               transition:"left 0.2s" }} />
                           </div>
                           <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem",
@@ -1025,8 +1131,78 @@ function EinstellungenView() {
           </div>
         )}
 
+        {tab === "system_status" && (
+          <div style={{ maxWidth: 680 }}>
+            <Card>
+              <CardHead title="System-Status" />
+              {sysLaedt && <p style={{ color: T.textSub, padding: "1rem" }}>Wird geladen…</p>}
+              {!sysLaedt && sysStatus && (
+                <div style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+
+                  {/* RA-Micro */}
+                  <div style={{ background: T.cardBg, borderRadius: 8, padding: "0.75rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <span style={{ width: 12, height: 12, borderRadius: "50%", display: "inline-block", flexShrink: 0,
+                        background: sysStatus.ramicro.ok === true ? "#2ecc71" : sysStatus.ramicro.ok === false ? "#e74c3c" : "#f39c12" }} />
+                      <div>
+                        <div style={{ color: T.text, fontWeight: 600 }}>RA-Micro Datenbank</div>
+                        <div style={{ color: T.textSub, fontSize: "0.8rem" }}>
+                          {sysStatus.ramicro.ok === true && "Verbunden"}
+                          {sysStatus.ramicro.ok === false && `Nicht erreichbar${sysStatus.ramicro.fehler ? ` – ${sysStatus.ramicro.fehler}` : ""}`}
+                          {sysStatus.ramicro.ok === null && "Noch nicht geprüft"}
+                          {sysStatus.ramicro.letzter_sync_vor_s != null && (
+                            <span> · vor {sysStatus.ramicro.letzter_sync_vor_s < 60 ? "wenigen Sekunden" : `${Math.round(sysStatus.ramicro.letzter_sync_vor_s / 60)} Min`}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <Btn
+                      label={sysRetryLaedt ? "…" : "↺ Neu versuchen"}
+                      disabled={sysRetryLaedt}
+                      onClick={async () => {
+                        setSysRetryLaedt(true);
+                        try {
+                          const updated = await apiSystem.retryRamicro();
+                          setSysStatus(prev => ({ ...prev, ramicro: updated }));
+                        } catch {}
+                        finally { setSysRetryLaedt(false); }
+                      }}
+                    />
+                  </div>
+
+                  {/* IMAP */}
+                  <div style={{ color: T.textSub, fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", padding: "0.5rem 0 0.25rem" }}>E-Mail (IMAP)</div>
+                  <div style={{ background: T.cardBg, borderRadius: 8, padding: "0.75rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <span style={{ width: 10, height: 10, borderRadius: "50%", display: "inline-block", flexShrink: 0,
+                        background: sysStatus.imap?.konfiguriert ? (sysStatus.imap.ok === true ? "#2ecc71" : sysStatus.imap.ok === false ? "#e74c3c" : "#f39c12") : "#888" }} />
+                      <div>
+                        <div style={{ color: T.text, fontWeight: 600 }}>{sysStatus.imap?.konfiguriert ? "IMAP konfiguriert" : "IMAP nicht konfiguriert"}</div>
+                        <div style={{ color: T.textSub, fontSize: "0.8rem" }}>
+                          {sysStatus.imap?.konfiguriert ? "Wird in US-02 um Polling erweitert" : "EMAIL_HOST, EMAIL_USER, EMAIL_PASSWORD in .env setzen"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SV-Portal */}
+                  <div style={{ color: T.textSub, fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", padding: "0.5rem 0 0.25rem" }}>Externe Dienste</div>
+                  <div style={{ background: T.cardBg, borderRadius: 8, padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", display: "inline-block", flexShrink: 0, background: "#888" }} />
+                    <div>
+                      <div style={{ color: T.text, fontWeight: 600 }}>SV-Portal</div>
+                      <div style={{ color: T.textSub, fontSize: "0.8rem" }}>Noch nicht eingerichtet (US-03)</div>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
+
         {/* Versicherer / Gutachter / Alle Vorlagen Tabs */}
-        {tab !== "imap" && tab !== "fristen" && tab !== "ki" && tab !== "zustaendigkeit" && tab !== "sv_portal" && (
+        {tab !== "imap" && tab !== "fristen" && tab !== "ki" && tab !== "zustaendigkeit" && tab !== "sv_portal" && tab !== "system_status" && (
           <div>
             {/* Neue Vorlage anlegen */}
             <Card style={{ marginBottom:"1.25rem" }}>
