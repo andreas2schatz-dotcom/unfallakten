@@ -10,7 +10,7 @@ const TABS = [
   { id: "bussgeld", label: "bussgeld@" },
 ];
 
-function EmailImportView({ onOpenAkte, dispatch }) {
+function EmailImportView({ onOpenAkte, dispatch, initialEmailId }) {
   const [tab, setTab] = useState("unfall");
 
   return (
@@ -58,7 +58,7 @@ function EmailImportView({ onOpenAkte, dispatch }) {
         </div>
 
         {/* Tab-Inhalt */}
-        {tab === "unfall"   && <UnfallEmailView  onOpenAkte={onOpenAkte} dispatch={dispatch} />}
+        {tab === "unfall"   && <UnfallEmailView  onOpenAkte={onOpenAkte} dispatch={dispatch} initialEmailId={initialEmailId} />}
         {tab === "termin"   && <TerminEmailView  />}
         {tab === "bussgeld" && <BussgeldEmailView />}
 
