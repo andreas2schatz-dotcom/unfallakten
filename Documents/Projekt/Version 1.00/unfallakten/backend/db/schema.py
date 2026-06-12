@@ -215,7 +215,7 @@ CREATE TABLE IF NOT EXISTS dokumente (
     dateiname       TEXT    NOT NULL,
     dateipfad       TEXT    NOT NULL,   -- Relativer Pfad ab /uploads/
     dateityp        TEXT    NOT NULL DEFAULT 'pdf'
-                    CHECK(dateityp IN ('pdf', 'docx', 'jpg', 'png')),
+                    CHECK(dateityp IN ('pdf', 'docx', 'jpg', 'png', 'sonstiges')),
     dateigroesse    INTEGER,            -- Bytes
     hochgeladen_am  TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
     hochgeladen_von INTEGER REFERENCES benutzer(id) ON DELETE SET NULL,

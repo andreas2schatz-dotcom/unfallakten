@@ -293,6 +293,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     39: "-- migration_39_gutachten_nr",  # Handled by _run_migration_39
     40: "-- migration_40_stellungnahme_texte",  # Handled by _run_migration_40
     41: "-- migration_41_sv_portal_accounts",  # Handled by _run_migration_41
+    42: "-- migration_42_eml_dateityp",  # Handled by _run_migration_42
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -329,6 +330,22 @@ def _run_migration_4(conn: sqlite3.Connection) -> None:
         "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
         (4, "Phase 2 – Prüfbericht PDF-Felder"),
     )
+
+
+def _run_migration_42(conn: sqlite3.Connection) -> None:
+    """Korrigiert dateityp fuer .eml-Dateien: 'docx' -> 'sonstiges', dokumentenklasse -> 'email'."""
+    conn.execute("""
+        UPDATE dokumente
+        SET dateityp = 'sonstiges',
+            dokumentenklasse = 'email'
+        WHERE dateiname LIKE '%.eml'
+          AND dateityp = 'docx'
+    """)
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
+        (42, "Migration 42 – .eml dateityp sonstiges + dokumentenklasse email"),
+    )
+    logger.info("Migration 42: .eml-Zeilen korrigiert.")
 
 
 def create_schema() -> None:
@@ -440,6 +457,8 @@ def run_migrations() -> None:
                 _run_migration_40(conn)
             elif version == 41:
                 _run_migration_41(conn)
+            elif version == 42:
+                _run_migration_42(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(

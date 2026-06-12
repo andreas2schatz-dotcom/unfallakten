@@ -81,7 +81,7 @@ GUELTIGE_TYPEN = (
     "gutachten", "abrechnungsschreiben", "forderungsschreiben",
     "sachstandsanfrage", "klage", "sonstiges"
 )
-GUELTIGE_DATEITYPEN = ("pdf", "docx", "jpg", "png")
+GUELTIGE_DATEITYPEN = ("pdf", "docx", "jpg", "png", "sonstiges")
 GUELTIGE_PARSE_STATUS = ("ausstehend", "erfolgreich", "fehler", "manuell_korrigiert")
 
 

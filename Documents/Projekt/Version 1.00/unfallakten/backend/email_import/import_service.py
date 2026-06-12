@@ -710,9 +710,14 @@ def importiere_in_akte(
                 dateiname    = eml_dateiname,
                 dateipfad    = eml_pfad,
                 bearbeiter_id= bearbeiter_id,
-                dateityp     = "docx",
+                dateityp     = "sonstiges",
                 dateigroesse = _Path(eml_pfad).stat().st_size,
             )
+            with get_connection() as _conn:
+                _conn.execute(
+                    "UPDATE dokumente SET dokumentenklasse = 'email' WHERE id = ?",
+                    (dok.id,),
+                )
             dok_ids_neu.append(dok.id)
         except Exception as e:
             logger.error(".eml Registrierung fehlgeschlagen: %s", e)
