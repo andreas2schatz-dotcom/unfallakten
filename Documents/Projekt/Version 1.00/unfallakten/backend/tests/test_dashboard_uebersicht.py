@@ -107,6 +107,34 @@ class TestDashboardUebersicht(unittest.TestCase):
         resp = self.client.get("/dashboard/ramicro-fristen")
         self.assertEqual(resp.status_code, 401)
 
+    def test_nachrichten_neu_entries_haben_log_id(self):
+        """Jeder Eintrag in nachrichten-neu muss ein log_id-Feld haben."""
+        from backend.db.database import get_connection
+        # Testdaten anlegen: Akte + email_import_log-Eintrag
+        with get_connection() as conn:
+            conn.execute(
+                "INSERT INTO unfallakte (az, status) VALUES (?, ?)",
+                ("99/99", "offen")
+            )
+            # email_import_log braucht message_id UNIQUE
+            conn.execute(
+                """INSERT INTO email_import_log
+                   (message_id, betreff, absender, empfangen_am, akte_id, status, email_typ)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                ("test-msg-id-123", "Testbetreff", "test@rv.de", "2026-06-12 10:00:00", "99/99", "zugeordnet", "sonstiges")
+            )
+            conn.commit()
+
+        headers = self._auth_header()
+        resp = self.client.get("/dashboard/nachrichten-neu", headers=headers)
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        eintraege = data["eintraege"]
+        self.assertTrue(len(eintraege) > 0, "Mindestens ein Eintrag erwartet")
+        for e in eintraege:
+            self.assertIn("log_id", e, f"log_id fehlt in Eintrag: {e}")
+            self.assertIsNotNone(e["log_id"])
+
 
 if __name__ == "__main__":
     unittest.main()

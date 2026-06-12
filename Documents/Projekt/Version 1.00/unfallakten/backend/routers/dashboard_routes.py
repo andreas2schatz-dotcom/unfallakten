@@ -338,6 +338,7 @@ def _lade_nachrichten_neu(conn):
     """
     rows = conn.execute("""
         SELECT
+            e.id          AS log_id,
             a.az          AS az,
             e.absender,
             e.betreff,
