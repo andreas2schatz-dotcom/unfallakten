@@ -161,5 +161,105 @@ class TestIstFaellig(unittest.TestCase):
         self.assertTrue(_ist_faellig("kein-datum", 5))
 
 
+class TestFuehrePollingDurch(unittest.TestCase):
+
+    def _setup(self, env_overrides=None):
+        conn = _fresh_conn()
+        _run_migration_43(conn)
+        env = {
+            "EMAIL_HOST": "imap.example.com",
+            "EMAIL_USER_UNFALL":   "unfall@a.de",   "EMAIL_PASSWORD_UNFALL":   "pw1",
+            "EMAIL_USER_TERMIN":   "termin@a.de",   "EMAIL_PASSWORD_TERMIN":   "pw2",
+            "EMAIL_USER_BUSSGELD": "bussgeld@a.de", "EMAIL_PASSWORD_BUSSGELD": "pw3",
+            "EMAIL_USER_INFO":     "info@a.de",     "EMAIL_PASSWORD_INFO":     "pw4",
+        }
+        if env_overrides:
+            env.update(env_overrides)
+        return conn, env
+
+    def _mock_gc(self, conn, module):
+        m = patch(f"{module}.get_connection")
+        mock = m.start()
+        mock.return_value.__enter__ = lambda s: conn
+        mock.return_value.__exit__ = lambda s, *a: None
+        self.addCleanup(m.stop)
+        return mock
+
+    def test_inaktiver_account_wird_uebersprungen(self):
+        from backend.email_import import polling_service
+        conn, env = self._setup()
+        conn.execute("UPDATE imap_polling_config SET aktiv=0 WHERE account='unfall'")
+        self._mock_gc(conn, "backend.email_import.polling_service")
+        with patch("backend.email_import.polling_service.fuehre_import_lauf_durch"), \
+             patch.dict(os.environ, env, clear=True):
+            polling_service.fuehre_polling_durch()
+        row = conn.execute(
+            "SELECT letzter_lauf FROM imap_polling_config WHERE account='unfall'"
+        ).fetchone()
+        self.assertIsNone(row["letzter_lauf"])
+
+    def test_account_ohne_passwort_bekommt_fehler_status(self):
+        from backend.email_import import polling_service
+        conn, env = self._setup({"EMAIL_PASSWORD_INFO": ""})
+        self._mock_gc(conn, "backend.email_import.polling_service")
+        with patch("backend.email_import.polling_service.fuehre_import_lauf_durch"), \
+             patch.dict(os.environ, env, clear=True):
+            polling_service.fuehre_polling_durch()
+        row = conn.execute(
+            "SELECT letzter_status, letzter_fehler FROM imap_polling_config WHERE account='info'"
+        ).fetchone()
+        self.assertEqual(row["letzter_status"], "fehler")
+        self.assertIn("EMAIL_PASSWORD_INFO", row["letzter_fehler"])
+
+    def test_nicht_faelliger_account_wird_uebersprungen(self):
+        from backend.email_import import polling_service
+        gerade_jetzt = datetime.now().isoformat(timespec="seconds")
+        conn, env = self._setup()
+        conn.execute(
+            "UPDATE imap_polling_config SET letzter_lauf=?, aktiv=1 WHERE account='unfall'",
+            (gerade_jetzt,)
+        )
+        conn.execute("UPDATE imap_polling_config SET aktiv=0 WHERE account != 'unfall'")
+        self._mock_gc(conn, "backend.email_import.polling_service")
+        with patch("backend.email_import.polling_service.fuehre_import_lauf_durch") as mock_imp, \
+             patch.dict(os.environ, env, clear=True):
+            polling_service.fuehre_polling_durch()
+        mock_imp.assert_not_called()
+
+    def test_faelliger_account_ruft_import_auf(self):
+        from backend.email_import import polling_service
+        vor_10_min = (datetime.now() - timedelta(minutes=10)).isoformat(timespec="seconds")
+        conn, env = self._setup()
+        conn.execute("UPDATE imap_polling_config SET aktiv=0")
+        conn.execute(
+            "UPDATE imap_polling_config SET aktiv=1, letzter_lauf=? WHERE account='unfall'",
+            (vor_10_min,)
+        )
+        self._mock_gc(conn, "backend.email_import.polling_service")
+        with patch("backend.email_import.polling_service.fuehre_import_lauf_durch") as mock_imp, \
+             patch.dict(os.environ, env, clear=True):
+            polling_service.fuehre_polling_durch()
+        mock_imp.assert_called_once()
+        cfg = mock_imp.call_args.kwargs.get("imap_config")
+        self.assertEqual(cfg["user"], "unfall@a.de")
+
+    def test_fehler_bei_einem_account_bricht_andere_nicht_ab(self):
+        from backend.email_import import polling_service
+        conn, env = self._setup()
+        self._mock_gc(conn, "backend.email_import.polling_service")
+
+        call_count = {"n": 0}
+        def mock_import(imap_config=None, **kwargs):
+            call_count["n"] += 1
+            if imap_config and imap_config["user"].startswith("unfall"):
+                raise RuntimeError("IMAP-Fehler")
+
+        with patch("backend.email_import.polling_service.fuehre_import_lauf_durch", side_effect=mock_import), \
+             patch.dict(os.environ, env, clear=True):
+            polling_service.fuehre_polling_durch()
+
+        self.assertGreater(call_count["n"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()
