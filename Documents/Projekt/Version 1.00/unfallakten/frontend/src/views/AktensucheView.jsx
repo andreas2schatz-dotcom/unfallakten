@@ -131,7 +131,7 @@ function EakteHoverPopover({ az, anchor, daten, akteObj, onOpenAkte, onMouseEnte
       )}
 
       {/* Footer */}
-      {!daten.loading && !daten.error && (
+      {!daten.loading && !daten.error && daten.docs.length > 0 && (
         <div style={{
           padding: "7px 14px", background: "#fafaf8",
           borderTop: `1px solid ${T.borderSoft}`, textAlign: "center",
