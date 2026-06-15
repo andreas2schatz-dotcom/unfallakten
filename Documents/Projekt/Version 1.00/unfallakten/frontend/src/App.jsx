@@ -111,13 +111,22 @@ function AppShell({ user, onLogout }) {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    if (pendingAkteTab && active !== pendingAkteTab.tabId) {
+      setPendingAkteTab(null);
+    }
+  }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleLogout = useCallback(async () => {
     await apiAuth.logout().catch(() => {});
     onLogout();
   }, [onLogout]);
 
   const openAkte = useCallback((baseAkte) => {
-    const { initialTab, ...akteData } = baseAkte;
+    const raw = typeof baseAkte === "string"
+      ? { az: baseAkte, az_roh: baseAkte }
+      : baseAkte;
+    const { initialTab, ...akteData } = raw;
     const azVoll  = akteData.az_roh || akteData.az || String(akteData.id);
     const azBasis = azVoll.replace(/[A-Z]{2,3}$/i, "").trim();
     const az      = azBasis.includes("/") ? azBasis : azVoll;
