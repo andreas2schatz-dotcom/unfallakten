@@ -197,7 +197,7 @@ Der SV-Portal-Server ist eine eigenständige Web-Applikation, auf die Sachverst�
 - Dieses PRD ist **nicht im Unfallakten-Repo** umsetzbar — separates Deployment nötig
 - Blockiert: PRD-US03 ist ohne dieses System nicht testbar
 
-**PRD-US05 — E-Akte Hover-Vorschau im Dashboard** *(aus S1.4, P1, Aufwand: S)*
+**~~PRD-US05 — E-Akte Hover-Vorschau im Dashboard~~** ✅ *(Session 2026-06-15)*
 In der Akten-Suchliste zeigt ein Hover eine kleine Dokumenten-Vorschau der E-Akte.
 - Hover über Akten-Zeile in `AktensucheView` → Tooltip/Popover mit den letzten 3–5 E-Akte-Dokumenten
 - Klick auf Dokument im Hover → öffnet Akten-Detail direkt im Dokumente-Tab
