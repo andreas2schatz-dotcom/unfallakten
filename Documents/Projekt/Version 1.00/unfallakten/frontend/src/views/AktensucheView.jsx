@@ -412,6 +412,48 @@ function AktensucheView({ onOpenAkte }) {
   const [neueAkteOffen, setNeueAkteOffen] = useState(false);
   const [toast, setToast]   = useState("");
 
+  const [hoverAz,      setHoverAz]      = useState(null);
+  const [hoverAnchor,  setHoverAnchor]  = useState(null);
+  const [hoverAkteObj, setHoverAkteObj] = useState(null);
+  const [popoverDaten, setPopover]      = useState({ docs: [], loading: false, error: null });
+  const timerRef    = useRef(null);
+  const hideTimerRef = useRef(null);
+  const cacheRef    = useRef(new Map());
+
+  const handleRowEnter = (e, t) => {
+    clearTimeout(hideTimerRef.current);
+    const anchor = e.currentTarget.getBoundingClientRect();
+    setHoverAnchor(anchor);
+    setHoverAkteObj({
+      id: t.az_roh, az: t.az, az_roh: t.az_roh,
+      status: t.status || "offen", unfalldatum: t.unfalldatum || "",
+      unfallort: t.unfallort || "", hq: t.haftungsquote || 100, brutto: 0,
+    });
+    if (hoverAz === t.az_roh) return;
+    setHoverAz(t.az_roh);
+    if (cacheRef.current.has(t.az_roh)) {
+      setPopover({ docs: cacheRef.current.get(t.az_roh), loading: false, error: null });
+      return;
+    }
+    setPopover({ docs: [], loading: true, error: null });
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(async () => {
+      try {
+        const res = await apiEakte.liste(t.az_roh);
+        const docs = (res.dokumente || []).slice(0, 5);
+        cacheRef.current.set(t.az_roh, docs);
+        setPopover({ docs, loading: false, error: null });
+      } catch {
+        setPopover({ docs: [], loading: false, error: "Dokumente konnten nicht geladen werden." });
+      }
+    }, 300);
+  };
+
+  const handleRowLeave = () => {
+    clearTimeout(timerRef.current);
+    hideTimerRef.current = setTimeout(() => setHoverAz(null), 150);
+  };
+
   const suchen = async (feld) => {
     const azQ = az.trim(), kzQ = kz.trim(), tagQ = tag.trim();
     const nutzAz  = feld === "az"  && azQ;
@@ -585,8 +627,8 @@ function AktensucheView({ onOpenAkte }) {
                   {treffer.map((t, i) => (
                     <tr key={t.az + i}
                       style={{ borderBottom: `1px solid ${T.borderSoft}`, background: i % 2 === 0 ? T.white : "#fafaf8", transition: "background 0.12s", cursor: "default" }}
-                      onMouseEnter={e => e.currentTarget.style.background = "#f6f4ef"}
-                      onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? T.white : "#fafaf8"}>
+                      onMouseEnter={e => { e.currentTarget.style.background = "#f6f4ef"; handleRowEnter(e, t); }}
+                      onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 0 ? T.white : "#fafaf8"; handleRowLeave(); }}>
                       <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
                         <button onClick={() => onOpenAkte({ id: t.az_roh, az: t.az, az_roh: t.az_roh, status: t.status || "offen", unfalldatum: t.unfalldatum || "", unfallort: t.unfallort || "", hq: t.haftungsquote || 100, brutto: 0 })}
                           style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "ui-monospace,monospace", fontSize: "0.875rem", fontWeight: 600, color: T.navy, textDecoration: "underline", textDecorationColor: "rgba(27,42,74,0.3)" }}>
@@ -642,6 +684,17 @@ function AktensucheView({ onOpenAkte }) {
       )}
     </div>
 
+    {hoverAz && hoverAnchor && (
+      <EakteHoverPopover
+        az={hoverAz}
+        anchor={hoverAnchor}
+        daten={popoverDaten}
+        akteObj={hoverAkteObj}
+        onOpenAkte={onOpenAkte}
+        onMouseEnter={() => clearTimeout(hideTimerRef.current)}
+        onMouseLeave={() => setHoverAz(null)}
+      />
+    )}
     {neueAkteOffen && (
       <NeueAkteModal
         onClose={() => setNeueAkteOffen(false)}
