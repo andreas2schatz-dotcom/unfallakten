@@ -31,8 +31,16 @@ const UnfalldetailsSection = lazy(() => import("../sections/UnfalldetailsSection
 const GebuehrenSection     = lazy(() => import("../sections/GebuehrenSection.jsx"));
 const KlageSection         = lazy(() => import("../sections/KlageSection.jsx"));
 
-function AkteDetailView({ akte, st, dispatch }) {
+function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted }) {
   const [sec, setSec] = useState("uebersicht");
+
+  useEffect(() => {
+    if (initialTab) {
+      setSec(initialTab);
+      onTabMounted?.();
+    }
+  }, [initialTab]);
+
   const [aktionErledigt, setAktionErledigt] = useState(false);
   const [toast, setToast] = useState("");
 

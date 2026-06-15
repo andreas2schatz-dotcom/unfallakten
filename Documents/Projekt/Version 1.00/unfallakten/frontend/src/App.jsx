@@ -100,6 +100,7 @@ function AppShell({ user, onLogout }) {
 
   const [systemStatus,           setSystemStatus]           = useState(null);
   const [pendingEinstellungenTab, setPendingEinstellungenTab] = useState(null);
+  const [pendingAkteTab, setPendingAkteTab] = useState(null);
 
   useEffect(() => {
     const poll = async () => {
@@ -116,18 +117,18 @@ function AppShell({ user, onLogout }) {
   }, [onLogout]);
 
   const openAkte = useCallback((baseAkte) => {
-    const azVoll  = baseAkte.az_roh || baseAkte.az || String(baseAkte.id);
-    // SB-Kürzel entfernen für SQLite-PK und RA-Micro-Suche: "1213/25AS" → "1213/25"
+    const { initialTab, ...akteData } = baseAkte;
+    const azVoll  = akteData.az_roh || akteData.az || String(akteData.id);
     const azBasis = azVoll.replace(/[A-Z]{2,3}$/i, "").trim();
     const az      = azBasis.includes("/") ? azBasis : azVoll;
     const tabId   = `akte-${az}`;
     setTabs(prev => prev.find(t => t.id===tabId) ? prev : [
       ...prev,
-      { id:tabId, label:azVoll, status:aktenState[az]?.status||baseAkte.status||"offen",
-        akte:{ ...baseAkte, id:az, az:azVoll, az_roh:az } }
+      { id:tabId, label:azVoll, status:aktenState[az]?.status||akteData.status||"offen",
+        akte:{ ...akteData, id:az, az:azVoll, az_roh:az } }
     ]);
     setActive(tabId);
-    // On-demand SQLite-Anlage mit Basis-AZ (fire and forget)
+    if (initialTab) setPendingAkteTab({ tabId, sec: initialTab });
     if (az.includes("/")) {
       ramicroListe.onDemand(az).catch(() => {});
     }
@@ -284,7 +285,13 @@ function AppShell({ user, onLogout }) {
             : active==="wiedervorlage"   ? <WiedervorlageView onOpenAkte={openAkte} />
             : active==="kuerzungskatalog"? <KuerzungskatalogSection />
             : active==="einstellungen"   ? <EinstellungenView initialTab={pendingEinstellungenTab} onTabMounted={() => setPendingEinstellungenTab(null)} />
-            : activeTab?.akte            ? <AkteDetailView akte={activeTab.akte} st={aktenState[activeTab.akte.id]||{}} dispatch={dispatch} />
+            : activeTab?.akte ? <AkteDetailView
+                akte={activeTab.akte}
+                st={aktenState[activeTab.akte.id]||{}}
+                dispatch={dispatch}
+                initialTab={pendingAkteTab?.tabId === active ? pendingAkteTab.sec : null}
+                onTabMounted={() => setPendingAkteTab(null)}
+              />
             : null}
           </div>
           </Suspense>
