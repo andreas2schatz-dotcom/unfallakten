@@ -7,7 +7,148 @@ import {
   aktensuche as apiAktensuche,
   emailImport,
   akten as apiAkten,
+  eakte as apiEakte,
 } from "../api.js";
+
+// ── E-Akte Hover-Vorschau: Hilfsfunktionen ──────────────────────────────────
+
+function typBadge(dok) {
+  const text = ((dok.bemerkung || "") + " " + (dok.anzeigename || "")).toLowerCase();
+  if (/regulier|schreiben|zahlung|deckung/.test(text))
+    return { label: "Regulierung", bg: "#dbeafe", color: "#1e40af" };
+  if (/gutachten|sachverst/.test(text))
+    return { label: "Gutachten",   bg: "#d1fae5", color: "#065f46" };
+  if (/polizei|bericht|anzeige/.test(text))
+    return { label: "Polizei",     bg: "#fef3c7", color: "#92400e" };
+  if (/rechnung|kosten|invoice/.test(text))
+    return { label: "Rechnung",    bg: "#fce7f3", color: "#9d174d" };
+  return { label: "Dokument", bg: "#f3f4f6", color: "#6b7280" };
+}
+
+function fmtDatum(isoStr) {
+  if (!isoStr) return "–";
+  const d = new Date(isoStr);
+  return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+// ── EakteHoverPopover ────────────────────────────────────────────────────────
+
+function EakteHoverPopover({ az, anchor, daten, akteObj, onOpenAkte, onMouseEnter, onMouseLeave }) {
+  const BREITE = 320;
+  const HOEHE_GESCHAETZT = 260;
+  const ueberZeile = anchor.top > HOEHE_GESCHAETZT + 20;
+  const top   = ueberZeile ? anchor.top - HOEHE_GESCHAETZT : anchor.bottom + 4;
+  const right = Math.max(8, window.innerWidth - anchor.right);
+
+  const oeffnen = () => onOpenAkte({ ...akteObj, initialTab: "dokumente" });
+
+  return (
+    <div
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      style={{
+        position: "fixed", top, right,
+        width: BREITE, background: T.white,
+        border: `1px solid ${T.border}`, borderRadius: 10,
+        boxShadow: "0 6px 24px rgba(0,0,0,0.16)", zIndex: 500, overflow: "hidden",
+      }}
+    >
+      {/* Header */}
+      <div style={{
+        padding: "8px 14px", background: T.navy,
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+      }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "white",
+          letterSpacing: "0.06em", textTransform: "uppercase",
+          fontFamily: "'Figtree',sans-serif" }}>
+          E-Akte Vorschau
+        </span>
+        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)",
+          fontFamily: "ui-monospace,monospace" }}>
+          {az}
+        </span>
+      </div>
+
+      {/* Body */}
+      {daten.loading ? (
+        <div style={{ padding: "14px", textAlign: "center",
+          color: T.textFaint, fontFamily: "'Figtree',sans-serif", fontSize: 13 }}>
+          Lädt …
+        </div>
+      ) : daten.error ? (
+        <div style={{ padding: "12px 14px",
+          color: T.textMuted, fontFamily: "'Figtree',sans-serif", fontSize: 13 }}>
+          {daten.error}
+        </div>
+      ) : daten.docs.length === 0 ? (
+        <div style={{ padding: "12px 14px",
+          color: T.textMuted, fontFamily: "'Figtree',sans-serif", fontSize: 13 }}>
+          Keine E-Akte-Dokumente vorhanden.
+        </div>
+      ) : (
+        <div style={{ padding: "6px 8px", display: "flex", flexDirection: "column", gap: 4 }}>
+          {daten.docs.map(dok => {
+            const badge = typBadge(dok);
+            const datum = fmtDatum(dok.version || dok.einf_datum);
+            return (
+              <div key={dok.nr} onClick={oeffnen}
+                style={{
+                  padding: "7px 9px", border: `1px solid ${T.borderSoft}`,
+                  borderRadius: 6, display: "flex", alignItems: "flex-start",
+                  gap: 8, cursor: "pointer", background: T.white,
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = T.accentPale}
+                onMouseLeave={e => e.currentTarget.style.background = T.white}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 2 }}>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700,
+                      background: badge.bg, color: badge.color,
+                      borderRadius: 3, padding: "1px 5px",
+                      textTransform: "uppercase", letterSpacing: "0.04em",
+                      whiteSpace: "nowrap", fontFamily: "'Figtree',sans-serif",
+                    }}>
+                      {badge.label}
+                    </span>
+                    <span style={{ fontSize: 10, color: T.textFaint,
+                      fontFamily: "'Figtree',sans-serif" }}>
+                      {datum}
+                    </span>
+                  </div>
+                  <div style={{
+                    fontSize: 12, color: T.textMid, fontWeight: 500,
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                    fontFamily: "'Figtree',sans-serif",
+                  }}>
+                    {dok.anzeigename || dok.dateiname}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Footer */}
+      {!daten.loading && !daten.error && (
+        <div style={{
+          padding: "7px 14px", background: "#fafaf8",
+          borderTop: `1px solid ${T.borderSoft}`, textAlign: "center",
+        }}>
+          <button onClick={oeffnen}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              fontSize: 11, color: T.accent, fontWeight: 600,
+              fontFamily: "'Figtree',sans-serif",
+            }}>
+            Alle Dokumente anzeigen →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Autocomplete-Input ────────────────────────────────────────────────────────
 function AutocompleteInput({ value, onChange, onSearch, onOpenAkte, placeholder, style, hint }) {
