@@ -35,11 +35,11 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted }) {
   const [sec, setSec] = useState("uebersicht");
 
   useEffect(() => {
-    if (initialTab) {
-      setSec(initialTab);
+    if (initialTab?.sec) {
+      setSec(initialTab.sec);
       onTabMounted?.();
     }
-  }, [initialTab]);
+  }, [initialTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [aktionErledigt, setAktionErledigt] = useState(false);
   const [toast, setToast] = useState("");

@@ -130,6 +130,7 @@ function AppShell({ user, onLogout }) {
     setActive(tabId);
     if (initialTab) setPendingAkteTab({ tabId, sec: initialTab });
     if (az.includes("/")) {
+      // On-demand SQLite-Anlage mit Basis-AZ (fire and forget)
       ramicroListe.onDemand(az).catch(() => {});
     }
   }, [aktenState]);
@@ -289,7 +290,7 @@ function AppShell({ user, onLogout }) {
                 akte={activeTab.akte}
                 st={aktenState[activeTab.akte.id]||{}}
                 dispatch={dispatch}
-                initialTab={pendingAkteTab?.tabId === active ? pendingAkteTab.sec : null}
+                initialTab={pendingAkteTab?.tabId === active ? pendingAkteTab : null}
                 onTabMounted={() => setPendingAkteTab(null)}
               />
             : null}
