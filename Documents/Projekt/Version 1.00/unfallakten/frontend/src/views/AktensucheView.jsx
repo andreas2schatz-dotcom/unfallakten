@@ -419,6 +419,20 @@ function AktensucheView({ onOpenAkte }) {
   const timerRef    = useRef(null);
   const hideTimerRef = useRef(null);
   const cacheRef    = useRef(new Map());
+  const hoverAzRef  = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(timerRef.current);
+      clearTimeout(hideTimerRef.current);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const close = () => setHoverAz(null);
+    window.addEventListener("scroll", close, true);
+    return () => window.removeEventListener("scroll", close, true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRowEnter = (e, t) => {
     clearTimeout(hideTimerRef.current);
@@ -429,7 +443,8 @@ function AktensucheView({ onOpenAkte }) {
       status: t.status || "offen", unfalldatum: t.unfalldatum || "",
       unfallort: t.unfallort || "", hq: t.haftungsquote || 100, brutto: 0,
     });
-    if (hoverAz === t.az_roh) return;
+    if (hoverAzRef.current === t.az_roh) return;
+    hoverAzRef.current = t.az_roh;
     setHoverAz(t.az_roh);
     if (cacheRef.current.has(t.az_roh)) {
       setPopover({ docs: cacheRef.current.get(t.az_roh), loading: false, error: null });
@@ -438,12 +453,15 @@ function AktensucheView({ onOpenAkte }) {
     setPopover({ docs: [], loading: true, error: null });
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
+      const az = t.az_roh;
       try {
-        const res = await apiEakte.liste(t.az_roh);
+        const res = await apiEakte.liste(az);
+        if (hoverAzRef.current !== az) return;
         const docs = (res.dokumente || []).slice(0, 5);
-        cacheRef.current.set(t.az_roh, docs);
+        cacheRef.current.set(az, docs);
         setPopover({ docs, loading: false, error: null });
       } catch {
+        if (hoverAzRef.current !== az) return;
         setPopover({ docs: [], loading: false, error: "Dokumente konnten nicht geladen werden." });
       }
     }, 300);
@@ -451,7 +469,11 @@ function AktensucheView({ onOpenAkte }) {
 
   const handleRowLeave = () => {
     clearTimeout(timerRef.current);
-    hideTimerRef.current = setTimeout(() => setHoverAz(null), 150);
+    hoverAzRef.current = null;
+    hideTimerRef.current = setTimeout(() => {
+      setHoverAz(null);
+      setPopover({ docs: [], loading: false, error: null });
+    }, 150);
   };
 
   const suchen = async (feld) => {
