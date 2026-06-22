@@ -107,6 +107,7 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted }) {
         if (data?.dokumente) dispatch({ type:"SET_DOKUMENTE", akteId:id, dokumente:data.dokumente });
         if (data?.status)    dispatch({ type:"SET_STATUS",    akteId:id, status:data.status });
         if (data?.abrechnungen) dispatch({ type:"SET_ABRECHNUNGEN", akteId:id, abrechnungen:data.abrechnungen });
+        if (data?.regulierung_status) dispatch({ type:"SET_REGULIERUNG_STATUS", akteId:id, regulierungStatus:data.regulierung_status });
       })
       .catch(() => {});
   }, [akte.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -411,7 +412,7 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted }) {
             {sec==="beteiligte"    && <BeteiligteSection beteiligte={st.beteiligte||[]} dispatch={dispatch} akteId={akte.id} />}
             {sec==="schaden"       && <SchadenSection schaden={st.schaden||{}} hq={akte.hq} dispatch={dispatch} akteId={akte.id} vorsteuer={(st.beteiligte||[]).find(b=>b.rolle==="mandant")?.vorsteuer==="Y"} dokumente={st.dokumente||[]} belegeKandidaten={st.belegeKandidaten||[]} />}
             {sec==="dokumente"     && <DokumenteSection dokumente={st.dokumente||[]} dispatch={dispatch} akteId={akte.id} akte={akte} belegeKandidaten={st.belegeKandidaten||[]} schaden={st.schaden||{}} vorsteuer={(st.beteiligte||[]).find(b=>b.rolle==="mandant")?.vorsteuer==="Y"} />}
-            {sec==="regulierung"   && <RegulierungSection brutto={liveBrutto} hq={akte.hq} dispatch={dispatch} akteId={akte.id} schaden={st.schaden||{}} abrechnungenCached={st.abrechnungen||[]} beteiligte={st.beteiligte||[]} dokumente={st.dokumente||[]} />}
+            {sec==="regulierung"   && <RegulierungSection brutto={liveBrutto} hq={akte.hq} regulierungStatus={st.regulierungStatus ?? akte.regulierung_status ?? "offen"} dispatch={dispatch} akteId={akte.id} schaden={st.schaden||{}} abrechnungenCached={st.abrechnungen||[]} beteiligte={st.beteiligte||[]} dokumente={st.dokumente||[]} />}
             {sec==="gebuehren"     && <GebuehrenSection akteId={akte.id} akte={akte} />}
             {sec==="klage"         && <KlageSection akteId={akte.id} akte={akte} st={st} dispatch={dispatch} />}
             {sec==="word"          && <WordSection akte={akte} st={st} dispatch={dispatch} />}
