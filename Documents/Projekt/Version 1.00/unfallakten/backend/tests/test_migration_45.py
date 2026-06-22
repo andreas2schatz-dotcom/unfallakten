@@ -78,6 +78,23 @@ class TestMigration45(unittest.TestCase):
         with self.assertRaises(ValueError):
             ns.aktualisiere_akte("33/33", regulierung_status="ungueltig")
 
+    def test_migration_45_ist_idempotent(self):
+        """_run_migration_45 zweimal aufrufen darf keinen Fehler werfen."""
+        ns = _ns("m45_idempotent")
+        from backend.db.schema_manager import _run_migration_45
+        with ns.get_connection() as conn:
+            _run_migration_45(conn)  # 2. Aufruf — Migration schon gelaufen
+
+    def test_migration_45_schreibt_schema_version(self):
+        """Migration 45 muss Eintrag in schema_version hinterlassen."""
+        ns = _ns("m45_schema_version")
+        with ns.get_connection() as conn:
+            row = conn.execute(
+                "SELECT version FROM schema_version WHERE version = 45"
+            ).fetchone()
+        self.assertIsNotNone(row, "schema_version-Eintrag für Migration 45 fehlt")
+        self.assertEqual(row[0], 45)
+
 
 if __name__ == "__main__":
     unittest.main()
