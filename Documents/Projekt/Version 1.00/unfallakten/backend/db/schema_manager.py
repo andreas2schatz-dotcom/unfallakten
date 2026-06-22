@@ -295,6 +295,8 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     41: "-- migration_41_sv_portal_accounts",  # Handled by _run_migration_41
     42: "-- migration_42_eml_dateityp",  # Handled by _run_migration_42
     43: "-- migration_43_imap_polling",  # Handled by _run_migration_43
+    44: "-- migration_44_email_konto",   # Handled by _run_migration_44
+    45: "-- migration_45_regulierung_status",  # Handled by _run_migration_45
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -331,6 +333,40 @@ def _run_migration_4(conn: sqlite3.Connection) -> None:
         "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
         (4, "Phase 2 – Prüfbericht PDF-Felder"),
     )
+
+
+def _run_migration_44(conn: sqlite3.Connection) -> None:
+    """Migration 44: konto-Spalte in email_import_log für Account-Trennung (unfall/termin/bussgeld/info)."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(email_import_log)").fetchall()}
+    if "konto" not in cols:
+        # Direktes Commit nötig: ALTER TABLE in sqlite3 läuft außerhalb des
+        # impliziten Transaktionskontexts und braucht einen eigenen Commit.
+        conn.commit()
+        conn.execute("ALTER TABLE email_import_log ADD COLUMN konto TEXT")
+        conn.commit()
+        logger.info("Migration 44: email_import_log.konto hinzugefuegt.")
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
+        (44, "Migration 44 – email_import_log.konto (Account-Trennung)"),
+    )
+    logger.info("Migration 44 abgeschlossen.")
+
+
+def _run_migration_45(conn: sqlite3.Connection) -> None:
+    """Migration 45: regulierung_status in unfallakte (offen/abgelehnt/teilhaftung)."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(unfallakte)").fetchall()}
+    if "regulierung_status" not in cols:
+        conn.commit()
+        conn.execute(
+            "ALTER TABLE unfallakte ADD COLUMN regulierung_status TEXT NOT NULL DEFAULT 'offen'"
+        )
+        conn.commit()
+        logger.info("Migration 45: unfallakte.regulierung_status hinzugefuegt.")
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
+        (45, "Migration 45 – unfallakte.regulierung_status (offen/abgelehnt/teilhaftung)"),
+    )
+    logger.info("Migration 45 abgeschlossen.")
 
 
 def _run_migration_42(conn: sqlite3.Connection) -> None:
@@ -486,6 +522,10 @@ def run_migrations() -> None:
                 _run_migration_42(conn)
             elif version == 43:
                 _run_migration_43(conn)
+            elif version == 44:
+                _run_migration_44(conn)
+            elif version == 45:
+                _run_migration_45(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
