@@ -105,6 +105,7 @@ def _akte_komplett(akte_id: str) -> dict:
         "status":           akte.status,
         "haftungsquote":    akte.haftungsquote,
         "hq":               akte.haftungsquote,
+        "regulierung_status": akte.regulierung_status,
         "bearbeiter_id":    akte.bearbeiter_id,
         "notizen":          akte.notizen,
         "kurzbezeichnung":  akte.kurzbezeichnung,
@@ -335,8 +336,22 @@ def aktualisiere(akte_id: str):
 
     daten = _body()
     erlaubte = {"status", "notizen", "unfallort",
-                "haftungsquote", "bearbeiter_id", "unfalldatum"}
+                "haftungsquote", "bearbeiter_id", "unfalldatum",
+                "regulierung_status"}
     felder = {k: v for k, v in daten.items() if k in erlaubte}
+
+    # Auto-haftungsquote bei regulierung_status
+    if "regulierung_status" in felder and "haftungsquote" not in felder:
+        rs = felder["regulierung_status"]
+        if rs == "abgelehnt":
+            felder["haftungsquote"] = 0.0
+        elif rs == "offen":
+            felder["haftungsquote"] = 100.0
+
+    GUELTIGE_REG_STATUS = {"offen", "abgelehnt", "teilhaftung"}
+    if "regulierung_status" in felder and felder["regulierung_status"] not in GUELTIGE_REG_STATUS:
+        return _err(f"Ungültiger regulierung_status: {felder['regulierung_status']!r}. "
+                    f"Erlaubt: {', '.join(sorted(GUELTIGE_REG_STATUS))}", 422)
 
     if not felder:
         return _err("Keine aktualisierbaren Felder im Body.", 422)
