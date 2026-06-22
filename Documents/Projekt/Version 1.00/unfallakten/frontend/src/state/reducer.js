@@ -45,6 +45,8 @@ function reducer(state, action) {
       return { ...state, [akteId]:{ ...cur, status:action.status } };
     case "SET_NOTIZEN":
       return { ...state, [akteId]:{ ...cur, notizen:action.notizen } };
+    case "SET_REGULIERUNG_STATUS":
+      return { ...state, [akteId]:{ ...cur, regulierungStatus: action.regulierungStatus } };
     case "SET_BELEGE_KANDIDATEN":
       return { ...state, [akteId]:{ ...cur, belegeKandidaten: action.kandidaten } };
     default: return state;
