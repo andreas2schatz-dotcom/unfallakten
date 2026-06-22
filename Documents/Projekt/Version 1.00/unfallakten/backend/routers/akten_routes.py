@@ -36,6 +36,8 @@ from ..services.portal_sync import _portal_flag
 logger = logging.getLogger(__name__)
 akten_bp = Blueprint("akten", __name__, url_prefix="/akten")
 
+GUELTIGE_REG_STATUS = frozenset({"offen", "abgelehnt", "teilhaftung"})
+
 
 def _j(daten, status=200):
     return jsonify(daten), status
@@ -132,6 +134,7 @@ def _akte_liste_dict(akte) -> dict:
         "unfallort":     akte.unfallort,
         "status":        akte.status,
         "haftungsquote": akte.haftungsquote,
+        "regulierung_status": getattr(akte, "regulierung_status", "offen"),
         "bearbeiter_id": akte.bearbeiter_id,
         "erstellt_am":   akte.erstellt_am,
         "geaendert_am":  akte.geaendert_am,
@@ -340,18 +343,18 @@ def aktualisiere(akte_id: str):
                 "regulierung_status"}
     felder = {k: v for k, v in daten.items() if k in erlaubte}
 
-    # Auto-haftungsquote bei regulierung_status
+    # Validierung zuerst
+    if "regulierung_status" in felder and felder["regulierung_status"] not in GUELTIGE_REG_STATUS:
+        return _err(f"Ungültiger regulierung_status: {felder['regulierung_status']!r}. "
+                    f"Erlaubt: {', '.join(sorted(GUELTIGE_REG_STATUS))}", 422)
+
+    # Auto-haftungsquote nur nach erfolgreicher Validierung
     if "regulierung_status" in felder and "haftungsquote" not in felder:
         rs = felder["regulierung_status"]
         if rs == "abgelehnt":
             felder["haftungsquote"] = 0.0
         elif rs == "offen":
             felder["haftungsquote"] = 100.0
-
-    GUELTIGE_REG_STATUS = {"offen", "abgelehnt", "teilhaftung"}
-    if "regulierung_status" in felder and felder["regulierung_status"] not in GUELTIGE_REG_STATUS:
-        return _err(f"Ungültiger regulierung_status: {felder['regulierung_status']!r}. "
-                    f"Erlaubt: {', '.join(sorted(GUELTIGE_REG_STATUS))}", 422)
 
     if not felder:
         return _err("Keine aktualisierbaren Felder im Body.", 422)
@@ -378,6 +381,10 @@ def aktualisiere(akte_id: str):
                 akte_id=akte_id, benutzer_id=g.benutzer_id)
         elif "notizen" in felder:
             logge_aktivitaet("notizen_geaendert", "Notizen aktualisiert",
+                akte_id=akte_id, benutzer_id=g.benutzer_id)
+        elif "regulierung_status" in felder:
+            logge_aktivitaet("regulierung_status_geaendert",
+                f"Regulierungsstatus → {felder['regulierung_status']}",
                 akte_id=akte_id, benutzer_id=g.benutzer_id)
         elif "haftungsquote" in felder:
             logge_aktivitaet("haftungsquote_geaendert",

@@ -14,6 +14,7 @@ from ..db.database import get_connection
 logger = logging.getLogger(__name__)
 
 GUELTIGE_STATUS = ("offen", "in_regulierung", "klage", "abgeschlossen")
+GUELTIGE_REG_STATUS = frozenset({"offen", "abgelehnt", "teilhaftung"})
 
 
 @dataclass
@@ -170,6 +171,8 @@ def aktualisiere_akte(akte_id: str, bearbeiter_id: Optional[int] = None,
         return hole_akte_by_id(akte_id)
     if "status" in updates and updates["status"] not in GUELTIGE_STATUS:
         raise ValueError(f"Ungültiger Status: {updates['status']!r}")
+    if "regulierung_status" in updates and updates["regulierung_status"] not in GUELTIGE_REG_STATUS:
+        raise ValueError(f"Ungültiger regulierung_status: {updates['regulierung_status']!r}")
     set_clause = ", ".join(f"{k} = ?" for k in updates)
     params = list(updates.values()) + [str(akte_id)]
     with get_connection() as conn:
