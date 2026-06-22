@@ -28,6 +28,7 @@ class Unfallakte:
     bearbeiter_id:   Optional[int]  = None
     notizen:         Optional[str]  = None
     haftungsquote:   float          = 100.0
+    regulierung_status: str         = "offen"
     kurzbezeichnung: Optional[str]  = None
     sachbearbeiter:  Optional[str]  = None
 
@@ -54,6 +55,7 @@ class Unfallakte:
             bearbeiter_id=  row["bearbeiter_id"],
             notizen=        row["notizen"],
             haftungsquote=  row["haftungsquote"],
+            regulierung_status= row["regulierung_status"] if "regulierung_status" in keys else "offen",
             kurzbezeichnung=row["kurzbezeichnung"] if "kurzbezeichnung" in keys else None,
             sachbearbeiter= row["sachbearbeiter"]  if "sachbearbeiter"  in keys else None,
         )
@@ -161,7 +163,8 @@ def liste_akten(status: Optional[str] = None,
 def aktualisiere_akte(akte_id: str, bearbeiter_id: Optional[int] = None,
                        **felder) -> Optional["Unfallakte"]:
     erlaubte = {"status", "notizen", "unfallort", "bearbeiter_id",
-                "haftungsquote", "unfalldatum", "kurzbezeichnung", "sachbearbeiter"}
+                "haftungsquote", "unfalldatum", "kurzbezeichnung",
+                "sachbearbeiter", "regulierung_status"}
     updates = {k: v for k, v in felder.items() if k in erlaubte}
     if not updates:
         return hole_akte_by_id(akte_id)
