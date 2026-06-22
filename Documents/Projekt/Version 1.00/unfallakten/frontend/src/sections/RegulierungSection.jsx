@@ -1633,7 +1633,7 @@ function PruefberichteGespeichertListe({ pruefberichte, mandantAdresse }) {
 
 
 
-function RegulierungSection({ brutto, hq, dispatch, akteId, schaden, abrechnungenCached, beteiligte, dokumente }) {
+function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, schaden, abrechnungenCached, beteiligte, dokumente }) {
   const [abrechnungen, setAbrechnungen]   = useState([]);
   const [kuerzungsarten, setKuerzungsarten] = useState([]);
   const [pruefberichte, setPruefberichte] = useState([]);
@@ -1644,6 +1644,10 @@ function RegulierungSection({ brutto, hq, dispatch, akteId, schaden, abrechnunge
   const [hqVal, setHqVal]       = useState(hq || 100);
   const [hqEditing, setHqEditing] = useState(false);
   const [hqSaving, setHqSaving]   = useState(false);
+
+  const [regStatus,  setRegStatus]  = useState(regulierungStatus || "offen");
+  const [regProzent, setRegProzent] = useState(hq > 0 && hq < 100 ? hq : 70);
+  const [regSaving,  setRegSaving]  = useState(false);
 
   // Aufgeklappte Zahlungshistorien
   const [expanded, setExpanded] = useState(new Set());
@@ -2071,6 +2075,26 @@ function RegulierungSection({ brutto, hq, dispatch, akteId, schaden, abrechnunge
     } finally { setVerweisLaden(false); }
   };
 
+  const speichereRegStatus = async (neuerStatus, prozent) => {
+    setRegSaving(true);
+    const body = { regulierung_status: neuerStatus };
+    if (neuerStatus === "abgelehnt") body.haftungsquote = 0;
+    else if (neuerStatus === "offen") body.haftungsquote = 100;
+    else if (neuerStatus === "teilhaftung") body.haftungsquote = prozent;
+    try {
+      const res = await apiAkten.aktualisieren(akteId, body);
+      if (res?.hq !== undefined) dispatch({ type: "SET_HQ", hq: res.hq });
+      if (res?.regulierung_status) dispatch({ type: "SET_REGULIERUNG_STATUS", regulierungStatus: res.regulierung_status });
+      setRegStatus(neuerStatus);
+      if (neuerStatus === "teilhaftung") setRegProzent(prozent);
+      setToast("Regulierungsstatus gespeichert.");
+    } catch {
+      setToast("Fehler beim Speichern.");
+    } finally {
+      setRegSaving(false);
+    }
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
   if (loading) return (
     <div style={{ display:"flex", alignItems:"center", gap:10, padding:"2rem",
@@ -2083,8 +2107,74 @@ function RegulierungSection({ brutto, hq, dispatch, akteId, schaden, abrechnunge
 
   return (
     <>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       {toast && <Toast msg={toast} onDone={() => setToast("")} />}
       <div style={{ display:"flex", flexDirection:"column", gap:"1.25rem" }}>
+
+        {/* ── Regulierungsstatus-Kachel ── */}
+        <Card>
+          <CardHead titel="Regulierung abgelehnt?" />
+          <div style={{ padding:"0.75rem 1.1rem", display:"flex", flexDirection:"column", gap:12 }}>
+            <div style={{ display:"flex", gap:24, alignItems:"center" }}>
+              {[
+                { val:"offen",       label:"Nein"        },
+                { val:"abgelehnt",   label:"Ja"          },
+                { val:"teilhaftung", label:"Teilhaftung" },
+              ].map(opt => (
+                <label key={opt.val} style={{
+                  display:"flex", alignItems:"center", gap:7,
+                  cursor: regSaving ? "default" : "pointer",
+                  fontFamily:"'Figtree',sans-serif", fontSize:"0.95rem", color:T.text,
+                }}>
+                  <input
+                    type="radio"
+                    name={`reg-status-${akteId}`}
+                    value={opt.val}
+                    checked={regStatus === opt.val}
+                    disabled={regSaving}
+                    onChange={() => {
+                      setRegStatus(opt.val);
+                      if (opt.val !== "teilhaftung") speichereRegStatus(opt.val, regProzent);
+                    }}
+                    style={{ accentColor:T.navy, width:16, height:16 }}
+                  />
+                  {opt.label}
+                </label>
+              ))}
+              {regSaving && (
+                <div style={{
+                  width:14, height:14,
+                  border:`2px solid ${T.border}`,
+                  borderTopColor:T.navy, borderRadius:"50%",
+                  animation:"spin 0.7s linear infinite",
+                }}/>
+              )}
+            </div>
+            {regStatus === "teilhaftung" && (
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem", color:T.textMid }}>
+                  Versicherung reguliert:
+                </span>
+                <input
+                  type="number"
+                  min={1} max={99}
+                  value={regProzent}
+                  disabled={regSaving}
+                  onChange={e => setRegProzent(Number(e.target.value))}
+                  onBlur={() => speichereRegStatus("teilhaftung", regProzent)}
+                  onKeyDown={e => e.key === "Enter" && speichereRegStatus("teilhaftung", regProzent)}
+                  style={{
+                    width:70, padding:"5px 8px",
+                    border:`1.5px solid ${T.border}`,
+                    borderRadius:6, fontFamily:"ui-monospace,monospace",
+                    fontSize:"0.95rem", color:T.text, textAlign:"right",
+                  }}
+                />
+                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem", color:T.textMid }}>%</span>
+              </div>
+            )}
+          </div>
+        </Card>
 
         {/* ── Verweis-Banner ── */}
         {verweisLaden && (
