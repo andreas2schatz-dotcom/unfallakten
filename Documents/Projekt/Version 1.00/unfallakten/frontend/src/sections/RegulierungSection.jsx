@@ -2076,6 +2076,7 @@ function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, s
   };
 
   const speichereRegStatus = async (neuerStatus, prozent) => {
+    const alterStatus = regStatus;
     setRegSaving(true);
     const body = { regulierung_status: neuerStatus };
     if (neuerStatus === "abgelehnt") body.haftungsquote = 0;
@@ -2083,12 +2084,12 @@ function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, s
     else if (neuerStatus === "teilhaftung") body.haftungsquote = prozent;
     try {
       const res = await apiAkten.aktualisieren(akteId, body);
-      if (res?.hq !== undefined) dispatch({ type: "SET_HQ", hq: res.hq });
-      if (res?.regulierung_status) dispatch({ type: "SET_REGULIERUNG_STATUS", regulierungStatus: res.regulierung_status });
+      if (res?.regulierung_status) dispatch({ type: "SET_REGULIERUNG_STATUS", akteId, regulierungStatus: res.regulierung_status });
       setRegStatus(neuerStatus);
       if (neuerStatus === "teilhaftung") setRegProzent(prozent);
       setToast("Regulierungsstatus gespeichert.");
     } catch {
+      setRegStatus(alterStatus);
       setToast("Fehler beim Speichern.");
     } finally {
       setRegSaving(false);
