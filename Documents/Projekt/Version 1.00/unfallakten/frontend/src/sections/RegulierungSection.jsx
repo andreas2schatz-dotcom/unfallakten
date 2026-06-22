@@ -1645,7 +1645,7 @@ function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, s
   const [hqEditing, setHqEditing] = useState(false);
   const [hqSaving, setHqSaving]   = useState(false);
 
-  const [regStatus,  setRegStatus]  = useState(regulierungStatus || "offen");
+  const [regStatus,  setRegStatus]  = useState(regulierungStatus ?? "offen");
   const [regProzent, setRegProzent] = useState(hq > 0 && hq < 100 ? hq : 70);
   const [regSaving,  setRegSaving]  = useState(false);
 
@@ -2085,7 +2085,7 @@ function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, s
     try {
       const res = await apiAkten.aktualisieren(akteId, body);
       if (res?.regulierung_status) dispatch({ type: "SET_REGULIERUNG_STATUS", akteId, regulierungStatus: res.regulierung_status });
-      setRegStatus(neuerStatus);
+      setRegStatus(res?.regulierung_status ?? neuerStatus);
       if (neuerStatus === "teilhaftung") setRegProzent(prozent);
       setToast("Regulierungsstatus gespeichert.");
     } catch {
