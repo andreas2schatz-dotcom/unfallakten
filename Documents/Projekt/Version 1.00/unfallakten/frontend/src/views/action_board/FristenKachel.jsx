@@ -60,7 +60,7 @@ export default function FristenKachel({ eintraege, onOpenAkte }) {
   const demnächst = eintraege.filter((e) => e.tage_bis > 0);
 
   const S = {
-    kachel: { background: "#1c1917", border: "1px solid #7c2d12", borderRadius: 6, padding: 12 },
+    kachel: { background: "#1c1917", border: "1px solid #7c2d12", borderRadius: 6, padding: 12, display: "flex", flexDirection: "column", maxHeight: "calc(50vh - 90px)", overflow: "hidden" },
     header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
     titel:  { color: "#fb923c", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" },
     badge:  { background: "#dc2626", color: "white", borderRadius: 10, padding: "2px 8px", fontSize: 10, fontWeight: 600 },
@@ -86,19 +86,21 @@ export default function FristenKachel({ eintraege, onOpenAkte }) {
         )}
       </div>
 
-      {kritisch.length > 0 && (
-        <>
-          <div style={{ ...S.label, color: "#fca5a5" }}>⚠ Handlungsbedarf</div>
-          {kritisch.map((e) => <FristEintrag key={e.az + e.frist_datum} e={e} onOpenAkte={onOpenAkte} />)}
-        </>
-      )}
+      <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
+        {kritisch.length > 0 && (
+          <>
+            <div style={{ ...S.label, color: "#fca5a5" }}>⚠ Handlungsbedarf</div>
+            {kritisch.map((e) => <FristEintrag key={e.az + e.frist_datum} e={e} onOpenAkte={onOpenAkte} />)}
+          </>
+        )}
 
-      {demnächst.length > 0 && (
-        <>
-          <div style={{ ...S.label, marginTop: kritisch.length > 0 ? 10 : 0 }}>Demnächst</div>
-          {demnächst.map((e) => <FristEintrag key={e.az + e.frist_datum} e={e} onOpenAkte={onOpenAkte} />)}
-        </>
-      )}
+        {demnächst.length > 0 && (
+          <>
+            <div style={{ ...S.label, marginTop: kritisch.length > 0 ? 10 : 0 }}>Demnächst</div>
+            {demnächst.map((e) => <FristEintrag key={e.az + e.frist_datum} e={e} onOpenAkte={onOpenAkte} />)}
+          </>
+        )}
+      </div>
     </div>
   );
 }

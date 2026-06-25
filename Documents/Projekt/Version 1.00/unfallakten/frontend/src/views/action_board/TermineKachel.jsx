@@ -8,6 +8,8 @@ const S = {
     padding: 12,
     display: "flex",
     flexDirection: "column",
+    maxHeight: "calc(50vh - 90px)",
+    overflow: "hidden",
   },
   header: {
     display: "flex",
@@ -86,37 +88,39 @@ export default function TermineKachel({ eintraege, onOpenAkte }) {
         <span style={S.badge}>{anzahl}</span>
       </div>
 
-      {heute.length > 0 && (
-        <>
-          <div style={S.sectionLabel}>Heute</div>
-          {heute.map((e) => (
-            <div key={e.az + e.termin_datum} style={S.eintrag(false)} onClick={() => handleClick(e)}>
-              <div>
-                <div style={S.art}>{(e.termin_art || "Termin").toUpperCase()}</div>
-                <div style={S.bezeichnung}>{e.kurzbezeichnung || e.mandant}</div>
-                <div style={S.az}>{e.az}</div>
+      <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
+        {heute.length > 0 && (
+          <>
+            <div style={S.sectionLabel}>Heute</div>
+            {heute.map((e) => (
+              <div key={e.az + e.termin_datum} style={S.eintrag(false)} onClick={() => handleClick(e)}>
+                <div>
+                  <div style={S.art}>{(e.termin_art || "Termin").toUpperCase()}</div>
+                  <div style={S.bezeichnung}>{e.kurzbezeichnung || e.mandant}</div>
+                  <div style={S.az}>{e.az}</div>
+                </div>
+                <div style={S.uhrzeit}>{e.uhrzeit || ""}</div>
               </div>
-              <div style={S.uhrzeit}>{e.uhrzeit || ""}</div>
-            </div>
-          ))}
-        </>
-      )}
+            ))}
+          </>
+        )}
 
-      {morgen.length > 0 && (
-        <>
-          <div style={{ ...S.sectionLabel, marginTop: heute.length > 0 ? 8 : 0 }}>Morgen</div>
-          {morgen.map((e) => (
-            <div key={e.az + e.termin_datum} style={S.eintrag(true)} onClick={() => handleClick(e)}>
-              <div>
-                <div style={{ ...S.art, color: "#9ca3af" }}>{(e.termin_art || "Termin").toUpperCase()}</div>
-                <div style={{ ...S.bezeichnung, color: "#cbd5e1" }}>{e.kurzbezeichnung || e.mandant}</div>
-                <div style={{ ...S.az, color: "#6b7280" }}>{e.az}</div>
+        {morgen.length > 0 && (
+          <>
+            <div style={{ ...S.sectionLabel, marginTop: heute.length > 0 ? 8 : 0 }}>Morgen</div>
+            {morgen.map((e) => (
+              <div key={e.az + e.termin_datum} style={S.eintrag(true)} onClick={() => handleClick(e)}>
+                <div>
+                  <div style={{ ...S.art, color: "#9ca3af" }}>{(e.termin_art || "Termin").toUpperCase()}</div>
+                  <div style={{ ...S.bezeichnung, color: "#cbd5e1" }}>{e.kurzbezeichnung || e.mandant}</div>
+                  <div style={{ ...S.az, color: "#6b7280" }}>{e.az}</div>
+                </div>
+                <div style={{ ...S.uhrzeit, color: "#9ca3af" }}>{e.uhrzeit || ""}</div>
               </div>
-              <div style={{ ...S.uhrzeit, color: "#9ca3af" }}>{e.uhrzeit || ""}</div>
-            </div>
-          ))}
-        </>
-      )}
+            ))}
+          </>
+        )}
+      </div>
     </div>
   );
 }

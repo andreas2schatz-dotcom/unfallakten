@@ -15,7 +15,7 @@ export default function PosteingangKachel({ eintraege, onOpenEmail, onAlleOeffne
   const gesamt = (eintraege || []).length;
 
   const S = {
-    kachel:  { background: "#0a1f1a", border: "1px solid #14532d", borderRadius: 6, padding: 12 },
+    kachel:  { background: "#0a1f1a", border: "1px solid #14532d", borderRadius: 6, padding: 12, display: "flex", flexDirection: "column", maxHeight: "calc(50vh - 90px)", overflow: "hidden" },
     header:  { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
     titel:   { color: "#4ade80", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" },
     badge:   { background: "#15803d", color: "white", borderRadius: 10, padding: "2px 8px", fontSize: 10, fontWeight: 600 },
@@ -66,41 +66,43 @@ export default function PosteingangKachel({ eintraege, onOpenEmail, onAlleOeffne
         ))}
       </div>
 
-      {gefiltert.length === 0 ? (
-        <div style={S.leer}>Keine neuen E-Mails</div>
-      ) : (
-        gefiltert.slice(0, 5).map((e) => (
-          <div
-            key={e.log_id}
-            onClick={() => onOpenEmail && onOpenEmail({ az: e.az, logId: e.log_id })}
-            style={{
-              background: "#0d2b1f",
-              borderRadius: 4,
-              padding: "8px 10px",
-              marginBottom: 5,
-              cursor: "pointer",
-              borderLeft: "3px solid #16a34a",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-            }}
-          >
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: "#e2e8f0", fontSize: 12, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {e.betreff || "(kein Betreff)"}
+      <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
+        {gefiltert.length === 0 ? (
+          <div style={S.leer}>Keine neuen E-Mails</div>
+        ) : (
+          gefiltert.map((e) => (
+            <div
+              key={e.log_id}
+              onClick={() => onOpenEmail && onOpenEmail({ az: e.az, logId: e.log_id })}
+              style={{
+                background: "#0d2b1f",
+                borderRadius: 4,
+                padding: "8px 10px",
+                marginBottom: 5,
+                cursor: "pointer",
+                borderLeft: "3px solid #16a34a",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ color: "#e2e8f0", fontSize: 12, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {e.betreff || "(kein Betreff)"}
+                </div>
+                <div style={{ color: "#6b7280", fontSize: 10 }}>
+                  {e.absender}{e.az ? ` · ${e.az}` : ""}
+                </div>
               </div>
-              <div style={{ color: "#6b7280", fontSize: 10 }}>
-                {e.absender}{e.az ? ` · ${e.az}` : ""}
+              <div style={{ color: "#4b5563", fontSize: 10, whiteSpace: "nowrap", marginLeft: 8 }}>
+                {e.datum
+                  ? new Date(e.datum).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
+                  : ""}
               </div>
             </div>
-            <div style={{ color: "#4b5563", fontSize: 10, whiteSpace: "nowrap", marginLeft: 8 }}>
-              {e.datum
-                ? new Date(e.datum).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
-                : ""}
-            </div>
-          </div>
-        ))
-      )}
+          ))
+        )}
+      </div>
 
       {onAlleOeffnen && (
         <div style={S.allLink} onClick={onAlleOeffnen}>→ Alle E-Mails öffnen</div>

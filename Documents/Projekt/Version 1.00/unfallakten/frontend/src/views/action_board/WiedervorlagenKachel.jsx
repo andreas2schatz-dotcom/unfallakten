@@ -60,7 +60,7 @@ export default function WiedervorlagenKachel({ wv, ohne_wv, onOpenAkte }) {
   const hatInhalt    = gesamt > 0 || alleOhneWv.length > 0;
 
   const S = {
-    kachel: { background: "#0c1929", border: "1px solid #1e3a5f", borderRadius: 6, padding: 12 },
+    kachel: { background: "#0c1929", border: "1px solid #1e3a5f", borderRadius: 6, padding: 12, display: "flex", flexDirection: "column", maxHeight: "calc(50vh - 90px)", overflow: "hidden" },
     header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
     titel:  { color: "#60a5fa", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" },
     badge:  { background: "#1d4ed8", color: "white", borderRadius: 10, padding: "2px 8px", fontSize: 10, fontWeight: 600 },
@@ -84,26 +84,28 @@ export default function WiedervorlagenKachel({ wv, ohne_wv, onOpenAkte }) {
         {gesamt > 0 && <span style={S.badge}>{gesamt} offen</span>}
       </div>
 
-      {ueberfaellig.length > 0 && (
-        <>
-          <div style={S.label}>Überfällig</div>
-          {ueberfaellig.map((e) => <WvEintrag key={e.az + e.datum} e={e} onOpenAkte={onOpenAkte} />)}
-        </>
-      )}
+      <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
+        {ueberfaellig.length > 0 && (
+          <>
+            <div style={S.label}>Überfällig</div>
+            {ueberfaellig.map((e) => <WvEintrag key={e.az + e.datum} e={e} onOpenAkte={onOpenAkte} />)}
+          </>
+        )}
 
-      {heute.length > 0 && (
-        <>
-          <div style={{ ...S.label, marginTop: ueberfaellig.length > 0 ? 8 : 0 }}>Heute fällig</div>
-          {heute.map((e) => <WvEintrag key={e.az + e.datum} e={e} onOpenAkte={onOpenAkte} />)}
-        </>
-      )}
+        {heute.length > 0 && (
+          <>
+            <div style={{ ...S.label, marginTop: ueberfaellig.length > 0 ? 8 : 0 }}>Heute fällig</div>
+            {heute.map((e) => <WvEintrag key={e.az + e.datum} e={e} onOpenAkte={onOpenAkte} />)}
+          </>
+        )}
 
-      {alleOhneWv.length > 0 && (
-        <>
-          <div style={{ ...S.label, marginTop: gesamt > 0 ? 8 : 0 }}>Keine Wiedervorlage gesetzt</div>
-          {alleOhneWv.map((e) => <WvEintrag key={e.az} e={e} onOpenAkte={onOpenAkte} />)}
-        </>
-      )}
+        {alleOhneWv.length > 0 && (
+          <>
+            <div style={{ ...S.label, marginTop: gesamt > 0 ? 8 : 0 }}>Keine Wiedervorlage gesetzt</div>
+            {alleOhneWv.map((e) => <WvEintrag key={e.az} e={e} onOpenAkte={onOpenAkte} />)}
+          </>
+        )}
+      </div>
     </div>
   );
 }
