@@ -693,6 +693,8 @@ def _lade_wiedervorlagen():
                 FROM tblAktenWiedervorlagen w
                 INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
                 WHERE CAST(w.dtWiedervorlage AS DATE) >= %(heute)s
+                  AND (a.dtAblage IS NULL
+                       OR CAST(a.dtAblage AS DATE) = '1899-12-30')
             """, {"heute": heute_s})
             az_mit_aktiver_wv = {
                 (r.get("az_full") or "").strip()
