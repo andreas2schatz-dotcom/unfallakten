@@ -6,6 +6,7 @@ Endpunkte für das Action-Dashboard.
 Endpunkte:
   GET  /dashboard/action-items   Priorisierte Arbeitsliste für den Tag
   GET  /dashboard/termine-heute  Heutige + morgige Gerichtstermine aus RA-MICRO
+  GET  /dashboard/fristen        Harte Fristen aus RA-MICRO (Codes 21,22,31,46,75), überfällig bis +14 Tage
 
 Python 3.9 kompatibel.
 """
@@ -479,6 +480,14 @@ _TERMIN_LABELS = {
     60: "Anhörungstermin",
 }
 
+_FRIST_LABELS = {
+    21: "Klage",
+    22: "Urteil",
+    31: "Mahnbescheid",
+    46: "Berufung",
+    75: "Fristablauf",
+}
+
 
 def _bilde_az(row):
     # type: (dict) -> str
@@ -568,3 +577,61 @@ def _lade_termine_heute():
 def termine_heute():
     """Heutige + morgige Gerichtstermine und Anhörungen aus RA-MICRO."""
     return _j({"eintraege": _lade_termine_heute()})
+
+
+def _lade_ramicro_fristen_hart():
+    # type: () -> list
+    heute_dt  = date.today()
+    plus14_dt = heute_dt + timedelta(days=14)
+    plus14_s  = plus14_dt.isoformat()
+
+    try:
+        with get_ramicro_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT TOP 50
+                    a.sAktenNummer          AS az_roh,
+                    a.sAktenSachbearbeiter  AS az_sb,
+                    a.sMandant              AS mandant,
+                    a.sAktenKurzBezeichnung AS kurzbezeichnung,
+                    w.dtWiedervorlage       AS frist_datum,
+                    w.iWiedervorlageGrund   AS grund_code
+                FROM tblAktenWiedervorlagen w
+                INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
+                WHERE w.iWiedervorlageGrund IN (21, 22, 31, 46, 75)
+                  AND CAST(w.dtWiedervorlage AS DATE) <= %(plus14)s
+                  AND (a.dtAblage IS NULL
+                       OR CAST(a.dtAblage AS DATE) = '1899-12-30')
+                ORDER BY w.dtWiedervorlage ASC
+            """, {"plus14": plus14_s})
+            rows = cur.fetchall()
+
+        ergebnis = []
+        for r in rows:
+            az = _bilde_az(r)
+            frist_iso, tage = _parse_datum(r.get("frist_datum"), heute_dt)
+            code = r.get("grund_code")
+            frist_art = _FRIST_LABELS.get(int(code), f"Grund {code}") if code else "Frist"
+
+            ergebnis.append({
+                "az":              az,
+                "mandant":         (r.get("mandant") or "").strip(),
+                "kurzbezeichnung": (r.get("kurzbezeichnung") or "").strip(),
+                "frist_art":       frist_art,
+                "frist_datum":     frist_iso,
+                "tage_bis":        tage,
+            })
+        return ergebnis
+
+    except (RaMicroNichtAktiv, RaMicroVerbindungsFehler):
+        return []
+    except Exception as e:
+        logger.warning("fristen Fehler: %s", e)
+        return []
+
+
+@dashboard_bp.route("/fristen", methods=["GET"])
+@login_erforderlich
+def fristen():
+    """Fristen aus RA-MICRO: Codes 21,22,31,46,75 — überfällig bis +14 Tage."""
+    return _j({"eintraege": _lade_ramicro_fristen_hart()})

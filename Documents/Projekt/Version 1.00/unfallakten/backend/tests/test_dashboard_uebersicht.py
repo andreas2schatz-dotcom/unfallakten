@@ -160,5 +160,19 @@ class TestDashboardUebersicht(unittest.TestCase):
                 self.assertIn(feld, e, f"Feld '{feld}' fehlt in Eintrag: {e}")
 
 
+    def test_fristen_gibt_liste_zurueck(self):
+        """GET /dashboard/fristen liefert eintraege-Liste."""
+        headers = self._auth_header()
+        resp = self.client.get("/dashboard/fristen", headers=headers)
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertIn("eintraege", data)
+        self.assertIsInstance(data["eintraege"], list)
+
+    def test_fristen_ohne_token_401(self):
+        resp = self.client.get("/dashboard/fristen")
+        self.assertEqual(resp.status_code, 401)
+
+
 if __name__ == "__main__":
     unittest.main()
