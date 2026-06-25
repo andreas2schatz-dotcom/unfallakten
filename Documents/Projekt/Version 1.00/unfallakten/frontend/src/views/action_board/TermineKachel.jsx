@@ -92,7 +92,7 @@ export default function TermineKachel({ eintraege, onOpenAkte }) {
           {heute.map((e) => (
             <div key={e.az + e.termin_datum} style={S.eintrag(false)} onClick={() => handleClick(e)}>
               <div>
-                <div style={S.art}>{e.termin_art.toUpperCase()}</div>
+                <div style={S.art}>{(e.termin_art || "Termin").toUpperCase()}</div>
                 <div style={S.bezeichnung}>{e.kurzbezeichnung || e.mandant}</div>
                 <div style={S.az}>{e.az}</div>
               </div>
@@ -108,7 +108,7 @@ export default function TermineKachel({ eintraege, onOpenAkte }) {
           {morgen.map((e) => (
             <div key={e.az + e.termin_datum} style={S.eintrag(true)} onClick={() => handleClick(e)}>
               <div>
-                <div style={{ ...S.art, color: "#9ca3af" }}>{e.termin_art.toUpperCase()}</div>
+                <div style={{ ...S.art, color: "#9ca3af" }}>{(e.termin_art || "Termin").toUpperCase()}</div>
                 <div style={{ ...S.bezeichnung, color: "#cbd5e1" }}>{e.kurzbezeichnung || e.mandant}</div>
                 <div style={{ ...S.az, color: "#6b7280" }}>{e.az}</div>
               </div>
