@@ -4,9 +4,10 @@ Dashboard-Router – PRD-25b
 Endpunkte für das Action-Dashboard.
 
 Endpunkte:
-  GET  /dashboard/action-items   Priorisierte Arbeitsliste für den Tag
-  GET  /dashboard/termine-heute  Heutige + morgige Gerichtstermine aus RA-MICRO
-  GET  /dashboard/fristen        Harte Fristen aus RA-MICRO (Codes 21,22,31,46,75), überfällig bis +14 Tage
+  GET  /dashboard/action-items    Priorisierte Arbeitsliste für den Tag
+  GET  /dashboard/termine-heute   Heutige + morgige Gerichtstermine aus RA-MICRO
+  GET  /dashboard/fristen         Harte Fristen aus RA-MICRO (Codes 21,22,31,46,75), überfällig bis +14 Tage
+  GET  /dashboard/wiedervorlagen  WV überfällig+heute aus RA-MICRO + lokale Akten ohne aktive WV
 
 Python 3.9 kompatibel.
 """
@@ -635,3 +636,105 @@ def _lade_ramicro_fristen_hart():
 def fristen():
     """Fristen aus RA-MICRO: Codes 21,22,31,46,75 — überfällig bis +14 Tage."""
     return _j({"eintraege": _lade_ramicro_fristen_hart()})
+
+
+def _lade_wiedervorlagen():
+    # type: () -> dict
+    heute_dt = date.today()
+    heute_s  = heute_dt.isoformat()
+
+    wv_eintraege       = []
+    az_mit_aktiver_wv  = set()
+    ramicro_erreichbar = True
+
+    try:
+        with get_ramicro_connection() as conn:
+            cur = conn.cursor()
+
+            cur.execute("""
+                SELECT TOP 50
+                    a.sAktenNummer          AS az_roh,
+                    a.sAktenSachbearbeiter  AS az_sb,
+                    a.sMandant              AS mandant,
+                    a.sAktenKurzBezeichnung AS kurzbezeichnung,
+                    w.dtWiedervorlage       AS datum,
+                    w.iWiedervorlageGrund   AS grund_code,
+                    w.sWiedervorlagegrund   AS grund_text
+                FROM tblAktenWiedervorlagen w
+                INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
+                WHERE w.iWiedervorlageGrund NOT IN (9, 21, 22, 31, 46, 58, 60, 75)
+                  AND CAST(w.dtWiedervorlage AS DATE) <= %(heute)s
+                  AND (a.dtAblage IS NULL
+                       OR CAST(a.dtAblage AS DATE) = '1899-12-30')
+                ORDER BY w.dtWiedervorlage ASC
+            """, {"heute": heute_s})
+            for r in cur.fetchall():
+                az = _bilde_az(r)
+                datum_iso, tage = _parse_datum(r.get("datum"), heute_dt)
+                grund = (r.get("grund_text") or "").strip()
+                if not grund and r.get("grund_code"):
+                    try:
+                        grund = _RAMICRO_GRUENDE.get(int(r["grund_code"]), "Wiedervorlage")
+                    except (ValueError, TypeError):
+                        grund = "Wiedervorlage"
+                wv_eintraege.append({
+                    "az":              az,
+                    "mandant":         (r.get("mandant") or "").strip(),
+                    "kurzbezeichnung": (r.get("kurzbezeichnung") or "").strip(),
+                    "grund":           grund,
+                    "datum":           datum_iso,
+                    "tage_bis":        tage,
+                    "hat_wv":          True,
+                })
+
+            cur.execute("""
+                SELECT DISTINCT
+                    a.sAktenNummer + a.sAktenSachbearbeiter AS az_full
+                FROM tblAktenWiedervorlagen w
+                INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
+                WHERE CAST(w.dtWiedervorlage AS DATE) >= %(heute)s
+            """, {"heute": heute_s})
+            az_mit_aktiver_wv = {
+                (r.get("az_full") or "").strip()
+                for r in cur.fetchall()
+            }
+
+    except (RaMicroNichtAktiv, RaMicroVerbindungsFehler):
+        ramicro_erreichbar = False
+    except Exception as e:
+        logger.warning("wiedervorlagen Fehler: %s", e)
+        ramicro_erreichbar = False
+
+    ohne_wv = []
+    try:
+        with get_connection() as conn:
+            rows = conn.execute("""
+                SELECT az, kurzbezeichnung
+                FROM unfallakte
+                WHERE status NOT IN ('abgeschlossen')
+                ORDER BY geaendert_am DESC
+                LIMIT 100
+            """).fetchall()
+        for r in rows:
+            az = r["az"]
+            if not ramicro_erreichbar or az not in az_mit_aktiver_wv:
+                ohne_wv.append({
+                    "az":              az,
+                    "mandant":         "",
+                    "kurzbezeichnung": r["kurzbezeichnung"] or "",
+                    "grund":           None,
+                    "datum":           None,
+                    "tage_bis":        None,
+                    "hat_wv":          False,
+                })
+    except Exception as e:
+        logger.warning("ohne_wv Fehler: %s", e)
+
+    return {"wv": wv_eintraege, "ohne_wv": ohne_wv[:10]}
+
+
+@dashboard_bp.route("/wiedervorlagen", methods=["GET"])
+@login_erforderlich
+def wiedervorlagen():
+    """WV überfällig+heute aus RA-MICRO + lokale Akten ohne aktive WV."""
+    return _j(_lade_wiedervorlagen())

@@ -173,6 +173,38 @@ class TestDashboardUebersicht(unittest.TestCase):
         resp = self.client.get("/dashboard/fristen")
         self.assertEqual(resp.status_code, 401)
 
+    def test_wiedervorlagen_gibt_dict_zurueck(self):
+        """GET /dashboard/wiedervorlagen liefert wv + ohne_wv Listen."""
+        headers = self._auth_header()
+        resp = self.client.get("/dashboard/wiedervorlagen", headers=headers)
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertIn("wv", data)
+        self.assertIn("ohne_wv", data)
+        self.assertIsInstance(data["wv"], list)
+        self.assertIsInstance(data["ohne_wv"], list)
+
+    def test_wiedervorlagen_ohne_token_401(self):
+        resp = self.client.get("/dashboard/wiedervorlagen")
+        self.assertEqual(resp.status_code, 401)
+
+    def test_wiedervorlagen_ohne_wv_enthaelt_lokale_akte(self):
+        """Eine Akte ohne RA-MICRO WV erscheint in ohne_wv (wenn RA-MICRO nicht verbunden)."""
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO unfallakte (az, status) VALUES (?, ?)",
+                ("WV-TEST/26AS", "offen")
+            )
+            conn.commit()
+
+        headers = self._auth_header()
+        resp = self.client.get("/dashboard/wiedervorlagen", headers=headers)
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        az_liste = [e["az"] for e in data["ohne_wv"]]
+        self.assertIn("WV-TEST/26AS", az_liste)
+
 
 if __name__ == "__main__":
     unittest.main()
