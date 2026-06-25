@@ -1,23 +1,16 @@
 import React, { useState } from "react";
 
-function kontoKuerzel(absender) {
-  if (!absender) return "unfall";
-  if (absender.includes("termin@"))   return "termin";
-  if (absender.includes("bussgeld@")) return "bussgeld";
-  return "unfall";
-}
-
 export default function PosteingangKachel({ eintraege, onOpenEmail, onAlleOeffnen }) {
   const [aktivesKonto, setAktivesKonto] = useState("unfall");
 
   const konten = ["unfall", "termin", "bussgeld"];
   const zaehler = {};
   konten.forEach((k) => {
-    zaehler[k] = (eintraege || []).filter((e) => kontoKuerzel(e.absender) === k).length;
+    zaehler[k] = (eintraege || []).filter((e) => (e.konto || "unfall") === k).length;
   });
 
   const gefiltert = (eintraege || []).filter(
-    (e) => kontoKuerzel(e.absender) === aktivesKonto
+    (e) => (e.konto || "unfall") === aktivesKonto
   );
   const gesamt = (eintraege || []).length;
 
@@ -109,7 +102,9 @@ export default function PosteingangKachel({ eintraege, onOpenEmail, onAlleOeffne
         ))
       )}
 
-      <div style={S.allLink} onClick={onAlleOeffnen}>→ Alle E-Mails öffnen</div>
+      {onAlleOeffnen && (
+        <div style={S.allLink} onClick={onAlleOeffnen}>→ Alle E-Mails öffnen</div>
+      )}
     </div>
   );
 }

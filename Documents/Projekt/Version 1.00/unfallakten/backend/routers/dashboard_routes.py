@@ -347,13 +347,17 @@ def _lade_nachrichten_neu(conn):
             e.absender,
             e.betreff,
             e.empfangen_am AS datum,
+            e.konto        AS konto,
             'email'        AS kanal
         FROM email_import_log e
         JOIN unfallakte a ON a.az = e.akte_id
         ORDER BY e.empfangen_am DESC
         LIMIT 20
     """).fetchall()
-    return [dict(r) for r in rows]
+    return [
+        {**dict(r), "konto": r["konto"] or "unfall"}
+        for r in rows
+    ]
 
 
 @dashboard_bp.route("/onboarding-offen", methods=["GET"])
@@ -582,9 +586,11 @@ def termine_heute():
 
 def _lade_ramicro_fristen_hart():
     # type: () -> list
-    heute_dt  = date.today()
-    plus14_dt = heute_dt + timedelta(days=14)
-    plus14_s  = plus14_dt.isoformat()
+    heute_dt    = date.today()
+    plus14_dt   = heute_dt + timedelta(days=14)
+    plus14_s    = plus14_dt.isoformat()
+    minus365_dt = heute_dt - timedelta(days=365)
+    minus365_s  = minus365_dt.isoformat()
 
     try:
         with get_ramicro_connection() as conn:
@@ -600,11 +606,11 @@ def _lade_ramicro_fristen_hart():
                 FROM tblAktenWiedervorlagen w
                 INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
                 WHERE w.iWiedervorlageGrund IN (21, 22, 31, 46, 75)
-                  AND CAST(w.dtWiedervorlage AS DATE) <= %(plus14)s
+                  AND CAST(w.dtWiedervorlage AS DATE) BETWEEN %(minus365)s AND %(plus14)s
                   AND (a.dtAblage IS NULL
                        OR CAST(a.dtAblage AS DATE) = '1899-12-30')
                 ORDER BY w.dtWiedervorlage ASC
-            """, {"plus14": plus14_s})
+            """, {"plus14": plus14_s, "minus365": minus365_s})
             rows = cur.fetchall()
 
         ergebnis = []
