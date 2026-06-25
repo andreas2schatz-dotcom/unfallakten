@@ -485,6 +485,15 @@ _TERMIN_LABELS = {
     60: "Anhörungstermin",
 }
 
+# raKalender.dbo.Calendars → Sachbearbeiter-Kürzel
+_KALENDER_ZU_SB = {
+    "Peter Koch":        "PK",
+    "Monika Mieth":      "MM",
+    "RA.Schatz":         "AS",
+    "C. Ostarek":        "CO",
+    "Alexander.Herbert": "AH",
+}
+
 _FRIST_LABELS = {
     21: "Klage",
     22: "Urteil",
@@ -520,14 +529,75 @@ def _parse_datum(raw, heute_dt):
 
 def _lade_termine_heute():
     # type: () -> list
-    heute_dt   = date.today()
-    morgen_dt  = heute_dt + timedelta(days=1)
-    heute_s    = heute_dt.isoformat()
-    morgen_s   = morgen_dt.isoformat()
+    heute_dt  = date.today()
+    morgen_dt = heute_dt + timedelta(days=1)
+    heute_s   = heute_dt.isoformat()
+    morgen_s  = morgen_dt.isoformat()
+
+    ergebnis  = []
+    seen_keys = set()  # Dedup: (az, datum_iso)
 
     try:
         with get_ramicro_connection() as conn:
             cur = conn.cursor()
+
+            # Primärquelle: raKalender.dbo.Events (alle Kalendertermine)
+            cur.execute("""
+                SELECT TOP 100
+                    e.StartDateTime,
+                    e.Subject,
+                    e.Aktennummer,
+                    e.Aktenkurzbezeichnung,
+                    e.IsGerichtstermin,
+                    e.GerichtName,
+                    c.CalendarName
+                FROM raKalender.dbo.Events e
+                LEFT JOIN raKalender.dbo.Calendars c
+                    ON c.CalendarId = e.CalendarId AND c.Deleted = 0
+                WHERE CAST(e.StartDateTime AS DATE) BETWEEN %(heute)s AND %(morgen)s
+                  AND e.IsDeleted = 0
+                ORDER BY e.StartDateTime ASC
+            """, {"heute": heute_s, "morgen": morgen_s})
+            for r in cur.fetchall():
+                datum_raw = r.get("StartDateTime")
+                datum_iso, tage = _parse_datum(datum_raw, heute_dt)
+
+                # Uhrzeit aus StartDateTime
+                uhrzeit = None
+                if datum_raw and hasattr(datum_raw, "hour"):
+                    uhrzeit = datum_raw.strftime("%H:%M")
+                elif datum_raw and hasattr(datum_raw, "date"):
+                    uhrzeit = datum_raw.strftime("%H:%M")
+
+                cal_name = (r.get("CalendarName") or "").strip()
+                sb = _KALENDER_ZU_SB.get(cal_name)
+
+                ak_nr = (r.get("Aktennummer") or "").strip()
+                az = (ak_nr + sb) if (ak_nr and sb) else ak_nr
+
+                is_gt = bool(r.get("IsGerichtstermin"))
+                subject = (r.get("Subject") or "").strip()
+                termin_art = (
+                    ("Verhandlungstermin" if not subject else subject)
+                    if is_gt else
+                    ("Mandantentermin" if not subject else subject)
+                )
+
+                key = (az or cal_name, datum_iso, uhrzeit)
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    ergebnis.append({
+                        "az":              az,
+                        "mandant":         "",
+                        "kurzbezeichnung": (r.get("Aktenkurzbezeichnung") or "").strip(),
+                        "termin_art":      termin_art,
+                        "termin_datum":    datum_iso,
+                        "uhrzeit":         uhrzeit,
+                        "tage_bis":        tage,
+                        "sb":              sb or "",
+                    })
+
+            # Ergänzung: tblAktenWiedervorlagen Codes 9/58/60 (Gerichtstermine als WV)
             cur.execute("""
                 SELECT TOP 30
                     a.sAktenNummer          AS az_roh,
@@ -540,41 +610,42 @@ def _lade_termine_heute():
                 FROM tblAktenWiedervorlagen w
                 INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
                 WHERE w.iWiedervorlageGrund IN (9, 58, 60)
-                  AND CAST(w.dtWiedervorlage AS DATE)
-                      BETWEEN %(heute)s AND %(morgen)s
+                  AND CAST(w.dtWiedervorlage AS DATE) BETWEEN %(heute)s AND %(morgen)s
                   AND (a.dtAblage IS NULL
                        OR CAST(a.dtAblage AS DATE) = '1899-12-30')
                 ORDER BY w.dtWiedervorlage ASC
             """, {"heute": heute_s, "morgen": morgen_s})
-            rows = cur.fetchall()
+            for r in cur.fetchall():
+                az = _bilde_az(r)
+                datum_iso, tage = _parse_datum(r.get("termin_datum"), heute_dt)
+                code = r.get("grund_code")
+                termin_art = _TERMIN_LABELS.get(int(code), "Termin") if code else "Termin"
+                bemerkung = (r.get("bemerkung") or "").strip()
+                m = re.search(r"(\d{1,2}:\d{2})", bemerkung)
+                uhrzeit = m.group(1) if m else None
 
-        ergebnis = []
-        for r in rows:
-            az = _bilde_az(r)
-            datum_iso, tage = _parse_datum(r.get("termin_datum"), heute_dt)
-            code = r.get("grund_code")
-            termin_art = _TERMIN_LABELS.get(int(code), "Termin") if code else "Termin"
-
-            bemerkung = (r.get("bemerkung") or "").strip()
-            m = re.search(r"(\d{1,2}:\d{2})", bemerkung)
-            uhrzeit = m.group(1) if m else None
-
-            ergebnis.append({
-                "az":              az,
-                "mandant":         (r.get("mandant") or "").strip(),
-                "kurzbezeichnung": (r.get("kurzbezeichnung") or "").strip(),
-                "termin_art":      termin_art,
-                "termin_datum":    datum_iso,
-                "uhrzeit":         uhrzeit,
-                "tage_bis":        tage,
-            })
-        return ergebnis
+                key = (az, datum_iso)
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    ergebnis.append({
+                        "az":              az,
+                        "mandant":         (r.get("mandant") or "").strip(),
+                        "kurzbezeichnung": (r.get("kurzbezeichnung") or "").strip(),
+                        "termin_art":      termin_art,
+                        "termin_datum":    datum_iso,
+                        "uhrzeit":         uhrzeit,
+                        "tage_bis":        tage,
+                        "sb":              (r.get("az_sb") or "").strip(),
+                    })
 
     except (RaMicroNichtAktiv, RaMicroVerbindungsFehler):
         return []
     except Exception as e:
         logger.warning("termine_heute Fehler: %s", e)
         return []
+
+    ergebnis.sort(key=lambda x: (x["tage_bis"], x["uhrzeit"] or "99:99"))
+    return ergebnis
 
 
 @dashboard_bp.route("/termine-heute", methods=["GET"])
