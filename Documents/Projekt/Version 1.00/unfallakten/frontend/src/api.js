@@ -397,7 +397,7 @@ export const emailImport = {
     }),
   // Regulierungsschreiben bestaetigen
   regulierungBestaetigen: (logId) => request(`/email/import/log/${logId}/regulierung-bestaetigen`, { method: 'POST' }),
-  // Aktion-Badge erledigt markieren
+  loeschen: (logId) => request(`/email/import/log/${logId}/loeschen`, { method: 'POST' }),
   aktionErledigt: (az) => request(`/akten/${az}/aktion-erledigt`, { method: 'POST' }),
   // Absender-Vorlagen
   vorlagen:   () => request('/email/import/absender-vorlagen'),
@@ -878,16 +878,13 @@ export const apiTodos = {
 };
 
 export const apiDashboard = {
-  actionItems: () => request('/dashboard/action-items'),
-
-  onboardingOffen: () =>
-    request("/dashboard/onboarding-offen"),
-
-  nachrichtenNeu: () =>
-    request("/dashboard/nachrichten-neu"),
-
-  ramicroFristen: () =>
-    request("/dashboard/ramicro-fristen"),
+  actionItems:     () => request('/dashboard/action-items'),
+  onboardingOffen: () => request("/dashboard/onboarding-offen"),
+  nachrichtenNeu:  () => request("/dashboard/nachrichten-neu"),
+  ramicroFristen:  () => request("/dashboard/ramicro-fristen"),
+  termineHeute:    () => request("/dashboard/termine-heute"),
+  fristen:         () => request("/dashboard/fristen"),
+  wiedervorlagen:  () => request("/dashboard/wiedervorlagen"),
 };
 
 // ── Einstellungen ─────────────────────────────────────────────────────────────
