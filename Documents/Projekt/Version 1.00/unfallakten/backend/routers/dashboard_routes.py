@@ -479,3 +479,105 @@ def _lade_ramicro_fristen():
 def ramicro_fristen():
     """Harte RA-MICRO Wiedervorlagen/Fristen für die nächsten 60 Tage."""
     return _j({"eintraege": _lade_ramicro_fristen()})
+
+
+_TERMIN_CODES  = {9, 58, 60}
+_FRIST_CODES   = {21, 22, 31, 46, 75}
+_WV_AUSSCHLUSS = _TERMIN_CODES | _FRIST_CODES
+
+_TERMIN_LABELS = {
+    9:  "Entscheidung/Gericht",
+    58: "Verhandlungstermin",
+    60: "Anhörungstermin",
+}
+
+
+def _bilde_az(row):
+    # type: (dict) -> str
+    az_roh = (row.get("az_roh") or "").strip()
+    az_sb  = (row.get("az_sb")  or "").strip()
+    if az_sb and not az_roh.upper().endswith(az_sb.upper()):
+        return az_roh + az_sb
+    return az_roh
+
+
+def _parse_datum(raw, heute_dt):
+    # type: (object, date) -> tuple
+    """Gibt (iso_str, tage_bis) zurück."""
+    try:
+        if hasattr(raw, "date"):
+            d = raw.date()
+        elif isinstance(raw, str):
+            d = date.fromisoformat(str(raw)[:10])
+        else:
+            d = raw
+        return d.isoformat(), (d - heute_dt).days
+    except Exception:
+        return str(raw)[:10] if raw else "", 99
+
+
+def _lade_termine_heute():
+    # type: () -> list
+    heute_dt   = date.today()
+    morgen_dt  = heute_dt + timedelta(days=1)
+    heute_s    = heute_dt.isoformat()
+    morgen_s   = morgen_dt.isoformat()
+
+    try:
+        with get_ramicro_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT TOP 30
+                    a.sAktenNummer          AS az_roh,
+                    a.sAktenSachbearbeiter  AS az_sb,
+                    a.sMandant              AS mandant,
+                    a.sAktenKurzBezeichnung AS kurzbezeichnung,
+                    w.dtWiedervorlage       AS termin_datum,
+                    w.iWiedervorlageGrund   AS grund_code,
+                    w.sBemerkung            AS bemerkung
+                FROM tblAktenWiedervorlagen w
+                INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
+                WHERE w.iWiedervorlageGrund IN (9, 58, 60)
+                  AND CAST(w.dtWiedervorlage AS DATE)
+                      BETWEEN %(heute)s AND %(morgen)s
+                  AND (a.dtAblage IS NULL
+                       OR CAST(a.dtAblage AS DATE) = '1899-12-30')
+                ORDER BY w.dtWiedervorlage ASC
+            """, {"heute": heute_s, "morgen": morgen_s})
+            rows = cur.fetchall()
+
+        import re as _re
+        ergebnis = []
+        for r in rows:
+            az = _bilde_az(r)
+            datum_iso, tage = _parse_datum(r.get("termin_datum"), heute_dt)
+            code = r.get("grund_code")
+            termin_art = _TERMIN_LABELS.get(int(code), "Termin") if code else "Termin"
+
+            bemerkung = (r.get("bemerkung") or "").strip()
+            m = _re.search(r"(\d{1,2}:\d{2})", bemerkung)
+            uhrzeit = m.group(1) if m else None
+
+            ergebnis.append({
+                "az":              az,
+                "mandant":         (r.get("mandant") or "").strip(),
+                "kurzbezeichnung": (r.get("kurzbezeichnung") or "").strip(),
+                "termin_art":      termin_art,
+                "termin_datum":    datum_iso,
+                "uhrzeit":         uhrzeit,
+                "tage_bis":        tage,
+            })
+        return ergebnis
+
+    except (RaMicroNichtAktiv, RaMicroVerbindungsFehler):
+        return []
+    except Exception as e:
+        logger.warning("termine_heute Fehler: %s", e)
+        return []
+
+
+@dashboard_bp.route("/termine-heute", methods=["GET"])
+@login_erforderlich
+def termine_heute():
+    """Heutige + morgige Gerichtstermine und Anhörungen aus RA-MICRO."""
+    return _j({"eintraege": _lade_termine_heute()})

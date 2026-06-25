@@ -136,5 +136,29 @@ class TestDashboardUebersicht(unittest.TestCase):
             self.assertIsNotNone(e["log_id"])
 
 
+    def test_termine_heute_gibt_liste_zurueck(self):
+        """GET /dashboard/termine-heute liefert eintraege-Liste (leer wenn RA-MICRO nicht verbunden)."""
+        headers = self._auth_header()
+        resp = self.client.get("/dashboard/termine-heute", headers=headers)
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertIn("eintraege", data)
+        self.assertIsInstance(data["eintraege"], list)
+
+    def test_termine_heute_ohne_token_401(self):
+        """Ohne Token sollte 401 zurückgegeben werden."""
+        resp = self.client.get("/dashboard/termine-heute")
+        self.assertEqual(resp.status_code, 401)
+
+    def test_termine_heute_felder(self):
+        """Wenn Einträge vorhanden, müssen az, termin_art, termin_datum, tage_bis vorhanden sein."""
+        headers = self._auth_header()
+        resp = self.client.get("/dashboard/termine-heute", headers=headers)
+        data = resp.get_json()
+        for e in data["eintraege"]:
+            for feld in ("az", "mandant", "termin_art", "termin_datum", "tage_bis"):
+                self.assertIn(feld, e, f"Feld '{feld}' fehlt in Eintrag: {e}")
+
+
 if __name__ == "__main__":
     unittest.main()
