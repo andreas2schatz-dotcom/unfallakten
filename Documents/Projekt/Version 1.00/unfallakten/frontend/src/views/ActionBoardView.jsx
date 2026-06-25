@@ -9,6 +9,13 @@ function baseAz(azVoll) {
   return (azVoll || "").replace(/[A-Z]{2,3}$/i, "").trim();
 }
 
+const ALLE_SB = ["AS", "PK", "CO", "MM", "AH"];
+
+function sbAusAz(az) {
+  const m = (az || "").match(/([A-Z]{2,3})$/);
+  return m ? m[1] : null;
+}
+
 export default function ActionBoardView({ onOpenAkte, onOpenEmail }) {
   const [termine,     setTermine]     = useState([]);
   const [fristen,     setFristen]     = useState([]);
@@ -16,6 +23,15 @@ export default function ActionBoardView({ onOpenAkte, onOpenEmail }) {
   const [nachrichten, setNachrichten] = useState([]);
   const [ladeZeit,    setLadeZeit]    = useState(null);
   const [laedtGerade, setLaedtGerade] = useState(false);
+  const [aktiveSB,    setAktiveSB]    = useState(new Set(ALLE_SB));
+
+  function toggleSB(sb) {
+    setAktiveSB(prev => {
+      const next = new Set(prev);
+      next.has(sb) ? next.delete(sb) : next.add(sb);
+      return next;
+    });
+  }
 
   async function laden() {
     setLaedtGerade(true);
@@ -47,35 +63,59 @@ export default function ActionBoardView({ onOpenAkte, onOpenEmail }) {
 
   return (
     <div style={{ background: "#1B2A4A", borderRadius: 8, padding: 16, fontFamily: "'Segoe UI', sans-serif" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
         <div style={{ color: "#e2e8f0", fontSize: 15, fontWeight: 600 }}>
           Tagesübersicht — {heute}
         </div>
-        <button
-          onClick={laden}
-          disabled={laedtGerade}
-          style={{ background: "none", border: "none", color: "#60a5fa", fontSize: 12, cursor: "pointer", opacity: laedtGerade ? 0.4 : 0.7 }}
-        >
-          {laedtGerade ? "Lädt..." : `↻ Aktualisieren${ladeZeit ? ` (${ladeZeit})` : ""}`}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {ALLE_SB.map(sb => {
+            const aktiv = aktiveSB.has(sb);
+            return (
+              <button
+                key={sb}
+                onClick={() => toggleSB(sb)}
+                style={{
+                  background: aktiv ? "#334155" : "transparent",
+                  color: aktiv ? "#e2e8f0" : "#475569",
+                  border: `1px solid ${aktiv ? "#64748b" : "#334155"}`,
+                  borderRadius: 4,
+                  padding: "2px 8px",
+                  fontSize: 11,
+                  fontWeight: aktiv ? 700 : 400,
+                  cursor: "pointer",
+                  transition: "all .15s",
+                }}
+              >
+                {sb}
+              </button>
+            );
+          })}
+          <button
+            onClick={laden}
+            disabled={laedtGerade}
+            style={{ background: "none", border: "none", color: "#60a5fa", fontSize: 12, cursor: "pointer", opacity: laedtGerade ? 0.4 : 0.7, marginLeft: 8 }}
+          >
+            {laedtGerade ? "Lädt..." : `↻ Aktualisieren${ladeZeit ? ` (${ladeZeit})` : ""}`}
+          </button>
+        </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <TermineKachel
-          eintraege={termine}
+          eintraege={termine.filter(e => aktiveSB.size === 0 || aktiveSB.has(sbAusAz(e.az)))}
           onOpenAkte={oeffneAkte}
         />
         <FristenKachel
-          eintraege={fristen}
+          eintraege={fristen.filter(e => aktiveSB.size === 0 || aktiveSB.has(sbAusAz(e.az)))}
           onOpenAkte={oeffneAkte}
         />
         <WiedervorlagenKachel
-          wv={wvDaten.wv}
-          ohne_wv={wvDaten.ohne_wv}
+          wv={(wvDaten.wv || []).filter(e => aktiveSB.size === 0 || aktiveSB.has(sbAusAz(e.az)))}
+          ohne_wv={(wvDaten.ohne_wv || []).filter(e => aktiveSB.size === 0 || aktiveSB.has(sbAusAz(e.az)))}
           onOpenAkte={oeffneAkte}
         />
         <PosteingangKachel
-          eintraege={nachrichten}
+          eintraege={nachrichten.filter(e => aktiveSB.size === 0 || aktiveSB.has(sbAusAz(e.az)))}
           onOpenEmail={onOpenEmail}
           onAlleOeffnen={undefined}
         />
