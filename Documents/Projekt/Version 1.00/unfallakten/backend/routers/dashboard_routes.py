@@ -646,8 +646,9 @@ def fristen():
 
 def _lade_wiedervorlagen():
     # type: () -> dict
-    heute_dt = date.today()
-    heute_s  = heute_dt.isoformat()
+    heute_dt   = date.today()
+    heute_s    = heute_dt.isoformat()
+    minus90_s  = (heute_dt - timedelta(days=90)).isoformat()
 
     wv_eintraege       = []
     az_mit_aktiver_wv  = set()
@@ -658,7 +659,7 @@ def _lade_wiedervorlagen():
             cur = conn.cursor()
 
             cur.execute("""
-                SELECT TOP 50
+                SELECT TOP 500
                     a.sAktenNummer          AS az_roh,
                     a.sAktenSachbearbeiter  AS az_sb,
                     a.sMandant              AS mandant,
@@ -669,11 +670,11 @@ def _lade_wiedervorlagen():
                 FROM tblAktenWiedervorlagen w
                 INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
                 WHERE w.iWiedervorlageGrund NOT IN (9, 21, 22, 31, 46, 58, 60, 75)
-                  AND CAST(w.dtWiedervorlage AS DATE) <= %(heute)s
+                  AND CAST(w.dtWiedervorlage AS DATE) BETWEEN %(minus90)s AND %(heute)s
                   AND (a.dtAblage IS NULL
                        OR CAST(a.dtAblage AS DATE) = '1899-12-30')
-                ORDER BY w.dtWiedervorlage ASC
-            """, {"heute": heute_s})
+                ORDER BY w.dtWiedervorlage DESC
+            """, {"heute": heute_s, "minus90": minus90_s})
             for r in cur.fetchall():
                 az = _bilde_az(r)
                 datum_iso, tage = _parse_datum(r.get("datum"), heute_dt)
