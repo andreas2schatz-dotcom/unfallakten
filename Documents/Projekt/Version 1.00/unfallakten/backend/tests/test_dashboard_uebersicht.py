@@ -156,7 +156,7 @@ class TestDashboardUebersicht(unittest.TestCase):
         resp = self.client.get("/dashboard/termine-heute", headers=headers)
         data = resp.get_json()
         for e in data["eintraege"]:
-            for feld in ("az", "mandant", "termin_art", "termin_datum", "tage_bis"):
+            for feld in ("az", "mandant", "kurzbezeichnung", "termin_art", "termin_datum", "uhrzeit", "tage_bis"):
                 self.assertIn(feld, e, f"Feld '{feld}' fehlt in Eintrag: {e}")
 
 

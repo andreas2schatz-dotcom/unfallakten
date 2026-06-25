@@ -5,10 +5,12 @@ Endpunkte für das Action-Dashboard.
 
 Endpunkte:
   GET  /dashboard/action-items   Priorisierte Arbeitsliste für den Tag
+  GET  /dashboard/termine-heute  Heutige + morgige Gerichtstermine aus RA-MICRO
 
 Python 3.9 kompatibel.
 """
 
+import re
 import logging
 from datetime import date, timedelta
 from flask import Blueprint, jsonify, g
@@ -431,9 +433,7 @@ def _lade_ramicro_fristen():
 
         ergebnis = []
         for r in rows:
-            az_roh = (r.get("az_roh") or "").strip()
-            az_sb  = (r.get("az_sb")  or "").strip()
-            az     = az_roh + az_sb if az_sb and not az_roh.upper().endswith(az_sb.upper()) else az_roh
+            az = _bilde_az(r)
 
             frist_art_text = (r.get("frist_art_text") or "").strip()
             frist_art_code = r.get("frist_art_code")
@@ -443,20 +443,7 @@ def _lade_ramicro_fristen():
                 except (ValueError, TypeError):
                     frist_art_text = ""
 
-            # dtWiedervorlage kommt als datetime.date oder datetime.datetime
-            frist_raw = r.get("frist_datum")
-            try:
-                if hasattr(frist_raw, "date"):
-                    fd = frist_raw.date()
-                elif isinstance(frist_raw, str):
-                    fd = date.fromisoformat(str(frist_raw)[:10])
-                else:
-                    fd = frist_raw  # bereits date
-                frist_iso = fd.isoformat()
-                tage = (fd - heute_dt).days
-            except Exception:
-                frist_iso = str(frist_raw)[:10] if frist_raw else ""
-                tage = 99
+            frist_iso, tage = _parse_datum(r.get("frist_datum"), heute_dt)
 
             ergebnis.append({
                 "az":         az,
@@ -485,6 +472,7 @@ _TERMIN_CODES  = {9, 58, 60}
 _FRIST_CODES   = {21, 22, 31, 46, 75}
 _WV_AUSSCHLUSS = _TERMIN_CODES | _FRIST_CODES
 
+# Nur für Termine-Kachel: spezifischere Labels als in _RAMICRO_GRUENDE für Codes 9, 58, 60
 _TERMIN_LABELS = {
     9:  "Entscheidung/Gericht",
     58: "Verhandlungstermin",
@@ -546,7 +534,6 @@ def _lade_termine_heute():
             """, {"heute": heute_s, "morgen": morgen_s})
             rows = cur.fetchall()
 
-        import re as _re
         ergebnis = []
         for r in rows:
             az = _bilde_az(r)
@@ -555,7 +542,7 @@ def _lade_termine_heute():
             termin_art = _TERMIN_LABELS.get(int(code), "Termin") if code else "Termin"
 
             bemerkung = (r.get("bemerkung") or "").strip()
-            m = _re.search(r"(\d{1,2}:\d{2})", bemerkung)
+            m = re.search(r"(\d{1,2}:\d{2})", bemerkung)
             uhrzeit = m.group(1) if m else None
 
             ergebnis.append({
