@@ -297,6 +297,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     43: "-- migration_43_imap_polling",  # Handled by _run_migration_43
     44: "-- migration_44_email_konto",   # Handled by _run_migration_44
     45: "-- migration_45_regulierung_status",  # Handled by _run_migration_45
+    46: "-- migration_46_intake_datenmodell",   # Handled by _run_migration_46 (S1.1 + K-P2)
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -367,6 +368,206 @@ def _run_migration_45(conn: sqlite3.Connection) -> None:
         (45, "Migration 45 – unfallakte.regulierung_status (offen/abgelehnt/teilhaftung)"),
     )
     logger.info("Migration 45 abgeschlossen.")
+
+
+def _run_migration_46(conn: sqlite3.Connection) -> None:
+    """
+    Migration 46 (S1.1) — Intake-Datenmodell nach v7 + K-P2 (freigabe.md).
+
+    Legt vier neue Tabellen an (additiv, altes Datenmodell bleibt unberuehrt):
+
+    * ``intake_dokumente``  Zieltabelle des v7-Begriffs DOKUMENT. Hash-dedupliziert,
+                            akte-unabhaengig. K-P2: enthaelt KEINE akte_az /
+                            freigegeben_*-Spalten — diese liegen in ``freigaben``.
+    * ``zustellungen``      n:1 auf intake_dokumente, wird nie geloescht. Traegt
+                            Quelle/Absender/Auth-Status/Signale. FK-Spalte heisst
+                            ``intake_dokument_id`` (nicht ``dokument_id``), um
+                            Verwechslung mit der alten ``dokumente``-Tabelle
+                            auszuschliessen.
+    * ``freigaben``         K-P2: eigene Relation. Dasselbe intake_dokument kann in
+                            mehrere Akten freigegeben werden (zwei Mandanten, ein
+                            Unfall). ``dokument_id`` ist die FK-Bruecke zur alten
+                            ``dokumente``-Zeile, die die Freigabe erzeugt hat.
+    * ``korrektur_log``     Feld/Wert alt/neu/Klasse/Registry-Version je Aenderung.
+
+    Backfill (K-P2 angepasst):
+        Fuer jede bestehende ``dokumente``-Zeile werden erzeugt: eine intake_dokumente-Zeile
+        (sha256-Duplikate ueber Akten hinweg werden zu EINER intake_dokumente-Zeile
+        vereinigt), eine ``zustellungen``-Zeile mit quelle='altbestand' und eine
+        ``freigaben``-Zeile. Dokumente ohne pdf_hash bekommen einen Synthese-Hash
+        mit dem Prefix ``altbestand:`` — dieser Prefix kann mit echten SHA-256
+        (hex, ohne ':') nicht kollidieren.
+
+        Testkriterium: ``COUNT(zustellungen) == COUNT(freigaben) == COUNT(dokumente)``.
+
+    Vollstaendig idempotent. Kein executescript; ALTER waere nicht noetig
+    (nur CREATE + INSERT OR IGNORE), aber der Backfill-Loop prueft jeden Fall
+    explizit ab.
+    """
+
+    # ------------------------------------------------------------------
+    # 1) Tabellen anlegen (idempotent via IF NOT EXISTS)
+    # ------------------------------------------------------------------
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS intake_dokumente (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            sha256              TEXT NOT NULL UNIQUE,
+            original_pfad       TEXT,
+            arbeitskopie_pfad   TEXT,
+            payload_typ         TEXT NOT NULL DEFAULT 'datei'
+                                CHECK (payload_typ IN ('datei','text','structured')),
+            structured_payload  TEXT,
+            klasse              TEXT,
+            klasse_quelle       TEXT CHECK (klasse_quelle IN ('auto','manuell')),
+            konfidenz           REAL,
+            parse_json          TEXT,
+            textquelle          TEXT CHECK (textquelle IN ('textebene','ocr','gemischt')),
+            registry_version    TEXT,
+            llm_stack           TEXT,
+            queue_status        TEXT NOT NULL DEFAULT 'neu'
+                                CHECK (queue_status IN
+                                    ('neu','laeuft','bereit_zur_review',
+                                     'pipeline_fehler','freigegeben')),
+            prioritaet_frist    TEXT,
+            loeschfrist_bis     TEXT,
+            erstellt_am         TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_intake_dok_sha ON intake_dokumente(sha256)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_intake_dok_queue ON intake_dokumente(queue_status)")
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS zustellungen (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            intake_dokument_id  INTEGER NOT NULL REFERENCES intake_dokumente(id),
+            quelle              TEXT NOT NULL
+                                CHECK (quelle IN
+                                    ('imap','upload','eakte','portal','altbestand')),
+            absender            TEXT,
+            auth_status         TEXT,
+            betreff             TEXT,
+            empfangen_am        TEXT,
+            parent_id           INTEGER REFERENCES zustellungen(id),
+            signale_json        TEXT,
+            konto               TEXT,
+            roh_referenz        TEXT,
+            erstellt_am         TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_zust_intake ON zustellungen(intake_dokument_id)")
+    # Backfill-Idempotenz: pro alter dokumente(id) hoechstens eine altbestand-Zustellung.
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_zust_altbestand_ref "
+        "ON zustellungen(roh_referenz) WHERE quelle = 'altbestand'"
+    )
+
+    # Hinweis: dokument_id verweist semantisch auf ``dokumente(id)`` (K-P2-Bruecke).
+    # Der FK-REFERENCES-Constraint wird NICHT deklariert, weil die Produktiv-DB
+    # ``dokumente`` mit ``id INT`` ohne PRIMARY KEY fuehrt (DECISIONS.md F-02).
+    # SQLite meldet dann bei jedem INSERT einen "foreign key mismatch", selbst
+    # bei foreign_keys=OFF. Die Bruecke ist trotzdem stabil: dokumente.id ist
+    # in der Praxis eindeutig (via schadenmanager erzeugt) — die Konvention wird
+    # in der Anwendungsschicht durchgesetzt.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS freigaben (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            intake_dokument_id  INTEGER NOT NULL REFERENCES intake_dokumente(id),
+            akte_az             TEXT NOT NULL REFERENCES unfallakte(az),
+            dokument_id         INTEGER NOT NULL, -- REFERENCES dokumente(id) semantisch, s. Kommentar
+            freigegeben_von     INTEGER REFERENCES benutzer(id),
+            freigegeben_am      TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+            UNIQUE (intake_dokument_id, akte_az, dokument_id)
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_freigaben_intake ON freigaben(intake_dokument_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_freigaben_akte ON freigaben(akte_az)")
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS korrektur_log (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            intake_dokument_id  INTEGER NOT NULL REFERENCES intake_dokumente(id),
+            feld                TEXT NOT NULL,
+            wert_alt            TEXT,
+            wert_neu            TEXT,
+            klasse              TEXT,
+            registry_version    TEXT,
+            benutzer_id         INTEGER REFERENCES benutzer(id),
+            zeitstempel         TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_korrlog_intake ON korrektur_log(intake_dokument_id)")
+
+    # ------------------------------------------------------------------
+    # 2) Backfill aus bestehender dokumente-Tabelle
+    # ------------------------------------------------------------------
+    rows = conn.execute("""
+        SELECT id, akte_id, pdf_hash, dokumentenklasse,
+               parse_konfidenz, parse_json, dateipfad
+        FROM dokumente
+    """).fetchall()
+
+    for row in rows:
+        dok_id       = row[0]
+        akte_az      = row[1]
+        pdf_hash     = (row[2] or "").strip() if row[2] is not None else ""
+        dok_klasse   = row[3]
+        konfidenz    = row[4]
+        parse_json   = row[5]
+        dateipfad    = row[6]
+
+        if akte_az is None or str(akte_az).strip() == "":
+            # Ohne akte_id keine Freigabe rekonstruierbar — Alt-Zeile ueberspringen.
+            continue
+
+        if pdf_hash:
+            sha = pdf_hash
+        else:
+            # Synthese-Hash. Prefix 'altbestand:' kollidiert nicht mit echten SHA-256 (hex).
+            sha = f"altbestand:{dok_id}"
+
+        # intake_dokument fuer diesen Hash (INSERT OR IGNORE nutzt UNIQUE-Constraint).
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO intake_dokumente
+                (sha256, original_pfad, klasse, klasse_quelle, konfidenz,
+                 parse_json, queue_status)
+            VALUES (?, ?, ?, 'auto', ?, ?, 'freigegeben')
+            """,
+            (sha, dateipfad, dok_klasse, konfidenz, parse_json),
+        )
+        intake_id = conn.execute(
+            "SELECT id FROM intake_dokumente WHERE sha256 = ?", (sha,)
+        ).fetchone()[0]
+
+        # Zustellung (idempotent ueber partial UNIQUE auf quelle='altbestand', roh_referenz)
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO zustellungen
+                (intake_dokument_id, quelle, roh_referenz)
+            VALUES (?, 'altbestand', ?)
+            """,
+            (intake_id, f"altbestand:{dok_id}"),
+        )
+
+        # Freigabe (idempotent ueber UNIQUE(intake_dokument_id, akte_az, dokument_id))
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO freigaben
+                (intake_dokument_id, akte_az, dokument_id)
+            VALUES (?, ?, ?)
+            """,
+            (intake_id, akte_az, dok_id),
+        )
+
+    # ------------------------------------------------------------------
+    # 3) schema_version stempeln
+    # ------------------------------------------------------------------
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
+        (46, "Migration 46 – Intake-Datenmodell S1.1 (intake_dokumente, "
+             "zustellungen, freigaben [K-P2], korrektur_log) + Backfill"),
+    )
+    logger.info("Migration 46 abgeschlossen (intake-Datenmodell + Backfill).")
 
 
 def _run_migration_42(conn: sqlite3.Connection) -> None:
@@ -526,6 +727,8 @@ def run_migrations() -> None:
                 _run_migration_44(conn)
             elif version == 45:
                 _run_migration_45(conn)
+            elif version == 46:
+                _run_migration_46(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
