@@ -49,6 +49,15 @@
 
 ## 🔄 In Arbeit
 
+### ⭐ Intake-Refactoring (Pipeline v7 + Positionsmodell) — GROSSPROJEKT
+**Maßgebliche Dokumente (immer zuerst lesen):** `freigabe.md` (verbindlich, übersteuert die Pläne) + `PIPELINE-REFACTORING-PLAN.md` + `POSITIONSMODELL-PLAN.md` (alle im Projekt-Root).
+**Arbeitsbranch:** `intake-stufe1` — alle Implementierungs-Sessions arbeiten auf diesem Branch, nicht auf main.
+**Reihenfolge:** verbindlich lt. freigabe.md Abschnitt 4 (S1.1–S1.5 → P1.1–P1.4 → …), inkl. Korrekturen K-P1–K-P4 / K-M1–K-M3.
+**Aktueller Schritt:** S1.1 + S1.2 (noch nicht begonnen).
+**Vor jedem Migrationsschritt:** Sicherungskopie der SQLite-DB. Kein executescript(), explizites conn.commit() bei ALTER TABLE. RA-MICRO read-only, Docker/CIFS tabu, Alt-Pfade unverändert (Doppelschreiben).
+**Achtung:** freigabe.md endet derzeit mitten in Abschnitt 4 (Zeile 99) — Reihenfolge ab Punkt 3 fehlt und muss von RA Schatz ergänzt werden, bevor die Verschränkung S1.6 ff./P1.5 ff. ansteht.
+(Stand: 2026-07-07)
+
 ### Action Board – Fristen-Spalte unvollständig
 Zeigt aktuell nur RA-MICRO Wiedervorlagen (`tblAktenWiedervorlagen`), keine „harten" Rechtsmittelfristen. Falls RA-MICRO eine separate Fristen-Tabelle führt, wäre Schritt 1 aus Task 2 des Plans zu wiederholen.
 (aus: session_handover_v56.md)
