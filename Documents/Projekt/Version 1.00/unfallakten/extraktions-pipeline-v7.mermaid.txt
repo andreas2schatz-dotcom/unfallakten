@@ -1,0 +1,79 @@
+flowchart TD
+    subgraph INTAKE [Intake-Schicht: Adapter → Zustellung]
+        Q1[IMAP-Adapter:<br/>E-Mail zerlegen, SPF/DKIM prüfen<br/>Body = Text-Payload<br/>Anhänge einzeln, parent_id<br/>Encoding-Handling hier]
+        Q2[Upload-Adapter:<br/>manueller Upload UI]
+        Q3[Portal-Adapter künftig:<br/>Formulardaten = structured_payload]
+        Q1 --> Z
+        Q2 --> Z
+        Q3 --> Z
+        Z[ZUSTELLUNGS-Datensatz — wird NIE gelöscht:<br/>Quelle, Absender + Auth-Status, Betreff,<br/>Empfangszeit, parent_id, vererbte Signale,<br/>Vertrauensstufe aus Absender-Registry]
+    end
+
+    Z --> DOC{Hash-Abgleich:<br/>Dokument bereits bekannt?}
+    DOC -->|Ja| DOC2[Zustellung an bestehendes<br/>DOKUMENT anhängen n:1<br/>Signale werden VEREINIGT<br/>ggf. Reklassifikation anstoßen]
+    DOC -->|Nein| DOC3[Neue DOKUMENT-Entität<br/>Original unveränderlich archivieren<br/>Löschkonzept: Fristen je Dokumentart]
+    DOC2 --> UI
+    DOC3 --> A1[Normalisierung auf Kopie:<br/>Word/JPG/HEIC → PDF]
+
+    A1 --> T{Payload-Typ?}
+    T -->|structured_payload| SP[Schema-Validierung]
+    SP --> N2
+    T -->|Text: E-Mail-Body| K1
+    T -->|Datei| B[Aufteilung in Seiten]
+
+    B --> C{Pro Seite:<br/>Textebene vorhanden?}
+    C -->|Ja| D{Textebene brauchbar?<br/>Zeichensalat-Ratio}
+    D -->|Ja| E[PyMuPDF get_text/find_tables<br/>pymupdf4llm — isolierter Prozess,<br/>kein Netzzugriff]
+    E --> F{Tabellen plausibel?}
+    F -->|Ja| M[Markdown + Audit: Quelle=Textebene]
+    F -->|Nein| G
+    C -->|Nein| G[Bild rendern, Deskew/OSD]
+    D -->|Nein: Schrott-OCR| G
+
+    G --> H1[GLM-OCR = Primärquelle]
+    G --> H2[Tesseract = Validator<br/>TSV mit Koordinaten persistieren<br/>Löschung nach Freigabe in UI]
+    H1 -->|Fehler| RTY{Retry mit Backoff}
+    RTY -->|erneut Fehler| PF[Status: Pipeline-Fehler<br/>Dead-Letter, Queue läuft weiter]
+    RTY -->|Erfolg| M2
+    H1 --> M2[Markdown aus GLM + Audit: Quelle=OCR]
+    H2 --> M2
+
+    M --> K1{Klassifikator Stufe 1: Regeln<br/>VEREINIGTE Signale aller Zustellungen<br/>vererbte Signale liefern nur Kandidaten,<br/>nie allein 'eindeutig'}
+    M2 --> K1
+    K1 -->|Eindeutig aus intrinsischen Signalen| REG
+    K1 -->|Sonst| K2[Stufe 2: Qwen<br/>geschlossene Labelliste<br/>Seite 1 + letzte Seite]
+    K2 --> REG[Registry-Lookup — Version wird<br/>am Ergebnis GESTEMPELT:<br/>Regex, Schema, Pflichtfelder,<br/>kritische Felder, Validierungsregeln,<br/>Fristrelevanz<br/>YAML-Ladefehler = lauter Alarm]
+    K2 -->|Unbekannte Klasse| U[Generisches Set]
+    U --> R
+
+    REG --> R[Klassenspezifische Regex<br/>auf GLM- und Tesseract-Text<br/>inkl. Fristen/Termine]
+    R --> V{Feldvergleich GLM vs. Tesseract<br/>kritische Felder, nur OCR-Seiten}
+    V -->|Diskrepanz| L[Diskrepanz-Detail: Feld + beide Werte]
+    V -->|identisch| N
+    L --> N
+
+    N[Qwen-Extraktion: Klassenschema<br/>+ generischer Teil BETEILIGTE<br/>Mandant/Gegner/Versicherer/SV<br/>+ Regex-Anker]
+    N --> N2[Semantische Konsistenzprüfung<br/>lt. Registry-Regeln<br/>Fehler = Hinweis, kein Routing]
+    N2 --> X[Post-hoc-Lokalisierung:<br/>Werte → Bounding Boxes aus TSV]
+    X --> AZ[Akten-Matching:<br/>Az./Kennzeichen/Beteiligte+Datum<br/>gegen RA-Micro-Bestand read-only<br/>→ Kandidatenliste mit Score]
+    AZ --> UI
+
+    subgraph REVIEW [Review-UI — das Produkt: JEDES Dokument läuft hier durch]
+        UI[Priorisierte Queue:<br/>1. Fristen  2. Alter  3. Konfidenz<br/>Pipeline-Fehler als eigener Zustand<br/>alle Signale = Hinweise, kein Auto-Pfad]
+        UI --> UA[Anzeige: Dokument + Felder<br/>mit Bounding-Box-Highlight,<br/>Klasse, Beteiligte, Akten-Kandidaten,<br/>Zustellungshistorie, Diskrepanzen]
+        UA --> UB{Aktionen}
+        UB -->|Klasse falsch| RECLASS[Klasse manuell setzen<br/>→ Re-Parse mit korrektem<br/>Registry-Eintrag → zurück in UI]
+        RECLASS --> R
+        UB -->|Felder korrigieren| KORR[Korrektur-Log ab Tag 1:<br/>Feld, alt/neu, Klasse, Registry-Version]
+        UB -->|Akte zuordnen| AKTE[Kandidat wählen oder<br/>Neuanlage anstoßen]
+        UB -->|Beteiligte zuordnen| BET[Match gegen Akten-Beteiligte<br/>oder neu anlegen]
+        KORR --> FREI
+        AKTE --> FREI
+        BET --> FREI
+        UB -->|Alles korrekt| FREI[FREIGABE durch Mensch<br/>= einzige Schreiboperation]
+    end
+
+    PF --> UI
+    FREI --> OUT[Output-Adapter RA-Micro:<br/>eAkte-Übergabe via XML-Scanner<br/>dünn gekapselt, testbar]
+    KORR -.-> FB[Feedback-Speicher<br/>→ Registry-Pflege, Regel-Verfall erkennen]
+    RECLASS -.-> FB

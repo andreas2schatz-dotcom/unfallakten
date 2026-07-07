@@ -1,0 +1,1447 @@
+openapi: 3.0.3
+
+info:
+  title: Unfallakten-API
+  version: "1.0.0"
+  description: |
+    ## Rechtsanwaltskanzlei Koch, Schatz & Kollegen
+
+    REST-API für das Unfallakten-Management-System.
+    Verwaltet Unfallakten, Beteiligte, Schadenpositionen, Regulierungen,
+    Dokumente (PDF-Upload mit automatischer Extraktion), Word-Generierung
+    und automatisierten E-Mail-Import.
+
+    ### Authentifizierung
+    Alle Endpunkte (außer `/auth/login`, `/auth/register/erster`, `/health`, `/auth/ping`)
+    erfordern einen **Bearer-Token** im `Authorization`-Header:
+    ```
+    Authorization: Bearer <access_token>
+    ```
+
+    Access Tokens sind **60 Minuten** gültig.
+    Danach muss `/auth/refresh` mit dem Refresh Token (7 Tage gültig) aufgerufen werden.
+
+    ### Rollen
+    | Rolle | Rechte |
+    |---|---|
+    | `admin` | Voller Zugriff, Benutzerverwaltung, Akten löschen |
+    | `sachbearbeiter` | Akten lesen/schreiben, kein Löschen, kein Benutzerzugriff |
+
+  contact:
+    name: Kanzlei Koch, Schatz & Kollegen
+    email: info@anwalt-offenbach.de
+    url: https://www.anwalt-offenbach.de
+
+servers:
+  - url: https://anwalt-offenbach.de
+    description: Produktion
+  - url: http://localhost:5000
+    description: Entwicklung
+
+tags:
+  - name: System
+    description: Health-Check und API-Info
+  - name: Authentifizierung
+    description: Login, Token-Verwaltung, Benutzerverwaltung
+  - name: Akten
+    description: Unfallakten anlegen, bearbeiten, abrufen
+  - name: Beteiligte
+    description: Mandanten, Gegner, Zeugen einer Akte
+  - name: Schaden
+    description: Schadenpositionen und Regulierungen
+  - name: Dokumente
+    description: PDF/DOCX-Upload mit automatischer Textextraktion
+  - name: Word-Generierung
+    description: Forderungsschreiben, Sachstandsanfragen, Abrechnungsübersichten
+  - name: E-Mail-Import
+    description: Automatischer IMAP-Import eingehender E-Mails
+
+security:
+  - BearerAuth: []
+
+# ══════════════════════════════════════════════════════════════════════════════
+paths:
+# ══════════════════════════════════════════════════════════════════════════════
+
+  # ── System ──────────────────────────────────────────────────────────────────
+
+  /:
+    get:
+      tags: [System]
+      summary: API-Info
+      security: []
+      responses:
+        "200":
+          description: API-Metadaten
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiInfo"
+
+  /health:
+    get:
+      tags: [System]
+      summary: Health-Check
+      description: Prüft Datenbankverbindung. Wird von Docker HEALTHCHECK genutzt.
+      security: []
+      responses:
+        "200":
+          description: System gesund
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "503":
+          description: Datenbankfehler
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/ping:
+    get:
+      tags: [System]
+      summary: Auth-Ping
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              example: { "status": "ok", "modul": "auth" }
+
+  # ── Authentifizierung ────────────────────────────────────────────────────────
+
+  /auth/register/erster:
+    post:
+      tags: [Authentifizierung]
+      summary: Ersten Admin-Benutzer anlegen (Bootstrap)
+      description: |
+        Registriert den ersten Benutzer ohne Authentifizierung.
+        Schlägt fehl wenn bereits ein Benutzer existiert.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BenutzerRegistrierung"
+            example:
+              name: "RA Koch"
+              email: "koch@anwalt-offenbach.de"
+              passwort: "Kanzlei2024!"
+      responses:
+        "201":
+          description: Admin-Benutzer erstellt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Benutzer"
+        "409":
+          $ref: "#/components/responses/Konflikt"
+        "422":
+          $ref: "#/components/responses/Validierungsfehler"
+
+  /auth/register:
+    post:
+      tags: [Authentifizierung]
+      summary: Neuen Benutzer anlegen (nur Admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BenutzerRegistrierung"
+            example:
+              name: "Ihl Sachbearbeiterin"
+              email: "ihl@anwalt-offenbach.de"
+              passwort: "Sicher2024!"
+              rolle: "sachbearbeiter"
+      responses:
+        "201":
+          description: Benutzer erstellt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Benutzer"
+        "401":
+          $ref: "#/components/responses/NichtAutorisiert"
+        "403":
+          $ref: "#/components/responses/Verboten"
+        "422":
+          $ref: "#/components/responses/Validierungsfehler"
+
+  /auth/login:
+    post:
+      tags: [Authentifizierung]
+      summary: Einloggen
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginAnfrage"
+      responses:
+        "200":
+          description: Login erfolgreich
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPaar"
+        "401":
+          description: Ungültige Zugangsdaten
+          content:
+            application/json:
+              example: { "fehler": "Ungültige E-Mail oder Passwort.", "status": 401 }
+
+  /auth/refresh:
+    post:
+      tags: [Authentifizierung]
+      summary: Access Token erneuern
+      description: Sendet den Refresh Token und erhält einen neuen Access Token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        "200":
+          description: Neuer Access Token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+        "401":
+          $ref: "#/components/responses/NichtAutorisiert"
+
+  /auth/logout:
+    post:
+      tags: [Authentifizierung]
+      summary: Ausloggen
+      description: Token-Invalidierung (Client-seitig, Blacklist-Eintrag).
+      responses:
+        "200":
+          description: Logout erfolgreich
+          content:
+            application/json:
+              example: { "nachricht": "Logout erfolgreich." }
+
+  /auth/profil:
+    get:
+      tags: [Authentifizierung]
+      summary: Eigenes Profil abrufen
+      responses:
+        "200":
+          description: Profildaten
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Benutzer"
+
+  /auth/passwort-aendern:
+    post:
+      tags: [Authentifizierung]
+      summary: Passwort ändern
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [altes_passwort, neues_passwort]
+              properties:
+                altes_passwort:
+                  type: string
+                neues_passwort:
+                  type: string
+                  description: Mind. 8 Zeichen, Groß-/Kleinbuchstabe, Ziffer
+      responses:
+        "200":
+          description: Passwort geändert
+        "401":
+          $ref: "#/components/responses/NichtAutorisiert"
+        "422":
+          $ref: "#/components/responses/Validierungsfehler"
+
+  /auth/benutzer:
+    get:
+      tags: [Authentifizierung]
+      summary: Alle Benutzer listen (nur Admin)
+      responses:
+        "200":
+          description: Benutzerliste
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  benutzer:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Benutzer"
+
+  /auth/benutzer/{benutzer_id}:
+    delete:
+      tags: [Authentifizierung]
+      summary: Benutzer deaktivieren (nur Admin)
+      parameters:
+        - $ref: "#/components/parameters/BenutzerId"
+      responses:
+        "200":
+          description: Benutzer deaktiviert
+        "403":
+          $ref: "#/components/responses/Verboten"
+        "404":
+          $ref: "#/components/responses/NichtGefunden"
+
+  # ── Akten ────────────────────────────────────────────────────────────────────
+
+  /akten:
+    get:
+      tags: [Akten]
+      summary: Akten auflisten
+      description: Gibt alle Akten zurück, optional gefiltert und paginiert.
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/AktenStatus"
+        - name: suche
+          in: query
+          schema:
+            type: string
+          description: Freitextsuche in Aktenzeichen und Unfallort
+        - name: seite
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pro_seite
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        "200":
+          description: Aktenliste
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AktenListe"
+
+    post:
+      tags: [Akten]
+      summary: Neue Akte anlegen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AkteNeu"
+            example:
+              aktenzeichen: "25-0042"
+              unfalldatum: "2025-03-15"
+              unfallort: "Offenbach, Berliner Str. 12"
+              haftungsquote: 100
+      responses:
+        "201":
+          description: Akte erstellt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Akte"
+        "409":
+          description: Aktenzeichen bereits vergeben
+          content:
+            application/json:
+              example: { "fehler": "Aktenzeichen '25-0042' bereits vergeben.", "status": 409 }
+        "422":
+          $ref: "#/components/responses/Validierungsfehler"
+
+  /akten/statistik:
+    get:
+      tags: [Akten]
+      summary: Dashboard-Statistiken
+      description: Gibt Zählungen nach Status für das Dashboard zurück.
+      responses:
+        "200":
+          description: Statistiken
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AktenStatistik"
+
+  /akten/{akte_id}:
+    get:
+      tags: [Akten]
+      summary: Akte abrufen (mit allen Details)
+      description: |
+        Gibt eine vollständige Akte zurück inklusive:
+        Beteiligte, Schadenpositionen, Regulierungen, Dokumente.
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+      responses:
+        "200":
+          description: Vollständige Akte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AkteKomplett"
+        "404":
+          $ref: "#/components/responses/NichtGefunden"
+
+    patch:
+      tags: [Akten]
+      summary: Akte aktualisieren
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AkteUpdate"
+      responses:
+        "200":
+          description: Akte aktualisiert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Akte"
+        "404":
+          $ref: "#/components/responses/NichtGefunden"
+
+    delete:
+      tags: [Akten]
+      summary: Akte löschen (nur Admin)
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+      responses:
+        "200":
+          description: Akte gelöscht
+        "403":
+          $ref: "#/components/responses/Verboten"
+        "404":
+          $ref: "#/components/responses/NichtGefunden"
+
+  /akten/{akte_id}/aktivitaeten:
+    get:
+      tags: [Akten]
+      summary: Aktivitätsfeed einer Akte
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Aktivitätsliste
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  aktivitaeten:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Aktivitaet"
+
+  # ── Beteiligte ───────────────────────────────────────────────────────────────
+
+  /akten/{akte_id}/beteiligte:
+    get:
+      tags: [Beteiligte]
+      summary: Beteiligte einer Akte auflisten
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+        - name: rolle
+          in: query
+          schema:
+            $ref: "#/components/schemas/BeteiligterRolle"
+      responses:
+        "200":
+          description: Beteiligtenliste
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  beteiligte:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Beteiligter"
+
+    post:
+      tags: [Beteiligte]
+      summary: Beteiligten hinzufügen
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BeteiligterNeu"
+            example:
+              rolle: "mandant"
+              name: "Müller"
+              vorname: "Hans"
+              kfz_kennzeichen: "OF-HM 1"
+              kfz_typ: "VW Passat"
+              versicherung: "DEVK"
+              vers_nr: "DEVK-2025-001"
+      responses:
+        "201":
+          description: Beteiligter erstellt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Beteiligter"
+        "422":
+          $ref: "#/components/responses/Validierungsfehler"
+
+  /akten/{akte_id}/beteiligte/{beteiligter_id}:
+    patch:
+      tags: [Beteiligte]
+      summary: Beteiligten aktualisieren
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+        - $ref: "#/components/parameters/BeteiligterIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BeteiligterNeu"
+      responses:
+        "200":
+          description: Beteiligter aktualisiert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Beteiligter"
+        "404":
+          $ref: "#/components/responses/NichtGefunden"
+
+    delete:
+      tags: [Beteiligte]
+      summary: Beteiligten entfernen
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+        - $ref: "#/components/parameters/BeteiligterIdParam"
+      responses:
+        "200":
+          description: Beteiligter entfernt
+        "404":
+          $ref: "#/components/responses/NichtGefunden"
+
+  # ── Schaden ──────────────────────────────────────────────────────────────────
+
+  /akten/{akte_id}/schaden:
+    get:
+      tags: [Schaden]
+      summary: Schadenpositionen abrufen
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+      responses:
+        "200":
+          description: Schadenpositionen (null wenn noch nicht erfasst)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Schadenposition"
+
+    put:
+      tags: [Schaden]
+      summary: Schadenpositionen setzen/aktualisieren
+      description: |
+        Idempotent – legt Schadenpositionen an oder überschreibt sie.
+        Nur gesetzte Felder werden übernommen, nicht gesetzte bleiben unverändert.
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SchadenpositionInput"
+            example:
+              reparaturkosten: 6240.50
+              sv_kosten: 890.00
+              nutzungsausfall: 560.00
+              wertminderung: 350.00
+              abschleppkosten: 180.00
+      responses:
+        "200":
+          description: Schadenpositionen gesetzt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Schadenposition"
+
+  /akten/{akte_id}/regulierungen:
+    get:
+      tags: [Schaden]
+      summary: Regulierungen einer Akte auflisten
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+      responses:
+        "200":
+          description: Regulierungsliste
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  regulierungen:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Regulierung"
+
+    post:
+      tags: [Schaden]
+      summary: Regulierung erfassen
+      description: |
+        Legt eine neue Regulierung an.
+        **Automatische Statusänderung:** Bei Vollregulierung wird die Akte auf
+        `abgeschlossen` gesetzt, bei Teilregulierung auf `in_regulierung`.
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegulierungInput"
+            example:
+              datum: "2025-04-10"
+              betrag_gefordert: 8220.50
+              betrag_reguliert: 6180.00
+              status: "teilreguliert"
+              vers_referenz: "HUK-2025-001-R"
+              kuerz_begruendung: "Wertminderung nicht anerkannt"
+      responses:
+        "201":
+          description: Regulierung erfasst
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Regulierung"
+        "422":
+          $ref: "#/components/responses/Validierungsfehler"
+
+  /akten/{akte_id}/regulierungen/status:
+    get:
+      tags: [Schaden]
+      summary: Regulierungsstatus-Übersicht
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+      responses:
+        "200":
+          description: Regulierungsstatus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Regulierungsstatus"
+
+  # ── Dokumente ────────────────────────────────────────────────────────────────
+
+  /akten/{akte_id}/dokumente:
+    get:
+      tags: [Dokumente]
+      summary: Dokumente einer Akte auflisten
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+        - name: typ
+          in: query
+          schema:
+            $ref: "#/components/schemas/DokumentTyp"
+      responses:
+        "200":
+          description: Dokumentliste
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dokumente:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Dokument"
+
+    post:
+      tags: [Dokumente]
+      summary: Dokument hochladen
+      description: |
+        Lädt eine Datei hoch und startet automatisch die PDF-Textextraktion.
+
+        **Erlaubte Dateitypen:** PDF, DOCX, JPG, PNG
+
+        **Maximale Dateigröße:** 20 MB (konfigurierbar)
+
+        **Automatische Extraktion:** Bei PDFs werden Schadenpositionen per Regex
+        extrahiert und bei Konfidenz ≥ 0.3 automatisch in die Akte übernommen.
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [datei, typ]
+              properties:
+                datei:
+                  type: string
+                  format: binary
+                typ:
+                  $ref: "#/components/schemas/DokumentTyp"
+                notizen:
+                  type: string
+      responses:
+        "201":
+          description: Dokument hochgeladen und Parsing gestartet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DokumentUploadErgebnis"
+        "413":
+          description: Datei zu groß
+        "422":
+          $ref: "#/components/responses/Validierungsfehler"
+
+  /akten/{akte_id}/dokumente/{dokument_id}:
+    get:
+      tags: [Dokumente]
+      summary: Dokument-Metadaten abrufen
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+        - $ref: "#/components/parameters/DokumentId"
+      responses:
+        "200":
+          description: Dokument-Metadaten
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dokument"
+        "404":
+          $ref: "#/components/responses/NichtGefunden"
+
+    delete:
+      tags: [Dokumente]
+      summary: Dokument löschen
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+        - $ref: "#/components/parameters/DokumentId"
+      responses:
+        "200":
+          description: Dokument gelöscht
+        "404":
+          $ref: "#/components/responses/NichtGefunden"
+
+  /akten/{akte_id}/dokumente/{dokument_id}/datei:
+    get:
+      tags: [Dokumente]
+      summary: Datei herunterladen
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+        - $ref: "#/components/parameters/DokumentId"
+      responses:
+        "200":
+          description: Datei-Bytes
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NichtGefunden"
+
+  /akten/{akte_id}/dokumente/{dokument_id}/parse:
+    get:
+      tags: [Dokumente]
+      summary: Parse-Ergebnis abrufen
+      description: Gibt das gespeicherte Extraktionsergebnis des PDF-Parsers zurück.
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+        - $ref: "#/components/parameters/DokumentId"
+      responses:
+        "200":
+          description: Parse-Ergebnis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParseErgebnis"
+
+  /akten/{akte_id}/dokumente/{dokument_id}/korrektur:
+    post:
+      tags: [Dokumente]
+      summary: Parse-Ergebnis manuell korrigieren
+      description: |
+        Überschreibt automatisch extrahierte Schadenpositionen mit
+        manuell korrigierten Werten. Setzt `parse_status` auf `manuell_korrigiert`.
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+        - $ref: "#/components/parameters/DokumentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SchadenpositionInput"
+      responses:
+        "200":
+          description: Korrektur gespeichert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dokument"
+
+  # ── Word-Generierung ─────────────────────────────────────────────────────────
+
+  /akten/{akte_id}/dokumente/word:
+    post:
+      tags: [Word-Generierung]
+      summary: Word-Dokument generieren und speichern
+      description: |
+        Generiert ein Word-Dokument aus den Aktendaten und speichert es
+        in der Datenbank. Das Dokument kann anschließend über den normalen
+        Dokument-Download-Endpunkt abgerufen werden.
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [typ]
+              properties:
+                typ:
+                  $ref: "#/components/schemas/WordDokumentTyp"
+            example:
+              typ: "forderungsschreiben"
+      responses:
+        "201":
+          description: Dokument generiert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WordGenerierungsErgebnis"
+        "404":
+          $ref: "#/components/responses/NichtGefunden"
+        "422":
+          $ref: "#/components/responses/Validierungsfehler"
+
+  /akten/{akte_id}/dokumente/word/{dok_typ}/vorschau:
+    get:
+      tags: [Word-Generierung]
+      summary: Word-Dokument als Vorschau herunterladen
+      description: |
+        Generiert das Dokument direkt und gibt es als Download zurück,
+        **ohne** einen Datenbankeintrag anzulegen. Ideal für Vorschauen.
+      parameters:
+        - $ref: "#/components/parameters/AkteId"
+        - name: dok_typ
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/WordDokumentTyp"
+      responses:
+        "200":
+          description: Word-Datei
+          content:
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NichtGefunden"
+        "422":
+          $ref: "#/components/responses/Validierungsfehler"
+
+  # ── E-Mail-Import ────────────────────────────────────────────────────────────
+
+  /email/import:
+    post:
+      tags: [E-Mail-Import]
+      summary: Manuellen Import-Lauf starten
+      description: |
+        Startet einen IMAP-Import-Lauf und verarbeitet ungelesene Nachrichten.
+
+        **Akte-Matching-Strategie (Priorität):**
+        1. Aktenzeichen in Betreff/Body (`Az. 25-0042`, `Unser Zeichen 25-0042`)
+        2. KFZ-Kennzeichen gegen Beteiligte (`OF-HM 1`)
+        3. Absender-E-Mail gegen Beteiligte
+
+        Erkannte Anhänge (PDF/DOCX/JPG/PNG) werden automatisch als Dokumente
+        der gefundenen Akte zugeordnet und das PDF-Parsing angestoßen.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                max_nachrichten:
+                  type: integer
+                  minimum: 1
+                  maximum: 200
+                  default: 50
+      responses:
+        "200":
+          description: Import-Lauf abgeschlossen
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportBericht"
+        "503":
+          description: E-Mail nicht konfiguriert
+          content:
+            application/json:
+              example:
+                fehler: "E-Mail-Import nicht konfiguriert. Bitte EMAIL_HOST, EMAIL_USER und EMAIL_PASSWORD setzen."
+                status: 503
+
+  /email/import/status:
+    get:
+      tags: [E-Mail-Import]
+      summary: IMAP-Verbindungsstatus prüfen
+      responses:
+        "200":
+          description: Verbindungsstatus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailImportStatus"
+
+  /email/import/log:
+    get:
+      tags: [E-Mail-Import]
+      summary: Import-Log abrufen
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [verarbeitet, kein_treffer, fehler, ignoriert]
+        - name: akte_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Import-Log
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  eintraege:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ImportLogEintrag"
+                  gesamt:
+                    type: integer
+
+  /email/import/log/statistik:
+    get:
+      tags: [E-Mail-Import]
+      summary: Import-Statistiken
+      responses:
+        "200":
+          description: Zusammenfassung
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportStatistik"
+
+# ══════════════════════════════════════════════════════════════════════════════
+components:
+# ══════════════════════════════════════════════════════════════════════════════
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Access Token. Erhalten durch `POST /auth/login`.
+        Gültigkeitsdauer: 60 Minuten.
+
+  # ── Parameter ────────────────────────────────────────────────────────────────
+
+  parameters:
+    AkteId:
+      name: akte_id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: ID der Akte
+    BenutzerId:
+      name: benutzer_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    BeteiligterIdParam:
+      name: beteiligter_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    DokumentId:
+      name: dokument_id
+      in: path
+      required: true
+      schema:
+        type: integer
+
+  # ── Standard-Antworten ───────────────────────────────────────────────────────
+
+  responses:
+    NichtAutorisiert:
+      description: Kein gültiger Token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+          example:
+            fehler: "Nicht autorisiert. Bitte einloggen."
+            status: 401
+    Verboten:
+      description: Fehlende Berechtigung (Admin erforderlich)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+          example:
+            fehler: "Zugriff verweigert. Admin-Rolle erforderlich."
+            status: 403
+    NichtGefunden:
+      description: Ressource nicht gefunden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+          example:
+            fehler: "Akte 99 nicht gefunden."
+            status: 404
+    Validierungsfehler:
+      description: Ungültige Eingabedaten
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+          example:
+            fehler: "Aktenzeichen darf nicht leer sein."
+            status: 422
+            feld: "aktenzeichen"
+    Konflikt:
+      description: Ressource existiert bereits
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+
+  # ── Schemas ──────────────────────────────────────────────────────────────────
+
+  schemas:
+
+    # System
+    ApiInfo:
+      type: object
+      properties:
+        name:     { type: string, example: "Unfallakten-API" }
+        version:  { type: string, example: "1.0.0" }
+        endpunkte:
+          type: object
+          additionalProperties:
+            type: string
+
+    HealthStatus:
+      type: object
+      properties:
+        status:     { type: string, enum: [ok, fehler] }
+        datenbank:  { type: string, example: "ok" }
+        akten:      { type: integer, example: 42 }
+        version:    { type: string, example: "1.0.0" }
+        dauer_ms:   { type: number, example: 2.4 }
+
+    Fehler:
+      type: object
+      properties:
+        fehler:  { type: string }
+        status:  { type: integer }
+        feld:    { type: string, nullable: true }
+
+    # Auth
+    BenutzerRegistrierung:
+      type: object
+      required: [name, email, passwort]
+      properties:
+        name:     { type: string, minLength: 2 }
+        email:    { type: string, format: email }
+        passwort: { type: string, minLength: 8, description: "Mind. Groß-/Kleinbuchstabe + Ziffer" }
+        rolle:
+          type: string
+          enum: [admin, sachbearbeiter]
+          default: sachbearbeiter
+
+    Benutzer:
+      type: object
+      properties:
+        id:           { type: integer }
+        name:         { type: string }
+        email:        { type: string, format: email }
+        rolle:        { type: string, enum: [admin, sachbearbeiter] }
+        aktiv:        { type: boolean }
+        erstellt_am:  { type: string, format: date-time }
+
+    LoginAnfrage:
+      type: object
+      required: [email, passwort]
+      properties:
+        email:    { type: string, format: email }
+        passwort: { type: string }
+
+    TokenPaar:
+      type: object
+      properties:
+        access_token:  { type: string }
+        refresh_token: { type: string }
+        token_typ:     { type: string, example: "bearer" }
+        ablauf_minuten: { type: integer, example: 60 }
+        benutzer:
+          $ref: "#/components/schemas/Benutzer"
+
+    # Akten
+    AktenStatus:
+      type: string
+      enum: [offen, in_regulierung, abgeschlossen, klage]
+      description: |
+        - `offen`: Neu angelegt, noch keine Regulierung
+        - `in_regulierung`: Regulierung läuft (wird automatisch gesetzt)
+        - `abgeschlossen`: Vollreguliert (wird automatisch gesetzt)
+        - `klage`: Klage eingereicht
+
+    AkteNeu:
+      type: object
+      required: [aktenzeichen, unfalldatum]
+      properties:
+        aktenzeichen:  { type: string, example: "25-0042" }
+        unfalldatum:   { type: string, format: date, example: "2025-03-15" }
+        unfallort:     { type: string, example: "Offenbach, Berliner Str. 12" }
+        haftungsquote: { type: number, minimum: 0, maximum: 100, default: 100 }
+        notizen:       { type: string }
+
+    AkteUpdate:
+      type: object
+      properties:
+        status:        { $ref: "#/components/schemas/AktenStatus" }
+        unfallort:     { type: string }
+        haftungsquote: { type: number, minimum: 0, maximum: 100 }
+        notizen:       { type: string }
+
+    Akte:
+      type: object
+      properties:
+        id:            { type: integer }
+        aktenzeichen:  { type: string }
+        unfalldatum:   { type: string, format: date }
+        unfallort:     { type: string, nullable: true }
+        status:        { $ref: "#/components/schemas/AktenStatus" }
+        haftungsquote: { type: number }
+        bearbeiter_id: { type: integer, nullable: true }
+        notizen:       { type: string, nullable: true }
+        erstellt_am:   { type: string, format: date-time }
+        geaendert_am:  { type: string, format: date-time }
+
+    AkteKomplett:
+      allOf:
+        - $ref: "#/components/schemas/Akte"
+        - type: object
+          properties:
+            beteiligte:
+              type: array
+              items:
+                $ref: "#/components/schemas/Beteiligter"
+            schaden:
+              $ref: "#/components/schemas/Schadenposition"
+              nullable: true
+            regulierungen:
+              type: array
+              items:
+                $ref: "#/components/schemas/Regulierung"
+            regulierungsstatus:
+              $ref: "#/components/schemas/Regulierungsstatus"
+            dokumente:
+              type: array
+              items:
+                $ref: "#/components/schemas/Dokument"
+
+    AktenListe:
+      type: object
+      properties:
+        akten:
+          type: array
+          items:
+            $ref: "#/components/schemas/Akte"
+        gesamt:    { type: integer }
+        seite:     { type: integer }
+        pro_seite: { type: integer }
+
+    AktenStatistik:
+      type: object
+      properties:
+        gesamt:         { type: integer }
+        offen:          { type: integer }
+        in_regulierung: { type: integer }
+        abgeschlossen:  { type: integer }
+        klage:          { type: integer }
+
+    Aktivitaet:
+      type: object
+      properties:
+        id:           { type: integer }
+        aktion:       { type: string }
+        beschreibung: { type: string }
+        benutzer_id:  { type: integer, nullable: true }
+        erstellt_am:  { type: string, format: date-time }
+
+    # Beteiligte
+    BeteiligterRolle:
+      type: string
+      enum: [mandant, gegner, zeuge, sachverstaendiger, sonstiger]
+
+    BeteiligterNeu:
+      type: object
+      required: [rolle, name]
+      properties:
+        rolle:           { $ref: "#/components/schemas/BeteiligterRolle" }
+        name:            { type: string }
+        vorname:         { type: string }
+        firma:           { type: string }
+        anschrift:       { type: string }
+        plz:             { type: string }
+        ort:             { type: string }
+        telefon:         { type: string }
+        email:           { type: string, format: email }
+        kfz_kennzeichen: { type: string, example: "OF-HM 1" }
+        kfz_typ:         { type: string, example: "VW Passat" }
+        versicherung:    { type: string }
+        vers_nr:         { type: string }
+        schaden_nr:      { type: string }
+        iban:            { type: string }
+        notizen:         { type: string }
+
+    Beteiligter:
+      allOf:
+        - type: object
+          properties:
+            id:       { type: integer }
+            akte_id:  { type: integer }
+        - $ref: "#/components/schemas/BeteiligterNeu"
+
+    # Schaden
+    SchadenpositionInput:
+      type: object
+      description: Alle Betragsfelder in Euro (brutto). Nicht gesetzte Felder bleiben unverändert.
+      properties:
+        reparaturkosten:   { type: number, example: 6240.50 }
+        wiederbeschaffung: { type: number }
+        restwert:          { type: number, description: "Wird vom Gesamtschaden abgezogen" }
+        wertminderung:     { type: number }
+        nutzungsausfall:   { type: number }
+        mietwagenkosten:   { type: number }
+        sv_kosten:         { type: number }
+        abschleppkosten:   { type: number }
+        standkosten:       { type: number }
+        anabmeldekosten:   { type: number }
+        schmerzensgeld:    { type: number }
+        sonstiges:         { type: number }
+        sonstiges_beschr:  { type: string }
+
+    Schadenposition:
+      allOf:
+        - type: object
+          properties:
+            id:            { type: integer }
+            akte_id:       { type: integer }
+            gesamt_brutto: { type: number, description: "Automatisch berechnete Summe" }
+            quelle:        { type: string, enum: [manuell, gutachten_pdf, abrechnung_pdf, korrektur] }
+            erfasst_am:    { type: string, format: date-time }
+        - $ref: "#/components/schemas/SchadenpositionInput"
+
+    RegulierungInput:
+      type: object
+      required: [datum, betrag_gefordert, betrag_reguliert, status]
+      properties:
+        datum:               { type: string, format: date }
+        betrag_gefordert:    { type: number }
+        betrag_reguliert:    { type: number }
+        status:
+          type: string
+          enum: [teilreguliert, vollreguliert, abgelehnt, ausstehend]
+        vers_referenz:       { type: string }
+        kuerz_begruendung:   { type: string }
+
+    Regulierung:
+      allOf:
+        - type: object
+          properties:
+            id:        { type: integer }
+            akte_id:   { type: integer }
+            differenz: { type: number, description: "betrag_gefordert − betrag_reguliert" }
+        - $ref: "#/components/schemas/RegulierungInput"
+
+    Regulierungsstatus:
+      type: object
+      properties:
+        gesamt_gefordert: { type: number }
+        gesamt_reguliert: { type: number }
+        differenz:        { type: number }
+        vollstaendig:     { type: boolean }
+        regulierungsgrad: { type: number, description: "0–100 %" }
+
+    # Dokumente
+    DokumentTyp:
+      type: string
+      enum: [gutachten, abrechnungsschreiben, forderungsschreiben, sachstandsanfrage, klage, sonstiges]
+
+    Dokument:
+      type: object
+      properties:
+        id:              { type: integer }
+        akte_id:         { type: integer }
+        typ:             { $ref: "#/components/schemas/DokumentTyp" }
+        dateiname:       { type: string }
+        dateityp:        { type: string, enum: [pdf, docx, jpg, png] }
+        dateigroesse:    { type: integer, description: "Bytes" }
+        hochgeladen_am:  { type: string, format: date-time }
+        parse_status:    { type: string, enum: [ausstehend, erfolgreich, fehler, manuell_korrigiert] }
+        parse_konfidenz: { type: number, nullable: true, description: "0.0–1.0" }
+        notizen:         { type: string, nullable: true }
+
+    DokumentUploadErgebnis:
+      type: object
+      properties:
+        dokument:      { $ref: "#/components/schemas/Dokument" }
+        parse_ergebnis:
+          $ref: "#/components/schemas/ParseErgebnis"
+          nullable: true
+
+    ParseErgebnis:
+      type: object
+      properties:
+        parse_status:    { type: string }
+        parse_konfidenz: { type: number }
+        felder_gefunden: { type: integer }
+        schaden:         { $ref: "#/components/schemas/SchadenpositionInput" }
+        dokumenttyp:     { type: string }
+        ist_gescannt:    { type: boolean }
+        sha256:          { type: string }
+
+    # Word-Generierung
+    WordDokumentTyp:
+      type: string
+      enum: [forderungsschreiben, sachstandsanfrage, abrechnungsuebersicht]
+      description: |
+        - `forderungsschreiben`: Schadensersatzforderung an Versicherer
+        - `sachstandsanfrage`: Nachfrage bei ausbleibender Regulierung
+        - `abrechnungsuebersicht`: Übersicht für Mandanten
+
+    WordGenerierungsErgebnis:
+      type: object
+      properties:
+        dateiname:    { type: string, example: "25-0042_forderungsschreiben.docx" }
+        groesse:      { type: integer, description: "Bytes" }
+        dokument:
+          $ref: "#/components/schemas/Dokument"
+          nullable: true
+        download_url: { type: string }
+
+    # E-Mail-Import
+    ImportBericht:
+      type: object
+      properties:
+        verarbeitet:  { type: integer }
+        kein_treffer: { type: integer }
+        fehler:       { type: integer }
+        ignoriert:    { type: integer, description: "Duplikate (bereits importiert)" }
+        anhaenge:     { type: integer }
+        laufzeit_s:   { type: number }
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              message_id: { type: string }
+              betreff:    { type: string }
+              absender:   { type: string }
+              status:     { type: string }
+              akte_id:    { type: integer, nullable: true }
+              anhaenge:   { type: integer }
+              dok_ids:    { type: array, items: { type: integer } }
+
+    EmailImportStatus:
+      type: object
+      properties:
+        konfiguriert:  { type: boolean }
+        verbindung_ok: { type: boolean }
+        nachricht:     { type: string }
+        ungelesen:     { type: integer }
+        konfiguration:
+          type: object
+          nullable: true
+          properties:
+            host:   { type: string }
+            port:   { type: integer }
+            user:   { type: string }
+            folder: { type: string }
+
+    ImportLogEintrag:
+      type: object
+      properties:
+        id:              { type: integer }
+        message_id:      { type: string }
+        betreff:         { type: string, nullable: true }
+        absender:        { type: string, nullable: true }
+        empfangen_am:    { type: string, nullable: true }
+        importiert_am:   { type: string, format: date-time }
+        akte_id:         { type: integer, nullable: true }
+        aktenzeichen:    { type: string, nullable: true }
+        status:          { type: string, enum: [verarbeitet, kein_treffer, fehler, ignoriert] }
+        anhaenge_anzahl: { type: integer }
+        notizen:         { type: string, nullable: true }
+
+    ImportStatistik:
+      type: object
+      properties:
+        gesamt:          { type: integer }
+        verarbeitet:     { type: integer }
+        kein_treffer:    { type: integer }
+        fehler:          { type: integer }
+        ignoriert:       { type: integer }
+        letzter_import:  { type: string, nullable: true, format: date-time }
