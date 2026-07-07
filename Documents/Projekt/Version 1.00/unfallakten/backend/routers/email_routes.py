@@ -23,10 +23,12 @@ from ..auth.middleware import login_erforderlich
 from ..email_import.import_service import (
     fuehre_import_lauf_durch, hole_import_log,
     hole_import_statistik, ordne_akte_manuell_zu,
-    importiere_in_akte, loesche_aktion_badge, ImportFehler
+    importiere_in_akte, loesche_aktion_badge, ImportFehler,
+    _imap_cfg_fuer_konto,
 )
 from ..email_import.imap_client import (
-    ist_konfiguriert, teste_verbindung, get_imap_config
+    ist_konfiguriert, teste_verbindung, get_imap_config,
+    suche_und_verschiebe_ua,
 )
 from ..db.database import get_connection
 
@@ -61,6 +63,7 @@ def starte_import():
     """
     daten = request.get_json(silent=True) or {}
     max_n = daten.get("max_nachrichten")
+    konto = daten.get("konto")
     if max_n is not None:
         try:
             max_n = int(max_n)
@@ -73,6 +76,7 @@ def starte_import():
         bericht = fuehre_import_lauf_durch(
             bearbeiter_id=g.benutzer_id,
             max_nachrichten=max_n,
+            konto=konto,
         )
         return _j(bericht)
     except ImportFehler as e:
@@ -143,15 +147,15 @@ def import_log():
     """
     limit   = min(int(request.args.get("limit", 200)), 500)
     status  = request.args.get("status")
-    # FIX: akte_id ist TEXT (az), kein int-Cast
     akte_id = request.args.get("akte_id")
+    konto   = request.args.get("konto")
 
     if status and status not in ERLAUBTE_STATUS:
         return _err(
             f"Ungültiger Status. Erlaubt: {', '.join(ERLAUBTE_STATUS)}", 422
         )
 
-    eintraege = hole_import_log(limit=limit, status=status, akte_id=akte_id)
+    eintraege = hole_import_log(limit=limit, status=status, akte_id=akte_id, konto=konto)
     # Frontend erwartet key "log"
     return _j({"log": eintraege, "gesamt": len(eintraege)})
 
@@ -364,6 +368,38 @@ def log_in_akte_importieren(log_id: int):
     except Exception as e:
         logger.error("in-akte Import Fehler: %s", e)
         return _err(f"Interner Fehler: {e}", 500)
+
+
+# ── POST /email/import/log/<id>/loeschen ─────────────────────────────────────
+
+@email_bp.route("/import/log/<int:log_id>/loeschen", methods=["POST"])
+@login_erforderlich
+def log_loeschen(log_id: int):
+    """
+    POST /email/import/log/<id>/loeschen
+    Markiert eine E-Mail als ignoriert und verschiebt sie per IMAP nach UA_DELETED.
+    """
+    with get_connection() as conn:
+        log = conn.execute(
+            "SELECT message_id, konto FROM email_import_log WHERE id = ?",
+            (log_id,)
+        ).fetchone()
+
+    if not log:
+        return _err("Log-Eintrag nicht gefunden.", 404)
+
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE email_import_log SET status = 'ignoriert' WHERE id = ?",
+            (log_id,)
+        )
+
+    if log["konto"] == "unfall" and log["message_id"]:
+        cfg = _imap_cfg_fuer_konto("unfall")
+        if cfg:
+            suche_und_verschiebe_ua(cfg, log["message_id"], "eingang", "geloescht")
+
+    return _j({"ok": True})
 
 
 # ── Absender-Vorlagen CRUD ────────────────────────────────────────────────────
@@ -798,7 +834,7 @@ def log_eintrag_meta(log_id: int):
             ext = _P(decoded).suffix.lstrip(".").lower()
             payload = part.get_payload(decode=True) or b""
             oeffenbar = ext in ERLAUBTE
-            if oeffenbar:  # nur erlaubte Typen anzeigen
+            if oeffenbar:
                 anhaenge.append({
                     "index":    anh_index,
                     "name":     decoded,
@@ -806,7 +842,7 @@ def log_eintrag_meta(log_id: int):
                     "groesse":  len(payload),
                     "oeffenbar": True,
                 })
-            anh_index += 1
+                anh_index += 1
 
         # Body-Text extrahieren
         body_text = ""
@@ -843,7 +879,8 @@ def log_eintrag_meta(log_id: int):
                 text = _re.sub(r"\n{3,}", "\n\n", text)
                 body_text = text.strip()[:1500]
 
-        return _j({"anhaenge": anhaenge, "body_text": body_text.strip()})
+        body_stripped = body_text.strip()
+        return _j({"anhaenge": anhaenge, "body_text": body_stripped if len(body_stripped) >= 10 else ""})
 
     except Exception as e:
         logger.error("log_eintrag_meta Fehler: %s", e)

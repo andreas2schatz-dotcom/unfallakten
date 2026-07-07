@@ -1388,7 +1388,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     else:
         haftungsbegruendung = details.get("haftungsbegruendung") or ""
 
-        rw_xml  = _lz() + _p("3.) Rechtliche Würdigung", fett=True)
+        rw_xml  = _lz() + _p("4.) Rechtliche Würdigung", fett=True)
         rw_xml += _p(f"Der bei der Beklagten versicherte Unfallgegner verursachte den Unfall "
                      f"durch {haftungsbegruendung or 'sein schuldhaftes Verhalten'}. "
                      f"Die Haftungsquote beträgt {int(hq)} %.")
@@ -1397,7 +1397,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
             gesamt_reguliert = sum(float(a.get("gesamt_reguliert") or 0) for a in abrechnungen)
             if gesamt_reguliert > 0:
                 rw_xml += _p(
-                    f"Die Beklagte hat eine Teilregulierung in Höhe von {_eur_str(gesamt_reguliert)} € "
+                    f"Die Beklagte hat eine Teilregulierung in Höhe von {_eur_str(gesamt_reguliert)} "
                     f"vorgenommen. Die verbleibenden Kürzungen sind nicht gerechtfertigt, "
                     f"sodass die Klage in Höhe des offenen Restbetrages erhoben wird."
                 )
@@ -1412,7 +1412,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
 
     # ── {{SCHMERZENSGELD}} ────────────────────────────────────────────────
     if mit_sg:
-        sg_xml = _p("5.) Schmerzensgeld", fett=True)
+        sg_xml = _lz() + _p("5.) Schmerzensgeld", fett=True)
         sg_absaetze, sg_beweis, sg_vgl = baue_sg_abschnitt(ps_data, kl_nom, sg_mind)
         for absatz in sg_absaetze:
             sg_xml += _p(absatz)

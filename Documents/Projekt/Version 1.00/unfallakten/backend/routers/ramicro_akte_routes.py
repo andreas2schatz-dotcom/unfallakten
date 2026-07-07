@@ -61,6 +61,10 @@ def _klassifiziere(art: int, kz: str) -> str:
     if art == 2:
         if kz_up in EIGENE_VERS_KZ:
             return "eigene_versicherung"
+        if kz_up == "RSV":
+            return "rechtsschutz"
+        if kz_up in ("SB", "SO"):
+            return "weitere"
         return "gegner"
 
     if art == 3:

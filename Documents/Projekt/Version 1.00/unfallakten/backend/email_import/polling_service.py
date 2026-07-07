@@ -106,7 +106,7 @@ def fuehre_polling_durch() -> None:
         logger.info("IMAP-Polling: Starte Import für %s", account)
         try:
             cfg = _imap_config_fuer_account(account)
-            fuehre_import_lauf_durch(imap_config=cfg)
+            fuehre_import_lauf_durch(imap_config=cfg, konto=account)
             _schreibe_status(account, "ok", None)
             logger.info("IMAP-Polling: %s erfolgreich.", account)
         except Exception as e:

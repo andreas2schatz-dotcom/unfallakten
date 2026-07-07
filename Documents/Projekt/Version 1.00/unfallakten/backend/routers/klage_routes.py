@@ -923,7 +923,7 @@ def hole_klage_daten(akte_id: str):
 
         # Echter Gegner: G1/G2/G3 (explizit), SB/SO und leer (Auffangklasse) wenn rolle=="gegner"
         # Nicht-Beklagte explizit ausschließen: eigene Versicherungen, Anwalt, SV, Abwickler
-        _kein_beklagter = {"HP", "HPV", "KASK", "GBEV", "SAB"}
+        _kein_beklagter = {"HP", "HPV", "KASK", "GBEV", "SAB", "RSV", "SB"}
         ist_echter_gegner = (
             bool(re.match(r'^G\d+$', kz))
             or (rolle == "gegner" and kz not in _kein_beklagter and not kz.startswith("SV"))

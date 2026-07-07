@@ -5,13 +5,15 @@ import { EMAIL_TYP_LABELS } from "../../config/constants.js";
 import { emailImport as apiEmail, tokenStore, API_BASE } from "../../api.js";
 import InAkteButton from "./components/InAkteButton.jsx";
 
-function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert }) {
+function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert, onGeloescht }) {
   const [meta, setMeta]               = useState(null);
   const [metaLaedt, setMetaLaedt]     = useState(true);
   const [aktiverIdx, setAktiverIdx]   = useState(null);
   const [vorschauUrl, setVorschauUrl] = useState(null);
   const [vorschauLaedt, setVorschauLaedt] = useState(false);
   const [lokalerEintrag, setLokalerEintrag] = useState(e);
+  const [loeschBestaetigen, setLoeschBestaetigen] = useState(false);
+  const [loeschtGerade, setLoeschtGerade] = useState(false);
   const prevUrlRef = useRef(null);
 
   useEffect(() => {
@@ -57,6 +59,19 @@ function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert }) {
     }
   };
 
+  const handleLoeschen = async () => {
+    setLoeschtGerade(true);
+    try {
+      await apiEmail.loeschen(lokalerEintrag.id);
+      if (onGeloescht) onGeloescht(lokalerEintrag.id);
+      onBack();
+    } catch {
+      setLoeschBestaetigen(false);
+    } finally {
+      setLoeschtGerade(false);
+    }
+  };
+
   const handleInAkteImportiert = (res) => {
     setLokalerEintrag(prev => ({
       ...prev,
@@ -85,6 +100,33 @@ function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert }) {
               fontSize:"0.895rem", color:T.textMid, padding:"4px 0" }}>
             ← Zurück zum Stream
           </button>
+          {!loeschBestaetigen ? (
+            <button onClick={() => setLoeschBestaetigen(true)}
+              style={{ display:"flex", alignItems:"center", gap:4, background:"none",
+                border:`1px solid ${T.border}`, borderRadius:6, cursor:"pointer",
+                fontFamily:"'Figtree',sans-serif", fontSize:"0.835rem",
+                color:T.textMuted, padding:"4px 9px" }}>
+              🗑 Löschen
+            </button>
+          ) : (
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.835rem", color:T.red }}>
+                Wirklich löschen?
+              </span>
+              <button onClick={handleLoeschen} disabled={loeschtGerade}
+                style={{ background:T.red, color:T.white, border:"none", borderRadius:5,
+                  padding:"3px 10px", fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem",
+                  fontWeight:600, cursor:"pointer" }}>
+                {loeschtGerade ? "…" : "Ja"}
+              </button>
+              <button onClick={() => setLoeschBestaetigen(false)}
+                style={{ background:"none", border:`1px solid ${T.border}`, borderRadius:5,
+                  padding:"3px 9px", fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem",
+                  color:T.textMid, cursor:"pointer" }}>
+                Abbrechen
+              </button>
+            </div>
+          )}
           {lokalerEintrag.akte_az && (
             <button onClick={() => onOpenAkte(lokalerEintrag)}
               style={{ display:"flex", alignItems:"center", gap:5, background:"none",

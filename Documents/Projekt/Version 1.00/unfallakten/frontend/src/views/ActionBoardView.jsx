@@ -9,7 +9,8 @@ function baseAz(azVoll) {
   return (azVoll || "").replace(/[A-Z]{2,3}$/i, "").trim();
 }
 
-const ALLE_SB = ["AS", "PK", "CO", "MM", "AH"];
+const ALLE_SB    = ["AS", "PK", "CO", "MM", "AH", "TB", "SK", "EI"];
+const DEFAULT_SB = new Set(["AS", "PK", "CO", "MM", "AH"]);
 
 function sbAusAz(az) {
   const m = (az || "").match(/([A-Z]{2,3})$/);
@@ -23,7 +24,7 @@ export default function ActionBoardView({ onOpenAkte, onOpenEmail }) {
   const [nachrichten, setNachrichten] = useState([]);
   const [ladeZeit,    setLadeZeit]    = useState(null);
   const [laedtGerade, setLaedtGerade] = useState(false);
-  const [aktiveSB,    setAktiveSB]    = useState(new Set(ALLE_SB));
+  const [aktiveSB,    setAktiveSB]    = useState(DEFAULT_SB);
 
   function toggleSB(sb) {
     setAktiveSB(prev => {
@@ -111,7 +112,7 @@ export default function ActionBoardView({ onOpenAkte, onOpenEmail }) {
         />
         <WiedervorlagenKachel
           wv={(wvDaten.wv || []).filter(e => aktiveSB.size === 0 || aktiveSB.has(sbAusAz(e.az)))}
-          ohne_wv={(wvDaten.ohne_wv || []).filter(e => aktiveSB.size === 0 || aktiveSB.has(sbAusAz(e.az)))}
+          ohne_wv={(wvDaten.ohne_wv || []).filter(e => { const sb = sbAusAz(e.az); return aktiveSB.size === 0 || !sb || aktiveSB.has(sb); })}
           onOpenAkte={oeffneAkte}
         />
         <PosteingangKachel

@@ -113,7 +113,7 @@ def liste(akte_id: str):
                 kz = (rb.get("kuerzel") or "").strip().upper()
                 if kz.startswith("SV"):
                     return "sachverstaendiger"
-                if kz == "SAB":
+                if kz in ("SAB", "RSV", "SB"):
                     return "sonstiger"
                 return "gegner"
 

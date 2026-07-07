@@ -63,8 +63,8 @@ function EmailImportView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
 
         {/* Tab-Inhalt */}
         {tab === "unfall"   && <UnfallEmailView  onOpenAkte={onOpenAkte} dispatch={dispatch} initialEmailId={initialEmailId} onEmailGeoffnet={onEmailGeoffnet} />}
-        {tab === "termin"   && <TerminEmailView  />}
-        {tab === "bussgeld" && <BussgeldEmailView />}
+        {tab === "termin"   && <TerminEmailView   onOpenAkte={onOpenAkte} />}
+        {tab === "bussgeld" && <BussgeldEmailView onOpenAkte={onOpenAkte} />}
 
       </div>
     </div>

@@ -24,7 +24,8 @@ from ..pdf.upload_service import starte_pdf_parsing
 
 from .imap_client import (
     imap_verbinden, hole_ungelesene, markiere_als_gelesen,
-    ImapVerbindungsFehler, get_imap_config, ist_konfiguriert
+    ImapVerbindungsFehler, get_imap_config, ist_konfiguriert,
+    verschiebe_in_ua, suche_und_verschiebe_ua,
 )
 from .email_parser import parse_email, finde_akte, speichere_anhang, ist_weiterleitung, extrahiere_original_absender
 from .fragebogen_parser import parse_fragebogen_anhang
@@ -63,6 +64,24 @@ def _upload_dir() -> Path:
     return Path(os.environ.get("UPLOAD_DIR", str(default)))
 
 
+def _imap_cfg_fuer_konto(konto: str) -> dict | None:
+    """Baut IMAP-Config für einen Account aus ENV-Vars (analog polling_service)."""
+    host     = os.environ.get("EMAIL_HOST", "").strip()
+    user     = os.environ.get(f"EMAIL_USER_{konto.upper()}", "").strip()
+    password = os.environ.get(f"EMAIL_PASSWORD_{konto.upper()}", "").strip()
+    if not host or not user or not password:
+        return None
+    return {
+        "host":      host,
+        "port":      int(os.environ.get("EMAIL_PORT", "993")),
+        "user":      user,
+        "password":  password,
+        "folder":    "INBOX",
+        "max_fetch": 50,
+        "ssl":       os.environ.get("EMAIL_PORT", "993") != "143",
+    }
+
+
 # ── Hauptfunktion: Import-Lauf ────────────────────────────────────────────────
 
 def fuehre_import_lauf_durch(
@@ -70,6 +89,7 @@ def fuehre_import_lauf_durch(
     max_nachrichten: int = None,
     imap_config: dict = None,
     imap_mock=None,
+    konto: str = None,
 ) -> dict:
     """
     Führt einen vollständigen E-Mail-Import-Lauf durch.
@@ -95,18 +115,29 @@ def fuehre_import_lauf_durch(
     start_zeit = datetime.now()
     bericht    = _leerer_bericht()
 
-    cfg    = imap_config or get_imap_config()
+    if imap_config:
+        cfg = imap_config
+    elif konto and konto != "unfall":
+        cfg = _imap_cfg_fuer_konto(konto)
+        if not cfg:
+            raise ImportFehler(
+                f"IMAP-Konfiguration für '{konto}' fehlt. "
+                f"Bitte EMAIL_USER_{konto.upper()} und EMAIL_PASSWORD_{konto.upper()} setzen.",
+                status_code=503,
+            )
+    else:
+        cfg = get_imap_config()
     max_n  = max_nachrichten or cfg.get("max_fetch", 50)
     up_dir = _upload_dir()
 
     try:
         if imap_mock is not None:
             nachrichten = hole_ungelesene(imap_mock, max_n)
-            _verarbeite_alle(nachrichten, imap_mock, bericht, up_dir, bearbeiter_id)
+            _verarbeite_alle(nachrichten, imap_mock, bericht, up_dir, bearbeiter_id, konto)
         else:
             with imap_verbinden(cfg) as imap:
                 nachrichten = hole_ungelesene(imap, max_n)
-                _verarbeite_alle(nachrichten, imap, bericht, up_dir, bearbeiter_id)
+                _verarbeite_alle(nachrichten, imap, bericht, up_dir, bearbeiter_id, konto)
 
     except ImapVerbindungsFehler as e:
         raise ImportFehler(f"IMAP-Verbindungsfehler: {e}", 503) from e
@@ -125,10 +156,10 @@ def fuehre_import_lauf_durch(
 
 # ── Alle Nachrichten verarbeiten ──────────────────────────────────────────────
 
-def _verarbeite_alle(nachrichten, imap, bericht, up_dir, bearbeiter_id):
+def _verarbeite_alle(nachrichten, imap, bericht, up_dir, bearbeiter_id, konto=None):
     for uid, roh_bytes in nachrichten:
         try:
-            _verarbeite_eine(uid, roh_bytes, imap, bericht, up_dir, bearbeiter_id)
+            _verarbeite_eine(uid, roh_bytes, imap, bericht, up_dir, bearbeiter_id, konto)
         except Exception as e:
             logger.error("Unerwarteter Fehler bei UID %s: %s", uid, e)
             bericht["fehler"] += 1
@@ -139,7 +170,7 @@ def _verarbeite_alle(nachrichten, imap, bericht, up_dir, bearbeiter_id):
             })
 
 
-def _verarbeite_eine(uid, roh_bytes, imap, bericht, up_dir, bearbeiter_id):
+def _verarbeite_eine(uid, roh_bytes, imap, bericht, up_dir, bearbeiter_id, konto=None):
     parsed = parse_email(roh_bytes)
     msg_id = parsed["message_id"]
 
@@ -364,8 +395,8 @@ def _verarbeite_eine(uid, roh_bytes, imap, bericht, up_dir, bearbeiter_id):
                 akte_id, status,
                 erkannt_az, erkannt_kfz, match_methode,
                 absender_kategorie, eml_pfad, email_typ,
-                anhaenge_anzahl, importierte_dok, notizen
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                anhaenge_anzahl, importierte_dok, notizen, konto
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 msg_id,
@@ -387,11 +418,16 @@ def _verarbeite_eine(uid, roh_bytes, imap, bericht, up_dir, bearbeiter_id):
                     f"Keine Akte gefunden. Kandidaten: "
                     f"{parsed['az_kandidaten']} / KFZ: {parsed['kfz_kandidaten']}"
                 )[:500],
+                konto,
             )
         )
 
     # ── Als gelesen markieren ─────────────────────────────────────────────────
     markiere_als_gelesen(imap, uid)
+
+    # ── IMAP: nach UA_Eingang verschieben (nur unfall@) ───────────────────────
+    if konto == "unfall":
+        verschiebe_in_ua(imap, uid, "eingang")
 
     # ── Bericht aktualisieren ─────────────────────────────────────────────────
     if status == "zugeordnet":
@@ -424,13 +460,10 @@ def _verarbeite_eine(uid, roh_bytes, imap, bericht, up_dir, bearbeiter_id):
 def hole_import_log(
     limit: int = 50,
     status: str = None,
-    akte_id: str = None,        # TEXT (az) nach Migration 17
+    akte_id: str = None,
+    konto: str = None,
 ) -> list[dict]:
-    """
-    Gibt den E-Mail-Import-Log zurück.
-
-    FIX Bug 3: JOIN auf unfallakte(az) statt unfallakte(id).
-    """
+    """Gibt den E-Mail-Import-Log zurück, optional gefiltert nach Account (konto)."""
     bedingungen = []
     parameter   = []
 
@@ -440,6 +473,12 @@ def hole_import_log(
     if akte_id:
         bedingungen.append("l.akte_id = ?")
         parameter.append(akte_id)
+    if konto:
+        if konto == "unfall":
+            bedingungen.append("(l.konto = ? OR l.konto IS NULL)")
+        else:
+            bedingungen.append("l.konto = ?")
+        parameter.append(konto)
 
     where = f"WHERE {' AND '.join(bedingungen)}" if bedingungen else ""
     parameter.append(limit)
@@ -592,7 +631,8 @@ def importiere_in_akte(
         log = conn.execute(
             """
             SELECT id, akte_id, betreff, absender, eml_pfad,
-                   importierte_dok, in_akte_importiert, anhaenge_anzahl
+                   importierte_dok, in_akte_importiert, anhaenge_anzahl,
+                   message_id, konto
             FROM email_import_log WHERE id = ?
             """,
             (log_id,)
@@ -725,13 +765,28 @@ def importiere_in_akte(
     elif eml_pfad:
         logger.warning(".eml Datei nicht mehr vorhanden: %s", eml_pfad)
 
+    # 4. in_akte_importiert setzen
+    importiert_am_str = _dt.now().strftime("%H:%M")
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE email_import_log SET in_akte_importiert = 1, "
+            "in_akte_importiert_am = ? WHERE id = ?",
+            (importiert_am_str, log_id),
+        )
+
+    # 5. IMAP: UA_Eingang → UA_Verarbeitet (nur unfall@, best effort)
+    if log["konto"] == "unfall" and log["message_id"]:
+        cfg = _imap_cfg_fuer_konto("unfall")
+        if cfg:
+            suche_und_verschiebe_ua(cfg, log["message_id"], "eingang", "verarbeitet")
+
     logger.info("In-Akte-Import: Log %d -> Akte %s, %d Dok(e)",
                 log_id, akte_id, len(dok_ids_neu))
     return {
         "ok":          True,
         "dok_ids":     dok_ids_neu,
         "fehler":      fehler,
-        "importiert_am": _dt.now().strftime("%H:%M"),
+        "importiert_am": importiert_am_str,
     }
 
 

@@ -214,6 +214,93 @@ def verschiebe_in_ordner(imap: imaplib.IMAP4, uid: bytes,
         return False
 
 
+# ── UA-Ordner-Verwaltung (unfall@ Workflow) ───────────────────────────────────
+
+_UA_ORDNER = {
+    "eingang":     "UA_Eingang",
+    "verarbeitet": "UA_Verarbeitet",
+    "geloescht":   "UA_DELETED",
+}
+
+
+def _hole_trennzeichen(imap: imaplib.IMAP4) -> str:
+    """Liest den IMAP-Hierarchietrenner aus der Server-Antwort ('/' oder '.')."""
+    import re as _re
+    try:
+        typ, daten = imap.list("", "INBOX")
+        if typ == "OK" and daten and daten[0]:
+            raw = daten[0].decode() if isinstance(daten[0], bytes) else str(daten[0])
+            m = _re.search(r'"([./\\])"', raw)
+            if m:
+                return m.group(1)
+    except Exception:
+        pass
+    return "/"
+
+
+def verschiebe_in_ua(imap: imaplib.IMAP4, uid: bytes, ziel_key: str) -> bool:
+    """
+    Verschiebt eine E-Mail aus dem aktuell selektierten Ordner (INBOX)
+    nach INBOX/{sep}UA_xxx. Erstellt den Zielordner bei Bedarf.
+
+    ziel_key: 'eingang' | 'verarbeitet' | 'geloescht'
+    """
+    name = _UA_ORDNER.get(ziel_key, ziel_key)
+    sep  = _hole_trennzeichen(imap)
+    ziel = f"INBOX{sep}{name}"
+    try:
+        imap.create(ziel)
+    except imaplib.IMAP4.error:
+        pass
+    return verschiebe_in_ordner(imap, uid, ziel)
+
+
+def suche_und_verschiebe_ua(
+    cfg: dict,
+    message_id: str,
+    quell_key: str,
+    ziel_key: str,
+) -> bool:
+    """
+    Öffnet eine neue IMAP-Verbindung, sucht eine E-Mail anhand der Message-ID
+    in INBOX/{UA_quell} und verschiebt sie nach INBOX/{UA_ziel}.
+    Gibt True zurück wenn eine E-Mail bewegt wurde (best effort, kein Fehler bei Misserfolg).
+    """
+    if not message_id or not cfg:
+        return False
+    quell_name = _UA_ORDNER.get(quell_key, quell_key)
+    ziel_name  = _UA_ORDNER.get(ziel_key,  ziel_key)
+    try:
+        with imap_verbinden(cfg) as imap:
+            sep        = _hole_trennzeichen(imap)
+            quell_pfad = f"INBOX{sep}{quell_name}"
+            ziel_pfad  = f"INBOX{sep}{ziel_name}"
+
+            try:
+                imap.create(ziel_pfad)
+            except imaplib.IMAP4.error:
+                pass
+
+            typ, _ = imap.select(quell_pfad)
+            if typ != "OK":
+                logger.warning("UA-Quellordner '%s' nicht vorhanden.", quell_pfad)
+                return False
+
+            typ, daten = imap.uid("SEARCH", "HEADER", "Message-ID", message_id)
+            if typ != "OK" or not daten[0]:
+                logger.debug("Message-ID '%s' nicht in '%s' gefunden.", message_id, quell_pfad)
+                return False
+
+            bewegt = False
+            for uid in daten[0].split():
+                if verschiebe_in_ordner(imap, uid, ziel_pfad):
+                    bewegt = True
+            return bewegt
+    except Exception as e:
+        logger.warning("suche_und_verschiebe_ua (%s→%s): %s", quell_name, ziel_name, e)
+        return False
+
+
 # ── Verbindungstest ───────────────────────────────────────────────────────────
 
 def teste_verbindung(config: dict = None) -> dict:

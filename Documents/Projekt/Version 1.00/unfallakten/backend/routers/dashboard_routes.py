@@ -475,7 +475,7 @@ def ramicro_fristen():
 
 
 _TERMIN_CODES  = {9, 58, 60}
-_FRIST_CODES   = {21, 22, 31, 46, 75}
+_FRIST_CODES   = {21, 22, 31, 46, 51, 55, 75}
 _WV_AUSSCHLUSS = _TERMIN_CODES | _FRIST_CODES
 
 # Nur für Termine-Kachel: spezifischere Labels als in _RAMICRO_GRUENDE für Codes 9, 58, 60
@@ -499,6 +499,8 @@ _FRIST_LABELS = {
     22: "Urteil",
     31: "Mahnbescheid",
     46: "Berufung",
+    51: "Einspruch",
+    55: "Beschwerde",
     75: "Fristablauf",
 }
 
@@ -676,7 +678,7 @@ def _lade_ramicro_fristen_hart():
                     w.iWiedervorlageGrund   AS grund_code
                 FROM tblAktenWiedervorlagen w
                 INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
-                WHERE w.iWiedervorlageGrund IN (21, 22, 31, 46, 75)
+                WHERE w.iWiedervorlageGrund IN (21, 22, 31, 46, 51, 55, 75)
                   AND CAST(w.dtWiedervorlage AS DATE) BETWEEN %(minus365)s AND %(plus14)s
                   AND (a.dtAblage IS NULL
                        OR CAST(a.dtAblage AS DATE) = '1899-12-30')
@@ -740,7 +742,7 @@ def _lade_wiedervorlagen():
                     w.sWiedervorlagegrund   AS grund_text
                 FROM tblAktenWiedervorlagen w
                 INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
-                WHERE w.iWiedervorlageGrund NOT IN (9, 21, 22, 31, 46, 58, 60, 75)
+                WHERE w.iWiedervorlageGrund NOT IN (9, 21, 22, 31, 46, 51, 55, 58, 60, 75)
                   AND CAST(w.dtWiedervorlage AS DATE) BETWEEN %(minus90)s AND %(heute)s
                   AND (a.dtAblage IS NULL
                        OR CAST(a.dtAblage AS DATE) = '1899-12-30')

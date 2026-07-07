@@ -562,9 +562,13 @@ def _lade_beteiligte_aus_ramicro(az: str) -> dict:
             kz_up = (kz or "").strip().upper()
             if art == 1 and kz_up not in ("SB", "SO", "G"):
                 return "mandant"
-            # Nicht-Beklagte: eigene Versicherungen, Anwälte, Sachverständige, Abwickler
-            _nicht_gegner = ("HP", "HPV", "KASK", "GBEV", "SAB")
-            if art in (2, 4, 9) and kz_up not in _nicht_gegner and not kz_up.startswith("SV"):
+            # Nicht-Beklagte: eigene Versicherungen, Anwälte, Sachverständige, Abwickler, RSV, SB
+            _nicht_gegner = ("HP", "HPV", "KASK", "GBEV", "SAB", "RSV", "SB")
+            # art=2 (Schadengegner): auch ohne Kürzel Gegner – z.B. DBGK ohne kz-Eintrag
+            if art == 2 and kz_up not in _nicht_gegner and not kz_up.startswith("SV"):
+                return "gegner"
+            # art=4/9: leeres Kürzel → nicht automatisch Gegner
+            if art in (4, 9) and kz_up and kz_up not in _nicht_gegner and not kz_up.startswith("SV"):
                 return "gegner"
             return "andere"
 

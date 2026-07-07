@@ -92,7 +92,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
     apiEmail.status()
       .then(d => { setCfgStatus(d); if (d?.konfiguration) setImapCfg(d.konfiguration); })
       .catch(() => {});
-    apiEmail.log({ limit: 200 })
+    apiEmail.log({ limit: 200, konto: "unfall" })
       .then(d => { if (d?.log) setLog(d.log.map(normalisiereLogEintrag)); })
       .catch(() => {})
       .finally(() => setLaedt(false));
@@ -140,7 +140,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
       setTimeout(r, 400 + Math.random() * 160);
     });
     const animPromise = (async () => { for (let i = 0; i < IMPORT_STEPS.length; i++) await tick(); })();
-    const apiPromise  = apiEmail.starten();
+    const apiPromise  = apiEmail.starten({ konto: "unfall" });
     let res = null;
     let importFehler = null;
     try {
@@ -154,7 +154,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
       const gueltig = res.details.filter(e => e.betreff);
       setResult({ neu: gueltig.length, zugeordnet: res.verarbeitet ?? 0, anhaenge: res.anhaenge ?? 0 });
       setToast(`Import: ${gueltig.length} neue E-Mail(s).`);
-      apiEmail.log({ limit: 200 })
+      apiEmail.log({ limit: 200, konto: "unfall" })
         .then(d => { if (d?.log) setLog(d.log.map(normalisiereLogEintrag)); })
         .catch(() => {});
       apiEmail.fragebogenErstkontakt({ status: "neu" })
@@ -225,6 +225,10 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
     setGeoeffneteEmail(null);
   }, []);
 
+  const handleEmailGeloescht = useCallback((logId) => {
+    setLog(prev => prev.filter(e => e.id !== logId));
+  }, []);
+
   const fragebogenAlsBearbeitet = async (id) => {
     try {
       await apiEmail.fragebogenErstkontaktStatus(id, "bearbeitet");
@@ -245,6 +249,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
           onBack={handleEmailZurueck}
           onOpenAkte={handleOpenAkte}
           onInAkteImportiert={onInAkteImportiert}
+          onGeloescht={handleEmailGeloescht}
         />
       ) : (
         <>
