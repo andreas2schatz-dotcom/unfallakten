@@ -1,0 +1,97 @@
+"""
+OCR-Service (PRD-30)
+=====================
+Lokale Texterkennung für gescannte PDFs via Tesseract + pdf2image.
+
+- Kein Cloud-Dienst, vollständig lokal → DSGVO-konform
+- Deutsch als Standardsprache (tesseract-ocr-deu)
+- DPI 300 für A4-Briefe (Regelfall bei Versicherungspost)
+"""
+
+import logging
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+# OCR-Bibliotheken sind optional – bei fehlendem Tesseract graceful degradieren
+_ocr_verfuegbar: Optional[bool] = None  # None = noch nicht geprüft
+
+
+def _pruefeVerfuegbarkeit() -> bool:
+    global _ocr_verfuegbar
+    if _ocr_verfuegbar is not None:
+        return _ocr_verfuegbar
+    try:
+        import pytesseract
+        import pdf2image  # noqa: F401
+        pytesseract.get_tesseract_version()
+        _ocr_verfuegbar = True
+        logger.info("Tesseract OCR verfügbar: %s", pytesseract.get_tesseract_version())
+    except Exception as e:
+        _ocr_verfuegbar = False
+        logger.warning("Tesseract OCR nicht verfügbar (%s) – OCR deaktiviert.", e)
+    return _ocr_verfuegbar
+
+
+def ist_bild_pdf(has_image_pages: bool, text_laenge: int) -> bool:
+    """
+    True wenn das PDF OCR benötigt.
+
+    Kriterien:
+    - pdfplumber hat Bildseiten erkannt (has_image_pages), ODER
+    - weniger als 50 Zeichen extrahiert (quasi leer)
+    """
+    return has_image_pages or text_laenge < 50
+
+
+def ocr_text(pdf_bytes: bytes, lang: str = "deu", dpi: int = 300) -> str:
+    """
+    Konvertiert Bild-PDF-Seiten zu Text via Tesseract.
+
+    Args:
+        pdf_bytes: Rohbytes der PDF-Datei
+        lang:      Tesseract-Sprachkürzel (Standard: 'deu')
+        dpi:       Auflösung für Bildkonvertierung (Standard: 300)
+
+    Returns:
+        Erkannter Text aller Seiten, Seiten durch Doppelnewline getrennt.
+        Leerer String wenn OCR nicht verfügbar oder Fehler.
+    """
+    if not _pruefeVerfuegbarkeit():
+        logger.error("OCR-Anfrage, aber Tesseract nicht verfügbar.")
+        return ""
+
+    try:
+        from pdf2image import convert_from_bytes
+        import pytesseract
+    except ImportError as e:
+        logger.error("OCR-Import fehlgeschlagen: %s", e)
+        return ""
+
+    try:
+        images = convert_from_bytes(pdf_bytes, dpi=dpi)
+    except Exception as e:
+        logger.error("PDF→Bild-Konvertierung fehlgeschlagen: %s", e)
+        return ""
+
+    seiten = []
+    for i, img in enumerate(images, start=1):
+        try:
+            text = pytesseract.image_to_string(img, lang=lang)
+            seiten.append(text)
+            logger.debug("OCR Seite %d/%d: %d Zeichen erkannt.", i, len(images), len(text))
+        except Exception as e:
+            logger.warning("OCR Seite %d fehlgeschlagen: %s", i, e)
+            seiten.append("")
+
+    ergebnis = "\n\n".join(seiten)
+    logger.info(
+        "OCR abgeschlossen: %d Seiten, %d Zeichen gesamt.",
+        len(images), len(ergebnis),
+    )
+    return ergebnis
+
+
+def ocr_verfuegbar() -> bool:
+    """Gibt True zurück wenn Tesseract einsatzbereit ist."""
+    return _pruefeVerfuegbarkeit()
