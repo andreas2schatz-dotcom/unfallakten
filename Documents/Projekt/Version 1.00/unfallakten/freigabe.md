@@ -96,4 +96,13 @@ entschärft — der Hinweis genügt.)
 1. **S1.1–S1.5** (Datenmodell inkl. K-P2, Archiv, Adapter, Absender-Registry,
    Klassen-Registry + Loader)
 2. **P1.1–P1.4** (Positions-Konfiguration [Loader aus S1.5 mitbenutzen, K-1],
-   Ereignis-Tabellen inkl. K-M1, Ableitung, ausgehende
+   Ereignis-Tabellen inkl. K-M1, Ableitung, ausgehende Ereignisse)
+3. **S1.6a, S1.6b, S1.7, S1.8, S1.9** (Queue, Kaskade, Matching, Review-UI
+   [Freigabe-Dialog inkl. Ereignis-Vorschlägen K-2 und „ersetzt"-Auswahl
+   K-M2b], Umschaltung inkl. K-P1)
+4. **P1.5–P1.8** (eingehende Ereignisse inkl. K-M2a, System-Ereignisse, UI,
+   Backfill inkl. K-M3)
+
+Migrations-Nummern fortlaufend nach tatsächlicher Reihenfolge (PF-06).
+Jeder Schritt: lauffähig, Testkriterium erfüllt, dann erst weiter. Kein
+Schritt beginnt, bevor der vorherige abgenommen ist.

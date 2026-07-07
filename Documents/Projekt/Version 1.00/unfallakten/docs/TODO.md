@@ -55,7 +55,7 @@
 **Reihenfolge:** verbindlich lt. freigabe.md Abschnitt 4 (S1.1–S1.5 → P1.1–P1.4 → …), inkl. Korrekturen K-P1–K-P4 / K-M1–K-M3.
 **Aktueller Schritt:** S1.1 + S1.2 (noch nicht begonnen).
 **Vor jedem Migrationsschritt:** Sicherungskopie der SQLite-DB. Kein executescript(), explizites conn.commit() bei ALTER TABLE. RA-MICRO read-only, Docker/CIFS tabu, Alt-Pfade unverändert (Doppelschreiben).
-**Achtung:** freigabe.md endet derzeit mitten in Abschnitt 4 (Zeile 99) — Reihenfolge ab Punkt 3 fehlt und muss von RA Schatz ergänzt werden, bevor die Verschränkung S1.6 ff./P1.5 ff. ansteht.
+**Abnahmeregel (freigabe.md Abschn. 4):** Jeder Schritt lauffähig + Testkriterium erfüllt; kein Schritt beginnt, bevor der vorherige abgenommen ist. Migrations-Nummern fortlaufend nach tatsächlicher Reihenfolge.
 (Stand: 2026-07-07)
 
 ### Action Board – Fristen-Spalte unvollständig

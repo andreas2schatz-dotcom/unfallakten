@@ -47,3 +47,8 @@ logs/
 
 # Git Worktrees
 .worktrees/
+
+# Claude-Code-Tooling
+.claude/
+.agents/
+skills-lock.json
