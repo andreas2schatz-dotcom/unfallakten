@@ -83,8 +83,9 @@ Neben S1.6b in dieser Session gefixt (alle auf `intake-stufe1` gepusht):
 **Testsuite-Bilanz:** Baseline (Anfang Session) 294f/385p/26e/3s → nach Bugfixing **208f/529p/0e/3s** (−86 failures, +144 passes, −26 errors).
 
 **Offene Baustellen (aus Failure-Kategorisierung 2026-07-08):**
-- **P2 – Auth-Test-Isolation:** ~150 Failures in `test_modul3/4/7` scheitern an `KeyError: 'access_token'` weil `_setup()` `importlib.reload` nutzt und Sub-Imports nicht durchschlägt — Test-Framework-Umbau nötig (pytest-Fixtures mit sauberer DB-Isolation). Größerer Eingriff.
-- **P3 – Portal-Sync-Spaltendrift:** 3 Failures in `test_portal_sync.py` (`sqlite3.OperationalError: no such column: gutachten_nr` in `portal_sync.py:110`). Klein.
+- ~~**P3 – Portal-Sync-Spaltendrift:**~~ ✅ Commit `6572abf` — beteiligte-Fixture um `gutachten_nr` ergänzt.
+- **P2 (Teil 1) – Auth-Bootstrap:** ✅ Commit `e7bdad9` — `conftest.py` setzt `JWT_SECRET_KEY` + `ADMIN_*`-Env-Vars, sodass `_ensure_admin_exists()` den Test-Admin anlegt; `test_modul3._setup()` loggt direkt ein. Access-Token-KeyError damit weg. Sample-Refactoring `aktenzeichen` → `az` in `test_modul3.py` (Migration-5-Follow-through).
+- **P2 (Teil 2) – Testsuite-Modernisierung `test_modul3/4/7`:** ABGEBROCHEN — kein 1-Zeilen-Fix. Nach jedem gefixten Symptom (`access_token` → `aktenzeichen` → `regulierungen` → Sub-Struktur) kommt das nächste. Jeder Test braucht einzelnen Abgleich mit der aktuellen API. Als eigenes Ticket im Backlog.
 - **Kleinere:** `test_migration_46` `intake_dokumente`-Timing (1), `test_sv_portal` 200 vs 404 (1), `test_modul1` `check_schema()` + `test_status_view` (~5). 
 - **Endpunkt-Härtung:** Query-Stellen in `klage_routes.py:241/364/1232` sind nach Migration 50 heil, aber ungeschützt (kein `try/except`). Defensiver Guard sinnvoll für DB-Deployment-Reihenfolge-Ausfälle.
 
