@@ -53,7 +53,7 @@
 **Maßgebliche Dokumente (immer zuerst lesen):** `freigabe.md` (verbindlich, übersteuert die Pläne) + `PIPELINE-REFACTORING-PLAN.md` + `POSITIONSMODELL-PLAN.md` (alle im Projekt-Root).
 **Arbeitsbranch:** `intake-stufe1` — alle Implementierungs-Sessions arbeiten auf diesem Branch, nicht auf main.
 **Reihenfolge:** verbindlich lt. freigabe.md Abschnitt 4 (S1.1–S1.5 → P1.1–P1.4 → …), inkl. Korrekturen K-P1–K-P4 / K-M1–K-M3.
-**Aktueller Schritt:** S1.1 + S1.2 ✅ (2026-07-07, 26 Tests grün, 0 Regressionen). Nächster Schritt: **S1.3** (Adapter-Schicht IMAP/Upload/E-Akte um bestehende Eintrittspunkte).
+**Aktueller Schritt:** S1.1 + S1.2 + S1.3 ✅ (2026-07-08 – S1.3: 9 neue Tests grün, 0 Regressionen. Baseline 327 → 336 passed, 274 failed / 23 errors / 2 skipped unverändert). Nächster Schritt: **S1.4** (Absender-Registry-Grundgerüst, Migration 47).
 **Vor jedem Migrationsschritt:** Sicherungskopie der SQLite-DB. Kein executescript(), explizites conn.commit() bei ALTER TABLE. RA-MICRO read-only, Docker/CIFS tabu, Alt-Pfade unverändert (Doppelschreiben).
 **Abnahmeregel (freigabe.md Abschn. 4):** Jeder Schritt lauffähig + Testkriterium erfüllt; kein Schritt beginnt, bevor der vorherige abgenommen ist. Migrations-Nummern fortlaufend nach tatsächlicher Reihenfolge.
 (Stand: 2026-07-07)

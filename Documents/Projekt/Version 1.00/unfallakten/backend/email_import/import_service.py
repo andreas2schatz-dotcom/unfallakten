@@ -422,6 +422,14 @@ def _verarbeite_eine(uid, roh_bytes, imap, bericht, up_dir, bearbeiter_id, konto
             )
         )
 
+    # ── S1.3: Doppelschreiben in intake_dokumente/zustellungen ────────────
+    # Best-Effort — der Alt-Pfad darf durch den Adapter niemals brechen.
+    try:
+        from ..intake.adapter_imap import verarbeite_email as _intake_imap
+        _intake_imap(roh_bytes, konto=konto, roh_referenz=eml_pfad)
+    except Exception as _e:
+        logger.debug("Intake-Doppelschreiben (IMAP) fehlgeschlagen: %s", _e)
+
     # ── Als gelesen markieren ─────────────────────────────────────────────────
     markiere_als_gelesen(imap, uid)
 

@@ -246,6 +246,19 @@ def importieren(akte_id, nr):
         logger.error("E-Akte Registrierung fehlgeschlagen: %s", e)
         return _err("Registrierung fehlgeschlagen: %s" % e, 500)
 
+    # S1.3: Doppelschreiben in intake_dokumente/zustellungen (quelle=eakte).
+    # Best-Effort — der Alt-Pfad darf durch den Adapter niemals brechen.
+    try:
+        from ..intake.adapter_eakte import verarbeite_eakte_dokument as _intake_eakte
+        _intake_eakte(
+            pfad,
+            akte_az=akte_id,
+            eakte_nr=nr,
+            dateiname=dok.get("dateiname"),
+        )
+    except Exception as _e:
+        logger.debug("Intake-Doppelschreiben (E-Akte) fehlgeschlagen: %s", _e)
+
     # 6. Dispatcher aufrufen (Klassifikation + Parsing)
     dispatch_ergebnis = None
     try:

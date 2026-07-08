@@ -354,7 +354,15 @@ def _extrahiere_text(msg: EmailMessage) -> str:
     '''
     Extrahiert Plain-Text aus einer E-Mail.
     Fallback auf text/html wenn kein text/plain vorhanden (eingebettete Bilder etc.).
+
+    Die UTF-16-BOM-Behandlung liegt seit S1.3 im IMAP-Adapter
+    (``backend/intake/adapter_imap.py: dekodiere_email_payload``) — hier
+    wird sie ueber Import benutzt, nicht dupliziert.
     '''
+    # Lokal importieren, damit Modul-Zyklen ausgeschlossen sind
+    # (adapter_imap importiert nichts aus diesem Modul).
+    from ..intake.adapter_imap import dekodiere_email_payload
+
     text_teile = []
     html_teile = []
     try:
@@ -367,27 +375,14 @@ def _extrahiere_text(msg: EmailMessage) -> str:
             if not payload:
                 continue
             charset = part.get_content_charset() or 'utf-8'
+            decoded = dekodiere_email_payload(payload, charset)
             if ct == 'text/plain':
-                # UTF-16 BOM erkennen und korrekt dekodieren
-                if payload[:2] in (b'\xff\xfe', b'\xfe\xff'):
-                    try:
-                        decoded = payload.decode('utf-16', errors='replace')
-                    except Exception:
-                        decoded = payload.decode(charset, errors='replace')
-                else:
-                    decoded = payload.decode(charset, errors='replace')
                 # Pruefen ob Text lesbar ist (nicht binaerer Muell)
                 lesbar = sum(1 for c in decoded[:200] if c.isprintable() or c in '\n\r\t')
                 if lesbar > len(decoded[:200]) * 0.5:
                     text_teile.append(decoded)
             elif ct == 'text/html':
-                if payload[:2] in (b'\xff\xfe', b'\xfe\xff'):
-                    try:
-                        html_teile.append(payload.decode('utf-16', errors='replace'))
-                    except Exception:
-                        html_teile.append(payload.decode(charset, errors='replace'))
-                else:
-                    html_teile.append(payload.decode(charset, errors='replace'))
+                html_teile.append(decoded)
     except Exception as e:
         logger.debug('Text-Extraktion: %s', e)
 

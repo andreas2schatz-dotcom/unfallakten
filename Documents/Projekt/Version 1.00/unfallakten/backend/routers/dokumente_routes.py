@@ -196,6 +196,19 @@ def upload(akte_id: str):
     except Exception as exc:
         logger.warning("portal_flag fehlgeschlagen (Akte %s): %s", akte_id, exc)
 
+    # S1.3: Doppelschreiben in intake_dokumente/zustellungen.
+    # Best-Effort — der Alt-Pfad darf durch den Adapter niemals brechen.
+    try:
+        from ..intake.adapter_upload import verarbeite_datei as _intake_upload
+        _intake_upload(
+            datei_bytes,
+            dateiname=datei.filename,
+            hochgeladen_von=getattr(g, "benutzer_id", None),
+            roh_referenz=f"upload/akte:{akte_id}",
+        )
+    except Exception as _e:
+        logger.debug("Intake-Doppelschreiben (Upload) fehlgeschlagen: %s", _e)
+
     return _j(ergebnis, 201)
 
 
