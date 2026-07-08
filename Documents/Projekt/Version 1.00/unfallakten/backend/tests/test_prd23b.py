@@ -319,58 +319,89 @@ class TestKlassifiziereEakteDok(unittest.TestCase):
     def _firma(self, name, email=""):
         return {"rolle": "sonstiger", "name": name, "vorname": "", "anrede": "Firma", "email": email}
 
-    def test_sv_domain_match(self):
+    # Hinweis: _klassifiziere_eakte_dok liefert seit v41 (2026-04-04) eine
+    # LISTE von Kandidat-Dicts (leer = kein Treffer). Fuer Gutachten vom SV
+    # gibt es sogar 4 Kandidaten (rep_gutachten_netto, wiederbeschaffung,
+    # restwert, wertminderung). Der Aufrufer belege_routes.py:688 iteriert
+    # ueber diese Liste; die Tests wurden hier auf die neue Signatur
+    # angepasst.
+
+    def test_sv_domain_match_bei_rechnung(self):
+        # SV-Domain + Rechnungs-Anzeigename -> genau EIN Kandidat: sv_kosten
+        dok = {"absender_domain": "gutachter.de", "anzeigename": "Honorarrechnung.pdf"}
+        beteiligte = [self._sv("sv@gutachter.de")]
+        r = _klassifiziere_eakte_dok(dok, beteiligte, vorsteuer=False)
+        self.assertEqual(len(r), 1)
+        self.assertEqual(r[0]["position_key"], "sv_kosten")
+        self.assertAlmostEqual(r[0]["konfidenz"], 0.90, places=2)
+
+    def test_sv_domain_match_bei_rechnung_vorsteuer(self):
+        # Selbes Setup, vorsteuer=True -> sv_kosten_netto
+        dok = {"absender_domain": "gutachter.de", "anzeigename": "Honorarrechnung.pdf"}
+        beteiligte = [self._sv("sv@gutachter.de")]
+        r = _klassifiziere_eakte_dok(dok, beteiligte, vorsteuer=True)
+        self.assertEqual(len(r), 1)
+        self.assertEqual(r[0]["position_key"], "sv_kosten_netto")
+
+    def test_sv_domain_match_bei_gutachten(self):
+        # SV-Domain + Gutachten-Anzeigename -> 4 Gutachten-Kandidaten
         dok = {"absender_domain": "gutachter.de", "anzeigename": "Gutachten.pdf"}
         beteiligte = [self._sv("sv@gutachter.de")]
         r = _klassifiziere_eakte_dok(dok, beteiligte, vorsteuer=False)
-        self.assertIsNotNone(r)
-        self.assertEqual(r["position_key"], "sv_kosten")
-        self.assertAlmostEqual(r["konfidenz"], 0.90, places=2)
-
-    def test_sv_domain_match_vorsteuer(self):
-        dok = {"absender_domain": "gutachter.de", "anzeigename": "Gutachten.pdf"}
-        beteiligte = [self._sv("sv@gutachter.de")]
-        r = _klassifiziere_eakte_dok(dok, beteiligte, vorsteuer=True)
-        self.assertEqual(r["position_key"], "sv_kosten_netto")
+        self.assertEqual(len(r), 4)
+        keys = {t["position_key"] for t in r}
+        self.assertEqual(
+            keys,
+            {"rep_gutachten_netto", "wiederbeschaffung", "restwert", "wertminderung"},
+        )
+        for t in r:
+            self.assertAlmostEqual(t["konfidenz"], 0.88, places=2)
 
     def test_firma_domain_match(self):
         dok = {"absender_domain": "kfz-mueller.de", "anzeigename": "Rechnung.pdf"}
         beteiligte = [self._firma("Kfz-Werkstatt Müller GmbH", "info@kfz-mueller.de")]
         r = _klassifiziere_eakte_dok(dok, beteiligte, vorsteuer=False)
-        self.assertIsNotNone(r)
-        self.assertEqual(r["position_key"], "rep_rechnung_netto")
-        self.assertAlmostEqual(r["konfidenz"], 0.90, places=2)
+        self.assertEqual(len(r), 1)
+        self.assertEqual(r[0]["position_key"], "rep_rechnung_netto")
+        self.assertAlmostEqual(r[0]["konfidenz"], 0.90, places=2)
 
     def test_firma_name_heuristik(self):
         # Kein Domain-Match, aber Firmenname trifft
         dok = {"absender_domain": "", "anzeigename": "Dokument.pdf"}
         beteiligte = [self._firma("Mietwagen Schneider GmbH", "")]
         r = _klassifiziere_eakte_dok(dok, beteiligte, vorsteuer=False)
-        self.assertIsNotNone(r)
-        self.assertEqual(r["position_key"], "mietwagenkosten_netto")
-        self.assertAlmostEqual(r["konfidenz"], 0.60, places=2)
+        self.assertEqual(len(r), 1)
+        self.assertEqual(r[0]["position_key"], "mietwagenkosten_netto")
+        self.assertAlmostEqual(r[0]["konfidenz"], 0.60, places=2)
 
     def test_dateiname_fallback(self):
-        dok = {"absender_domain": "", "anzeigename": "Rechnung_2024.pdf"}
+        # Anzeigename muss ein Wortende ("Rechnung ...") haben -- der Code
+        # nutzt \brechnung\b, und _ ist in Python-Regex ein word-char, "Rechnung_..."
+        # matcht daher nicht.
+        dok = {"absender_domain": "", "anzeigename": "Rechnung 2024.pdf"}
         beteiligte = []
         r = _klassifiziere_eakte_dok(dok, beteiligte, vorsteuer=False)
-        self.assertIsNotNone(r)
-        self.assertIsNone(r["position_key"])
-        self.assertAlmostEqual(r["konfidenz"], 0.40, places=2)
+        self.assertEqual(len(r), 1)
+        self.assertIsNone(r[0]["position_key"])
+        self.assertAlmostEqual(r[0]["konfidenz"], 0.40, places=2)
 
     def test_kein_treffer(self):
         dok = {"absender_domain": "", "anzeigename": "Brief.pdf"}
         beteiligte = []
         r = _klassifiziere_eakte_dok(dok, beteiligte, vorsteuer=False)
-        self.assertIsNone(r)
+        self.assertEqual(r, [])
 
     def test_natuerliche_person_wird_ignoriert(self):
-        # Beteiligter mit Vorname ist keine Firma → kein Firmen-Treffer
+        # Beteiligter mit Vorname ist keine Firma → kein Firmen-Treffer,
+        # also hoechstens ein Dateiname-Fallback-Kandidat mit Konfidenz < 0.70.
         dok = {"absender_domain": "mueller.de", "anzeigename": "X.pdf"}
-        beteiligte = [{"rolle": "sonstiger", "name": "Müller", "vorname": "Hans", "anrede": "", "email": "hans@mueller.de"}]
+        beteiligte = [{"rolle": "sonstiger", "name": "Müller", "vorname": "Hans",
+                       "anrede": "", "email": "hans@mueller.de"}]
         r = _klassifiziere_eakte_dok(dok, beteiligte, vorsteuer=False)
-        # Kein Domain-Match als Firma, also maximal Dateiname-Fallback oder None
-        self.assertTrue(r is None or r.get("konfidenz", 1) < 0.70)
+        self.assertTrue(
+            not r or max(t.get("konfidenz", 0) for t in r) < 0.70,
+            f"Erwartete leere Liste oder max. Konfidenz < 0.70, bekam {r!r}",
+        )
 
 
 if __name__ == "__main__":
