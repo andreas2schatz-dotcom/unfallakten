@@ -30,26 +30,25 @@ INTAKE_PFADE = (
 # Whitelist der aktuell BEKANNTEN Alt-Aufrufer. Format: (rel_pfad, funktion,
 # kommentar). S1.9b/c/d entfernt die Eintraege der Reihe nach.
 #
-# Nach S1.9b:
-#   * Zeile 306 in import_service.py steht jetzt HINTER dem Feature-Flag
-#     ``INTAKE_REVIEW_PFLICHT``. Der AST-Scan sieht den Aufruf trotzdem --
-#     die Whitelist bleibt dafuer bestehen (Rollback-Anker). Der Alt-Pfad
-#     wird erst in S1.9d entfernt.
-#   * Zeilen 737 + 767 gehoeren zu ``importiere_in_akte`` (manuelle
-#     "In Akte importieren"-Aktion) -- kein Auto-Pfad. Sie werden in S1.9d
-#     auf den output_adapter umgestellt.
-#   * Zeile 1041 gehoert zum Fragebogen-Parser (K-P1, S1.9d).
+# Nach S1.9b + S1.9c:
+#   * import_service.py Zeile 306 — Alt-Pfad Anhang-Registrierung, hinter
+#     INTAKE_REVIEW_PFLICHT (S1.9b). Wird erst in S1.9d entfernt.
+#   * import_service.py Zeilen 737 + 767 — manuelle "In Akte importieren"-
+#     Aktion und .eml-Registrierung. Werden in S1.9d auf output_adapter
+#     umgestellt.
+#   * import_service.py Zeile 1041 — Fragebogen-JSON-Archivierung (K-P1,
+#     S1.9d).
+#   * upload_service.py Zeile 171 — Upload-Route Alt-Pfad, ab S1.9c hinter
+#     dem Flag (dokumente_routes.upload schaltet unter Flag um).
+#   * upload_service.py Zeile 293 — Auto-setze_schadenpositionen, ab S1.9c
+#     explizit hinter dem Flag in ``_uebernehme_schaden``.
+#   * eakte_routes.py Zeile 226 — E-Akte-Import Alt-Pfad, ab S1.9c hinter
+#     dem Flag.
 BEKANNTE_ALT_AUFRUFER = {
-    # import_service.py — Auto-Registrierung (Zeile 306, hinter Flag ab S1.9b);
-    # importiere_in_akte-Anhaenge (737) + .eml (767) — S1.9d;
-    # Fragebogen-JSON-Archivierung (1041) — S1.9d.
     ("email_import/import_service.py", "registriere_dokument"): {306, 737, 767, 1041},
-    # upload_service.py — Upload-Route (Alt-Pfad, S1.9c) + Auto-Import
-    # setze_schadenpositionen bei ≥ 0.85 (Alt-Pfad, S1.9c).
     ("pdf/upload_service.py",         "registriere_dokument"):    {171},
-    ("pdf/upload_service.py",         "setze_schadenpositionen"): {279},
-    # eakte_routes.py — E-Akte-Import als dokumente-Zeile (Alt-Pfad, S1.9c).
-    ("routers/eakte_routes.py",       "registriere_dokument"):    {226},
+    ("pdf/upload_service.py",         "setze_schadenpositionen"): {293},
+    ("routers/eakte_routes.py",       "registriere_dokument"):    {254},
 }
 
 VERBOTEN = {"registriere_dokument", "setze_schadenpositionen"}

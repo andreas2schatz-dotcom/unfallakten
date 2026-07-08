@@ -261,7 +261,21 @@ def _parse_pdf(dokument_id: int, datei_bytes: bytes) -> Optional[dict]:
 
 def _uebernehme_schaden(akte_id: int, parse_erg: dict,
                          bearbeiter_id: Optional[int], dateiname: str):
-    """Übernimmt geparste Schadenpositionen in die Akte."""
+    """Übernimmt geparste Schadenpositionen in die Akte.
+
+    S1.9c (BREAKING #2): Unter INTAKE_REVIEW_PFLICHT (Default True) laeuft
+    die Auto-Uebernahme NICHT MEHR -- Schadenpositionen entstehen erst mit
+    der Review-Freigabe (S1.8) und ihrer Ereignis-Bestaetigung (P1.5).
+    Alt-Pfad bleibt bei INTAKE_REVIEW_PFLICHT=false aktiv.
+    """
+    from ..intake.feature_flags import review_pflicht_aktiv
+    if review_pflicht_aktiv():
+        logger.debug(
+            "Auto-Uebernahme Schadenpositionen uebersprungen "
+            "(INTAKE_REVIEW_PFLICHT aktiv, Akte %s)", akte_id,
+        )
+        return
+
     felder = {
         "reparaturkosten", "wiederbeschaffung", "restwert",
         "wertminderung", "nutzungsausfall", "mietwagenkosten",

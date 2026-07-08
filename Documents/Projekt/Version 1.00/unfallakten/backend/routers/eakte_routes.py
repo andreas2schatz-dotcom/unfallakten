@@ -221,6 +221,34 @@ def importieren(akte_id, nr):
     except OSError:
         dateigroesse = 0
 
+    # S1.9c (BREAKING #3): Unter INTAKE_REVIEW_PFLICHT laeuft der E-Akte-Import
+    # ausschliesslich ueber die Review-Queue. Der Adapter erzeugt
+    # intake_dokumente + zustellungen; die dokumente-Zeile entsteht erst mit
+    # der Freigabe im Review-UI (S1.8).
+    from ..intake.feature_flags import review_pflicht_aktiv as _rev_pflicht_aktiv
+    if _rev_pflicht_aktiv():
+        try:
+            from ..intake.adapter_eakte import verarbeite_eakte_dokument as _intake_eakte
+            ergebnis_intake = _intake_eakte(
+                pfad,
+                akte_az=akte_id,
+                eakte_nr=nr,
+                dateiname=dok.get("dateiname"),
+            )
+        except Exception as exc:
+            logger.error("Intake-E-Akte-Import fehlgeschlagen (Akte %s Nr %d): %s",
+                         akte_id, nr, exc)
+            return _err("Interner Fehler beim E-Akte-Import: %s" % exc, 500)
+        return _j({
+            "in_review": True,
+            "intake_dokument_id": ergebnis_intake["intake_dokument_id"],
+            "zustellung_id":      ergebnis_intake["zustellung_id"],
+            "sha256":             ergebnis_intake["sha256"],
+            "eakte_nr":           nr,
+            "hinweis": ("E-Akte-Dokument wartet in der Review-Queue auf "
+                         "Freigabe. Verlinkung: /intake/queue"),
+        }, 202)
+
     # 5. In dokumente registrieren (lokale SQLite)
     try:
         db_dok = registriere_dokument(

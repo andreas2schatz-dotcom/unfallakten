@@ -138,6 +138,31 @@ def upload(akte_id: str):
     datei_bytes = datei.read()
     ist_pdf = datei.filename.lower().endswith('.pdf')
 
+    # S1.9c (BREAKING #3): Unter INTAKE_REVIEW_PFLICHT laeuft der Upload
+    # ausschliesslich ueber die Review-Queue -- keine dokumente-Zeile mehr.
+    from ..intake.feature_flags import review_pflicht_aktiv as _rev_pflicht_aktiv
+    if _rev_pflicht_aktiv():
+        try:
+            from ..intake.adapter_upload import verarbeite_datei as _intake_upload
+            ergebnis_intake = _intake_upload(
+                datei_bytes,
+                dateiname=datei.filename,
+                hochgeladen_von=getattr(g, "benutzer_id", None),
+                roh_referenz=f"upload/akte:{akte_id}",
+            )
+        except Exception as exc:
+            logger.error("Intake-Upload fehlgeschlagen (Akte %s): %s",
+                         akte_id, exc)
+            return _err(f"Interner Fehler beim Upload: {exc}", 500)
+        return _j({
+            "in_review": True,
+            "intake_dokument_id": ergebnis_intake["intake_dokument_id"],
+            "zustellung_id":      ergebnis_intake["zustellung_id"],
+            "sha256":             ergebnis_intake["sha256"],
+            "hinweis": ("Datei wartet in der Review-Queue auf Freigabe. "
+                         "Verlinkung: /intake/queue"),
+        }, 202)
+
     try:
         ergebnis = verarbeite_upload(
             akte_id=akte_id,
