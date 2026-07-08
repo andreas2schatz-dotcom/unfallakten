@@ -1,0 +1,111 @@
+# ereignistypen.yaml — P1.1 (POSITIONSMODELL-PLAN Abschnitt 4.5)
+#
+# Katalog der Ereignistypen (ereignisse.ereignistyp). Ereignisse sind
+# Fakten — sie werden nur *geschrieben*, nie geloescht, nur per
+# ersetzt_durch versioniert.
+#
+# Felder je Typ:
+#   label:            Anzeige-Text
+#   richtung:         eingehend | ausgehend | intern
+#   zulaessige_quellen: Liste aus (dokument, system, manuell)
+#   default_wirkung:  gefordert | anerkannt | gekuerzt | abgelehnt |
+#                     erledigt | beleg | keine
+#                     (steuert die Vorbelegung im Freigabe-Dialog S1.8)
+#   checklisten_relevanz: Liste von Ereignistyp-Namen, die dieser Typ
+#                     ERFUELLT (z. B. gutachten_eingegangen erfuellt sich
+#                     selbst -- doch der Katalog erlaubt Ableitungen wie
+#                     "rechnung_eingegangen erfuellt gutachten_eingegangen
+#                     bei reparatur_rechnung_netto").
+#
+# Der Loader (positionsmodell_registry.py) prueft:
+#   * alle default_wirkung-Werte gehoeren zur Enum-Liste.
+#   * checklisten_relevanz-Referenzen zeigen auf existierende Typen.
+
+ereignistypen:
+
+  # ── Eingehende Ereignisse (S1.8-Review-Freigabe)
+  abrechnung_eingegangen:
+    label:              "Abrechnung eingegangen"
+    richtung:           eingehend
+    zulaessige_quellen: [dokument, manuell]
+    default_wirkung:    anerkannt
+    checklisten_relevanz: [abrechnung_eingegangen]
+
+  gutachten_eingegangen:
+    label:              "Gutachten eingegangen"
+    richtung:           eingehend
+    zulaessige_quellen: [dokument, manuell]
+    default_wirkung:    gefordert
+    checklisten_relevanz: [gutachten_eingegangen]
+
+  rechnung_eingegangen:
+    label:              "Rechnung eingegangen"
+    richtung:           eingehend
+    zulaessige_quellen: [dokument, manuell]
+    default_wirkung:    beleg
+    checklisten_relevanz: [rechnung_eingegangen]
+
+  pruefbericht_eingegangen:
+    label:              "Pruefbericht eingegangen"
+    richtung:           eingehend
+    zulaessige_quellen: [dokument, manuell]
+    default_wirkung:    gekuerzt
+    checklisten_relevanz: [pruefbericht_eingegangen]
+
+  vollmacht_eingegangen:
+    label:              "Vollmacht eingegangen"
+    richtung:           eingehend
+    zulaessige_quellen: [dokument, manuell]
+    default_wirkung:    keine
+    checklisten_relevanz: [vollmacht_eingegangen]
+
+  # ── Ausgehende Ereignisse (word/klage/sta/gebuehren)
+  forderung_generiert:
+    label:              "Forderung generiert"
+    richtung:           ausgehend
+    zulaessige_quellen: [dokument]
+    default_wirkung:    gefordert
+    checklisten_relevanz: [forderung_generiert]
+
+  klage_generiert:
+    label:              "Klage generiert"
+    richtung:           ausgehend
+    zulaessige_quellen: [dokument]
+    default_wirkung:    gefordert
+    checklisten_relevanz: [klage_generiert]
+
+  stellungnahme_generiert:
+    label:              "Stellungnahme generiert"
+    richtung:           ausgehend
+    zulaessige_quellen: [dokument]
+    default_wirkung:    keine
+    checklisten_relevanz: [stellungnahme_generiert]
+
+  sachstandsanfrage_generiert:
+    label:              "Sachstandsanfrage generiert"
+    richtung:           ausgehend
+    zulaessige_quellen: [dokument]
+    default_wirkung:    keine
+    checklisten_relevanz: [sachstandsanfrage_generiert]
+
+  fristsetzung_generiert:
+    label:              "Fristsetzung generiert"
+    richtung:           ausgehend
+    zulaessige_quellen: [dokument]
+    default_wirkung:    keine
+    checklisten_relevanz: [fristsetzung_generiert]
+
+  kostennote_generiert:
+    label:              "Kostennote generiert"
+    richtung:           ausgehend
+    zulaessige_quellen: [dokument]
+    default_wirkung:    gefordert
+    checklisten_relevanz: [kostennote_generiert]
+
+  # ── System-Ereignisse (Scheduler, P1.6)
+  fristablauf:
+    label:              "Fristablauf"
+    richtung:           intern
+    zulaessige_quellen: [system]
+    default_wirkung:    keine
+    checklisten_relevanz: []

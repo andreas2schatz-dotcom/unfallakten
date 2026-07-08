@@ -1,0 +1,220 @@
+# positionsarten.yaml — P1.1 (POSITIONSMODELL-PLAN Abschnitt 4.5)
+#
+# Beschreibt die Positions-Arten je bestehendem POSITION_KEYS-Katalog
+# (Quelle: backend/models/abrechnungsschreiben.py POSITION_KEYS).
+#
+# Konzepte:
+#   label:      Anzeige-Text
+#   kategorie:  fahrzeugschaden | nebenkosten | personenschaden | sonstiges
+#               (steuert die Dashboard-Aggregation, PF-05)
+#   checkliste: Liste der Ereignistypen, die fuer "Klage-Bereitschaft" der
+#               Position noetig sind (POSITIONSMODELL-PLAN 4.6). Maximal aktuelle
+#               Ereignisse dieses Typs auf DER Position (oder als Akten-Scope-
+#               Ereignis, z. B. vollmacht_eingegangen) mit dokument_id != NULL.
+#   aggregation: dashboard-Gruppierung (fahrzeugschaden, nebenkosten,
+#               personenschaden). Muss NICHT identisch mit kategorie sein
+#               (Sonder-Gruppierung moeglich).
+#
+# Der Loader (positionsmodell_registry.py) prueft:
+#   * alle POSITION_KEYS aus abrechnungsschreiben.py sind hier abgedeckt.
+#   * alle checkliste-Eintraege existieren in ereignistypen.yaml.
+
+positionsarten:
+
+  # ── Fahrzeugschaden (Sach-Positionen)
+  reparaturkosten:
+    label:       "Reparaturkosten"
+    kategorie:   fahrzeugschaden
+    aggregation: fahrzeugschaden
+    checkliste:  [gutachten_eingegangen, forderung_generiert]
+  wiederbeschaffung:
+    label:       "Wiederbeschaffung"
+    kategorie:   fahrzeugschaden
+    aggregation: fahrzeugschaden
+    checkliste:  [gutachten_eingegangen, forderung_generiert]
+  restwert:
+    label:       "Restwert"
+    kategorie:   fahrzeugschaden
+    aggregation: fahrzeugschaden
+    checkliste:  [gutachten_eingegangen]
+  wertminderung:
+    label:       "Wertminderung"
+    kategorie:   fahrzeugschaden
+    aggregation: fahrzeugschaden
+    checkliste:  [gutachten_eingegangen, forderung_generiert]
+  fahrzeugschaden:
+    label:       "Fahrzeugschaden"
+    kategorie:   fahrzeugschaden
+    aggregation: fahrzeugschaden
+    checkliste:  [gutachten_eingegangen]
+  reparatur_brutto:
+    label:       "Reparaturkosten (brutto)"
+    kategorie:   fahrzeugschaden
+    aggregation: fahrzeugschaden
+    checkliste:  [gutachten_eingegangen]
+  reparatur_netto:
+    label:       "Reparaturkosten (netto)"
+    kategorie:   fahrzeugschaden
+    aggregation: fahrzeugschaden
+    checkliste:  [gutachten_eingegangen]
+  wbw:
+    label:       "Wiederbeschaffungswert"
+    kategorie:   fahrzeugschaden
+    aggregation: fahrzeugschaden
+    checkliste:  [gutachten_eingegangen]
+  wbw_netto:
+    label:       "WBW (netto)"
+    kategorie:   fahrzeugschaden
+    aggregation: fahrzeugschaden
+    checkliste:  [gutachten_eingegangen]
+  wbw_brutto:
+    label:       "WBW (brutto)"
+    kategorie:   fahrzeugschaden
+    aggregation: fahrzeugschaden
+    checkliste:  [gutachten_eingegangen]
+  wba:
+    label:       "Wiederbeschaffungsaufwand"
+    kategorie:   fahrzeugschaden
+    aggregation: fahrzeugschaden
+    checkliste:  [gutachten_eingegangen]
+  rep_gutachten_netto:
+    label:       "Reparatur (Gutachten netto)"
+    kategorie:   fahrzeugschaden
+    aggregation: fahrzeugschaden
+    checkliste:  [gutachten_eingegangen]
+  rep_rechnung_netto:
+    label:       "Reparatur (Rechnung netto)"
+    kategorie:   fahrzeugschaden
+    aggregation: fahrzeugschaden
+    checkliste:  [rechnung_eingegangen]
+  rep_rechnung_brutto:
+    label:       "Reparatur (Rechnung brutto)"
+    kategorie:   fahrzeugschaden
+    aggregation: fahrzeugschaden
+    checkliste:  [rechnung_eingegangen]
+
+  # ── Nebenkosten (fahrzeugnah)
+  nutzungsausfall:
+    label:       "Nutzungsausfall"
+    kategorie:   nebenkosten
+    aggregation: nebenkosten
+    checkliste:  [gutachten_eingegangen, forderung_generiert]
+  mietwagenkosten:
+    label:       "Mietwagenkosten"
+    kategorie:   nebenkosten
+    aggregation: nebenkosten
+    checkliste:  [rechnung_eingegangen]
+  sv_kosten:
+    label:       "SV-Kosten"
+    kategorie:   nebenkosten
+    aggregation: nebenkosten
+    checkliste:  [rechnung_eingegangen]
+  abschleppkosten:
+    label:       "Abschleppkosten"
+    kategorie:   nebenkosten
+    aggregation: nebenkosten
+    checkliste:  [rechnung_eingegangen]
+  restkraftstoff:
+    label:       "Restkraftstoff"
+    kategorie:   nebenkosten
+    aggregation: nebenkosten
+    checkliste:  []
+  standkosten:
+    label:       "Standkosten"
+    kategorie:   nebenkosten
+    aggregation: nebenkosten
+    checkliste:  [rechnung_eingegangen]
+  anabmeldekosten:
+    label:       "An-/Abmeldekosten"
+    kategorie:   nebenkosten
+    aggregation: nebenkosten
+    checkliste:  [rechnung_eingegangen]
+  kostenpauschale:
+    label:       "Kostenpauschale"
+    kategorie:   nebenkosten
+    aggregation: nebenkosten
+    checkliste:  []
+  unkostenpauschale:
+    label:       "Unkostenpauschale"
+    kategorie:   nebenkosten
+    aggregation: nebenkosten
+    checkliste:  []
+  kostennb:
+    label:       "Kostennebenschaden"
+    kategorie:   nebenkosten
+    aggregation: nebenkosten
+    checkliste:  []
+  ra_gebuehren:
+    label:       "RA-Gebuehren"
+    kategorie:   nebenkosten
+    aggregation: nebenkosten
+    checkliste:  [kostennote_generiert]
+  mwst_abzug:
+    label:       "MwSt-Abzug"
+    kategorie:   nebenkosten
+    aggregation: nebenkosten
+    checkliste:  []
+  pruefbericht_abzug:
+    label:       "Pruefbericht-Abzug"
+    kategorie:   nebenkosten
+    aggregation: nebenkosten
+    checkliste:  []
+  vorschuss:
+    label:       "Vorschuss"
+    kategorie:   nebenkosten
+    aggregation: nebenkosten
+    checkliste:  []
+
+  # ── Personenschaden
+  schmerzensgeld:
+    label:       "Schmerzensgeld"
+    kategorie:   personenschaden
+    aggregation: personenschaden
+    checkliste:  [forderung_generiert]
+  verdienstausfall:
+    label:       "Verdienstausfall"
+    kategorie:   personenschaden
+    aggregation: personenschaden
+    checkliste:  [forderung_generiert]
+  haushalt:
+    label:       "Haushaltsfuehrungsschaden"
+    kategorie:   personenschaden
+    aggregation: personenschaden
+    checkliste:  [forderung_generiert]
+
+  # ── Sonstiges + WDM-Extras (bestehendes Schema)
+  sonstiges:
+    label:       "Sonstiges"
+    kategorie:   sonstiges
+    aggregation: sonstiges
+    checkliste:  []
+  sonstiges_wdm_1:
+    label:       "Sonstiges (WDM 1)"
+    kategorie:   sonstiges
+    aggregation: sonstiges
+    checkliste:  []
+  sonstiges_wdm_2:
+    label:       "Sonstiges (WDM 2)"
+    kategorie:   sonstiges
+    aggregation: sonstiges
+    checkliste:  []
+  sonstiges_wdm_3:
+    label:       "Sonstiges (WDM 3)"
+    kategorie:   sonstiges
+    aggregation: sonstiges
+    checkliste:  []
+  sonstiges_wdm_4:
+    label:       "Sonstiges (WDM 4)"
+    kategorie:   sonstiges
+    aggregation: sonstiges
+    checkliste:  []
+  sonstiges_wdm_5:
+    label:       "Sonstiges (WDM 5)"
+    kategorie:   sonstiges
+    aggregation: sonstiges
+    checkliste:  []
+  sonstiges_wdm_6:
+    label:       "Sonstiges (WDM 6)"
+    kategorie:   sonstiges
+    aggregation: sonstiges
+    checkliste:  []

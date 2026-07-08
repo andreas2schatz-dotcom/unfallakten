@@ -1,0 +1,84 @@
+# aktionen.yaml — P1.1 (POSITIONSMODELL-PLAN Abschnitt 5, Grundgeruest)
+#
+# Type-Action-Matrix. In P1.1 nur Struktur — die Auswertung erfolgt in P1.7
+# (Frontend: Aktionsmenue je Dokumentzeile / Ableitungs-Badge).
+#
+# Aufbau je Eintrag:
+#   ereignistyp:    Trigger-Ereignis (aus ereignistypen.yaml)
+#   folgeaktionen:  Liste der vorgeschlagenen naechsten Aktionen
+#     - label:       Anzeige-Text
+#       aktion:      identifier fuer Frontend/Backend (z. B. "stellungnahme.generieren")
+#       positions_scope: true|false — betrifft konkrete Positionen oder Akte
+#       vorbedingung: (optional) freier Text als Hinweis
+#
+# Der Loader (positionsmodell_registry.py) prueft:
+#   * jeder ereignistyp existiert in ereignistypen.yaml.
+
+aktionen:
+
+  abrechnung_eingegangen:
+    folgeaktionen:
+      - label: "Stellungnahme zum Abrechnungsschreiben"
+        aktion: "stellungnahme.generieren"
+        positions_scope: true
+      - label: "Fristsetzung generieren"
+        aktion: "fristsetzung.generieren"
+        positions_scope: true
+
+  gutachten_eingegangen:
+    folgeaktionen:
+      - label: "Forderungsschreiben erstellen"
+        aktion: "forderung.generieren"
+        positions_scope: true
+      - label: "Beleg-Zuordnung pruefen"
+        aktion: "belege.zuordnen"
+        positions_scope: true
+
+  rechnung_eingegangen:
+    folgeaktionen:
+      - label: "Betrag in Schadenposition uebernehmen"
+        aktion: "belege.in_schaden"
+        positions_scope: true
+
+  pruefbericht_eingegangen:
+    folgeaktionen:
+      - label: "Stellungnahme zum Pruefbericht"
+        aktion: "stellungnahme.generieren"
+        positions_scope: true
+
+  forderung_generiert:
+    folgeaktionen:
+      - label: "Sachstandsanfrage (Stufe 1)"
+        aktion: "sta.generieren"
+        positions_scope: true
+        vorbedingung: "nach Fristablauf ohne Antwort"
+
+  klage_generiert:
+    folgeaktionen: []
+
+  stellungnahme_generiert:
+    folgeaktionen:
+      - label: "Sachstandsanfrage nach Fristablauf"
+        aktion: "sta.generieren"
+        positions_scope: true
+
+  sachstandsanfrage_generiert:
+    folgeaktionen:
+      - label: "Klage vorbereiten"
+        aktion: "klage.vorbereiten"
+        positions_scope: true
+
+  fristsetzung_generiert:
+    folgeaktionen: []
+
+  kostennote_generiert:
+    folgeaktionen: []
+
+  vollmacht_eingegangen:
+    folgeaktionen: []
+
+  fristablauf:
+    folgeaktionen:
+      - label: "Naechste Eskalationsstufe"
+        aktion: "eskalation.next"
+        positions_scope: true

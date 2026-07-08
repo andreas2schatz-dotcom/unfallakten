@@ -302,6 +302,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     48: "-- migration_48_queue_felder",         # Handled by _run_migration_48 (S1.6a)
     49: "-- migration_49_email_import_log_ausgeblendet", # Handled by _run_migration_49 (S1.9a)
     50: "-- migration_50_unfalldetails_create", # Handled by _run_migration_50 (Root-Cause-Fix zu Migration 28)
+    51: "-- migration_51_ereignisse",  # Handled by _run_migration_51 (P1.2)
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -572,6 +573,129 @@ def _run_migration_46(conn: sqlite3.Connection) -> None:
              "zustellungen, freigaben [K-P2], korrektur_log) + Backfill"),
     )
     logger.info("Migration 46 abgeschlossen (intake-Datenmodell + Backfill).")
+
+
+def _run_migration_51(conn: sqlite3.Connection) -> None:
+    """
+    Migration 51 (P1.2) - Ereignis-Datenmodell fuer das Positionsmodell.
+
+    Legt drei Tabellen an (POSITIONSMODELL-PLAN Abschnitt 4.1-4.4):
+
+    * ``ereignisse``            Ebene 1 Kopf (Fakten-Log, kein UPDATE ausser
+                                ersetzt_durch/versand_bestaetigt_am, kein DELETE)
+    * ``ereignis_positionen``   Ebene 1 n:m mit positionsscharfer Wirkung.
+                                K-M1 (freigabe.md): UNIQUE(ereignis_id,
+                                position_key, wirkung, COALESCE(kuerzungsart_id, 0)).
+    * ``position_ereignis_cache``  Ebene 2, Materialisierung fuer schnelle
+                                Ableitung. Nur ``ereignis_service`` schreibt.
+
+    Alles additiv, kein Datenverlust an bestehenden Tabellen.
+    """
+    conn.commit()
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ereignisse (
+            id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+            akte_az                TEXT NOT NULL REFERENCES unfallakte(az),
+            ereignistyp            TEXT NOT NULL,
+            richtung               TEXT NOT NULL
+                                   CHECK (richtung IN
+                                       ('eingehend','ausgehend','intern')),
+            quelle                 TEXT NOT NULL
+                                   CHECK (quelle IN
+                                       ('dokument','system','manuell')),
+            datum                  TEXT NOT NULL,
+            dokument_id            INTEGER,
+            herkunft               TEXT,
+            betragswirkung_gesamt  REAL,
+            ersetzt_durch          INTEGER REFERENCES ereignisse(id),
+            versand_bestaetigt_am  TEXT,
+            notiz                  TEXT,
+            erfasst_von            INTEGER REFERENCES benutzer(id),
+            erfasst_am             TEXT NOT NULL
+                                   DEFAULT (datetime('now','localtime'))
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_ereignisse_akte_datum "
+        "ON ereignisse(akte_az, datum)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_ereignisse_dokument "
+        "ON ereignisse(dokument_id)"
+    )
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ereignis_positionen (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            ereignis_id    INTEGER NOT NULL REFERENCES ereignisse(id),
+            position_key   TEXT NOT NULL,
+            wirkung        TEXT NOT NULL
+                           CHECK (wirkung IN
+                               ('gefordert','anerkannt','gekuerzt',
+                                'abgelehnt','erledigt','beleg','keine')),
+            betrag         REAL,
+            kuerzungsart_id INTEGER REFERENCES kuerzungsarten(id),
+            ersetzt_durch  INTEGER REFERENCES ereignis_positionen(id)
+        )
+    """)
+    # K-M1: mehrere Kuerzungsarten auf derselben Position im selben Ereignis
+    # sind der Normalfall (Prueberichts-Positionen). Unique auf
+    # COALESCE(kuerzungsart_id, 0), damit NULL != NULL nicht die
+    # Duplikat-Erkennung sabotiert.
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS "
+        "uidx_ereigpos_km1 ON ereignis_positionen "
+        "(ereignis_id, position_key, wirkung, COALESCE(kuerzungsart_id, 0))"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_ereigpos_position_key "
+        "ON ereignis_positionen(position_key)"
+    )
+
+    # Ebene-2-Cache: id als PK + UNIQUE INDEX ueber die logischen Schluessel
+    # (SQLite verbietet Ausdruecke in PRIMARY KEY, laesst sie aber in
+    # UNIQUE INDEX zu).
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS position_ereignis_cache (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            akte_az         TEXT NOT NULL,
+            position_key    TEXT NOT NULL,
+            ereignis_id     INTEGER NOT NULL,
+            ereignistyp     TEXT NOT NULL,
+            richtung        TEXT NOT NULL,
+            datum           TEXT NOT NULL,
+            dokument_id     INTEGER,
+            wirkung         TEXT NOT NULL,
+            betrag          REAL,
+            kuerzungsart_id INTEGER,
+            status          TEXT NOT NULL
+                            CHECK (status IN ('aktuell','ersetzt'))
+        )
+    """)
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uidx_pec_km1 "
+        "ON position_ereignis_cache "
+        "(akte_az, position_key, ereignis_id, wirkung, "
+        " COALESCE(kuerzungsart_id, 0))"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_pec_akte_position "
+        "ON position_ereignis_cache(akte_az, position_key)"
+    )
+
+    conn.commit()
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (?, ?)",
+        (51,
+         "Migration 51 - P1.2 Ereignis-Datenmodell (ereignisse, "
+         "ereignis_positionen mit K-M1 UNIQUE, position_ereignis_cache)"),
+    )
+    logger.info(
+        "Migration 51 abgeschlossen (P1.2 Ereignis-Datenmodell)."
+    )
 
 
 def _run_migration_49(conn: sqlite3.Connection) -> None:
@@ -902,6 +1026,8 @@ def run_migrations() -> None:
                 _run_migration_48(conn)
             elif version == 49:
                 _run_migration_49(conn)
+            elif version == 51:
+                _run_migration_51(conn)
             elif version == 50:
                 _run_migration_50(conn)
             else:
