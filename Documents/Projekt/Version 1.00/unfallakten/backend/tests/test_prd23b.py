@@ -13,36 +13,17 @@ Ausfuehren:
 
 import os
 import sys
-import types
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-# Externe Abhaengigkeiten mocken die im System-Python fehlen koennen.
-class _FakeBP:
-    """Minimaler Blueprint-Stub der .route() als No-Op-Decorator bereitstellt."""
-    def route(self, *a, **kw):
-        return lambda f: f
-
-def _stub(name):
-    m = types.ModuleType(name)
-    m.Blueprint = lambda *a, **kw: _FakeBP()
-    m.request = types.SimpleNamespace(get_json=lambda **kw: {}, args={})
-    m.jsonify = lambda x: x
-    m.g = types.SimpleNamespace()
-    return m
-
-for _dep in ("pdfplumber", "flask", "flask.Blueprint", "werkzeug", "jwt"):
-    if _dep not in sys.modules:
-        sys.modules[_dep] = _stub(_dep)
-
-# auth.middleware stub
-_auth = types.ModuleType("backend.auth.middleware")
-_auth.login_erforderlich = lambda f: f  # Decorator-Stub: gibt f unveraendert zurueck
-sys.modules.setdefault("backend.auth", types.ModuleType("backend.auth"))
-sys.modules.setdefault("backend.auth.middleware", _auth)
-
-# ── Import der zu testenden Module ────────────────────────────────────────────
+# Hinweis: frueher wurden hier pdfplumber/flask/werkzeug/jwt via sys.modules
+# gestubbt. Das hat die spaeter importierten Tests (test_sv_portal,
+# test_s16*, test_modul8 u. a.) reihenfolge-abhaengig kaputtgemacht. Die
+# Abhaengigkeiten stehen in requirements.txt und sind installiert -- die
+# Stubs sind unnoetig. Fuer die auth.middleware nutzen wir einen lokalen
+# Import-Guard, damit dieser Test auch dann laeuft, wenn das Modul im
+# aktuellen Prozess noch nicht geladen wurde (kein sys.modules-Eingriff).
 
 from backend.parsers.rechnung_parser import parse_rechnung, RechnungParseResult
 from backend.routers.belege_routes import (
