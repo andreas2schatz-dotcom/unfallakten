@@ -29,9 +29,21 @@ INTAKE_PFADE = (
 
 # Whitelist der aktuell BEKANNTEN Alt-Aufrufer. Format: (rel_pfad, funktion,
 # kommentar). S1.9b/c/d entfernt die Eintraege der Reihe nach.
+#
+# Nach S1.9b:
+#   * Zeile 306 in import_service.py steht jetzt HINTER dem Feature-Flag
+#     ``INTAKE_REVIEW_PFLICHT``. Der AST-Scan sieht den Aufruf trotzdem --
+#     die Whitelist bleibt dafuer bestehen (Rollback-Anker). Der Alt-Pfad
+#     wird erst in S1.9d entfernt.
+#   * Zeilen 737 + 767 gehoeren zu ``importiere_in_akte`` (manuelle
+#     "In Akte importieren"-Aktion) -- kein Auto-Pfad. Sie werden in S1.9d
+#     auf den output_adapter umgestellt.
+#   * Zeile 1041 gehoert zum Fragebogen-Parser (K-P1, S1.9d).
 BEKANNTE_ALT_AUFRUFER = {
-    # import_service.py — Auto-Registrierung von E-Mail-Anhaengen. S1.9b.
-    ("email_import/import_service.py", "registriere_dokument"): {298, 725, 755, 1029},
+    # import_service.py — Auto-Registrierung (Zeile 306, hinter Flag ab S1.9b);
+    # importiere_in_akte-Anhaenge (737) + .eml (767) — S1.9d;
+    # Fragebogen-JSON-Archivierung (1041) — S1.9d.
+    ("email_import/import_service.py", "registriere_dokument"): {306, 737, 767, 1041},
     # upload_service.py — Upload-Route (Alt-Pfad, S1.9c) + Auto-Import
     # setze_schadenpositionen bei ≥ 0.85 (Alt-Pfad, S1.9c).
     ("pdf/upload_service.py",         "registriere_dokument"):    {171},

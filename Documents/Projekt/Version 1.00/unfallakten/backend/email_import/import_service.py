@@ -287,8 +287,16 @@ def _verarbeite_eine(uid, roh_bytes, imap, bericht, up_dir, bearbeiter_id, konto
     _absender_domain = _absender_email.split("@")[-1].lower() if "@" in _absender_email else None
 
     # ── Anhänge speichern (nur wenn Akte gefunden) ────────────────────────────
+    #
+    # S1.9b (BREAKING #1): Unter INTAKE_REVIEW_PFLICHT (Default True) laeuft die
+    # Anhang-Registrierung ausschliesslich ueber die Review-Queue -- der IMAP-
+    # Adapter (Zeile 425 ff.) erzeugt intake_dokumente + zustellungen und die
+    # dokumente-Zeile entsteht erst mit der manuellen Freigabe.
+    #
+    # Alt-Pfad (INTAKE_REVIEW_PFLICHT=false) bleibt fuer Uebergangszeit erhalten.
+    from ..intake.feature_flags import review_pflicht_aktiv as _rev_pflicht_aktiv
     anhaenge_anzahl = len(parsed["anhaenge"])
-    if akte_az and parsed["anhaenge"]:
+    if not _rev_pflicht_aktiv() and akte_az and parsed["anhaenge"]:
         for anhang in parsed["anhaenge"]:
             gespeichert = speichere_anhang(anhang, up_dir, akte_az)
             if not gespeichert:
@@ -320,6 +328,10 @@ def _verarbeite_eine(uid, roh_bytes, imap, bericht, up_dir, bearbeiter_id, konto
             except Exception as e:
                 logger.error("Dokument-Registrierung fehlgeschlagen: %s", e)
                 status = "fehler"
+    elif _rev_pflicht_aktiv() and parsed["anhaenge"]:
+        # Report muss die Anhangs-Anzahl weiter reflektieren -- der IMAP-
+        # Adapter erzeugt Intake-Dokumente, die Zaehlung passt weiterhin.
+        bericht["anhaenge"] += anhaenge_anzahl
 
     # ── Domain-Matching gegen Absender-Vorlagen ──────────────────────────────
     absender_kategorie = None
