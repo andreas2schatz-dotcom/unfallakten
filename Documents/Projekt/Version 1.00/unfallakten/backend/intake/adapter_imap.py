@@ -29,6 +29,7 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
 
+from ..db.database import get_connection
 from ._persistenz import (
     erzeuge_zustellung,
     oder_intake_dokument_fuer_datei,
@@ -36,6 +37,60 @@ from ._persistenz import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+# ── Absender-Registry-Lookup (S1.4) ─────────────────────────────────────────
+
+
+def _absender_signale_fuer_domain(domain: str | None) -> dict:
+    """
+    Sucht die Domain in ``email_absender_vorlagen`` und liefert die Signale
+    fuer ``zustellungen.signale_json`` zurueck. Unbekannte Domain oder Fehler
+    (z.B. Tabelle noch nicht auf S1.4-Stand) → leeres Dict.
+
+    Der Lookup ist reines Signal, kein Routing (v7-Regel: vererbte Signale
+    nur Kandidaten).
+    """
+    if not domain:
+        return {}
+    domain = domain.strip().lower()
+    if not domain:
+        return {}
+    try:
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT kategorie, versicherer_name, klasse_kandidat, "
+                "       vertrauensstufe "
+                "FROM email_absender_vorlagen "
+                "WHERE LOWER(domain) = ? AND aktiv = 1",
+                (domain,),
+            ).fetchone()
+    except Exception as e:
+        logger.debug("Absender-Registry-Lookup fehlgeschlagen: %s", e)
+        return {}
+    if row is None:
+        return {}
+    signale: dict[str, Any] = {}
+    if row["kategorie"]:
+        signale["absender_kategorie"] = row["kategorie"]
+    if row["versicherer_name"]:
+        signale["versicherer_name"] = row["versicherer_name"]
+    if row["klasse_kandidat"]:
+        signale["klasse_kandidat"] = row["klasse_kandidat"]
+    if row["vertrauensstufe"] is not None:
+        signale["vertrauensstufe"] = row["vertrauensstufe"]
+    return signale
+
+
+def _domain_aus_from_header(from_header: str) -> str | None:
+    """From: Max <a@b.de> oder From: a@b.de → 'b.de'."""
+    if not from_header:
+        return None
+    m = re.search(r"<([^>]+)>", from_header)
+    email_addr = m.group(1) if m else from_header
+    if "@" not in email_addr:
+        return None
+    return email_addr.split("@")[-1].strip().lower() or None
 
 
 # ── Encoding-Helfer (eigene Wahrheitsquelle, aus email_parser hierher umgezogen)
@@ -236,9 +291,14 @@ def verarbeite_email(
     body_text = _extrahiere_body_text(msg)
     anhaenge = _extrahiere_anhaenge(msg)
 
-    body_signale = {
+    body_signale: dict[str, Any] = {
         "message_id": (msg.get("Message-ID") or "").strip("<>").strip() or None,
     }
+    # S1.4: Absender-Registry-Signale in die Body-Zustellung anreichern.
+    absender_signale = _absender_signale_fuer_domain(
+        _domain_aus_from_header(absender)
+    )
+    body_signale.update(absender_signale)
 
     body_intake_id, body_sha = oder_intake_dokument_fuer_text(body_text)
     body_zust_id = erzeuge_zustellung(

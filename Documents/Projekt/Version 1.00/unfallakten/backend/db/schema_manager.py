@@ -298,6 +298,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     44: "-- migration_44_email_konto",   # Handled by _run_migration_44
     45: "-- migration_45_regulierung_status",  # Handled by _run_migration_45
     46: "-- migration_46_intake_datenmodell",   # Handled by _run_migration_46 (S1.1 + K-P2)
+    47: "-- migration_47_absender_registry",    # Handled by _run_migration_47 (S1.4)
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -570,6 +571,67 @@ def _run_migration_46(conn: sqlite3.Connection) -> None:
     logger.info("Migration 46 abgeschlossen (intake-Datenmodell + Backfill).")
 
 
+def _run_migration_47(conn: sqlite3.Connection) -> None:
+    """
+    Migration 47 (S1.4) - Absender-Registry-Grundgeruest.
+
+    Erweitert die bestehende Tabelle ``email_absender_vorlagen`` um drei
+    Spalten (additiv, nicht destruktiv):
+
+    * ``vertrauensstufe``  INTEGER NOT NULL DEFAULT 1
+                           0 = unbekannt, 1 = Standard-Seed,
+                           2 = aus registry.json konsolidiert (bekannter
+                               Versicherer/Gutachter), 3 = manuell verifiziert
+                               (z.B. via SPF/DKIM).
+    * ``klasse_kandidat``  TEXT (Wert aus registry.json.marker.<...>.klasse,
+                           z.B. 'versicherung', 'gutachten'). Fuer die S1.6-
+                           Kaskade ist das ein Signal, kein Routing.
+    * ``ramicro_adressnr`` TEXT (aus dem gleichen Marker-Eintrag; nur bei
+                           Gutachter-Markern belegt).
+
+    Die eigentliche Uebernahme der registry.json-Daten uebernimmt das
+    Skript ``backend/scripts/konsolidiere_absender_registry.py`` — es wird
+    hier bewusst NICHT automatisch angestossen, damit die Migration nicht
+    von einer Datei abhaengt, die sich im laufenden Betrieb aendert.
+
+    Idempotent: ALTER TABLE nur wenn Spalte fehlt (SQLite-Trick via
+    PRAGMA table_info). Explizites ``conn.commit()`` davor + danach, damit
+    der ALTER-Effekt im aufrufenden Kontext sichtbar wird
+    (siehe feedback_migration_executescript).
+
+    Rollback: Spalten bleiben ungenutzt; kein Datenverlust moeglich.
+    """
+    vorhandene_spalten = {
+        r[1] for r in conn.execute(
+            "PRAGMA table_info(email_absender_vorlagen)"
+        ).fetchall()
+    }
+
+    neu = (
+        ("vertrauensstufe", "INTEGER NOT NULL DEFAULT 1"),
+        ("klasse_kandidat", "TEXT"),
+        ("ramicro_adressnr", "TEXT"),
+    )
+
+    braucht_alter = any(name not in vorhandene_spalten for name, _ in neu)
+    if braucht_alter:
+        conn.commit()
+        for name, typ in neu:
+            if name in vorhandene_spalten:
+                continue
+            conn.execute(
+                f"ALTER TABLE email_absender_vorlagen ADD COLUMN {name} {typ}"
+            )
+        conn.commit()
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
+        (47, "Migration 47 - S1.4 Absender-Registry (vertrauensstufe + "
+             "klasse_kandidat + ramicro_adressnr)"),
+    )
+    logger.info("Migration 47 abgeschlossen (Absender-Registry-Grundgeruest).")
+
+
 def _run_migration_42(conn: sqlite3.Connection) -> None:
     """Korrigiert dateityp fuer .eml-Dateien: 'docx' -> 'sonstiges', dokumentenklasse -> 'email'."""
     conn.execute("""
@@ -729,6 +791,8 @@ def run_migrations() -> None:
                 _run_migration_45(conn)
             elif version == 46:
                 _run_migration_46(conn)
+            elif version == 47:
+                _run_migration_47(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
