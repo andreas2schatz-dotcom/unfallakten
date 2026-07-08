@@ -3,10 +3,11 @@ import T from "../../../config/theme.js";
 import Ic from "../../../config/icons.jsx";
 import { emailImport as apiEmail } from "../../../api.js";
 
-function InAkteButton({ entry: e, onImportiert, onOpenAkte }) {
+function InAkteButton({ entry: e, onImportiert, onOpenAkte, onOpenReview }) {
   const [laedt, setLaedt]         = useState(false);
   const [fehler, setFehler]       = useState(null);
   const [bestaetigen, setBestaetigen] = useState(false);
+  const [inReview, setInReview]   = useState(false);
 
   if (!e.akte_az) return null;
 
@@ -14,7 +15,11 @@ function InAkteButton({ entry: e, onImportiert, onOpenAkte }) {
     setLaedt(true); setFehler(null); setBestaetigen(false);
     try {
       const res = await apiEmail.inAkte(e.id, erzwingen);
-      if (res?.ok) {
+      // S1.9d: Unter INTAKE_REVIEW_PFLICHT antwortet das Backend mit
+      // { in_review: true, hinweis: "..." } statt { ok: true, dok_ids }.
+      if (res?.in_review) {
+        setInReview(true);
+      } else if (res?.ok) {
         onImportiert(res);
         if (onOpenAkte) onOpenAkte(e);
       } else {
@@ -26,6 +31,32 @@ function InAkteButton({ entry: e, onImportiert, onOpenAkte }) {
       setLaedt(false);
     }
   };
+
+  if (inReview) {
+    return (
+      <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:7,
+          background:T.blueBg, border:`1px solid ${T.blue}44`,
+          borderRadius:7, padding:"8px 12px", fontFamily:"'Figtree',sans-serif",
+          fontSize:"0.875rem", color:T.blueText }}>
+          <span style={{ flex:1 }}>
+            E-Mail und Anhänge liegen in der <strong>Review-Queue</strong>
+            {" "}(linke Sidebar → „Review-Queue"). Nach Freigabe erscheinen sie
+            {" "}in der Akte.
+          </span>
+          {onOpenReview && (
+            <button onClick={onOpenReview}
+              style={{ background:T.blue, color:T.white, border:"none",
+                borderRadius:5, padding:"3px 10px",
+                fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
+                cursor:"pointer", flexShrink:0, fontWeight:600 }}>
+              → Öffnen
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (e.in_akte_importiert) {
     return (

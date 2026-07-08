@@ -1029,7 +1029,21 @@ def _fragebogen_neuer_mandant_stub(fragebogen: dict, parsed: dict,
 
 def _speichere_fragebogen_json(akte_az: str, roh_dict: dict,
                                 up_dir: Path, bearbeiter_id: Optional[int]) -> None:
-    """Speichert den Original-JSON als Dokument in der Akte (Audit-Trail)."""
+    """Speichert den Original-JSON als Dokument in der Akte (Audit-Trail).
+
+    S1.9d / K-P1: Unter INTAKE_REVIEW_PFLICHT laeuft der Fragebogen-Flow
+    ausschliesslich ueber die Review-Queue -- der JSON-Anhang ist bereits
+    ueber den IMAP-Adapter als intake_dokument angelegt. Kein Auto-
+    Duplikat als dokumente-Zeile.
+    """
+    from ..intake.feature_flags import review_pflicht_aktiv
+    if review_pflicht_aktiv():
+        logger.debug(
+            "K-P1: _speichere_fragebogen_json uebersprungen (Akte %s) -- "
+            "Fragebogen liegt bereits im Intake",
+            akte_az,
+        )
+        return
     try:
         import uuid as _uuid
         up_dir.mkdir(parents=True, exist_ok=True)
@@ -1082,7 +1096,12 @@ def _ergaenze_mandant(akte_az: str, mandant_dict: dict) -> None:
     Ergänzt Mandant-Daten in beteiligte (rolle='mandant').
     Nur leere Felder werden befüllt – bestehende Daten werden NIE überschrieben.
 
-    JSON-Mapping:
+    S1.9d / K-P1 (BREAKING): Unter INTAKE_REVIEW_PFLICHT (Default True) laeuft
+    dieses Auto-Enrichment NICHT MEHR -- Fragebogen-Mails landen in der
+    Review-Queue und die geparsten Antworten erscheinen dort als Vorschlag
+    im Freigabe-Dialog. Uebernahme erst mit Freigabe.
+
+    JSON-Mapping (Alt-Pfad, INTAKE_REVIEW_PFLICHT=false):
       mandant.name           → name
       mandant.vorname        → vorname
       mandant.strasse        → anschrift
@@ -1093,6 +1112,10 @@ def _ergaenze_mandant(akte_az: str, mandant_dict: dict) -> None:
       mandant.iban           → iban
       mandant.vorsteuerabzug → vorsteuer  ("ja" → "Y"; default bleibt "N")
     """
+    from ..intake.feature_flags import review_pflicht_aktiv
+    if review_pflicht_aktiv():
+        logger.debug("K-P1: _ergaenze_mandant uebersprungen (Akte %s)", akte_az)
+        return
     if not mandant_dict:
         return
     try:
@@ -1165,7 +1188,10 @@ def _ergaenze_gegner(akte_az: str, gegner_dict: dict) -> None:
     Versicherungs-Daten werden auf dieselbe Zeile geschrieben (Spalten versicherung, vers_nr, schaden_nr).
     Nur leere Felder werden befüllt.
 
-    JSON-Mapping:
+    S1.9d / K-P1: unter INTAKE_REVIEW_PFLICHT NICHT AKTIV -- Fragebogen-
+    Vorschlaege werden im Review-Freigabe-Dialog uebernommen.
+
+    JSON-Mapping (Alt-Pfad):
       gegner.fahrer                  → name
       gegner.fahrzeug.kennzeichen    → kfz_kennzeichen
       gegner.fahrzeug.fabrikat       → notizen
@@ -1173,6 +1199,10 @@ def _ergaenze_gegner(akte_az: str, gegner_dict: dict) -> None:
       gegner.versicherung.nummer     → vers_nr
       gegner.versicherung.schadennummer → schaden_nr
     """
+    from ..intake.feature_flags import review_pflicht_aktiv
+    if review_pflicht_aktiv():
+        logger.debug("K-P1: _ergaenze_gegner uebersprungen (Akte %s)", akte_az)
+        return
     if not gegner_dict:
         return
     try:
@@ -1236,13 +1266,20 @@ def _ergaenze_unfalldetails(akte_az: str, unfall_dict: dict) -> None:
     Ergänzt Unfalldaten in unfallakte (unfalldatum, unfallort) und unfalldetails
     (schilderung, ermittlungsakte_az). Nur leere Felder werden befüllt.
 
-    JSON-Mapping:
+    S1.9d / K-P1: unter INTAKE_REVIEW_PFLICHT NICHT AKTIV -- Fragebogen-
+    Vorschlaege werden im Review-Freigabe-Dialog uebernommen.
+
+    JSON-Mapping (Alt-Pfad):
       unfall.datum                   → unfallakte.unfalldatum
       unfall.ort                     → unfallakte.unfallort
       unfall.zeit                    → Präfix in unfalldetails.schilderung (kein eigenes Feld)
       unfall.schilderung             → unfalldetails.schilderung
       unfall.polizei.aktenzeichen    → unfalldetails.ermittlungsakte_az
     """
+    from ..intake.feature_flags import review_pflicht_aktiv
+    if review_pflicht_aktiv():
+        logger.debug("K-P1: _ergaenze_unfalldetails uebersprungen (Akte %s)", akte_az)
+        return
     if not unfall_dict:
         return
     try:
@@ -1315,13 +1352,20 @@ def _ergaenze_personenschaden(akte_az: str, ps_dict: dict) -> None:
     Ergänzt Personenschaden-Daten in personenschaden. Nur leere Felder werden befüllt.
     ps_dict muss != None sein (Caller prüft das).
 
-    JSON-Mapping:
+    S1.9d / K-P1: unter INTAKE_REVIEW_PFLICHT NICHT AKTIV -- Fragebogen-
+    Vorschlaege werden im Review-Freigabe-Dialog uebernommen.
+
+    JSON-Mapping (Alt-Pfad):
       personenschaden.verletzter.geburtsdatum → geburtsdatum
       personenschaden.verletzungen            → verletzungen_text
       personenschaden.krankenhaus.name        → krankenhaus_name  (+ krankenhaus_aufenthalt=1)
       personenschaden.krankenhaus.von/bis     → krankenhaus_von/bis
       personenschaden.hauskrank.von/bis       → krank_von/bis  (+ krankgeschrieben=1)
     """
+    from ..intake.feature_flags import review_pflicht_aktiv
+    if review_pflicht_aktiv():
+        logger.debug("K-P1: _ergaenze_personenschaden uebersprungen (Akte %s)", akte_az)
+        return
     if not ps_dict:
         return
     try:

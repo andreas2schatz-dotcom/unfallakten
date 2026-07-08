@@ -353,13 +353,27 @@ def log_eintrag_dokumente(log_id: int):
 def log_in_akte_importieren(log_id: int):
     """
     POST /email/import/log/<id>/in-akte
-    Importiert Anhaenge + .eml einer E-Mail in den Dokumentenbereich der Akte.
 
-    Response 200:
-      { "ok": true, "dok_ids": [...], "importiert_am": "14:23" }
-    Response 400:
-      { "fehler": "Keine Akte zugeordnet." }
+    S1.9d (BREAKING): Unter INTAKE_REVIEW_PFLICHT (Default True) liefert
+    diese Route HTTP 202 mit dem Hinweis, dass der Import ueber die
+    Review-Queue laeuft. Die E-Mail und ihre Anhaenge liegen bereits als
+    intake_dokumente + zustellungen vor (IMAP-Adapter, S1.9b) -- der
+    Sachbearbeiter oeffnet die Review-Queue und gibt sie dort frei.
+
+    Alt-Pfad (INTAKE_REVIEW_PFLICHT=false):
+      Response 200: { "ok": true, "dok_ids": [...], "importiert_am": "14:23" }
+      Response 400: { "fehler": "Keine Akte zugeordnet." }
     """
+    from ..intake.feature_flags import review_pflicht_aktiv
+    if review_pflicht_aktiv():
+        return _j({
+            "in_review": True,
+            "log_id": log_id,
+            "hinweis": ("Der Import laeuft ueber die Review-Queue. "
+                         "E-Mail und Anhaenge liegen dort bereits vor. "
+                         "Verlinkung: /intake/queue"),
+        }, 202)
+
     try:
         ergebnis = importiere_in_akte(log_id, bearbeiter_id=g.benutzer_id)
         if not ergebnis["ok"]:

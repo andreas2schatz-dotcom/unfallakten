@@ -30,22 +30,28 @@ INTAKE_PFADE = (
 # Whitelist der aktuell BEKANNTEN Alt-Aufrufer. Format: (rel_pfad, funktion,
 # kommentar). S1.9b/c/d entfernt die Eintraege der Reihe nach.
 #
-# Nach S1.9b + S1.9c:
-#   * import_service.py Zeile 306 — Alt-Pfad Anhang-Registrierung, hinter
-#     INTAKE_REVIEW_PFLICHT (S1.9b). Wird erst in S1.9d entfernt.
+# Stand nach S1.9d (alle Alt-Pfade jetzt hinter INTAKE_REVIEW_PFLICHT):
+#
+# Der Guard laesst die AST-Sichtbarkeit der Alt-Aufrufer bestehen, weil die
+# Whitelist der Rollback-Anker ist. Bei INTAKE_REVIEW_PFLICHT=false laufen
+# sie wieder scharf. Alle NEUEN ungeflaggten Aufrufe schlagen an.
+#
+# Runtime-Assertion (der eigentliche S1.9-Testkriterium-Test) siehe
+# test_s19d_e2e_no_intake_writes.py: unter aktivem Flag schreibt kein
+# Codepfad in Akten-Tabellen (dokumente / schadenpositionen / beteiligte /
+# unfalldetails / personenschaden / fragebogen_erstkontakt).
+#
+#   * import_service.py Zeile 306 — Alt-Pfad Anhang-Registrierung (S1.9b).
 #   * import_service.py Zeilen 737 + 767 — manuelle "In Akte importieren"-
-#     Aktion und .eml-Registrierung. Werden in S1.9d auf output_adapter
-#     umgestellt.
-#   * import_service.py Zeile 1041 — Fragebogen-JSON-Archivierung (K-P1,
-#     S1.9d).
-#   * upload_service.py Zeile 171 — Upload-Route Alt-Pfad, ab S1.9c hinter
-#     dem Flag (dokumente_routes.upload schaltet unter Flag um).
-#   * upload_service.py Zeile 293 — Auto-setze_schadenpositionen, ab S1.9c
-#     explizit hinter dem Flag in ``_uebernehme_schaden``.
-#   * eakte_routes.py Zeile 226 — E-Akte-Import Alt-Pfad, ab S1.9c hinter
-#     dem Flag.
+#     Aktion und .eml-Registrierung. Route in email_routes gibt jetzt 202
+#     zurueck und ruft die Funktion nicht mehr auf (S1.9d).
+#   * import_service.py Zeile 1055 — Fragebogen-JSON-Archivierung (K-P1,
+#     Guard-hinter-Flag ab S1.9d).
+#   * upload_service.py Zeile 171 — Upload-Route Alt-Pfad (S1.9c).
+#   * upload_service.py Zeile 293 — Auto-setze_schadenpositionen (S1.9c).
+#   * eakte_routes.py Zeile 254 — E-Akte-Import Alt-Pfad (S1.9c).
 BEKANNTE_ALT_AUFRUFER = {
-    ("email_import/import_service.py", "registriere_dokument"): {306, 737, 767, 1041},
+    ("email_import/import_service.py", "registriere_dokument"): {306, 737, 767, 1055},
     ("pdf/upload_service.py",         "registriere_dokument"):    {171},
     ("pdf/upload_service.py",         "setze_schadenpositionen"): {293},
     ("routers/eakte_routes.py",       "registriere_dokument"):    {254},
