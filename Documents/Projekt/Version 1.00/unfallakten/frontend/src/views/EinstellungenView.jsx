@@ -72,6 +72,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
   const [sysStatus,      setSysStatus]      = useState(null);
   const [sysLaedt,       setSysLaedt]       = useState(false);
   const [sysRetryLaedt,  setSysRetryLaedt]  = useState(false);
+  const [regStatus,      setRegStatus]      = useState(null);
   const [imapIntervall,  setImapIntervall]  = useState(5);
   const [imapSpeichert,  setImapSpeichert]  = useState(false);
 
@@ -175,6 +176,9 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
         })
         .catch(() => {})
         .finally(() => setSysLaedt(false));
+      apiSystem.getRegistryStatus()
+        .then(d => setRegStatus(d))
+        .catch(() => setRegStatus({ ok: false, version: null, klassen: [], fehler: ["Endpoint nicht erreichbar"] }));
     }
   }, [tab]);
 
@@ -188,6 +192,9 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
             setImapIntervall(prev => d.imap[0].intervall_min ?? prev);
           }
         })
+        .catch(() => {});
+      apiSystem.getRegistryStatus()
+        .then(d => setRegStatus(d))
         .catch(() => {});
     }, 30_000);
     return () => clearInterval(id);
@@ -1289,6 +1296,34 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                     <div>
                       <div style={{ color: T.text, fontWeight: 600 }}>SV-Portal</div>
                       <div style={{ color: T.textMuted, fontSize: "0.8rem" }}>Noch nicht eingerichtet (US-03)</div>
+                    </div>
+                  </div>
+
+                  {/* Pipeline */}
+                  <div style={{ color: T.textMuted, fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", padding: "0.5rem 0 0.25rem" }}>Pipeline</div>
+                  <div style={{ background: T.surface, borderRadius: 8, padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                    <span style={{ width: 12, height: 12, borderRadius: "50%", display: "inline-block", flexShrink: 0,
+                      background: regStatus == null ? "#f39c12" : regStatus.ok ? "#2ecc71" : "#e74c3c" }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: T.text, fontWeight: 600 }}>Dokumentklassen-Registry</div>
+                      <div style={{ color: T.textMuted, fontSize: "0.8rem" }}>
+                        {regStatus == null && "Wird geladen …"}
+                        {regStatus != null && regStatus.ok && (
+                          <>
+                            {regStatus.klassen.length} Klassen · Version {regStatus.version?.slice(0, 8) ?? "—"}
+                            {regStatus.klassen.length > 0 && (
+                              <span style={{ display: "block", color: T.textFaint, fontSize: "0.72rem", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {regStatus.klassen.join(", ")}
+                              </span>
+                            )}
+                          </>
+                        )}
+                        {regStatus != null && !regStatus.ok && (
+                          <span style={{ color: "#e74c3c" }}>
+                            Fehler: {(regStatus.fehler && regStatus.fehler[0]) || "unbekannt"}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 

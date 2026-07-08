@@ -1039,4 +1039,5 @@ export const apiSystem = {
     method: "PATCH",
     body: JSON.stringify(data),
   }),
+  getRegistryStatus: () => request("/system/registry/status"),
 };
