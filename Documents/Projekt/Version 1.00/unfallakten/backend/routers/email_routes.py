@@ -377,8 +377,16 @@ def log_in_akte_importieren(log_id: int):
 def log_loeschen(log_id: int):
     """
     POST /email/import/log/<id>/loeschen
-    Markiert eine E-Mail als ignoriert und verschiebt sie per IMAP nach UA_DELETED.
+
+    Unter INTAKE_REVIEW_PFLICHT (Default True ab S1.9): setzt
+    ``ausgeblendet=1``; die Zustellung bleibt fuer die Historie
+    erhalten (Migration 49).
+
+    Alt-Pfad (INTAKE_REVIEW_PFLICHT=false): setzt zusaetzlich
+    status='ignoriert' und verschiebt die E-Mail per IMAP nach UA_DELETED.
     """
+    from ..intake.feature_flags import review_pflicht_aktiv
+
     with get_connection() as conn:
         log = conn.execute(
             "SELECT message_id, konto FROM email_import_log WHERE id = ?",
@@ -389,12 +397,19 @@ def log_loeschen(log_id: int):
         return _err("Log-Eintrag nicht gefunden.", 404)
 
     with get_connection() as conn:
-        conn.execute(
-            "UPDATE email_import_log SET status = 'ignoriert' WHERE id = ?",
-            (log_id,)
-        )
+        if review_pflicht_aktiv():
+            conn.execute(
+                "UPDATE email_import_log SET ausgeblendet = 1 WHERE id = ?",
+                (log_id,)
+            )
+        else:
+            conn.execute(
+                "UPDATE email_import_log SET status = 'ignoriert', "
+                "ausgeblendet = 1 WHERE id = ?",
+                (log_id,)
+            )
 
-    if log["konto"] == "unfall" and log["message_id"]:
+    if not review_pflicht_aktiv() and log["konto"] == "unfall" and log["message_id"]:
         cfg = _imap_cfg_fuer_konto("unfall")
         if cfg:
             suche_und_verschiebe_ua(cfg, log["message_id"], "eingang", "geloescht")

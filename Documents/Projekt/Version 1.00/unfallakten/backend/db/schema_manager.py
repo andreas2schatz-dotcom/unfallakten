@@ -300,6 +300,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     46: "-- migration_46_intake_datenmodell",   # Handled by _run_migration_46 (S1.1 + K-P2)
     47: "-- migration_47_absender_registry",    # Handled by _run_migration_47 (S1.4)
     48: "-- migration_48_queue_felder",         # Handled by _run_migration_48 (S1.6a)
+    49: "-- migration_49_email_import_log_ausgeblendet", # Handled by _run_migration_49 (S1.9a)
     50: "-- migration_50_unfalldetails_create", # Handled by _run_migration_50 (Root-Cause-Fix zu Migration 28)
 }
 
@@ -571,6 +572,43 @@ def _run_migration_46(conn: sqlite3.Connection) -> None:
              "zustellungen, freigaben [K-P2], korrektur_log) + Backfill"),
     )
     logger.info("Migration 46 abgeschlossen (intake-Datenmodell + Backfill).")
+
+
+def _run_migration_49(conn: sqlite3.Connection) -> None:
+    """
+    Migration 49 (S1.9a) - email_import_log.ausgeblendet Flag.
+
+    Zustellungen (E-Mails im Import-Log) werden nie geloescht -- der
+    frontseitige Loesch-Button wird zum Ausblenden-Toggle. Additiver
+    ALTER TABLE, kein Datenverlust.
+
+    Idempotent: ALTER TABLE nur wenn Spalte fehlt (PRAGMA table_info).
+    Explizites conn.commit() umgibt das ALTER, damit der Effekt im
+    aufrufenden Kontext sichtbar wird (feedback_migration_executescript).
+    """
+    vorhandene_spalten = {
+        r[1] for r in conn.execute(
+            "PRAGMA table_info(email_import_log)"
+        ).fetchall()
+    }
+    if "ausgeblendet" not in vorhandene_spalten:
+        conn.commit()
+        conn.execute(
+            "ALTER TABLE email_import_log "
+            "ADD COLUMN ausgeblendet INTEGER NOT NULL DEFAULT 0"
+        )
+        conn.commit()
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_eil_ausgeblendet "
+        "ON email_import_log(ausgeblendet)"
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
+        (49, "Migration 49 - S1.9a email_import_log.ausgeblendet Flag "
+             "(Zustellungen werden nie geloescht, nur ausgeblendet)"),
+    )
+    logger.info("Migration 49 abgeschlossen (email_import_log.ausgeblendet).")
 
 
 def _run_migration_48(conn: sqlite3.Connection) -> None:
@@ -862,6 +900,8 @@ def run_migrations() -> None:
                 _run_migration_47(conn)
             elif version == 48:
                 _run_migration_48(conn)
+            elif version == 49:
+                _run_migration_49(conn)
             elif version == 50:
                 _run_migration_50(conn)
             else:
