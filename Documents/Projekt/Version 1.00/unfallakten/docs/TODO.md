@@ -70,6 +70,24 @@ Klick auf E-Mail navigiert jetzt direkt zur E-Mail-Detail-Seite (EmailDetailView
 `test_prd23b.py` (7 Failures) und `test_modul8.py` (16 Errors) schlagen seit vor PRD-31 fehl — nicht durch aktuelle Sessions verursacht, noch nicht behoben.
 (aus: session_handover_v55.md, session_handover_v54.md)
 
+### 🐛 Bugfixing-Session 2026-07-08
+Neben S1.6b in dieser Session gefixt (alle auf `intake-stufe1` gepusht):
+
+- **`a6fb6f4`** — Test-Stub-Kontamination in `test_prd23b.py` entfernt. Historischer Modul-Ebenen-`sys.modules`-Stub für pdfplumber/flask/werkzeug/jwt kontaminierte die Testreihenfolge (~64 Failures + alle 26 Collection-Errors). Statischer Guard-Test `test_prd23b_kontamination.py` verhindert Rückfall. Suite 287f/26e → 223f/0e.
+- **`12d78c5`** — `TestKlassifiziereEakteDok` (7 Failures seit v41/2026-04-04 latent kaputt) an neue Listen-Signatur von `_klassifiziere_eakte_dok` angepasst; SV-Domain-Tests semantisch korrigiert (Gutachten.pdf ≠ SV-Rechnung), neuer Test `test_sv_domain_match_bei_gutachten` für den 4-Kandidaten-Fall.
+- **`9ffcbe6`** — `backend/tests/conftest.py` setzt `FLASK_SECRET_KEY` vor Test-Collection (verhindert Bootstrap-Crash).
+- **`746f731`** — `test_modul6.py`: `TestBackupScript` entfernt (`scripts/backup.sh` existiert nicht mehr), Gitignore-Erwartungen auf Verzeichnis-Muster (`backend/data/`, `nginx/ssl/`) aktualisiert.
+- **`70c77c4`** — **Migration 50** legt `unfalldetails`-Tabelle nachträglich an (Root-Cause-Fix). Der aktive Schema-Manager hatte nie ein `CREATE TABLE unfalldetails` gehabt; Migration 28 (Aktivlegit-ALTER) fand die Tabelle nicht und stempelte sich als SKIPPED. Folge: `GET/PUT /akten/<az>/unfalldetails` **und `POST /klage/generieren`** (der geschäftskritische Klageschrift-Endpunkt) crashten mit 500. FK korrekt auf `unfallakte(az)` (Legacy-DDL hatte fälschlich `aktenzeichen`). 6 neue Tests. **Live-DB von Schema 48 auf 50 migriert**, Backup: `backend/data/unfallakten.db.bak_pre_mig50`. Handover: `handover/2026-07-08-datenmodell-bugs-unfalldetails-cleanup.md`.
+- **`d5916d3`** — `backend/cleanup_abrechnungen.py`: `DB_PATH`-Default auf `Path(__file__).parent / "data" / "unfallakten.db"` (Pattern aus `database.py`). Historischer Default zeigte auf die Karteileiche (`backend/db/unfallakten.db`, Schema 16); durch Docker-ENV in Praxis überdeckt, aber Falle für lokale Läufe.
+
+**Testsuite-Bilanz:** Baseline (Anfang Session) 294f/385p/26e/3s → nach Bugfixing **208f/529p/0e/3s** (−86 failures, +144 passes, −26 errors).
+
+**Offene Baustellen (aus Failure-Kategorisierung 2026-07-08):**
+- **P2 – Auth-Test-Isolation:** ~150 Failures in `test_modul3/4/7` scheitern an `KeyError: 'access_token'` weil `_setup()` `importlib.reload` nutzt und Sub-Imports nicht durchschlägt — Test-Framework-Umbau nötig (pytest-Fixtures mit sauberer DB-Isolation). Größerer Eingriff.
+- **P3 – Portal-Sync-Spaltendrift:** 3 Failures in `test_portal_sync.py` (`sqlite3.OperationalError: no such column: gutachten_nr` in `portal_sync.py:110`). Klein.
+- **Kleinere:** `test_migration_46` `intake_dokumente`-Timing (1), `test_sv_portal` 200 vs 404 (1), `test_modul1` `check_schema()` + `test_status_view` (~5). 
+- **Endpunkt-Härtung:** Query-Stellen in `klage_routes.py:241/364/1232` sind nach Migration 50 heil, aber ungeschützt (kein `try/except`). Defensiver Guard sinnvoll für DB-Deployment-Reihenfolge-Ausfälle.
+
 ---
 
 ## 📋 Offen
