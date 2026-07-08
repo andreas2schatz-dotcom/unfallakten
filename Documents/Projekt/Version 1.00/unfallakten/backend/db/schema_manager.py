@@ -300,6 +300,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     46: "-- migration_46_intake_datenmodell",   # Handled by _run_migration_46 (S1.1 + K-P2)
     47: "-- migration_47_absender_registry",    # Handled by _run_migration_47 (S1.4)
     48: "-- migration_48_queue_felder",         # Handled by _run_migration_48 (S1.6a)
+    50: "-- migration_50_unfalldetails_create", # Handled by _run_migration_50 (Root-Cause-Fix zu Migration 28)
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -861,6 +862,8 @@ def run_migrations() -> None:
                 _run_migration_47(conn)
             elif version == 48:
                 _run_migration_48(conn)
+            elif version == 50:
+                _run_migration_50(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
@@ -2371,6 +2374,91 @@ def _run_migration_27(conn: sqlite3.Connection) -> None:
         "VALUES (27, 'Migration 27 - schadenposition_belege (PRD-23a)')"
     )
     logger.info("Migration 27: schadenposition_belege-Tabelle angelegt.")
+
+
+def _run_migration_50(conn: sqlite3.Connection) -> None:
+    """
+    Migration 50: unfalldetails-Tabelle anlegen (Root-Cause-Fix).
+
+    Die Tabelle wurde nie vom aktiven Schema-Manager erzeugt -- nur vom
+    toten Root-Legacy-Manager (backend/schema_manager.py), der nie gegen
+    die Live-DB lief. Migration 28 setzt seit v56 mit einem PRAGMA-
+    table_info-Guard voraus, dass die Tabelle existiert, findet sie aber
+    nicht und stempelt sich selbst als "SKIPPED" in schema_version.
+    Ergebnis: `GET/PUT /akten/<az>/unfalldetails` und der geschaefts-
+    kritische `POST /akten/<az>/klage/generieren` crashen mit 500
+    (sqlite3.OperationalError: no such table: unfalldetails).
+
+    Diese Migration holt das CREATE TABLE nach -- inklusive der drei
+    Aktivlegitimations-Spalten aus Migration 28, damit ein Fresh-Setup
+    nicht zusaetzlich auf Migration 28 angewiesen ist.
+
+    Zu Migration 28 (SKIPPED-Zustand): Der schema_version-Eintrag von
+    Migration 28 bleibt fuer Alt-Installationen auf "... SKIPPED"
+    stehen -- INSERT OR IGNORE verhindert ein Update. Das ist harmlos
+    (Migration 50 deckt die drei Aktivlegitimations-Spalten mit ab),
+    aber Migration 28 ist damit redundant und effektiv tot.
+
+    FK-Konvention (siehe bugs_and_fixes.md und DECISIONS.md F-02):
+    unfalldetails.akte_id -> unfallakte(az), NIEMALS ...aktenzeichen.
+    Der urspruengliche Legacy-DDL verwies auf unfallakte(aktenzeichen) --
+    das war eine tickende Zeitbombe, hier korrigiert.
+
+    Idempotent: CREATE TABLE IF NOT EXISTS + Spalten-Existenz-Check.
+    Falls die Tabelle aus einem alten Dev-Stand bereits ohne die
+    Aktivlegitimations-Spalten existiert, werden diese per ALTER TABLE
+    ergaenzt (gleiche Logik wie Migration 28, aber diesmal mit
+    existierender Tabelle).
+    """
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS unfalldetails (
+            id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+            akte_id                     TEXT NOT NULL UNIQUE
+                                         REFERENCES unfallakte(az) ON DELETE CASCADE,
+            schilderung                 TEXT,
+            zeuge_1                     TEXT,
+            zeuge_1_anschrift           TEXT,
+            zeuge_2                     TEXT,
+            zeuge_2_anschrift           TEXT,
+            zeuge_3                     TEXT,
+            zeuge_3_anschrift           TEXT,
+            ermittlungsakte_az          TEXT,
+            ermittlungsakte_behoerde    TEXT,
+            ermittlungsakte_ort         TEXT,
+            fahrer_mandant              TEXT,
+            fahrer_gegner               TEXT,
+            vorsteuerabzug              INTEGER DEFAULT 0,
+            haftungsquote               REAL    DEFAULT 100,
+            haftungsbegruendung         TEXT,
+            aktivlegitimation_typ       TEXT NOT NULL DEFAULT 'eigentum',
+            aktivlegitimation_freigabe  TEXT NOT NULL DEFAULT 'freigabe',
+            aktivlegitimation_datum     TEXT,
+            erstellt_am                 TEXT DEFAULT (datetime('now','localtime')),
+            geaendert_am                TEXT DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_unfalldetails_akte
+            ON unfalldetails(akte_id);
+    """)
+
+    # Falls die Tabelle aus einem alten Dev-Stand noch ohne die
+    # Aktivlegitimations-Spalten existiert (CREATE TABLE IF NOT EXISTS
+    # greift dann nicht) -> gleiche ALTER-Logik wie Migration 28.
+    vorhandene = {r[1] for r in conn.execute(
+        "PRAGMA table_info(unfalldetails)").fetchall()}
+    for spalte, typ in (
+        ("aktivlegitimation_typ",      "TEXT NOT NULL DEFAULT 'eigentum'"),
+        ("aktivlegitimation_freigabe", "TEXT NOT NULL DEFAULT 'freigabe'"),
+        ("aktivlegitimation_datum",    "TEXT"),
+    ):
+        if spalte not in vorhandene:
+            conn.execute(f"ALTER TABLE unfalldetails ADD COLUMN {spalte} {typ}")
+            logger.info("Migration 50: unfalldetails.%s per ALTER nachgetragen.", spalte)
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (50, 'Migration 50 - unfalldetails-Tabelle nachtraeglich angelegt (Root-Cause-Fix zu Migration 28 SKIPPED)')"
+    )
+    logger.info("Migration 50: unfalldetails-Tabelle angelegt/geprueft.")
 
 
 def _run_migration_28(conn: sqlite3.Connection) -> None:
