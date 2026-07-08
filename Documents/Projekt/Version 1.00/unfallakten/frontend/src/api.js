@@ -1029,6 +1029,23 @@ export const apiSvPortal = {
 };
 
 // ─────────────────────────────────────────────────────────────
+// INTAKE-REVIEW (S1.8)
+// ─────────────────────────────────────────────────────────────
+export const apiIntake = {
+  queue:      ()             => request('/intake/queue'),
+  detail:     (id)           => request(`/intake/dokument/${id}`),
+  setKlasse:  (id, klasse)   => request(`/intake/dokument/${id}/klasse`, {
+    method: 'PATCH', body: JSON.stringify({ klasse }),
+  }),
+  setFelder:  (id, felder)   => request(`/intake/dokument/${id}/felder`, {
+    method: 'PATCH', body: JSON.stringify({ felder }),
+  }),
+  freigabe:   (id, payload)  => request(`/intake/dokument/${id}/freigabe`, {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
+};
+
+// ─────────────────────────────────────────────────────────────
 // SYSTEM HEALTH
 // ─────────────────────────────────────────────────────────────
 export const apiSystem = {

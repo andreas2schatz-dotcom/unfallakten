@@ -14,6 +14,7 @@ const StatistikenView      = lazy(() => import("./views/StatistikenView.jsx"));
 const AktensucheView       = lazy(() => import("./views/AktensucheView.jsx"));
 const EmailImportView      = lazy(() => import("./views/EmailImportView.jsx"));
 const WiedervorlageView    = lazy(() => import("./views/WiedervorlageView.jsx"));
+const ReviewQueueView      = lazy(() => import("./views/ReviewQueueView.jsx"));
 const KuerzungskatalogSection = lazy(() => import("./views/KuerzungskatalogView.jsx"));
 const EinstellungenView    = lazy(() => import("./views/EinstellungenView.jsx"));
 const AkteDetailView       = lazy(() => import("./components/AkteDetailView.jsx"));
@@ -178,6 +179,7 @@ function AppShell({ user, onLogout }) {
     { id:"aktensuche",      icon:"🔍",     label:"Aktensuche"       },
     { id:"email-import",    icon:Ic.email, label:"E-Mail-Import"    },
     { id:"wiedervorlage",   icon:"📋",     label:"Wiedervorlage"    },
+    { id:"review-queue",    icon:"📥",     label:"Review-Queue"     },
     { id:"kuerzungskatalog",icon:"⚖️",    label:"Kürzungskatalog"  },
     { id:"einstellungen",   icon:Ic.settings, label:"Einstellungen"  },
   ];
@@ -293,6 +295,7 @@ function AppShell({ user, onLogout }) {
             : active==="aktensuche"      ? <AktensucheView onOpenAkte={openAkte} />
             : active==="email-import"    ? <EmailImportView onOpenAkte={openAkte} dispatch={dispatch} initialEmailId={pendingEmailId} onEmailGeoffnet={onEmailGeoffnet} />
             : active==="wiedervorlage"   ? <WiedervorlageView onOpenAkte={openAkte} />
+            : active==="review-queue"    ? <ReviewQueueView onOpenAkte={openAkte} />
             : active==="kuerzungskatalog"? <KuerzungskatalogSection />
             : active==="einstellungen"   ? <EinstellungenView initialTab={pendingEinstellungenTab} onTabMounted={() => setPendingEinstellungenTab(null)} />
             : activeTab?.akte ? <AkteDetailView
