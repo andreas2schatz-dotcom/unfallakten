@@ -1,0 +1,18 @@
+Autoverwahrung Muster
+Standplatzweg 3
+63067 Offenbach am Main
+
+Standkosten-Rechnung
+
+Rechnungs-Nr: SK-2026-0123
+Rechnungsdatum: 30.03.2026
+
+Standkosten Fahrzeug OF-MU 1234
+Zeitraum: 13.03.2026 - 28.03.2026 (16 Tage)
+
+Tagessatz                                12,00 EUR
+16 Tage x 12,00 EUR                     192,00 EUR
+
+Nettobetrag                             192,00 EUR
+19% MwSt                                 36,48 EUR
+Rechnungsbetrag                         228,48 EUR

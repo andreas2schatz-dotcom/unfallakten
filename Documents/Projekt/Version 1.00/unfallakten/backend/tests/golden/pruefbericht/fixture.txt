@@ -1,0 +1,18 @@
+ControlExpert GmbH
+Kalkulationsprüfung / Prüfbericht
+
+Vorgangs-Nr: CE-2026-0815
+Auftraggeber: HDI Global SE
+
+Fahrzeug
+Kennzeichen: OF-MU 1234
+Hersteller: VW Golf VII
+
+Ergebnis der technischen Prüfung:
+
+Reparaturkosten brutto vor Prüfung        7.616,00 EUR
+Abzug technische Prüfung                    380,00 EUR
+Abzug Werkstattalternative                  240,00 EUR
+Abzug NfA                                   120,00 EUR
+Abzug gesamt                                740,00 EUR
+Reparaturkosten nach Prüfung              6.876,00 EUR

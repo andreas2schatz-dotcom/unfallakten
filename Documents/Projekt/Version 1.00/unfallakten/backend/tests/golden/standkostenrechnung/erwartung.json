@@ -1,0 +1,9 @@
+{
+  "klasse": "standkostenrechnung",
+  "felder": {
+    "rechnungsnummer": "SK-2026-0123",
+    "rechnungsdatum": "30.03.2026",
+    "bruttobetrag": "228,48",
+    "standtage": "16"
+  }
+}

@@ -53,7 +53,7 @@
 **Maßgebliche Dokumente (immer zuerst lesen):** `freigabe.md` (verbindlich, übersteuert die Pläne) + `PIPELINE-REFACTORING-PLAN.md` + `POSITIONSMODELL-PLAN.md` (alle im Projekt-Root).
 **Arbeitsbranch:** `intake-stufe1` — alle Implementierungs-Sessions arbeiten auf diesem Branch, nicht auf main.
 **Reihenfolge:** verbindlich lt. freigabe.md Abschnitt 4 (S1.1–S1.5 → P1.1–P1.4 → …), inkl. Korrekturen K-P1–K-P4 / K-M1–K-M3.
-**Aktueller Schritt:** S1.1 + S1.2 + S1.3 + S1.4 ✅ (2026-07-08 – S1.4: Migration 47 (vertrauensstufe/klasse_kandidat/ramicro_adressnr), Konsolidierungsskript, Adapter-Anreicherung mit 10 neuen Tests grün, 0 Regressionen. Baseline 336 → 346 passed, 274 failed / 23 errors / 2 skipped unverändert). Nächster Schritt: **S1.5** (Dokumentklassen-Registry YAML + Loader + Golden-Files).
+**Aktueller Schritt:** S1.1 + S1.2 + S1.3 + S1.4 + S1.5 ✅ (2026-07-08 – S1.5: 8 Klassen-YAMLs (backend/registry/klassen/), Loader mit Versionsstempel + Fail-Loud (backend/intake/registry_loader.py), Endpoint `GET /system/registry/status`, Golden-Files je Klasse (backend/tests/golden/), Fail-Loud im App-Start verdrahtet. 19 neue Tests grün, 0 Regressionen (Baseline 274 failed / 346 passed / 23 errors / 2 skipped unverändert). Nächster Schritt: **S1.6a** (Queue + Textgewinnung/OCR/TSV — K-P3-Zusatz aus freigabe.md).
 **Vor jedem Migrationsschritt:** Sicherungskopie der SQLite-DB. Kein executescript(), explizites conn.commit() bei ALTER TABLE. RA-MICRO read-only, Docker/CIFS tabu, Alt-Pfade unverändert (Doppelschreiben).
 **Abnahmeregel (freigabe.md Abschn. 4):** Jeder Schritt lauffähig + Testkriterium erfüllt; kein Schritt beginnt, bevor der vorherige abgenommen ist. Migrations-Nummern fortlaufend nach tatsächlicher Reihenfolge.
 (Stand: 2026-07-07)

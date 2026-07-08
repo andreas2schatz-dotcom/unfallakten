@@ -13,6 +13,35 @@ def system_status():
     return jsonify(get_status())
 
 
+@system_bp.route("/system/registry/status", methods=["GET"])
+@login_erforderlich
+def registry_status():
+    """Dokumentklassen-Registry-Status fuer Health-Dashboard (S1.5).
+
+    Liefert version, geladene Klassen und aggregierte Fehler. Wirft nicht:
+    Ladefehler werden hier abgefangen und als ok=false zurueckgegeben, damit
+    das Dashboard den Fehler anzeigen kann. (Der Fail-Loud beim App-Start
+    passiert davor in erstelle_app().)
+    """
+    from ..intake.registry_loader import lade_registry, standard_pfad
+    try:
+        reg = lade_registry(standard_pfad())
+        return jsonify({
+            "ok": True,
+            "version": reg.version,
+            "klassen": sorted(reg.klassen.keys()),
+            "fehler": list(reg.fehler),
+        })
+    except RuntimeError as exc:
+        logger.error("Registry-Status: Ladefehler: %s", exc)
+        return jsonify({
+            "ok": False,
+            "version": None,
+            "klassen": [],
+            "fehler": [str(exc)],
+        }), 200
+
+
 @system_bp.route("/system/ramicro/retry", methods=["POST"])
 @login_erforderlich
 def ramicro_retry():

@@ -127,6 +127,14 @@ def erstelle_app(test_config: dict = None) -> Flask:
     if test_config:
         app.config.update(test_config)
 
+    # ── Dokumentklassen-Registry (S1.5): Fail-Loud vor DB-Init ────────────────
+    # Ein defektes YAML muss den App-Start abbrechen, damit die Pipeline nicht
+    # heimlich mit leerer Registry laeuft (behebt den heutigen registry.json-Bug).
+    from .intake.registry_loader import lade_registry, standard_pfad
+    _reg = lade_registry(standard_pfad(), reload=True)
+    logger.info("Dokumentklassen-Registry geladen: %d Klassen (version=%s)",
+                len(_reg.klassen), _reg.version)
+
     # ── Datenbank initialisieren ───────────────────────────────────────────────
     with app.app_context():
         init_db()

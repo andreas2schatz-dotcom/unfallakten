@@ -1,0 +1,48 @@
+klasse: sv_rechnung
+
+marker:
+  - Honorarnote
+  - Honorarrechnung
+  - SV-Honorar
+  - Sachverständigenhonorar
+  - Gutachterhonorar
+  - JVEG
+  - BVSK-Honorartabelle
+  - Grundhonorar
+
+regex_felder:
+  rechnungsnummer:
+    - "Rechnungs-?Nr\\.?[:\\s]+([A-Z0-9\\-/]+)"
+  rechnungsdatum:
+    - "Rechnungsdatum[:\\s]+(\\d{2}\\.\\d{2}\\.\\d{4})"
+  bruttobetrag:
+    - "Rechnungsbetrag[:\\s]+([\\d\\.]+,\\d{2})"
+    - "Gesamtbetrag[^0-9]{0,10}([\\d\\.]+,\\d{2})"
+  grundhonorar:
+    - "Grundhonorar[:\\s]+([\\d\\.]+,\\d{2})"
+
+schema:
+  rechnungsnummer: string
+  rechnungsdatum: date
+  sv_buero: string
+  grundhonorar: number
+  nebenkosten: number
+  nettobetrag: number
+  mwst_betrag: number
+  bruttobetrag: number
+
+pflichtfelder:
+  - rechnungsnummer
+  - rechnungsdatum
+  - sv_buero
+
+kritische_felder:
+  - bruttobetrag
+  - grundhonorar
+
+validierungsregeln:
+  - name: netto_plus_mwst_gleich_brutto
+    beschreibung: Netto + 19% MwSt = Brutto (Toleranz 1 Cent)
+
+fristrelevanz: false
+loeschfrist_jahre: 10

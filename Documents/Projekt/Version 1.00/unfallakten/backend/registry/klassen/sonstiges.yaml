@@ -1,0 +1,23 @@
+klasse: sonstiges
+
+# Auffangklasse fuer Dokumente ohne Klassen-Zuordnung.
+# Enthaelt bewusst keine Marker (sonst wuerde alles hier landen).
+
+marker: []
+
+regex_felder: {}
+
+schema:
+  betreff: string
+  datum: date
+  aussteller: string
+  seitenanzahl: integer
+
+pflichtfelder: []
+
+kritische_felder: []
+
+validierungsregeln: []
+
+fristrelevanz: false
+loeschfrist_jahre: 6

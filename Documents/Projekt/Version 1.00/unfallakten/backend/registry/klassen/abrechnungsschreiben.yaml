@@ -1,0 +1,49 @@
+klasse: abrechnungsschreiben
+
+marker:
+  - Regulierungsschreiben
+  - Schadenregulierung
+  - Abrechnungsschreiben
+  - Deckungszusage
+  - Zahlungsavis
+  - HDI Global
+  - VHV Allgemeine
+  - HUK-COBURG
+  - Allianz Versicherungs
+
+regex_felder:
+  schadennummer:
+    - "Schadennummer[:\\s]+([A-Z0-9\\-/]+)"
+    - "Schaden-Nr\\.?[:\\s]+([A-Z0-9\\-/]+)"
+  schreibdatum:
+    - "\\b(\\d{2}\\.\\d{2}\\.\\d{4})\\b"
+
+schema:
+  versicherer: string
+  versicherer_kuerzel: string
+  schadennummer: string
+  aktenzeichen_kanzlei: string
+  schreibdatum: date
+  schadendatum: date
+  abrechnungsart: string
+  gesamtbetrag: number
+  positionen: array
+  zahlungen: array
+  mwst_hinweis: boolean
+
+pflichtfelder:
+  - versicherer
+  - schadennummer
+
+kritische_felder:
+  - gesamtbetrag
+  - positionen
+
+validierungsregeln:
+  - name: summe_positionen_gleich_gesamt
+    beschreibung: Summe der Positionsbetraege muss dem Gesamtbetrag entsprechen (Toleranz 1 Cent)
+  - name: netto_plus_mwst_gleich_brutto
+    beschreibung: Netto + 19% MwSt = Brutto (Toleranz 1 Cent)
+
+fristrelevanz: true
+loeschfrist_jahre: 6

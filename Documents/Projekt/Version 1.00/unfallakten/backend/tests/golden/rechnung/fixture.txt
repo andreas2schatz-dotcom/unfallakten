@@ -1,0 +1,18 @@
+Autohaus Muster GmbH
+Musterstraße 42
+63065 Offenbach am Main
+
+Rechnung
+
+Rechnungs-Nr: R-2026-4711
+Rechnungsdatum: 05.05.2026
+Werkstatt: Autohaus Muster GmbH
+
+Reparaturarbeiten am Fahrzeug OF-MU 1234:
+
+Ersatzteile                          3.400,00 EUR
+Arbeitslohn                          2.100,00 EUR
+
+Nettobetrag                          5.500,00 EUR
+19% MwSt                             1.045,00 EUR
+Rechnungsbetrag                      6.545,00 EUR

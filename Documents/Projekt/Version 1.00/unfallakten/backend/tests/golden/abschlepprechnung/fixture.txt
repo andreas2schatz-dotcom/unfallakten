@@ -1,0 +1,17 @@
+Abschleppdienst Muster GmbH
+Bergungsstraße 7
+63067 Offenbach am Main
+
+Abschlepprechnung
+
+Rechnungs-Nr: AB-2026-0099
+Rechnungsdatum: 13.03.2026
+
+Bergungskosten Fahrzeug OF-MU 1234, Einsatz vom 12.03.2026:
+
+Grundgebühr                            150,00 EUR
+Kilometerpauschale                      75,50 EUR
+
+Nettobetrag                            225,50 EUR
+19% MwSt                                42,85 EUR
+Rechnungsbetrag                        268,35 EUR

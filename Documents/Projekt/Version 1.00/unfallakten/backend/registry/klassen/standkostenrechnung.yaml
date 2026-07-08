@@ -1,0 +1,49 @@
+klasse: standkostenrechnung
+
+marker:
+  - Standkosten
+  - Stellplatzkosten
+  - Verwahrgebühr
+  - Standgeld
+  - Verwahrkosten
+  - Standgebühr
+
+regex_felder:
+  rechnungsnummer:
+    - "Rechnungs-?Nr\\.?[:\\s]+([A-Z0-9\\-/]+)"
+  rechnungsdatum:
+    - "Rechnungsdatum[:\\s]+(\\d{2}\\.\\d{2}\\.\\d{4})"
+  bruttobetrag:
+    - "Rechnungsbetrag[:\\s]+([\\d\\.]+,\\d{2})"
+  standtage:
+    - "([0-9]{1,3})\\s+Tage"
+
+schema:
+  rechnungsnummer: string
+  rechnungsdatum: date
+  aussteller: string
+  von_datum: date
+  bis_datum: date
+  standtage: integer
+  tagessatz: number
+  nettobetrag: number
+  mwst_betrag: number
+  bruttobetrag: number
+
+pflichtfelder:
+  - rechnungsnummer
+  - rechnungsdatum
+  - bruttobetrag
+
+kritische_felder:
+  - bruttobetrag
+  - standtage
+
+validierungsregeln:
+  - name: netto_plus_mwst_gleich_brutto
+    beschreibung: Netto + 19% MwSt = Brutto (Toleranz 1 Cent)
+  - name: standtage_positiv
+    beschreibung: Standtage muessen > 0 sein
+
+fristrelevanz: false
+loeschfrist_jahre: 10

@@ -1,0 +1,66 @@
+klasse: gutachten
+
+marker:
+  - Sachverständigengutachten
+  - Kfz-Sachverständigenbüro
+  - Schadensgutachten
+  - Beweissicherungsgutachten
+  - Wiederbeschaffungswert
+  - Restwert
+  - DEKRA Automobil
+  - GTÜ
+  - TÜV
+
+regex_felder:
+  schadendatum:
+    - "Schadendatum[:\\s]+(\\d{2}\\.\\d{2}\\.\\d{4})"
+    - "Unfalldatum[:\\s]+(\\d{2}\\.\\d{2}\\.\\d{4})"
+  auftragsdatum:
+    - "Auftragsdatum[:\\s]+(\\d{2}\\.\\d{2}\\.\\d{4})"
+  kennzeichen:
+    - "Kennzeichen[:\\s]+([A-ZÄÖÜ]{1,3}-[A-Z]{1,2}\\s?\\d{1,4})"
+  wiederbeschaffungswert:
+    - "Wiederbeschaffungswert[^0-9]{0,40}([\\d\\.]+,\\d{2})"
+
+schema:
+  sv_buero: string
+  gutachter: string
+  auftragsnummer: string
+  auftragsdatum: date
+  besichtigungsdatum: date
+  schadendatum: date
+  schadennummer_versicherung: string
+  versicherung_name: string
+  hersteller: string
+  typ: string
+  kennzeichen: string
+  erstzulassung: date
+  vin: string
+  schadenart: string
+  reparaturkosten_netto: number
+  reparaturkosten_brutto: number
+  wiederbeschaffungswert: number
+  restwert: number
+  wertminderung: number
+  nutzungsausfall_tagessatz: number
+  nutzungsausfall_tage: integer
+
+pflichtfelder:
+  - sv_buero
+  - kennzeichen
+  - schadenart
+
+kritische_felder:
+  - wiederbeschaffungswert
+  - restwert
+  - reparaturkosten_netto
+  - wertminderung
+
+validierungsregeln:
+  - name: wbw_positiv
+    beschreibung: Wiederbeschaffungswert muss > 0 sein
+  - name: restwert_kleiner_wbw
+    beschreibung: Restwert ≤ Wiederbeschaffungswert
+
+fristrelevanz: false
+loeschfrist_jahre: 6

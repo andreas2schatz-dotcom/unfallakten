@@ -1,0 +1,9 @@
+{
+  "klasse": "sv_rechnung",
+  "felder": {
+    "rechnungsnummer": "SV-2026-0042",
+    "rechnungsdatum": "20.03.2026",
+    "bruttobetrag": "1.035,30",
+    "grundhonorar": "720,00"
+  }
+}

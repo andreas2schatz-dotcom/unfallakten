@@ -1,0 +1,19 @@
+Sachverständigengutachten Nr. 4711/2026
+
+Kfz-Sachverständigenbüro Muster GmbH
+Musterstraße 1
+60313 Frankfurt am Main
+
+Auftraggeber:    Max Mustermann
+Auftragsdatum:   15.03.2026
+Schadendatum:    12.03.2026
+Kennzeichen:     OF-MU 1234
+Hersteller:      VW
+Typ:             Golf VII
+
+Wiederbeschaffungswert           12.500,00 EUR
+Restwert                          3.200,00 EUR
+Reparaturkosten netto             8.400,00 EUR
+Wertminderung                       500,00 EUR
+
+Der Sachverständige stellt fest, dass ein Reparaturschaden vorliegt.

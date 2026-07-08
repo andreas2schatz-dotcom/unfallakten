@@ -1,0 +1,43 @@
+klasse: abschlepprechnung
+
+marker:
+  - Abschlepprechnung
+  - Abschleppdienst
+  - Bergungskosten
+  - Bergungsdienst
+  - Abschleppkosten
+  - Pannenhilfe
+
+regex_felder:
+  rechnungsnummer:
+    - "Rechnungs-?Nr\\.?[:\\s]+([A-Z0-9\\-/]+)"
+  rechnungsdatum:
+    - "Rechnungsdatum[:\\s]+(\\d{2}\\.\\d{2}\\.\\d{4})"
+  bruttobetrag:
+    - "Rechnungsbetrag[:\\s]+([\\d\\.]+,\\d{2})"
+
+schema:
+  rechnungsnummer: string
+  rechnungsdatum: date
+  aussteller: string
+  einsatzdatum: date
+  von_ort: string
+  nach_ort: string
+  nettobetrag: number
+  mwst_betrag: number
+  bruttobetrag: number
+
+pflichtfelder:
+  - rechnungsnummer
+  - rechnungsdatum
+  - bruttobetrag
+
+kritische_felder:
+  - bruttobetrag
+
+validierungsregeln:
+  - name: netto_plus_mwst_gleich_brutto
+    beschreibung: Netto + 19% MwSt = Brutto (Toleranz 1 Cent)
+
+fristrelevanz: false
+loeschfrist_jahre: 10
