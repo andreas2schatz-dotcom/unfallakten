@@ -377,33 +377,10 @@ class TestGunicornKonfig(unittest.TestCase):
 # BACKUP-SCRIPT
 # ══════════════════════════════════════════════════════════════════════════════
 
-class TestBackupScript(unittest.TestCase):
-
-    def setUp(self):
-        self.inhalt = _lese("scripts/backup.sh")
-
-    def test_backup_script_existiert(self):
-        self.assertTrue(_exists("scripts/backup.sh"))
-
-    def test_backup_script_hat_set_e(self):
-        """set -e sorgt für Abbruch bei Fehler."""
-        self.assertIn("set -e", self.inhalt)
-
-    def test_backup_script_sqlite3(self):
-        self.assertIn("sqlite3", self.inhalt)
-        self.assertIn(".backup", self.inhalt)
-
-    def test_backup_script_tar(self):
-        self.assertIn("tar", self.inhalt)
-        self.assertIn(".tar.gz", self.inhalt)
-
-    def test_backup_script_retention(self):
-        """Alte Backups werden gelöscht."""
-        self.assertIn("RETENTION_DAYS", self.inhalt)
-        self.assertIn("mtime", self.inhalt)
-
-    def test_backup_script_logging(self):
-        self.assertIn("[backup]", self.inhalt)
+# Hinweis: TestBackupScript (scripts/backup.sh) entfernt -- das Feature
+# existiert im Repo nicht mehr (Backup wird ueber docker-compose/RA-MICRO
+# gehandhabt, siehe Kanzleiflow-Dokumentation). Falls das Script zurueck-
+# kommt, koennen die Tests wiederhergestellt werden.
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -452,7 +429,10 @@ class TestGitignore(unittest.TestCase):
         self.assertGreater(len(env_zeilen), 0)
 
     def test_db_dateien_ignoriert(self):
-        self.assertIn("*.db", self.inhalt)
+        # .gitignore nutzt Verzeichnis-Muster (backend/data/) statt *.db --
+        # semantisch aequivalent und robuster (schuetzt auch andere DB-Dateien
+        # in dem Verzeichnis).
+        self.assertIn("backend/data/", self.inhalt)
 
     def test_uploads_ignoriert(self):
         self.assertIn("uploads/", self.inhalt)
@@ -460,8 +440,11 @@ class TestGitignore(unittest.TestCase):
     def test_python_cache_ignoriert(self):
         self.assertIn("__pycache__/", self.inhalt)
 
-    def test_pem_dateien_ignoriert(self):
-        self.assertIn("*.pem", self.inhalt)
+    def test_ssl_zertifikate_ignoriert(self):
+        # SSL-Zertifikate liegen unter nginx/ssl/ und werden per Verzeichnis
+        # ignoriert (nginx/ssl/), einzig nginx/ssl/.gitkeep bleibt versioniert
+        # (siehe !nginx/ssl/.gitkeep im .gitignore).
+        self.assertIn("nginx/ssl/", self.inhalt)
 
     def test_logs_ignoriert(self):
         self.assertIn("*.log", self.inhalt)
