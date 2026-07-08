@@ -10,9 +10,20 @@ Oder lokal (Pfad anpassen):
 
 import sqlite3
 import os
+from pathlib import Path
 
-# DB-Pfad – anpassen wenn nötig
-DB_PATH = os.environ.get("DB_PATH", "/app/backend/db/unfallakten.db")
+# DB-Pfad -- konsistent zum Pattern aus backend/db/database.py:
+# Diese Datei liegt in backend/, also
+# Path(__file__).parent / "data" / "unfallakten.db"
+# = backend/data/unfallakten.db (die Live-DB).
+# Der historische Default "/app/backend/db/unfallakten.db" zeigte auf
+# die Karteileiche (Schema-Version 16) und wurde in Praxis nur durch
+# Dockerfile-/Compose-ENV DB_PATH ueberdeckt -- lokale Laeufe ausserhalb
+# Docker liefen ins Leere.
+DB_PATH = os.environ.get(
+    "DB_PATH",
+    str(Path(__file__).parent / "data" / "unfallakten.db"),
+)
 
 AKTE_ID = "31/21"   # Akte die bereinigt werden soll
 
