@@ -1,5 +1,5 @@
 """
-Verarbeitungs-Pipeline fuer intake_dokumente (S1.6a + S1.6b).
+Verarbeitungs-Pipeline fuer intake_dokumente (S1.6a + S1.6b + S1.7).
 
 Ablauf pro Dokument:
   1. Laedt Arbeitskopie-PDF (arbeitskopie_pfad) vom Dokument.
@@ -12,9 +12,13 @@ Ablauf pro Dokument:
      - Stufe 1 (Regeln): YAML-Marker + VEREINIGTE Zustellungs-Signale.
      - Stufe 2 (LLM):    Qwen closed-label (Seite 1 + letzte Seite gekuerzt).
   5. Feld-Extraktion (S1.6b): Regex-Anker + LLM-Schema-Extraktion.
-  6. Stempelt klasse, klasse_quelle='auto', konfidenz, textquelle,
+  6. Akten-Matching (S1.7): Kandidatenliste mit Score gegen SQLite +
+     RA-Micro (read-only). KEIN Auto-Zuordnen von ``akte_az`` -- die
+     Kandidaten landen in ``parse_json.akten_kandidaten``, die Review-
+     Freigabe (S1.8) waehlt eine aus.
+  7. Stempelt klasse, klasse_quelle='auto', konfidenz, textquelle,
      registry_version, llm_stack, parse_json am Dokument.
-  7. markiere_bereit() bei Erfolg, markiere_fehler() bei Exception.
+  8. markiere_bereit() bei Erfolg, markiere_fehler() bei Exception.
 """
 from __future__ import annotations
 
@@ -26,6 +30,7 @@ import sys
 from typing import Any, Dict
 
 from ..db.database import get_connection
+from ..intake.akten_matching import finde_kandidaten
 from ..intake.extraktion import extrahiere_felder
 from ..intake.klassifikator import (
     Kandidat, klassifiziere_stufe1, klassifiziere_stufe2,
@@ -166,6 +171,18 @@ def verarbeite_dokument(intake_id: int) -> bool:
         felder = extraktion.get("felder", {})
         llm_konflikt = extraktion.get("llm_konflikt")
 
+        # ── Akten-Matching (S1.7) ────────────────────────────────────────
+        # Kandidatenliste mit Score. KEIN Auto-Zuordnen -- akte_az wird
+        # erst durch die Review-Freigabe (S1.8) verbindlich gesetzt.
+        akten_kandidaten = finde_kandidaten(text_gesamt, signale)
+        akten_kandidaten_json = [
+            {"akte_az": k.akte_az,
+             "score": round(k.score, 3),
+             "quelle": k.quelle,
+             "treffer": k.treffer}
+            for k in akten_kandidaten
+        ]
+
         parse_dict: Dict[str, Any] = {
             "text_gesamt": text_gesamt,
             "seiten": [
@@ -184,6 +201,7 @@ def verarbeite_dokument(intake_id: int) -> bool:
                 "hinweise": hinweise,
             },
             "felder": felder,
+            "akten_kandidaten": akten_kandidaten_json,
         }
         if llm_konflikt:
             parse_dict["llm_konflikt"] = llm_konflikt
