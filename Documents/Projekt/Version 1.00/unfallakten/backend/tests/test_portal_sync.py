@@ -19,7 +19,8 @@ def db():
         );
         CREATE TABLE beteiligte (
             id INTEGER PRIMARY KEY, akte_id TEXT, rolle TEXT, name TEXT,
-            vorname TEXT, firma TEXT, email TEXT, telefon TEXT
+            vorname TEXT, firma TEXT, email TEXT, telefon TEXT,
+            gutachten_nr TEXT
         );
         CREATE TABLE abrechnungsschreiben (
             id INTEGER PRIMARY KEY, akte_id TEXT, datum TEXT, versicherung TEXT
