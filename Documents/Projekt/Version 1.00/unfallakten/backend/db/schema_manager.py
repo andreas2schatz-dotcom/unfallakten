@@ -299,6 +299,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     45: "-- migration_45_regulierung_status",  # Handled by _run_migration_45
     46: "-- migration_46_intake_datenmodell",   # Handled by _run_migration_46 (S1.1 + K-P2)
     47: "-- migration_47_absender_registry",    # Handled by _run_migration_47 (S1.4)
+    48: "-- migration_48_queue_felder",         # Handled by _run_migration_48 (S1.6a)
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -571,6 +572,71 @@ def _run_migration_46(conn: sqlite3.Connection) -> None:
     logger.info("Migration 46 abgeschlossen (intake-Datenmodell + Backfill).")
 
 
+def _run_migration_48(conn: sqlite3.Connection) -> None:
+    """
+    Migration 48 (S1.6a) - Queue-Felder auf intake_dokumente.
+
+    Erweitert die Tabelle ``intake_dokumente`` um vier additive Spalten fuer
+    die Verarbeitungs-Queue:
+
+    * ``versuch_zaehler``   INTEGER NOT NULL DEFAULT 0
+                            Anzahl bisheriger Verarbeitungsversuche.
+    * ``naechster_versuch`` TEXT NULL
+                            ISO-Timestamp — wenn NULL, ist der Eintrag sofort
+                            faellig; sonst darf er erst danach reserviert werden
+                            (Backoff 1/5/30 min bei Fehlversuchen).
+    * ``fehler_detail``     TEXT NULL
+                            Letzte Fehlermeldung; bleibt auch nach erneutem
+                            Versuch bis zum naechsten Ergebnis stehen.
+    * ``worker_lease``      TEXT NULL
+                            "<worker_id>|<ablauf_iso>". Nur waehrend Status
+                            ``laeuft`` gesetzt. F-10 (Single-Instance-Worker
+                            in Gunicorn mit 4 Workern).
+
+    Idempotent: ALTER TABLE nur wenn Spalte fehlt (PRAGMA table_info).
+    Explizites conn.commit() umgibt das ALTER, damit der Effekt im
+    aufrufenden Kontext sichtbar wird (feedback_migration_executescript).
+
+    Rollback: Spalten bleiben ungenutzt; kein Datenverlust moeglich.
+    """
+    vorhandene_spalten = {
+        r[1] for r in conn.execute(
+            "PRAGMA table_info(intake_dokumente)"
+        ).fetchall()
+    }
+
+    neu = (
+        ("versuch_zaehler",   "INTEGER NOT NULL DEFAULT 0"),
+        ("naechster_versuch", "TEXT"),
+        ("fehler_detail",     "TEXT"),
+        ("worker_lease",      "TEXT"),
+    )
+
+    braucht_alter = any(name not in vorhandene_spalten for name, _ in neu)
+    if braucht_alter:
+        conn.commit()
+        for name, typ in neu:
+            if name in vorhandene_spalten:
+                continue
+            conn.execute(
+                f"ALTER TABLE intake_dokumente ADD COLUMN {name} {typ}"
+            )
+        conn.commit()
+
+    # Praktischer Index fuer die Worker-Abfrage: naechster faelliger Eintrag.
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_intake_dok_faellig "
+        "ON intake_dokumente(queue_status, naechster_versuch)"
+    )
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
+        (48, "Migration 48 - S1.6a Queue-Felder (versuch_zaehler + "
+             "naechster_versuch + fehler_detail + worker_lease)"),
+    )
+    logger.info("Migration 48 abgeschlossen (Queue-Felder auf intake_dokumente).")
+
+
 def _run_migration_47(conn: sqlite3.Connection) -> None:
     """
     Migration 47 (S1.4) - Absender-Registry-Grundgeruest.
@@ -793,6 +859,8 @@ def run_migrations() -> None:
                 _run_migration_46(conn)
             elif version == 47:
                 _run_migration_47(conn)
+            elif version == 48:
+                _run_migration_48(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(

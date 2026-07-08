@@ -190,6 +190,7 @@ def erstelle_app(test_config: dict = None) -> Flask:
     if not app.testing:
         from .system.health_service import check_ramicro as _check_ramicro
         from .email_import.polling_service import fuehre_polling_durch as _imap_polling
+        from .intake.pipeline import tick as _intake_tick
         scheduler = APScheduler()
         app.config["SCHEDULER_API_ENABLED"] = False
         scheduler.init_app(app)
@@ -207,10 +208,24 @@ def erstelle_app(test_config: dict = None) -> Flask:
             seconds=60,
             replace_existing=True,
         )
+        # S1.6a: Intake-Pipeline-Worker. Single-Instance per Worker-Lease (F-10);
+        # max_instances=1 verhindert zusätzlich, dass mehrere Ticks im selben
+        # Prozess überlappen. Kurzer Tick (10s), damit neue Dokumente zügig
+        # verarbeitet werden; das Lease dauert 5 Min.
+        scheduler.add_job(
+            id="intake_worker",
+            func=_intake_tick,
+            trigger="interval",
+            seconds=10,
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
         scheduler.start()
         import threading as _threading
         _threading.Thread(target=_check_ramicro, daemon=True).start()
-        logger.info("APScheduler gestartet: RA-Micro Health-Check + IMAP-Polling alle 60s")
+        logger.info("APScheduler gestartet: RA-Micro Health-Check + "
+                    "IMAP-Polling (60s) + Intake-Worker (10s)")
 
     @app.cli.command("sync-portal")
     def sync_portal_cmd():

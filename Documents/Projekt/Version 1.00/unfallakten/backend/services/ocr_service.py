@@ -9,6 +9,7 @@ Lokale Texterkennung für gescannte PDFs via Tesseract + pdf2image.
 """
 
 import logging
+import os
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -95,3 +96,75 @@ def ocr_text(pdf_bytes: bytes, lang: str = "deu", dpi: int = 300) -> str:
 def ocr_verfuegbar() -> bool:
     """Gibt True zurück wenn Tesseract einsatzbereit ist."""
     return _pruefeVerfuegbarkeit()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# S1.6a: image_to_data + TSV-Persistierung
+# ══════════════════════════════════════════════════════════════════════════════
+
+def pdf_zu_bildern(pdf_bytes: bytes, dpi: int = 300) -> list:
+    """PDF-Seiten -> PIL-Images (fuer die per-Seite-OCR-Pipeline S1.6a).
+
+    Rueckgabe: leere Liste bei Fehler oder nicht verfuegbarem pdf2image.
+    """
+    try:
+        from pdf2image import convert_from_bytes
+    except ImportError:
+        logger.warning("pdf2image nicht verfuegbar - keine Bild-Konvertierung.")
+        return []
+    try:
+        return convert_from_bytes(pdf_bytes, dpi=dpi)
+    except Exception as e:
+        logger.error("PDF->Bild-Konvertierung fehlgeschlagen: %s", e)
+        return []
+
+
+def ocr_seite_mit_tsv(bild, tsv_ziel_pfad: str, lang: str = "deu") -> str:
+    """OCR einer einzelnen Seite mit TSV-Persistierung.
+
+    Ruft ``pytesseract.image_to_data(output_type=TSV)`` auf, schreibt das TSV
+    unter ``tsv_ziel_pfad`` und liefert den erkannten Text (Konkatenation der
+    'text'-Spalte, ohne Confidence-Filter).
+
+    Ohne Tesseract-Verfuegbarkeit: leerer String, kein TSV.
+    """
+    if not _pruefeVerfuegbarkeit():
+        return ""
+    try:
+        import pytesseract
+    except ImportError:
+        return ""
+
+    try:
+        tsv = pytesseract.image_to_data(
+            bild, lang=lang, output_type=pytesseract.Output.STRING
+        )
+    except AttributeError:
+        # Fallback fuer aeltere pytesseract-Versionen: Output.STRING kann fehlen
+        tsv = pytesseract.image_to_data(bild, lang=lang)
+    except Exception as e:
+        logger.error("image_to_data fehlgeschlagen: %s", e)
+        return ""
+
+    # TSV persistieren
+    os.makedirs(os.path.dirname(tsv_ziel_pfad), exist_ok=True)
+    with open(tsv_ziel_pfad, "w", encoding="utf-8") as f:
+        f.write(tsv)
+
+    # Text aus TSV extrahieren: letzte Spalte 'text' der data-Zeilen
+    zeilen = tsv.strip().splitlines()
+    if not zeilen:
+        return ""
+    kopf = zeilen[0].split("\t")
+    try:
+        text_idx = kopf.index("text")
+    except ValueError:
+        return ""
+    woerter = []
+    for z in zeilen[1:]:
+        spalten = z.split("\t")
+        if len(spalten) > text_idx:
+            w = spalten[text_idx].strip()
+            if w:
+                woerter.append(w)
+    return " ".join(woerter)
