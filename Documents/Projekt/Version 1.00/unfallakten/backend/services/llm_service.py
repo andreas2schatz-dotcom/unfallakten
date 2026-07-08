@@ -459,6 +459,117 @@ def parse_gutachten_raw(text: str) -> Optional[dict]:
     return result
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# S1.6b — Klassifikator- und Extraktions-Bausteine fuer die neue Pipeline
+# ──────────────────────────────────────────────────────────────────────────────
+#
+# Diese beiden Funktionen sind bewusst schlank gehalten. Sie sind der einzige
+# LLM-Aufruf in backend/intake/klassifikator.py bzw. extraktion.py; damit
+# bleibt der Shadow-Mode (parse_abrechnung_raw etc.) fuer den Alt-Pfad
+# unangetastet.
+
+_KLASSIFIKATOR_SYSTEM = """\
+Du klassifizierst deutsche Kanzlei-Dokumente in eine EINZIGE geschlossene
+Klasse aus einer vorgegebenen Liste. Halluziniere niemals ein Label, das
+nicht in der Liste steht. Antworte NUR mit einem JSON-Objekt in genau der
+Form: {"label": "<klasse>", "konfidenz": <0.0-1.0>}. Kein Fliesstext.
+"""
+
+
+def klassifiziere_geschlossen(labels, text: str):
+    """Closed-label-Klassifikation (S1.6b Stufe 2, F-11).
+
+    Args:
+        labels: Iterable geschlossener Klassennamen. Nur diese sind zulaessig.
+        text:   Der zu klassifizierende Text (in der Regel Seite 1 + letzte
+                Seite, je auf ~3000 Zeichen gekuerzt, siehe F-11 im
+                Freigabe-Dokument).
+
+    Returns:
+        (label, konfidenz). ``(None, 0.0)`` wenn das LLM nichts oder etwas
+        Muell liefert, oder ein Label ausserhalb der geschlossenen Liste
+        halluziniert.
+    """
+    label_liste = [str(x) for x in labels]
+    if not label_liste:
+        return (None, 0.0)
+
+    user_content = (
+        "Geschlossene Labelliste (waehle GENAU eines):\n"
+        + "\n".join(f"- {lbl}" for lbl in label_liste)
+        + "\n\nDokumenttext (Seite 1 + letzte Seite, gekuerzt):\n"
+        + text
+    )
+    messages = [
+        {"role": "system", "content": _KLASSIFIKATOR_SYSTEM},
+        {"role": "user",   "content": f"/no_think\n\n{user_content}"},
+    ]
+    raw = _post_chat(messages, max_tokens=64, temperature=0.0)
+    if not raw:
+        return (None, 0.0)
+
+    ergebnis = _parse_json_response(raw)
+    if not isinstance(ergebnis, dict):
+        return (None, 0.0)
+
+    label = ergebnis.get("label")
+    konfidenz = ergebnis.get("konfidenz")
+    if label not in label_liste:
+        return (None, 0.0)
+    try:
+        konfidenz_f = float(konfidenz) if konfidenz is not None else 0.0
+    except (TypeError, ValueError):
+        konfidenz_f = 0.0
+    return (label, konfidenz_f)
+
+
+_EXTRAKTOR_SYSTEM = """\
+Du extrahierst strukturierte Felder aus einem deutschen Kanzlei-Dokument.
+Antworte NUR mit einem JSON-Objekt, dessen Schluessel den vorgegebenen
+Feldnamen entsprechen. Fehlt ein Wert im Text, setze den Feldwert auf null.
+Erfinde niemals Werte, die nicht im Text stehen. Kein Fliesstext, nur JSON.
+"""
+
+
+def extrahiere_nach_schema(schema, text: str):
+    """Extraktion nach vorgegebenem Feld-Schema (S1.6b).
+
+    Args:
+        schema: Mapping ``{feldname: typ}`` — die Schluessel werden im Prompt
+                als geforderte Felder gelistet; die Typangaben helfen dem
+                Modell, aber sie sind kein Response-Format-Constraint (LM
+                Studio unterstuetzt kein response_format).
+        text:   Volltext des Dokuments.
+
+    Returns:
+        dict der extrahierten Felder oder ``None`` bei Fehler (LLM nicht
+        erreichbar, ungueltiges JSON, unerwarteter Typ).
+    """
+    if not isinstance(schema, dict) or not schema:
+        return None
+
+    felderbeschreibung = "\n".join(
+        f"- {name} ({typ})" for name, typ in schema.items()
+    )
+    user_content = (
+        "Extrahiere die folgenden Felder:\n"
+        + felderbeschreibung
+        + "\n\nDokumenttext:\n"
+        + text[:10_000]
+    )
+    messages = [
+        {"role": "system", "content": _EXTRAKTOR_SYSTEM},
+        {"role": "user",   "content": f"/no_think\n\n{user_content}"},
+    ]
+    raw = _post_chat(messages, max_tokens=1024, temperature=0.0)
+    if not raw:
+        return None
+    ergebnis = _parse_json_response(raw)
+    if not isinstance(ergebnis, dict):
+        return None
+    return ergebnis
+
+
 def parse_abrechnung(text: str, versicherer: str = "") -> Optional[dict]:
     """
     Parst ein Abrechnungsschreiben per LLM.

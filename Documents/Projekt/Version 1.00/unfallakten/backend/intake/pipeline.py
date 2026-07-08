@@ -1,17 +1,20 @@
 """
-Verarbeitungs-Pipeline fuer intake_dokumente (S1.6a).
+Verarbeitungs-Pipeline fuer intake_dokumente (S1.6a + S1.6b).
 
-Der Textgewinnungs-Schritt:
+Ablauf pro Dokument:
   1. Laedt Arbeitskopie-PDF (arbeitskopie_pfad) vom Dokument.
   2. Ruft text_extraktion.extrahiere_seiten() -> pro Seite Text oder braucht_ocr.
   3. Fuer OCR-Seiten: pdf_zu_bildern + ocr_seite_mit_tsv (TSV je Seite unter
      ``uploads/artefakte/<sha256>/seite_<N>.tsv``). GLM-OCR-Aufruf hinter
      Feature-Flag ``GLM_OCR_ENABLED`` (F-01, Stufe-1-Uebergangszeit: default
      False -> Tesseract ist Primaerquelle).
-  4. Stempelt textquelle, registry_version, llm_stack am Dokument.
-  5. markiere_bereit() bei Erfolg, markiere_fehler() bei Exception.
-
-Klassifikation/Extraktion sind bewusst NICHT hier -- das ist S1.6b.
+  4. Klassifikation (S1.6b):
+     - Stufe 1 (Regeln): YAML-Marker + VEREINIGTE Zustellungs-Signale.
+     - Stufe 2 (LLM):    Qwen closed-label (Seite 1 + letzte Seite gekuerzt).
+  5. Feld-Extraktion (S1.6b): Regex-Anker + LLM-Schema-Extraktion.
+  6. Stempelt klasse, klasse_quelle='auto', konfidenz, textquelle,
+     registry_version, llm_stack, parse_json am Dokument.
+  7. markiere_bereit() bei Erfolg, markiere_fehler() bei Exception.
 """
 from __future__ import annotations
 
@@ -23,6 +26,10 @@ import sys
 from typing import Any, Dict
 
 from ..db.database import get_connection
+from ..intake.extraktion import extrahiere_felder
+from ..intake.klassifikator import (
+    Kandidat, klassifiziere_stufe1, klassifiziere_stufe2,
+)
 from ..intake.queue import markiere_bereit, markiere_fehler, reserviere_naechsten
 from ..intake.registry_loader import lade_registry, standard_pfad
 from ..intake.text_extraktion import (
@@ -62,6 +69,34 @@ def _lade_dokument(intake_id: int) -> Dict[str, Any]:
     if not row:
         raise RuntimeError(f"intake_dokument {intake_id} nicht gefunden")
     return dict(row)
+
+
+def _lade_zustellungs_signale(intake_id: int) -> list:
+    """Sammelt VEREINIGTE Zustellungs-Signale (K-P3).
+
+    Jede Zustellung kann ein ``signale_json``-Dict tragen (aus dem
+    Adapter-Layer bzw. der Absender-Registry S1.4). Diese Signale liefern
+    Stufe 1 Klassen-KANDIDATEN -- nie eindeutige Zuordnungen.
+    """
+    signale: list = []
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT signale_json FROM zustellungen "
+            "WHERE intake_dokument_id=?", (intake_id,)
+        ).fetchall()
+    for row in rows:
+        rohtext = row["signale_json"] if row else None
+        if not rohtext:
+            continue
+        try:
+            data = json.loads(rohtext)
+        except (TypeError, ValueError):
+            continue
+        if isinstance(data, dict):
+            signale.append(data)
+        elif isinstance(data, list):
+            signale.extend(x for x in data if isinstance(x, dict))
+    return signale
 
 
 def _ocr_seite(pdf_bytes: bytes, seite_nr: int, sha256: str) -> str:
@@ -116,7 +151,22 @@ def verarbeite_dokument(intake_id: int) -> bool:
         textquelle = aggregierte_textquelle(seiten)
         registry = lade_registry(standard_pfad())
 
-        parse_json = json.dumps({
+        # ── Klassifikation (S1.6b Stufe 1 + Stufe 2) ─────────────────────
+        signale = _lade_zustellungs_signale(intake_id)
+        kandidaten, hinweise = klassifiziere_stufe1(text_gesamt, signale,
+                                                     registry)
+        labels = sorted(registry.klassen.keys())
+        seite1 = seiten[0].text if seiten else ""
+        letzte = seiten[-1].text if seiten else ""
+        klasse, konfidenz = klassifiziere_stufe2(seite1, letzte,
+                                                  kandidaten, labels)
+
+        # ── Feld-Extraktion (S1.6b) ──────────────────────────────────────
+        extraktion = extrahiere_felder(text_gesamt, klasse, registry)
+        felder = extraktion.get("felder", {})
+        llm_konflikt = extraktion.get("llm_konflikt")
+
+        parse_dict: Dict[str, Any] = {
             "text_gesamt": text_gesamt,
             "seiten": [
                 {"nr": s.nr, "textquelle": s.textquelle,
@@ -124,20 +174,35 @@ def verarbeite_dokument(intake_id: int) -> bool:
                  "zeichen": len(s.text)}
                 for s in seiten
             ],
-        }, ensure_ascii=False)
+            "klassifikation": {
+                "kandidaten": [
+                    {"klasse": k.klasse,
+                     "konfidenz": round(k.konfidenz, 3),
+                     "quelle": k.quelle}
+                    for k in kandidaten
+                ],
+                "hinweise": hinweise,
+            },
+            "felder": felder,
+        }
+        if llm_konflikt:
+            parse_dict["llm_konflikt"] = llm_konflikt
+        parse_json = json.dumps(parse_dict, ensure_ascii=False)
 
         with get_connection() as conn:
             conn.execute(
                 "UPDATE intake_dokumente SET "
+                "klasse=?, klasse_quelle='auto', konfidenz=?, "
                 "textquelle=?, registry_version=?, llm_stack=?, parse_json=? "
                 "WHERE id=?",
-                (textquelle, registry.version, _llm_stack_json(),
-                 parse_json, intake_id),
+                (klasse, konfidenz, textquelle, registry.version,
+                 _llm_stack_json(), parse_json, intake_id),
             )
         markiere_bereit(intake_id)
         logger.info(
-            "Dokument %s: Textgewinnung ok (%d Seiten, %s, %d Zeichen)",
+            "Dokument %s: %d Seiten, %s, %d Zeichen -> %s (%.2f)",
             intake_id, len(seiten), textquelle, len(text_gesamt),
+            klasse, konfidenz,
         )
         return True
 
