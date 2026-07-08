@@ -52,10 +52,9 @@ def _setup(test_id: str):
     app.config["TESTING"] = True
     client = app.test_client()
 
-    # Admin anlegen und einloggen
-    client.post("/auth/register/erster", json={
-        "name": "Admin", "email": "admin@test.de", "passwort": "Admin123!"
-    })
+    # Admin ist durch _ensure_admin_exists() (app.py) bereits angelegt --
+    # conftest.py setzt ADMIN_EMAIL/ADMIN_PASSWORT/ADMIN_NAME entsprechend.
+    # register/erster wuerde 409 liefern (bereits angelegt); wir loggen direkt ein.
     r = client.post("/auth/login", json={
         "email": "admin@test.de", "passwort": "Admin123!"
     })
@@ -122,7 +121,7 @@ class TestAktenCRUD(unittest.TestCase):
         }, headers=self.h)
         self.assertEqual(r.status_code, 201)
         data = r.get_json()
-        self.assertEqual(data["aktenzeichen"], "1/25")
+        self.assertEqual(data["az"], "1/25")
         self.assertEqual(data["status"], "offen")
         # Vollständige Akte enthält Unterentitäten
         self.assertIn("beteiligte", data)
@@ -135,7 +134,7 @@ class TestAktenCRUD(unittest.TestCase):
             "unfalldatum": "2025-01-15"
         }, headers=self.h)
         self.assertEqual(r.status_code, 422)
-        self.assertEqual(r.get_json()["feld"], "aktenzeichen")
+        self.assertEqual(r.get_json()["feld"], "az")
 
     def test_akte_ohne_datum_422(self):
         r = self.client.post("/akten", json={
@@ -164,7 +163,7 @@ class TestAktenCRUD(unittest.TestCase):
         r = self.client.get(f"/akten/{akte['id']}", headers=self.h)
         self.assertEqual(r.status_code, 200)
         data = r.get_json()
-        self.assertEqual(data["aktenzeichen"], "25-DET")
+        self.assertEqual(data["az"], "25-DET")
         self.assertEqual(data["unfallort"], "Offenbach, Teststr. 1")
 
     def test_detail_nicht_vorhanden_404(self):
@@ -236,7 +235,7 @@ class TestAktenCRUD(unittest.TestCase):
         }, headers=self.h)
 
         r = self.client.get("/akten?status=offen", headers=self.h)
-        az_liste = [a["aktenzeichen"] for a in r.get_json()["akten"]]
+        az_liste = [a["az"] for a in r.get_json()["akten"]]
         self.assertIn("25-F1", az_liste)
         self.assertNotIn("25-F2", az_liste)
 
@@ -244,7 +243,7 @@ class TestAktenCRUD(unittest.TestCase):
         _neue_akte(self.client, self.h, "25-SUCH-001")
         _neue_akte(self.client, self.h, "25-ANDERS-001")
         r = self.client.get("/akten?suche=SUCH", headers=self.h)
-        az_liste = [a["aktenzeichen"] for a in r.get_json()["akten"]]
+        az_liste = [a["az"] for a in r.get_json()["akten"]]
         self.assertIn("25-SUCH-001", az_liste)
         self.assertNotIn("25-ANDERS-001", az_liste)
 
