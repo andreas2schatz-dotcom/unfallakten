@@ -1061,6 +1061,9 @@ export const apiIntake = {
   freigabe:   (id, payload)  => request(`/intake/dokument/${id}/freigabe`, {
     method: 'POST', body: JSON.stringify(payload),
   }),
+  reparse:    (id)           => request(`/intake/dokument/${id}/reparse`, {
+    method: 'POST',
+  }),
 };
 
 // ─────────────────────────────────────────────────────────────

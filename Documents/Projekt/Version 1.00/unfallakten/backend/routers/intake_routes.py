@@ -242,6 +242,30 @@ def patch_klasse(intake_id: int):
     return _j({"ok": True, "klasse": neue_klasse, "queue_status": "neu"})
 
 
+# ─── POST /intake/dokument/<id>/reparse ───────────────────────────────────────
+
+@intake_bp.route("/dokument/<int:intake_id>/reparse", methods=["POST"])
+@login_erforderlich
+def post_reparse(intake_id: int):
+    """Erzwingt ein Re-Parsen: queue_status='neu' -> Worker greift beim
+    naechsten Tick (max. 10s) und laeuft die Klassifikator-Kaskade sowie
+    Feld-Extraktion gegen die aktuell gespeicherte klasse erneut durch.
+
+    Kein Zwang, dass die Klasse sich vorher geaendert hat -- der Benutzer
+    kann so LLM-Runs erneut anstossen, wenn er das erste Ergebnis fuer
+    unplausibel haelt oder nach einer Feld-Korrektur eine Neubewertung
+    will.
+    """
+    dok = _lade_intake(intake_id)
+    if not dok:
+        return _err("Intake-Dokument nicht gefunden", 404)
+
+    enqueue(intake_id)
+    logger.info("Intake %s manuell in Queue zurueckgestellt (reparse).",
+                 intake_id)
+    return _j({"ok": True, "queue_status": "neu"})
+
+
 # ─── PATCH /intake/dokument/<id>/felder ───────────────────────────────────────
 
 @intake_bp.route("/dokument/<int:intake_id>/felder", methods=["PATCH"])

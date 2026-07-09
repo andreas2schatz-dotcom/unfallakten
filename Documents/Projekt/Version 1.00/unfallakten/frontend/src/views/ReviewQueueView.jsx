@@ -247,12 +247,14 @@ function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
 function DetailPanel({ id, onFreigegeben, onOpenAkte }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState(null);
+  const [meldung, setMeldung] = useState("");
   const [dirty, setDirty] = useState({});
   const [gewaehlteAkte, setGewaehlteAkte] = useState("");
   const [zeigeFreigabe, setZeigeFreigabe] = useState(false);
   const [ereignisse, setEreignisse] = useState([]);
   const [ersetztIds, setErsetztIds] = useState("");
   const [aktion, setAktion] = useState(false);
+  const [pollAktiv, setPollAktiv] = useState(false);
 
   const laden = useCallback(async () => {
     try {
@@ -262,10 +264,33 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte }) {
       setDirty({});
       const top = d.parse.akten_kandidaten?.[0];
       setGewaehlteAkte(top?.akte_az || "");
-    } catch (e) { setError(e.message); }
+      return d;
+    } catch (e) { setError(e.message); return null; }
   }, [id]);
 
   useEffect(() => { if (id) laden(); }, [id, laden]);
+
+  // Polling: nach Reklassifikation/Reparse den Worker abwarten (bis 30s).
+  const wartAufWorker = useCallback(async () => {
+    setPollAktiv(true);
+    const start = Date.now();
+    while (Date.now() - start < 30000) {
+      await new Promise(r => setTimeout(r, 1500));
+      const d = await laden();
+      if (!d) break;
+      if (d.queue_status !== "neu" && d.queue_status !== "laeuft") {
+        setPollAktiv(false);
+        setMeldung(d.queue_status === "pipeline_fehler"
+          ? "Re-Parse fehlgeschlagen: " + (d.fehler_detail || "unbekannt")
+          : "Re-Parse fertig.");
+        setTimeout(() => setMeldung(""), 4000);
+        return;
+      }
+    }
+    setPollAktiv(false);
+    setMeldung("Worker antwortet nicht (30s Timeout).");
+    setTimeout(() => setMeldung(""), 5000);
+  }, [laden]);
 
   if (!id) {
     return (
@@ -299,7 +324,20 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte }) {
     setAktion(true);
     try {
       await apiIntake.setKlasse(id, neueKlasse);
+      setMeldung(`Klasse auf "${neueKlasse}" gesetzt — Worker parst neu…`);
       await laden();
+      wartAufWorker();
+    } catch (e) { setError(e.message); }
+    finally { setAktion(false); }
+  };
+
+  const erneutParsen = async () => {
+    setAktion(true);
+    try {
+      await apiIntake.reparse(id);
+      setMeldung("Re-Parse angestoßen — Worker läuft…");
+      await laden();
+      wartAufWorker();
     } catch (e) { setError(e.message); }
     finally { setAktion(false); }
   };
@@ -360,6 +398,20 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte }) {
           </div>
         </div>
 
+        {(meldung || pollAktiv) && (
+          <div style={{
+            padding: "8px 12px", marginBottom: 12,
+            background: pollAktiv ? T.blueBg : T.greenBg,
+            color: pollAktiv ? T.blueText : T.greenText,
+            border: `1px solid ${pollAktiv ? T.blue : T.greenLight}`,
+            borderRadius: 4, fontSize: T.textSm,
+            display: "flex", alignItems: "center", gap: 8,
+          }}>
+            {pollAktiv && <span style={{ fontSize: "1.1rem" }}>⏳</span>}
+            <span>{meldung}</span>
+          </div>
+        )}
+
         <section style={{ marginBottom: 16 }}>
           <label style={{ display: "block", fontSize: T.textSm, fontWeight: 600, marginBottom: 4 }}>
             Klasse
@@ -368,7 +420,7 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte }) {
             <select
               value={detail.klasse || ""}
               onChange={e => speichereKlasse(e.target.value)}
-              disabled={aktion}
+              disabled={aktion || pollAktiv}
               style={{
                 flex: 1, padding: "6px 8px",
                 border: `1px solid ${T.border}`, borderRadius: 4,
@@ -378,6 +430,19 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte }) {
               {KLASSEN.map(k => <option key={k} value={k}>{k}</option>)}
             </select>
             <KonfidenzChip wert={detail.konfidenz} />
+            <button
+              onClick={erneutParsen}
+              disabled={aktion || pollAktiv}
+              title="Klassifikator + Feld-Extraktion erneut ausführen"
+              style={{
+                padding: "6px 12px",
+                background: T.navy, color: T.white,
+                border: "none", borderRadius: 4,
+                fontSize: T.textXs, fontWeight: 600,
+                cursor: (aktion || pollAktiv) ? "wait" : "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >🔄 Erneut parsen</button>
           </div>
           {detail.parse.klassifikation?.hinweise?.length ? (
             <ul style={{ margin: "6px 0 0", padding: 0, listStyle: "none", fontSize: T.textXs, color: T.textMuted }}>
