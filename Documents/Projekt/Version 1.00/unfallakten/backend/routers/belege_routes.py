@@ -133,6 +133,13 @@ _FIRMA_POSITION_MAP = [
 ]
 
 # Dokumentenklasse (Registry) → Schadenposition-Key
+# HINWEIS P1.5b: die semantisch aequivalente Registry-Quelle liegt in
+# backend/registry/rechnungstyp_mapping.yaml und wird von
+# services/eingehende_ereignisse.rechnungstyp_zu_position() ausgewertet.
+# Die Alt-Konstante bleibt hier fuer die Kandidaten-Vorschlaege
+# (kandidaten()-Endpoint) unangetastet, weil sie schadenpositionen-
+# Spalten mit _netto-Suffix verwendet, die nicht in positionsarten.yaml
+# liegen. Konsolidierung auf ein Mapping erfolgt mit P1.7.
 _KLASSE_POSITION_MAP = {
     "abschlepprechnung":    "abschleppkosten",
     "standkostenrechnung":  "standkosten",
@@ -434,6 +441,24 @@ def zuordnen(akte_id):
             conn.commit()
 
         logger.info("Beleg zugeordnet: %s/%s → Dok %d", akte_id, pos_key, dok_id)
+
+        # P1.5b: Ereignis rechnung_eingegangen anlegen (Best-Effort).
+        # Alt-Tabelle schadenposition_belege laeuft weiter.
+        try:
+            from ..services.eingehende_ereignisse import erzeuge_aus_beleg
+            erzeuge_aus_beleg(
+                akte_az=akte_id,
+                dokument_id=int(dok_id),
+                position_key=pos_key,
+                betrag=(float(betrag) if betrag is not None else None),
+                benutzer_id=getattr(g, "benutzer_id", None),
+            )
+        except Exception as exc:  # pragma: no cover -- Best-Effort
+            logger.warning(
+                "rechnung_eingegangen-Ereignis fehlgeschlagen "
+                "(akte %s, dok %s, pos %s): %s",
+                akte_id, dok_id, pos_key, exc,
+            )
         return _j({"status": "ok", "position_key": pos_key, "dokument_id": dok_id})
     except Exception as e:
         logger.error("Beleg zuordnen fehlgeschlagen: %s", e)
