@@ -379,6 +379,37 @@ def manuelle_korrektur(akte_id: str, dokument_id: int):
         benutzer_id=g.benutzer_id,
     )
 
+    # P1.5c: Gutachten-Uebernahme -> gutachten_eingegangen (Best-Effort).
+    # ``ersetzt_positions_ids`` optional im Body: Liste von
+    # ereignis_positionen.id aus einem Erstgutachten, die durch dieses
+    # Ergaenzungsgutachten positionsscharf abgeloest werden (K-M2a).
+    if (row["typ"] or "").lower() == "gutachten":
+        try:
+            from ..services.eingehende_ereignisse import erzeuge_aus_gutachten
+            ersetzt_ids = korrigiert.get("ersetzt_positions_ids")
+            if not isinstance(ersetzt_ids, list):
+                ersetzt_ids = None
+            # Nur die 5 gutachten-relevanten Keys aus der Korrektur ziehen;
+            # unbekannte werden vom Helper ignoriert.
+            gut_positionen = {
+                k: korrigiert.get(k) for k in (
+                    "reparaturkosten", "wiederbeschaffung", "restwert",
+                    "wertminderung", "sv_kosten",
+                ) if k in korrigiert
+            }
+            erzeuge_aus_gutachten(
+                akte_az=akte_id,
+                dokument_id=dokument_id,
+                positionen=gut_positionen,
+                benutzer_id=g.benutzer_id,
+                ersetzt_positions_ids=ersetzt_ids,
+            )
+        except Exception as exc:  # pragma: no cover -- Best-Effort
+            logger.warning(
+                "gutachten_eingegangen-Ereignis fehlgeschlagen "
+                "(Dok %s): %s", dokument_id, exc,
+            )
+
     return _j({
         "nachricht":       "Parse-Ergebnis manuell korrigiert.",
         "parse_status":    dok.parse_status,
