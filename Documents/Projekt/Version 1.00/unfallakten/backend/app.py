@@ -36,6 +36,7 @@ from .routers.intake_routes import intake_bp
 from .routers.klage_routes import klage_bp, unfalldetails_bp
 from .routers.kuerzungsarten_routes import kuerzungsarten_bp
 from .routers.pdf_parse_routes import pdf_parse_bp
+from .routers.positionen_routes import positionen_bp
 from .routers.personenschaden_routes import ps_bp
 from .routers.pruefberichte_routes import pruefberichte_bp
 from .routers.ramicro_akte_routes import ramicro_akte_bp
@@ -184,6 +185,7 @@ def erstelle_app(test_config: dict = None) -> Flask:
     app.register_blueprint(unfalldetails_bp)
     app.register_blueprint(kuerzungsarten_bp)
     app.register_blueprint(pdf_parse_bp)
+    app.register_blueprint(positionen_bp)
     app.register_blueprint(pruefbericht_bp)
     app.register_blueprint(pruefberichte_bp)
     app.register_blueprint(ps_bp)
