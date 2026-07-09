@@ -635,8 +635,11 @@ export default function ReviewQueueView({ onOpenAkte }) {
         </div>
       </div>
 
-      {/* Detail-Panel */}
-      <DetailPanel id={aktivId} onFreigegeben={onFreigegeben} onOpenAkte={onOpenAkte} />
+      {/* Detail-Panel -- key={aktivId} erzwingt sauberen Re-Mount bei
+          Dokument-Wechsel, sonst bleiben Live-Suche-Query, gewaehlteAkte,
+          Meldung etc. vom Vor-Dokument stehen. */}
+      <DetailPanel key={aktivId || "leer"} id={aktivId}
+                    onFreigegeben={onFreigegeben} onOpenAkte={onOpenAkte} />
     </div>
   );
 }
