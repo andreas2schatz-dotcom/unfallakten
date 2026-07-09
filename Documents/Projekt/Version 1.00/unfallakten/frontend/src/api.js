@@ -765,6 +765,24 @@ export const eakte = {
     request(`/akten/${az}/eakte/${nr}/importieren`, { method: 'POST' }),
 };
 
+// ─── Positionsmodell (P1.3/P1.7) ─────────────────────────────
+export const positionen = {
+  /** GET /akten/<az>/positionen/status — Statusableitung je position_key */
+  status: (az) => request(`/akten/${encodeURIComponent(az)}/positionen/status`),
+  /** GET /akten/<az>/positionen/<key>/ereignisse — Ebene-2-Ereignisliste */
+  ereignisse: (az, key) => request(
+    `/akten/${encodeURIComponent(az)}/positionen/${encodeURIComponent(key)}/ereignisse`,
+  ),
+};
+
+export const aktionen = {
+  /** GET /akten/<az>/aktionen[?dokument_id=…] — Type-Action-Matrix */
+  vorschlaege: (az, dokumentId = null) => request(
+    `/akten/${encodeURIComponent(az)}/aktionen`
+      + (dokumentId != null ? `?dokument_id=${encodeURIComponent(dokumentId)}` : ''),
+  ),
+};
+
 export const apiDistanz = {
   /** Extrahiert Verweisbetrieb-Daten aus PDF-Text */
   parsen: (text) => request('/distanz/parsen', {

@@ -6,6 +6,7 @@ import { fmtEuro } from "../config/utils.js";
 import { Card, CardHead, Btn, Toast } from "../components/common.jsx";
 import StaDialog from "../components/StaDialog.jsx";
 import OnboardingHub from "./OnboardingHub";
+import PositionsDashboard from "../components/PositionsDashboard.jsx";
 import {
   akten as apiAkten,
   forderungen as apiForderungen,
@@ -2465,6 +2466,14 @@ function UebersichtSection({ akte, st, dispatch, onNavigate }) {
         <AkkordeonStrip offene={stripOffene} onToggle={toggleStrip} />
 
       </div>
+
+      {/* ── P1.7: Positions-Dashboard (Positionsmodell-Ableitung) ── */}
+      {akte.az && (
+        <PositionsDashboard
+          az={akte.az}
+          onOeffneEreignisse={(_key) => { /* Ebene-2-Panel folgt in P1.7-E */ }}
+        />
+      )}
 
       {/* ── Ausklappbare Abschnitte ── */}
       {stripOffene.includes("ramicro") && azRoh.includes("/") && (
