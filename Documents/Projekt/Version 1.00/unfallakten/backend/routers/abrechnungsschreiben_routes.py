@@ -120,6 +120,24 @@ def erstelle_abrechnung(akte_id: str):
             _portal_flag(conn, akte_id)
     except Exception as exc:
         logger.warning("portal_flag oder quelle-Update fehlgeschlagen (AB %s): %s", akte_id, exc)
+
+    # P1.5a: Ereignis abrechnung_eingegangen anlegen (Best-Effort).
+    # Alt-Tabelle regulierung_positionen laeuft weiter.
+    try:
+        from ..services.eingehende_ereignisse import erzeuge_aus_regulierung
+        erzeuge_aus_regulierung(
+            akte_az=akte_id,
+            dokument_id=daten.get("dokument_id"),
+            datum=datum,
+            positionen=positionen,
+            haftungsart=haftungsart,
+            benutzer_id=g.benutzer_id,
+        )
+    except Exception as exc:  # pragma: no cover -- Best-Effort
+        logger.warning(
+            "abrechnung_eingegangen-Ereignis fehlgeschlagen (AB %s): %s",
+            ab.id, exc,
+        )
     return _j({"abrechnung": ab.as_dict()}, 201)
 
 
@@ -296,6 +314,26 @@ def aktualisiere_abrechnung(akte_id: str, abid: int):
 
         conn.execute("PRAGMA foreign_keys = ON")
     ab_aktuell = hole_abrechnungsschreiben_by_id(abid)
+
+    # P1.5a + K-M2b: Erneutes Speichern eines bestehenden Abrechnungs-
+    # schreibens fuehrt zu einem NEUEN Ereignis, das das Alt-Ereignis
+    # per ersetzt_kopf_id kopft-ersetzt (nie Update).
+    try:
+        from ..services.eingehende_ereignisse import erzeuge_aus_regulierung
+        erzeuge_aus_regulierung(
+            akte_az=akte_id,
+            dokument_id=getattr(ab_aktuell, "dokument_id", None),
+            datum=datum,
+            positionen=positionen,
+            haftungsart=daten.get("haftungsart", "vollhaftung"),
+            benutzer_id=g.benutzer_id,
+            ersetzt=True,
+        )
+    except Exception as exc:  # pragma: no cover -- Best-Effort
+        logger.warning(
+            "abrechnung_eingegangen-Ereignis (PUT) fehlgeschlagen "
+            "(AB %s): %s", abid, exc,
+        )
     return _j({"abrechnung": ab_aktuell.as_dict()})
 
 

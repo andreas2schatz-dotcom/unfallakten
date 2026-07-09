@@ -38,16 +38,22 @@ _KATEGORIEN = {"fahrzeugschaden", "nebenkosten", "personenschaden",
                "sonstiges"}
 
 _YAML_DATEIEN = ("positionsarten.yaml", "ereignistypen.yaml",
-                  "aktionen.yaml")
+                  "aktionen.yaml", "rechnungstyp_mapping.yaml")
+
+# Sondermarker aus dem alten _KLASSE_POSITION_MAP: wird zur Laufzeit
+# auf sv_kosten resolved (belege_routes.py, abhaengig vom Vorsteuer-
+# Flag). Loader laesst den Marker durch die Konsistenzpruefung fallen.
+_SV_VORSTEUER_MARKER = "__sv_kosten_vorsteuer__"
 
 
 @dataclass(frozen=True)
 class PositionsmodellRegistry:
     version: str
     pfad: str
-    positionsarten: Dict[str, Dict[str, Any]]
-    ereignistypen:  Dict[str, Dict[str, Any]]
-    aktionen:       Dict[str, Dict[str, Any]]
+    positionsarten:        Dict[str, Dict[str, Any]]
+    ereignistypen:         Dict[str, Dict[str, Any]]
+    aktionen:              Dict[str, Dict[str, Any]]
+    rechnungstyp_mapping:  Dict[str, str]
 
 
 _cache: Dict[str, PositionsmodellRegistry] = {}
@@ -129,11 +135,18 @@ def lade_positionsmodell(pfad: Optional[str] = None, *,
                                           "ereignistypen.yaml")
     aktionen = _extrahiere_mapping(daten["aktionen.yaml"],
                                     "aktionen", "aktionen.yaml")
+    rechnungstyp_mapping_roh = _extrahiere_mapping(
+        daten["rechnungstyp_mapping.yaml"],
+        "rechnungstyp_mapping", "rechnungstyp_mapping.yaml",
+    )
 
     _validiere_positionsarten(positionsarten)
     _validiere_ereignistypen(ereignistypen)
     _validiere_kreuzreferenzen(positionsarten, ereignistypen, aktionen)
     _validiere_position_keys_katalog(positionsarten)
+    rechnungstyp_mapping = _validiere_rechnungstyp_mapping(
+        rechnungstyp_mapping_roh, positionsarten,
+    )
 
     registry = PositionsmodellRegistry(
         version=hasher.hexdigest()[:16],
@@ -141,15 +154,40 @@ def lade_positionsmodell(pfad: Optional[str] = None, *,
         positionsarten=positionsarten,
         ereignistypen=ereignistypen,
         aktionen=aktionen,
+        rechnungstyp_mapping=rechnungstyp_mapping,
     )
     _cache[pfad_norm] = registry
     logger.info(
-        "Positionsmodell-Registry geladen: %d Arten, %d Typen, %d Aktionen "
-        "(version=%s)",
+        "Positionsmodell-Registry geladen: %d Arten, %d Typen, %d Aktionen, "
+        "%d Rechnungstyp-Mappings (version=%s)",
         len(positionsarten), len(ereignistypen), len(aktionen),
-        registry.version,
+        len(rechnungstyp_mapping), registry.version,
     )
     return registry
+
+
+def _validiere_rechnungstyp_mapping(
+    roh: Dict[str, Any],
+    positionsarten: Dict[str, Dict[str, Any]],
+) -> Dict[str, str]:
+    ergebnis: Dict[str, str] = {}
+    for klasse, ziel in roh.items():
+        if not isinstance(klasse, str) or not klasse.strip():
+            raise RuntimeError(
+                f"rechnungstyp_mapping: leere Klasse {klasse!r}"
+            )
+        if not isinstance(ziel, str) or not ziel.strip():
+            raise RuntimeError(
+                f"rechnungstyp_mapping[{klasse!r}]: Ziel muss String sein "
+                f"(ist {type(ziel).__name__})"
+            )
+        if ziel != _SV_VORSTEUER_MARKER and ziel not in positionsarten:
+            raise RuntimeError(
+                f"rechnungstyp_mapping[{klasse!r}]={ziel!r} zeigt auf "
+                "position_key, der nicht in positionsarten.yaml existiert"
+            )
+        ergebnis[klasse.strip()] = ziel.strip()
+    return ergebnis
 
 
 def _extrahiere_mapping(daten: Dict[str, Any], schluessel: str,

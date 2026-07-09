@@ -78,6 +78,7 @@ def schreibe_ereignis(
     erfasst_von: Optional[int] = None,
     positionen: Optional[List[Dict[str, Any]]] = None,
     ersetzt_kopf_id: Optional[int] = None,
+    ersetzt_positions_ids: Optional[List[int]] = None,
 ) -> int:
     """Erzeugt ein Ereignis (Kopf + Positionen + Cache) atomar.
 
@@ -85,11 +86,27 @@ def schreibe_ereignis(
     ``position_key``, ``wirkung``, optional ``betrag``, ``kuerzungsart_id``.
     Leere Liste -> Akten-Scope-Ereignis (POSITIONSMODELL 4.2).
 
-    ``ersetzt_kopf_id`` setzt ``ereignisse.ersetzt_durch = neue_id`` am
-    Alt-Ereignis und markiert dessen Cache-Zeilen als ``status='ersetzt'``.
+    ``ersetzt_kopf_id`` (K-M2b): setzt ``ereignisse.ersetzt_durch = neue_id``
+    am Alt-Ereignis und markiert alle dessen Cache-Zeilen als
+    ``status='ersetzt'`` (Kopf-Ersetzung, ganzes Alt-Ereignis storniert).
+
+    ``ersetzt_positions_ids`` (K-M2a): Liste von ereignis_positionen.id
+    aus dem Alt-Ereignis, die von der neuen n:m-Zeile positionsscharf
+    abgeloest werden. Match ueber position_key. Konvention:
+    ``alt_position.ersetzt_durch = neue_position.id`` (nicht umgekehrt),
+    Cache-Zeile der Alt-Position wechselt auf ``status='ersetzt'``.
+    Kopf-Level bleibt aktuell -- unveraenderte Positionen des Alt-
+    Ereignisses fliessen weiter in die Ableitung ein (Ergaenzungsgutachten).
+
+    ``ersetzt_kopf_id`` und ``ersetzt_positions_ids`` schliessen sich aus.
 
     Liefert die neue ereignisse.id.
     """
+    if ersetzt_kopf_id is not None and ersetzt_positions_ids:
+        raise TypeError(
+            "ersetzt_kopf_id und ersetzt_positions_ids sind widerspruechlich "
+            "-- entweder Kopf- oder positionsscharfe Ersetzung, nicht beides."
+        )
     positionen = positionen or []
     _validiere(akte_az, ereignistyp, quelle, positionen)
 
@@ -107,21 +124,25 @@ def schreibe_ereignis(
         )
         neue_id = int(cur.lastrowid)
 
+        neue_pos_ids_je_key: Dict[str, int] = {}
         for pos in positionen:
-            conn.execute(
+            pk = pos["position_key"]
+            wk = pos["wirkung"]
+            pcur = conn.execute(
                 "INSERT INTO ereignis_positionen "
                 "(ereignis_id, position_key, wirkung, betrag, kuerzungsart_id) "
                 "VALUES (?, ?, ?, ?, ?)",
-                (neue_id, pos["position_key"], pos["wirkung"],
+                (neue_id, pk, wk,
                  pos.get("betrag"), pos.get("kuerzungsart_id")),
             )
+            neue_pos_ids_je_key[pk] = int(pcur.lastrowid)
             conn.execute(
                 "INSERT INTO position_ereignis_cache "
                 "(akte_az, position_key, ereignis_id, ereignistyp, richtung, "
                 " datum, dokument_id, wirkung, betrag, kuerzungsart_id, status) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'aktuell')",
-                (akte_az, pos["position_key"], neue_id, ereignistyp,
-                 richtung, datum, dokument_id, pos["wirkung"],
+                (akte_az, pk, neue_id, ereignistyp,
+                 richtung, datum, dokument_id, wk,
                  pos.get("betrag"), pos.get("kuerzungsart_id")),
             )
 
@@ -136,11 +157,79 @@ def schreibe_ereignis(
                 (ersetzt_kopf_id,),
             )
 
+        if ersetzt_positions_ids:
+            for alt_pos_id in ersetzt_positions_ids:
+                alt_row = conn.execute(
+                    "SELECT ereignis_id, position_key, wirkung, kuerzungsart_id "
+                    "FROM ereignis_positionen WHERE id=?",
+                    (alt_pos_id,),
+                ).fetchone()
+                if alt_row is None:
+                    logger.warning(
+                        "ersetzt_positions_ids: Alt-Position %d nicht "
+                        "gefunden, ueberspringe", alt_pos_id,
+                    )
+                    continue
+                neu_pos_id = neue_pos_ids_je_key.get(alt_row["position_key"])
+                if neu_pos_id is None:
+                    logger.warning(
+                        "ersetzt_positions_ids: keine passende neue Position "
+                        "fuer position_key=%r (alt_id=%d) -- ueberspringe",
+                        alt_row["position_key"], alt_pos_id,
+                    )
+                    continue
+                conn.execute(
+                    "UPDATE ereignis_positionen SET ersetzt_durch=? "
+                    "WHERE id=?",
+                    (neu_pos_id, alt_pos_id),
+                )
+                conn.execute(
+                    "UPDATE position_ereignis_cache SET status='ersetzt' "
+                    "WHERE ereignis_id=? AND position_key=? AND wirkung=? "
+                    "AND COALESCE(kuerzungsart_id, 0) "
+                    "  = COALESCE(?, 0)",
+                    (alt_row["ereignis_id"], alt_row["position_key"],
+                     alt_row["wirkung"], alt_row["kuerzungsart_id"]),
+                )
+
     logger.info(
         "Ereignis %d angelegt: akte=%s typ=%s quelle=%s positionen=%d",
         neue_id, akte_az, ereignistyp, quelle, len(positionen),
     )
     return neue_id
+
+
+def pruefe_doppelerfassung(
+    *,
+    akte_az: str,
+    dokument_id: Optional[int],
+    ereignistyp: str,
+) -> Optional[int]:
+    """Prueft, ob fuer (akte_az, dokument_id, ereignistyp) bereits ein
+    NICHT ersetztes Ereignis vorliegt.
+
+    Liefert die ereignis.id des juengsten aktuellen Ereignisses zurueck,
+    sonst None.
+
+    Fuer ``dokument_id is None`` (z. B. WDM-Vorschlaege ohne Dokument)
+    liefert der Guard IMMER ``None`` -- NULL waere kein sinnvoller
+    Duplikat-Schluessel (mehrere WDM-Importe je Akte sind auf Alt-Tabellen-
+    Ebene bereits verhindert).
+
+    Fuer nicht existierende Akten oder Ereignisse liefert der Guard
+    ``None``.
+    """
+    if dokument_id is None:
+        return None
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT id FROM ereignisse "
+            "WHERE akte_az=? AND dokument_id=? AND ereignistyp=? "
+            "  AND ersetzt_durch IS NULL "
+            "ORDER BY id DESC LIMIT 1",
+            (akte_az, dokument_id, ereignistyp),
+        ).fetchone()
+    return int(row["id"]) if row else None
 
 
 def rebuild_cache(akte_az: Optional[str] = None) -> None:

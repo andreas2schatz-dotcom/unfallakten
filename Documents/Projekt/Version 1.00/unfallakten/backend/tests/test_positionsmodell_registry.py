@@ -116,6 +116,9 @@ class TestPositionsmodellRegistryFailLoud(unittest.TestCase):
         with open(os.path.join(self._tmp, "aktionen.yaml"), "w",
                    encoding="utf-8") as f:
             f.write("aktionen: {}\n")
+        with open(os.path.join(self._tmp, "rechnungstyp_mapping.yaml"), "w",
+                   encoding="utf-8") as f:
+            f.write("rechnungstyp_mapping: {}\n")
 
         from backend.services.positionsmodell_registry import lade_positionsmodell
         with self.assertRaisesRegex(RuntimeError, "ungueltiger_typ_xyz"):
