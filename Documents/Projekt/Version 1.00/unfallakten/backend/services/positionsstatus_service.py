@@ -88,11 +88,13 @@ def leite_positionsstatus_ab(
     """
     with get_connection() as conn:
         rows = conn.execute(
-            "SELECT position_key, ereignistyp, richtung, wirkung, betrag, "
-            "       datum, dokument_id "
-            "FROM position_ereignis_cache "
-            "WHERE akte_az=? AND status='aktuell' "
-            "ORDER BY datum ASC, ereignis_id ASC",
+            "SELECT pec.position_key, pec.ereignistyp, pec.richtung, "
+            "       pec.wirkung, pec.betrag, pec.datum, pec.dokument_id, "
+            "       e.herkunft "
+            "FROM position_ereignis_cache pec "
+            "LEFT JOIN ereignisse e ON e.id = pec.ereignis_id "
+            "WHERE pec.akte_az=? AND pec.status='aktuell' "
+            "ORDER BY pec.datum ASC, pec.ereignis_id ASC",
             (akte_az,),
         ).fetchall()
         ausgehende_akten_ereignisse = conn.execute(
@@ -112,6 +114,7 @@ def leite_positionsstatus_ab(
             "letztes_datum": None,
             "aktuelle_typen": set(),
             "aktuelle_typen_mit_dok": set(),
+            "has_unbestaetigt": False,
         })
         betrag = float(r["betrag"] or 0.0)
         w = r["wirkung"]
@@ -128,6 +131,8 @@ def leite_positionsstatus_ab(
         st["aktuelle_typen"].add(r["ereignistyp"])
         if r["dokument_id"] is not None:
             st["aktuelle_typen_mit_dok"].add(r["ereignistyp"])
+        if r["herkunft"] == "wdm":
+            st["has_unbestaetigt"] = True
         if st["letztes_datum"] is None or r["datum"] > st["letztes_datum"]:
             st["letztes_datum"] = r["datum"]
 
@@ -155,7 +160,8 @@ def leite_positionsstatus_ab(
 
         # Checkliste (POSITIONSMODELL 4.6): benoetigte Typen aus
         # positionsarten.yaml gegen aktuelle Ereignisse mit dokument_id!=NULL.
-        checkliste_soll = reg.positionsarten.get(key, {}).get("checkliste", [])
+        art = reg.positionsarten.get(key, {})
+        checkliste_soll = art.get("checkliste", [])
         checkliste = {
             "erledigt": [t for t in checkliste_soll
                           if t in st["aktuelle_typen_mit_dok"]],
@@ -176,6 +182,10 @@ def leite_positionsstatus_ab(
                 tage_seit_letzter_aktion, sta_anzahl,
             ),
             "checkliste":       checkliste,
+            "has_unbestaetigt": st["has_unbestaetigt"],
+            "label":            art.get("label", key),
+            "kategorie":        art.get("kategorie"),
+            "aggregation":      art.get("aggregation"),
         }
 
     if mit_registry:

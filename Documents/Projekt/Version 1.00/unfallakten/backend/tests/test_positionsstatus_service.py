@@ -179,6 +179,53 @@ class TestLeitePositionsstatusAb(unittest.TestCase):
         self.assertIn("_registry_version", e)
         self.assertIsInstance(e["_registry_version"], str)
 
+    def test_has_unbestaetigt_flag_true_bei_wdm_herkunft(self):
+        """PF-08: WDM-Import erzeugt Ereignis mit herkunft='wdm'; die
+        Ableitung muss das als has_unbestaetigt=True je Position melden,
+        damit das Dashboard den Vorschlag als unbestaetigt markieren kann."""
+        from backend.services.ereignis_service import schreibe_ereignis
+        schreibe_ereignis(
+            akte_az="44/22", ereignistyp="abrechnung_eingegangen",
+            quelle="dokument", datum="2022-05-14",
+            dokument_id=None, herkunft="wdm",
+            positionen=[
+                {"position_key": "sonstiges", "wirkung": "anerkannt",
+                 "betrag": 65.0},
+            ],
+        )
+        e = self._lade()
+        self.assertTrue(e["sonstiges"].get("has_unbestaetigt"),
+                          "WDM-Ereignis muss has_unbestaetigt=True setzen")
+
+    def test_has_unbestaetigt_flag_false_ohne_wdm(self):
+        self._schr("gutachten_eingegangen", [
+            {"position_key": "reparaturkosten",
+             "wirkung": "gefordert", "betrag": 5000.0},
+        ])
+        e = self._lade()
+        self.assertFalse(e["reparaturkosten"].get("has_unbestaetigt", False),
+                          "Ohne WDM-Herkunft muss Flag False sein")
+
+    def test_aggregation_aus_registry_je_position(self):
+        """POSITIONSMODELL 6.1: Dashboard-Toggle bündelt nach
+        aggregation-Gruppe aus positionsarten.yaml — daher muss die
+        Ableitung die aggregation je Position mitliefern."""
+        self._schr("gutachten_eingegangen", [
+            {"position_key": "reparaturkosten",
+             "wirkung": "gefordert", "betrag": 5000.0},
+        ])
+        e = self._lade()
+        self.assertEqual(e["reparaturkosten"]["aggregation"], "fahrzeugschaden")
+
+    def test_kategorie_und_label_aus_registry(self):
+        self._schr("gutachten_eingegangen", [
+            {"position_key": "reparaturkosten",
+             "wirkung": "gefordert", "betrag": 5000.0},
+        ])
+        e = self._lade()
+        self.assertEqual(e["reparaturkosten"]["kategorie"], "fahrzeugschaden")
+        self.assertEqual(e["reparaturkosten"]["label"], "Reparaturkosten")
+
     def test_checkliste_wird_ausgewertet(self):
         """POSITIONSMODELL 4.6: pro Position werden benoetigte Ereignis-
         typen aus positionsarten.yaml gegen aktuelle Ereignisse gepueft.
