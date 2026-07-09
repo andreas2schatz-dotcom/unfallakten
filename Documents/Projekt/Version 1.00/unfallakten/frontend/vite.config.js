@@ -29,6 +29,7 @@ export default defineConfig(({ mode }) => ({
       '/dashboard':     { target: process.env.VITE_BACKEND_URL || 'http://localhost:5000', changeOrigin: true },
       '/einstellungen': { target: process.env.VITE_BACKEND_URL || 'http://localhost:5000', changeOrigin: true },
       '/system':        { target: process.env.VITE_BACKEND_URL || 'http://localhost:5000', changeOrigin: true },
+      '/intake':        { target: process.env.VITE_BACKEND_URL || 'http://localhost:5000', changeOrigin: true },
     },
   },
 
