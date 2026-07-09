@@ -134,5 +134,111 @@ class TestAktionen(unittest.TestCase):
         self.assertIn("stellungnahme.generieren", akt_ids)
 
 
+class TestPositionsEreignisse(unittest.TestCase):
+    """P1.7-D: GET /akten/<az>/positionen/<key>/ereignisse -- Ebene-2-Liste."""
+
+    def setUp(self):
+        self.client = _setup(self._testMethodName)
+        self.headers = _auth(self.client)
+
+    def test_401_ohne_token(self):
+        r = self.client.get(
+            "/akten/44%2F22/positionen/reparaturkosten/ereignisse"
+        )
+        self.assertEqual(r.status_code, 401)
+
+    def test_leere_liste_bei_position_ohne_ereignisse(self):
+        r = self.client.get(
+            "/akten/44%2F22/positionen/reparaturkosten/ereignisse",
+            headers=self.headers,
+        )
+        self.assertEqual(r.status_code, 200)
+        d = r.get_json()
+        self.assertEqual(d["ereignisse"], [])
+        self.assertEqual(d["akte_az"], "44/22")
+        self.assertEqual(d["position_key"], "reparaturkosten")
+
+    def test_akte_404(self):
+        r = self.client.get(
+            "/akten/99%2F99/positionen/reparaturkosten/ereignisse",
+            headers=self.headers,
+        )
+        self.assertEqual(r.status_code, 404)
+
+    def test_liste_liefert_chronologisch_mit_metadaten(self):
+        _schr("gutachten_eingegangen", [
+            {"position_key": "reparaturkosten",
+             "wirkung": "gefordert", "betrag": 5000.0},
+        ], datum="2022-04-30", dokument_id=11)
+        _schr("abrechnung_eingegangen", [
+            {"position_key": "reparaturkosten",
+             "wirkung": "anerkannt", "betrag": 4100.0},
+        ], datum="2022-05-14", dokument_id=22)
+
+        r = self.client.get(
+            "/akten/44%2F22/positionen/reparaturkosten/ereignisse",
+            headers=self.headers,
+        )
+        self.assertEqual(r.status_code, 200)
+        liste = r.get_json()["ereignisse"]
+        self.assertEqual(len(liste), 2)
+        self.assertEqual(liste[0]["datum"], "2022-04-30")
+        self.assertEqual(liste[0]["ereignistyp"], "gutachten_eingegangen")
+        self.assertEqual(liste[0]["richtung"], "eingehend")
+        self.assertEqual(liste[0]["wirkung"], "gefordert")
+        self.assertEqual(liste[0]["dokument_id"], 11)
+        self.assertEqual(liste[0]["status"], "aktuell")
+        self.assertEqual(liste[1]["betrag"], 4100.0)
+
+    def test_ersetzte_ereignisse_werden_mitgeliefert_mit_status(self):
+        """POSITIONSMODELL K-M2a: ersetzte Ereignisse bleiben sichtbar
+        (nur die Ableitung ignoriert sie), damit die Ereignisliste die
+        Historie zeigen kann."""
+        alt = _schr("gutachten_eingegangen", [
+            {"position_key": "reparaturkosten",
+             "wirkung": "gefordert", "betrag": 5000.0},
+        ], datum="2022-04-30", dokument_id=11)
+        from backend.services.ereignis_service import schreibe_ereignis
+        schreibe_ereignis(
+            akte_az="44/22", ereignistyp="gutachten_eingegangen",
+            quelle="dokument", datum="2022-05-15", dokument_id=12,
+            positionen=[
+                {"position_key": "reparaturkosten",
+                 "wirkung": "gefordert", "betrag": 6500.0},
+            ],
+            ersetzt_kopf_id=alt,
+        )
+
+        r = self.client.get(
+            "/akten/44%2F22/positionen/reparaturkosten/ereignisse",
+            headers=self.headers,
+        )
+        self.assertEqual(r.status_code, 200)
+        liste = r.get_json()["ereignisse"]
+        self.assertEqual(len(liste), 2)
+        status_je_datum = {e["datum"]: e["status"] for e in liste}
+        self.assertEqual(status_je_datum["2022-04-30"], "ersetzt")
+        self.assertEqual(status_je_datum["2022-05-15"], "aktuell")
+
+    def test_liefert_herkunft_fuer_wdm_kennzeichnung(self):
+        from backend.services.ereignis_service import schreibe_ereignis
+        schreibe_ereignis(
+            akte_az="44/22", ereignistyp="abrechnung_eingegangen",
+            quelle="dokument", datum="2022-05-14",
+            dokument_id=None, herkunft="wdm",
+            positionen=[
+                {"position_key": "sonstiges",
+                 "wirkung": "anerkannt", "betrag": 65.0},
+            ],
+        )
+        r = self.client.get(
+            "/akten/44%2F22/positionen/sonstiges/ereignisse",
+            headers=self.headers,
+        )
+        self.assertEqual(r.status_code, 200)
+        liste = r.get_json()["ereignisse"]
+        self.assertEqual(liste[0]["herkunft"], "wdm")
+
+
 if __name__ == "__main__":
     unittest.main()

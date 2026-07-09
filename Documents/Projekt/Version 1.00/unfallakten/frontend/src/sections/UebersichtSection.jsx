@@ -7,6 +7,7 @@ import { Card, CardHead, Btn, Toast } from "../components/common.jsx";
 import StaDialog from "../components/StaDialog.jsx";
 import OnboardingHub from "./OnboardingHub";
 import PositionsDashboard from "../components/PositionsDashboard.jsx";
+import EreignislistePanel from "../components/EreignislistePanel.jsx";
 import {
   akten as apiAkten,
   forderungen as apiForderungen,
@@ -2223,6 +2224,7 @@ function UebersichtSection({ akte, st, dispatch, onNavigate }) {
   const [ibanCheck,   setIbanCheck]   = useState(null);
   const [stripOffene, setStripOffene] = useState(["regulierung"]);
   const [todosState,  setTodosState]  = useState([]);
+  const [ereignislisteKey, setEreignislisteKey] = useState(null);
 
   const azRoh = akte.az_roh || akte.az || "";
 
@@ -2471,9 +2473,14 @@ function UebersichtSection({ akte, st, dispatch, onNavigate }) {
       {akte.az && (
         <PositionsDashboard
           az={akte.az}
-          onOeffneEreignisse={(_key) => { /* Ebene-2-Panel folgt in P1.7-E */ }}
+          onOeffneEreignisse={(key) => setEreignislisteKey(key)}
         />
       )}
+      <EreignislistePanel
+        az={akte.az}
+        positionKey={ereignislisteKey}
+        onClose={() => setEreignislisteKey(null)}
+      />
 
       {/* ── Ausklappbare Abschnitte ── */}
       {stripOffene.includes("ramicro") && azRoh.includes("/") && (

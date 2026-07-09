@@ -6,6 +6,11 @@ Endpoints:
        Ableitungsergebnis pro position_key + Wissensgrenzen-Payload
        (registry_version, stand pro Position).
 
+  * GET /akten/<az>/positionen/<position_key>/ereignisse
+       Ebene-2-Liste: alle Ereignisse dieser Position, chronologisch,
+       inkl. ersetzter (K-M2a). Datum, Typ, Richtung, Dokument-Link,
+       Herkunft, Status (aktuell/ersetzt).
+
   * GET /akten/<az>/aktionen[?dokument_id=...]
        Type-Action-Matrix-Auswertung aus aktionen.yaml.
        Ohne dokument_id: alle aktuellen Ereignisse der Akte.
@@ -54,6 +59,54 @@ def positionen_status(akte_az: str):
         "akte_az": akte_az,
         "positionen": ergebnis,
         "registry_version": registry_version,
+    })
+
+
+@positionen_bp.route(
+    "/positionen/<path:position_key>/ereignisse", methods=["GET"],
+)
+@login_erforderlich
+def position_ereignisse(akte_az: str, position_key: str):
+    """Ebene-2-Ereignisliste einer Position (P1.7).
+
+    Liefert aktuelle *und* ersetzte Ereignisse dieser Position
+    chronologisch (Datum aufsteigend). Ersetzte bleiben sichtbar,
+    damit die UI die Historie zeigen kann; die Ableitung selbst
+    ignoriert sie ohnehin (positionsstatus_service).
+    """
+    if not _pruefe_akte(akte_az):
+        return _err(f"Akte {akte_az!r} nicht gefunden.", 404)
+
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT pec.ereignis_id, pec.ereignistyp, pec.richtung, "
+            "       pec.datum, pec.dokument_id, pec.wirkung, pec.betrag, "
+            "       pec.kuerzungsart_id, pec.status, e.herkunft, e.notiz "
+            "FROM position_ereignis_cache pec "
+            "LEFT JOIN ereignisse e ON e.id = pec.ereignis_id "
+            "WHERE pec.akte_az=? AND pec.position_key=? "
+            "ORDER BY pec.datum ASC, pec.ereignis_id ASC",
+            (akte_az, position_key),
+        ).fetchall()
+
+    ereignisse: List[Dict[str, Any]] = [{
+        "ereignis_id":    r["ereignis_id"],
+        "ereignistyp":    r["ereignistyp"],
+        "richtung":       r["richtung"],
+        "datum":          r["datum"],
+        "dokument_id":    r["dokument_id"],
+        "wirkung":        r["wirkung"],
+        "betrag":         r["betrag"],
+        "kuerzungsart_id": r["kuerzungsart_id"],
+        "status":         r["status"],
+        "herkunft":       r["herkunft"],
+        "notiz":          r["notiz"],
+    } for r in rows]
+
+    return jsonify({
+        "akte_az":      akte_az,
+        "position_key": position_key,
+        "ereignisse":   ereignisse,
     })
 
 
