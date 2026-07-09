@@ -134,6 +134,7 @@ def sta_generieren(az: str):
     pfad.write_bytes(doc_bytes)
 
     benutzer_id = getattr(g, "benutzer_id", None)
+    dok = None
     try:
         dok = registriere_dokument(
             akte_id=az,
@@ -147,6 +148,18 @@ def sta_generieren(az: str):
         setze_antwort_frist(az, dok.id, "sachstandsanfrage")
     except Exception as e:
         logger.warning("sta_generieren: DB-Registrierung fehlgeschlagen für %s: %s", az, e)
+
+    # ── Positionsmodell: sachstandsanfrage_generiert (P1.4) ─────────────────
+    if dok is not None:
+        try:
+            from ..services.ausgehende_ereignisse import erzeuge as _p14_erzeuge
+            _p14_erzeuge(
+                akte_az=az, ereignistyp="sachstandsanfrage_generiert",
+                dokument_id=dok.id, positionen=None,   # Akten-Scope
+                benutzer_id=benutzer_id, herkunft="sta_routes",
+            )
+        except Exception as _e:
+            logger.debug("P1.4 Ereignis-Erzeugung STA: %s", _e)
 
     return send_file(
         io.BytesIO(doc_bytes),

@@ -67,7 +67,18 @@
 
 **P1.3 erledigt** (2026-07-09) ✅: `backend/services/positionsstatus_service.leite_positionsstatus_ab(akte_az, mit_registry=False)` liest ausschließlich `position_ereignis_cache.status='aktuell'` (Ableitungs-Invariante: ersetzte Ereignisse fließen nie ein — 2.2c-Test bestätigt). Liefert pro `position_key`: `zustand` (offen/gefordert/anerkannt/teilanerkannt/bestritten/erledigt), `gefordert`/`anerkannt`/`gekuerzt`/`abgelehnt`, `offen` (× Quote, Default 1.0 lt. PF-03), `eskalationsstufe` (analog `sta_service._empfohlene_stufe`), `stand` (jüngstes aktuelles Datum — Pflichtfeld Wissensgrenze), `checkliste` (POSITIONSMODELL 4.6: `{erledigt, offen}` aus `positionsarten.yaml`, nur Ereignisse mit `dokument_id != NULL` zählen als erfüllt). Neuer Blueprint `backend/routers/positionen_routes.py` mit `GET /akten/<az>/positionen/status` (Ableitung + `registry_version` als Wissensgrenze) und `GET /akten/<az>/aktionen[?dokument_id=]` (Type-Action-Matrix aus `aktionen.yaml` mit Deduplikation). 16 neue Tests grün (10 Service inkl. tabellenbasierter Zustandsübergänge + 2.2c-ersetzt-Test + 6 Routes). Suite 206f → 202f (-4, reine Test-Order-Effekte).
 
-Nächster Schritt gemäß freigabe.md Abschnitt 4: **P1.4** (ausgehende Ereignisse: `word_service`/`klage_routes`/`stellungnahme_routes`/`sta_routes`/`gebuehren_word` schreiben je Generierung ein Ereignis mit Positionen aus dem Kontext). Danach P1.5 (eingehende Ereignisse).
+**P1.4 erledigt** (2026-07-09) ✅: Zentraler Helper `backend/services/ausgehende_ereignisse.erzeuge()` wrapt `schreibe_ereignis` mit `quelle='dokument'` + Registry-Vorbelegung der Wirkung + Best-Effort-Fehlerbehandlung. Positionen akzeptiert als `{key: betrag}`-Dict oder Positions-Liste. Unbekannte position_keys werden weggeloggt, verbleibende Positionen laufen weiter (leere Liste → Akten-Scope-Ereignis).
+
+Instrumentierte Generierungs-Stellen (5):
+- `word_service.generiere_und_speichere()` — Mapping `forderungsschreiben → forderung_generiert`, `klage → klage_generiert`, `sachstandsanfrage → sachstandsanfrage_generiert`. Positionen aus `akte_daten["schaden"]` für Forderung+Klage; Akten-Scope für STA.
+- `gebuehren_word.generiere_kostennote()` — `kostennote_generiert` mit `ra_gebuehren`-Position aus `gb_row.gesamt_brutto`/`gesamtbetrag`.
+- `klage_routes.generiere_klage()` — `klage_generiert` mit Positionen aus `hole_schadenpositionen(az)`.
+- `sta_routes.sta_generieren()` — `sachstandsanfrage_generiert`, Akten-Scope.
+- `stellungnahme_routes.generiere()` — legt jetzt zusätzlich einen `dokumente`-Eintrag an (bisher nur Download) und erzeugt `stellungnahme_generiert`-Ereignis. Akten-Scope.
+
+Alt-Tabellen (`forderung_positionen`, `regulierung_positionen`) bleiben parallel bestehen — kein Big-Bang. 7 neue Tests grün (4 Helper + 3 Word-Service-Aufrufweg). Suite **202 → 203 failures** (Delta = 1 test_s19c-Test wechselt zwischen Rauschen, isoliert grün). Keine echte Regression.
+
+Nächster Schritt: **P1.5** (eingehende Ereignisse — endlich der ursprüngliche Wunsch): ReguWizard-Speichern → `abrechnung_eingegangen`, Beleg-Zuordnung → `rechnung_eingegangen`, Gutachten-Übernahme → `gutachten_eingegangen`, WDM → unbestätigter Vorschlag (PF-08). K-M2a positionsscharfe Ersetzung durch Ergänzungsgutachten.
 **Vor jedem Migrationsschritt:** Sicherungskopie der SQLite-DB. Kein executescript(), explizites conn.commit() bei ALTER TABLE. RA-MICRO read-only, Docker/CIFS tabu, Alt-Pfade unverändert (Doppelschreiben).
 **Abnahmeregel (freigabe.md Abschn. 4):** Jeder Schritt lauffähig + Testkriterium erfüllt; kein Schritt beginnt, bevor der vorherige abgenommen ist. Migrations-Nummern fortlaufend nach tatsächlicher Reihenfolge.
 (Stand: 2026-07-07)

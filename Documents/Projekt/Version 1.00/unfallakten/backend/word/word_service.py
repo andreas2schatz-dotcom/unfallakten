@@ -201,6 +201,32 @@ def generiere_und_speichere(
         except Exception as e:
             logger.warning("fristen_service: Fristen konnten nicht angelegt werden: %s", e)
 
+    # ── Positionsmodell: ausgehendes Ereignis (P1.4) ──────────────────────────
+    # Best-Effort: der Helper darf die Generierung NIE brechen.
+    if in_db and dok and dok.id:
+        _P14_DOK_TYP_MAP = {
+            "forderungsschreiben":  "forderung_generiert",
+            "klage":                 "klage_generiert",
+            "sachstandsanfrage":     "sachstandsanfrage_generiert",
+        }
+        _p14_typ = _P14_DOK_TYP_MAP.get(dok_typ)
+        if _p14_typ:
+            try:
+                from ..services.ausgehende_ereignisse import erzeuge as _p14_erzeuge
+                _p14_positionen = None
+                if _p14_typ in ("forderung_generiert", "klage_generiert"):
+                    _p14_positionen = akte_daten.get("schaden") or {}
+                _p14_erzeuge(
+                    akte_az=akte_id,
+                    ereignistyp=_p14_typ,
+                    dokument_id=dok.id,
+                    positionen=_p14_positionen,
+                    benutzer_id=bearbeiter_id,
+                    herkunft="word_service",
+                )
+            except Exception as _e:
+                logger.debug("P1.4 Ereignis-Erzeugung fehlgeschlagen: %s", _e)
+
     logger.info(
         "Word-Dokument generiert: %s für Akte %s (%d Bytes)",
         dok_typ, akte.aktenzeichen, len(doc_bytes)

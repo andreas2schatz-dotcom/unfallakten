@@ -217,6 +217,29 @@ def generiere_kostennote(akte_id, gb_row):
     except Exception as e:
         logger.warning("Kostennote DB-Registrierung: %s", e)
 
+    # ── Positionsmodell: kostennote_generiert (P1.4) ─────────────────────────
+    if dok_id is not None:
+        try:
+            from ..services.ausgehende_ereignisse import erzeuge as _p14_erzeuge
+            # Kostennote-Gesamtbetrag als ra_gebuehren-Position, wenn im
+            # gb_row-Kontext verfuegbar.
+            _p14_betrag = None
+            for _feld in ("gesamt_brutto", "gesamtbetrag", "brutto",
+                           "betrag_brutto"):
+                if isinstance(gb_row, dict) and gb_row.get(_feld) is not None:
+                    _p14_betrag = gb_row[_feld]
+                    break
+            _p14_positionen = None
+            if _p14_betrag is not None:
+                _p14_positionen = {"ra_gebuehren": _p14_betrag}
+            _p14_erzeuge(
+                akte_az=akte_id, ereignistyp="kostennote_generiert",
+                dokument_id=dok_id, positionen=_p14_positionen,
+                herkunft="gebuehren_word",
+            )
+        except Exception as _e:
+            logger.debug("P1.4 Ereignis-Erzeugung Kostennote: %s", _e)
+
     return {"dateiname": dateiname, "dok_id": dok_id,
             "pfad": str(pfad), "groesse": len(doc_bytes)}
 

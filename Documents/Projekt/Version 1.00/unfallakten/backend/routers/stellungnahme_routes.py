@@ -107,6 +107,37 @@ def generiere(akte_id: str):
 
     dateiname = dateiname_generieren(az)
 
+    # ── Dokument registrieren + P1.4-Ereignis ────────────────────────────────
+    # Best-Effort: der Download muss auf jeden Fall zurueckgehen.
+    try:
+        import os as _os
+        import uuid as _uuid
+        from pathlib import Path as _Path
+        from flask import g as _g
+        from ..models.dokument import registriere_dokument as _reg_dok
+        from ..services.ausgehende_ereignisse import erzeuge as _p14_erzeuge
+
+        _upload_dir = _Path(_os.environ.get(
+            "UPLOAD_DIR", str(_Path(__file__).parent.parent / "uploads")
+        ))
+        _upload_dir.mkdir(parents=True, exist_ok=True)
+        _pfad = _upload_dir / f"{_uuid.uuid4().hex}_{dateiname}"
+        _pfad.write_bytes(docx_bytes)
+        _bearbeiter = getattr(_g, "benutzer_id", None)
+        _dok = _reg_dok(
+            akte_id=az, typ="sonstiges",
+            dateiname=dateiname, dateipfad=str(_pfad),
+            bearbeiter_id=_bearbeiter,
+            dateityp="docx", dateigroesse=len(docx_bytes),
+        )
+        _p14_erzeuge(
+            akte_az=az, ereignistyp="stellungnahme_generiert",
+            dokument_id=_dok.id, positionen=None,   # Akten-Scope
+            benutzer_id=_bearbeiter, herkunft="stellungnahme_routes",
+        )
+    except Exception as _e:
+        logger.debug("Stellungnahme DB/Ereignis: %s", _e)
+
     return Response(
         docx_bytes,
         status=200,

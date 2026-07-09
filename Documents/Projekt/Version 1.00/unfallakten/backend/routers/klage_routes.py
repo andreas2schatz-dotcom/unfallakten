@@ -1388,6 +1388,26 @@ def generiere_klage(akte_id: str):
         except Exception as e:
             logger.warning("Klage DB-Registrierung: %s", e)
 
+        # ── Positionsmodell: klage_generiert (P1.4) ──────────────────────
+        if dok_eintrag:
+            try:
+                from ..services.ausgehende_ereignisse import erzeuge as _p14_erzeuge
+                _p14_pos = None
+                try:
+                    _p14_schaden = hole_schadenpositionen(az)
+                    if _p14_schaden:
+                        _p14_pos = {k: v for k, v in _p14_schaden.items()
+                                     if v is not None and isinstance(v, (int, float))}
+                except Exception:
+                    _p14_pos = None
+                _p14_erzeuge(
+                    akte_az=az, ereignistyp="klage_generiert",
+                    dokument_id=dok_eintrag["id"], positionen=_p14_pos,
+                    benutzer_id=g.benutzer_id, herkunft="klage_routes",
+                )
+            except Exception as _e:
+                logger.debug("P1.4 Ereignis-Erzeugung Klage: %s", _e)
+
     return send_file(
         io.BytesIO(doc_bytes),
         mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
