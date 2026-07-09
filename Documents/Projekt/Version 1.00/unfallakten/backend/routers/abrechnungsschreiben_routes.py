@@ -472,6 +472,25 @@ def wdm_import(akte_id: str):
                 ))
 
             conn.execute("PRAGMA foreign_keys = ON")
+
+        # P1.5d: unbestaetigter Vorschlag als abrechnung_eingegangen-
+        # Ereignis (herkunft='wdm', dokument_id=NULL) -- Best-Effort.
+        # Alt-Tabellen (abrechnungsschreiben + regulierung_positionen)
+        # laufen parallel weiter.
+        try:
+            from ..services.eingehende_ereignisse import erzeuge_aus_wdm
+            erzeuge_aus_wdm(
+                akte_az=akte_id,
+                datum=ab_data.get("datum") or None,
+                haftungsart=ab_data.get("haftungsart", "vollhaftung"),
+                positionen=ab_data.get("positionen", []),
+                benutzer_id=g.benutzer_id,
+            )
+        except Exception as exc:  # pragma: no cover -- Best-Effort
+            logger.warning(
+                "abrechnung_eingegangen-Ereignis (WDM, Akte %s) "
+                "fehlgeschlagen: %s", akte_id, exc,
+            )
         # Minimale Response mit der neuen ID – Frontend lädt danach selbst frisch
         return _j({"id": abid, "abrechnung": {"id": abid, "akte_id": akte_id,
             "datum": ab_data.get("datum",""), "quelle": "wdm",
