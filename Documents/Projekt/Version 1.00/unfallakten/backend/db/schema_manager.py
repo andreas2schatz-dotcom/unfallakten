@@ -525,6 +525,22 @@ def _run_migration_46(conn: sqlite3.Connection) -> None:
             # Ohne akte_id keine Freigabe rekonstruierbar — Alt-Zeile ueberspringen.
             continue
 
+        # Orphan-Guard: dokumente kann auf eine bereits geloeschte Akte zeigen.
+        # freigaben.akte_az hat FK → unfallakte(az); ohne diesen Check bricht
+        # der komplette Backfill an der ersten Waise ab (statt sie zu ueber-
+        # springen). Vgl. feedback_migration_executescript im Memory-Index:
+        # frueher schlug der Fehler die schema_version-Stempelung durch --
+        # nur der Datensatz selbst blieb aus.
+        exists = conn.execute(
+            "SELECT 1 FROM unfallakte WHERE az = ?", (akte_az,)
+        ).fetchone()
+        if not exists:
+            logger.warning(
+                "Migration 46 Backfill: Dokument %s zeigt auf unbekannte Akte "
+                "%r — ueberspringe (Orphan-Dokument).", dok_id, akte_az,
+            )
+            continue
+
         if pdf_hash:
             sha = pdf_hash
         else:
