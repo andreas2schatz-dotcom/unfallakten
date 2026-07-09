@@ -4,6 +4,7 @@ import Ic from "../config/icons.jsx";
 import { DOK_TYPEN, SCHADEN_F, KLASSE_TO_POS } from "../config/constants.js";
 import { fmtSize, fmtEuro } from "../config/utils.js";
 import { Card, CardHead, Btn, FieldSelect, Toast } from "../components/common.jsx";
+import DokumentAktionsmenue from "../components/DokumentAktionsmenue.jsx";
 import {
   dokumente as apiDokumente,
   eakte as apiEakte,
@@ -994,6 +995,13 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                         color:      kiDialog === d.id ? T.accent      : undefined }}>
                       🔬 KI
                     </Btn>
+                  )}
+                  {isPdf && (
+                    <DokumentAktionsmenue
+                      az={akteId}
+                      dokumentId={d.id}
+                      onAktion={(a) => setToast(`Aktion "${a.label}" ausgelöst (Backend-Anbindung folgt)`)}
+                    />
                   )}
                   <Btn size="sm" variant="secondary" onClick={async () => {
                     try {
