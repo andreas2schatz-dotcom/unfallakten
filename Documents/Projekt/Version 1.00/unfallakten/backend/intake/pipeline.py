@@ -68,7 +68,8 @@ def _llm_stack_json() -> str:
 def _lade_dokument(intake_id: int) -> Dict[str, Any]:
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT id, sha256, arbeitskopie_pfad, original_pfad "
+            "SELECT id, sha256, arbeitskopie_pfad, original_pfad, "
+            "       klasse, klasse_quelle, konfidenz "
             "FROM intake_dokumente WHERE id=?", (intake_id,)
         ).fetchone()
     if not row:
@@ -157,16 +158,36 @@ def verarbeite_dokument(intake_id: int) -> bool:
         registry = lade_registry(standard_pfad())
 
         # ── Klassifikation (S1.6b Stufe 1 + Stufe 2) ─────────────────────
+        # Auto-Vorschlag wird IMMER berechnet (fuer Transparenz und Konflikt-
+        # Anzeige), auch bei manueller Klasse. Aber:
+        #   * klasse_quelle='manuell' -> die manuelle Wahl bleibt bindend,
+        #     die Felder werden mit dem manuellen Klassen-Schema extrahiert.
+        #   * sonst: Auto-Ergebnis ist verbindlich.
         signale = _lade_zustellungs_signale(intake_id)
         kandidaten, hinweise = klassifiziere_stufe1(text_gesamt, signale,
                                                      registry)
         labels = sorted(registry.klassen.keys())
         seite1 = seiten[0].text if seiten else ""
         letzte = seiten[-1].text if seiten else ""
-        klasse, konfidenz = klassifiziere_stufe2(seite1, letzte,
-                                                  kandidaten, labels)
+        klasse_auto, konfidenz_auto = klassifiziere_stufe2(
+            seite1, letzte, kandidaten, labels,
+        )
+
+        ist_manuell = dok.get("klasse_quelle") == "manuell"
+        if ist_manuell and dok.get("klasse"):
+            klasse = dok["klasse"]
+            # Konfidenz der manuellen Wahl: hoch, aber wir behalten den
+            # alten Wert falls vorhanden (kann vom letzten Auto-Run stammen).
+            konfidenz = dok.get("konfidenz") if dok.get("konfidenz") is not None else 1.0
+            neue_klasse_quelle = "manuell"
+        else:
+            klasse = klasse_auto
+            konfidenz = konfidenz_auto
+            neue_klasse_quelle = "auto"
 
         # ── Feld-Extraktion (S1.6b) ──────────────────────────────────────
+        # WICHTIG: gegen die effektive Klasse (manuell hat Vorrang), nicht
+        # gegen den Auto-Vorschlag.
         extraktion = extrahiere_felder(text_gesamt, klasse, registry)
         felder = extraktion.get("felder", {})
         llm_konflikt = extraktion.get("llm_konflikt")
@@ -199,6 +220,13 @@ def verarbeite_dokument(intake_id: int) -> bool:
                     for k in kandidaten
                 ],
                 "hinweise": hinweise,
+                "auto_vorschlag": {
+                    "klasse": klasse_auto,
+                    "konfidenz": round(konfidenz_auto, 3),
+                    "abgewaehlt_zugunsten_manuell": (
+                        ist_manuell and klasse_auto != klasse
+                    ),
+                },
             },
             "felder": felder,
             "akten_kandidaten": akten_kandidaten_json,
@@ -210,17 +238,20 @@ def verarbeite_dokument(intake_id: int) -> bool:
         with get_connection() as conn:
             conn.execute(
                 "UPDATE intake_dokumente SET "
-                "klasse=?, klasse_quelle='auto', konfidenz=?, "
+                "klasse=?, klasse_quelle=?, konfidenz=?, "
                 "textquelle=?, registry_version=?, llm_stack=?, parse_json=? "
                 "WHERE id=?",
-                (klasse, konfidenz, textquelle, registry.version,
-                 _llm_stack_json(), parse_json, intake_id),
+                (klasse, neue_klasse_quelle, konfidenz, textquelle,
+                 registry.version, _llm_stack_json(), parse_json, intake_id),
             )
         markiere_bereit(intake_id)
         logger.info(
-            "Dokument %s: %d Seiten, %s, %d Zeichen -> %s (%.2f)",
+            "Dokument %s: %d Seiten, %s, %d Zeichen -> %s (%.2f) [%s]"
+            "%s",
             intake_id, len(seiten), textquelle, len(text_gesamt),
-            klasse, konfidenz,
+            klasse, konfidenz, neue_klasse_quelle,
+            f" (Auto haette {klasse_auto} vorgeschlagen)" if
+            ist_manuell and klasse_auto != klasse else "",
         )
         return True
 
