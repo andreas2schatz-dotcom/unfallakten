@@ -316,7 +316,13 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
     setEakteImportLaden(nr);
     try {
       const res = await apiEakte.importieren(akteId, nr);
-      if (res?.status === "duplikat") {
+      // S1.9c: Unter INTAKE_REVIEW_PFLICHT liefert der Endpoint HTTP 202
+      // mit { in_review: true, hinweis } -- keine dokumente-Zeile, das
+      // Dokument wartet in der Review-Queue auf Freigabe.
+      if (res?.in_review) {
+        setToast("In Review-Queue: " + anzeigename + " (Freigabe im Review-UI)");
+        setEakteImportiert(prev => new Set([...prev, nr]));
+      } else if (res?.status === "duplikat") {
         setToast("Bereits importiert: " + anzeigename);
         setEakteImportiert(prev => new Set([...prev, nr]));
       } else if (res?.status === "importiert") {
@@ -355,11 +361,14 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
       return;
     }
     setEakteBulkLaden(true);
-    let ok = 0, dup = 0, fehler = 0;
+    let ok = 0, dup = 0, fehler = 0, review = 0;
     for (const ed of zuImportieren) {
       try {
         const res = await apiEakte.importieren(akteId, ed.nr);
-        if (res?.status === "duplikat") {
+        if (res?.in_review) {
+          setEakteImportiert(prev => new Set([...prev, ed.nr]));
+          review++;
+        } else if (res?.status === "duplikat") {
           setEakteImportiert(prev => new Set([...prev, ed.nr]));
           dup++;
         } else if (res?.status === "importiert") {
@@ -385,7 +394,12 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
     }
     setEakteBulkLaden(false);
     if (ok > 0) ladeBelegeKandidaten();
-    const teile = [`${ok} importiert`, dup > 0 ? `${dup} bereits vorhanden` : null, fehler > 0 ? `${fehler} Fehler` : null].filter(Boolean);
+    const teile = [
+      ok > 0 ? `${ok} importiert` : null,
+      review > 0 ? `${review} in Review-Queue` : null,
+      dup > 0 ? `${dup} bereits vorhanden` : null,
+      fehler > 0 ? `${fehler} Fehler` : null,
+    ].filter(Boolean);
     setToast(teile.join(" · "));
   };
 
