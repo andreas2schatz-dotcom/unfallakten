@@ -393,6 +393,23 @@ def post_freigabe(intake_id: int):
                 benutzer_id=benutzer_id,
             )
 
+    # Option A: Gutachten-Freigabe schreibt gutachten_eingegangen mit den
+    # extrahierten Positionen -- inklusive sv_kosten (DEKRA-Gutachten
+    # enthalten die SV-Rechnung im selben PDF, POSITIONSMODELL 5.2).
+    # Andere Klassen bleiben Alt-Pfad-getrieben (P1.5e kommt separat).
+    if (dok.get("klasse") or "").lower() == "gutachten":
+        try:
+            _schreibe_gutachten_ereignis(
+                akte_az=akte_az, dokument_id=dokument_id,
+                parse_json=dok.get("parse_json"),
+                benutzer_id=benutzer_id,
+            )
+        except Exception as exc:  # pragma: no cover -- Best-Effort
+            logger.warning(
+                "gutachten_eingegangen aus Freigabe fehlgeschlagen "
+                "(intake=%s, akte=%s): %s", intake_id, akte_az, exc,
+            )
+
     logger.info("Freigabe intake=%s -> Akte %s (dokument_id=%s, freigabe_id=%s)",
                 intake_id, akte_az, dokument_id, freigabe_id)
     return _j({
@@ -401,3 +418,92 @@ def post_freigabe(intake_id: int):
         "freigabe_id": freigabe_id,
         "akte_az": akte_az,
     })
+
+
+def _mandanten_vorsteuer(akte_az: str) -> bool:
+    """Vorsteuerabzugsberechtigung des Mandanten der Akte.
+
+    Analog belege_routes.py Z. 518: vorsteuer='J'/'Y'/'1' -> True.
+    Default False (Privatmandant), damit die Brutto-Route greift.
+    """
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT vorsteuer FROM beteiligte "
+            "WHERE akte_id=? AND rolle='mandant' LIMIT 1",
+            (akte_az,),
+        ).fetchone()
+    if not row:
+        return False
+    return str(row["vorsteuer"] or "N").upper() in ("J", "Y", "1")
+
+
+def _feld_zu_zahl(wert):
+    """'1.011,50' -> 1011.5 ; 850 -> 850.0 ; None -> None."""
+    if wert is None:
+        return None
+    if isinstance(wert, (int, float)):
+        return float(wert)
+    s = str(wert).strip()
+    if not s:
+        return None
+    # Deutsche Notation: Punkt = Tausender, Komma = Dezimal
+    s = s.replace(".", "").replace(",", ".")
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _schreibe_gutachten_ereignis(*, akte_az, dokument_id, parse_json,
+                                  benutzer_id):
+    """Leitet Positionen aus den extrahierten Feldern ab und ruft
+    ``erzeuge_aus_gutachten``. sv_kosten mit brutto (Privat) oder netto
+    (Vorsteuerabzug) je nach Mandanten-Flag."""
+    from ..services.eingehende_ereignisse import erzeuge_aus_gutachten
+
+    parse = _parse(parse_json)
+    felder = parse.get("felder") or {}
+    if not isinstance(felder, dict):
+        return
+
+    # Direkte Positions-Felder + Aliase (netto/brutto -> Position-Key)
+    reparatur = (_feld_zu_zahl(felder.get("reparaturkosten"))
+                 or _feld_zu_zahl(felder.get("reparaturkosten_netto"))
+                 or _feld_zu_zahl(felder.get("reparaturkosten_brutto")))
+    wbw = (_feld_zu_zahl(felder.get("wiederbeschaffung"))
+           or _feld_zu_zahl(felder.get("wiederbeschaffungswert")))
+    restwert = (_feld_zu_zahl(felder.get("restwert"))
+                or _feld_zu_zahl(felder.get("restwert_netto"))
+                or _feld_zu_zahl(felder.get("restwert_brutto")))
+    wm = _feld_zu_zahl(felder.get("wertminderung"))
+
+    positionen: Dict[str, Any] = {}
+    if reparatur:
+        positionen["reparaturkosten"] = reparatur
+    if wbw:
+        positionen["wiederbeschaffung"] = wbw
+    if restwert:
+        positionen["restwert"] = restwert
+    if wm:
+        positionen["wertminderung"] = wm
+
+    # sv_kosten: Vorsteuer-Weiche (analog belege_routes.py Z. 619-627).
+    sv_netto = _feld_zu_zahl(felder.get("sv_kosten_netto"))
+    sv_brutto = _feld_zu_zahl(felder.get("sv_kosten_brutto"))
+    if sv_netto or sv_brutto:
+        if _mandanten_vorsteuer(akte_az):
+            wert = sv_netto if sv_netto is not None else sv_brutto
+        else:
+            wert = sv_brutto if sv_brutto is not None else sv_netto
+        if wert:
+            positionen["sv_kosten"] = wert
+
+    if not positionen:
+        return
+
+    erzeuge_aus_gutachten(
+        akte_az=akte_az,
+        dokument_id=dokument_id,
+        positionen=positionen,
+        benutzer_id=benutzer_id,
+    )

@@ -36,6 +36,26 @@ regex_felder:
   # Kennzeichnung weiterhin erfasst werden.
   restwert:
     - "Restwert[^0-9a-zA-Z]{1,20}([\\d\\.]+,\\d{2})"
+  # DEKRA-Gutachten enthalten haeufig die Sachverstaendigen-Rechnung
+  # im selben PDF (Rechnungsblatt am Ende). Wir extrahieren die drei
+  # relevanten Felder direkt aus dem Gutachten -- kein PDF-Split noetig.
+  sv_rechnungsnummer:
+    - "Rechnungs?[\\-\\s]?nummer[:\\s]+([A-Z0-9\\-/]+)"
+    - "Rechnung\\s+Nr\\.?[:\\s]+([A-Z0-9\\-/]+)"
+  # Umlaut-Toleranz: "Sachverst(aendigen|ändigen|andigen)" -- ae/ä/a
+  # abdecken, damit auch OCR-Textvarianten ohne Umlaut greifen.
+  # (?i:...)-Gruppen: case-insensitive nur fuer die Wort-Marker
+  # (nicht fuer den Betrag). Sachverst(aendigen|ändigen|andigen)
+  # -- alle drei Umlaut-Schreibweisen.
+  sv_kosten_netto:
+    - "(?i:sachverst(?:aendigen|ändigen|andigen)\\-?)?(?i:honorar|verg(?:uetung|ütung|utung)|rechnungsbetrag)[^0-9]{0,40}(?i:netto)[^0-9]{0,20}([\\d\\.]+,\\d{2})"
+    - "(?i:nettobetrag)(?:\\s+(?i:rechnung))?[^0-9]{0,20}([\\d\\.]+,\\d{2})"
+    - "(?i:rechnungsbetrag\\s+netto)[:\\s]+([\\d\\.]+,\\d{2})"
+  sv_kosten_brutto:
+    - "(?i:sachverst(?:aendigen|ändigen|andigen)\\-?)?(?i:honorar|verg(?:uetung|ütung|utung)|rechnungsbetrag)[^0-9]{0,40}(?i:brutto)[^0-9]{0,20}([\\d\\.]+,\\d{2})"
+    - "(?i:bruttobetrag)(?:\\s+(?i:rechnung))?[^0-9]{0,20}([\\d\\.]+,\\d{2})"
+    - "(?i:gesamtbetrag\\s+brutto)[:\\s]+([\\d\\.]+,\\d{2})"
+    - "(?i:rechnungsbetrag\\s+brutto)[:\\s]+([\\d\\.]+,\\d{2})"
 
 schema:
   sv_buero: string
@@ -61,6 +81,9 @@ schema:
   wertminderung: number
   nutzungsausfall_tagessatz: number
   nutzungsausfall_tage: integer
+  sv_rechnungsnummer: string
+  sv_kosten_netto: number
+  sv_kosten_brutto: number
 
 pflichtfelder:
   - sv_buero

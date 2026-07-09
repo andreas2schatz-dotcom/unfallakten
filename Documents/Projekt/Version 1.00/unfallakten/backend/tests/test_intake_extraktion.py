@@ -142,6 +142,33 @@ class TestExtraktion(unittest.TestCase):
         self.assertTrue(str(felder["restwert_netto"]).startswith("4"))
         self.assertTrue(str(felder["restwert_brutto"]).startswith("5"))
 
+    def test_gutachten_regex_extrahiert_sv_kosten_netto_und_brutto(self):
+        """DEKRA-Gutachten enthalten oft die SV-Rechnung im selben PDF.
+        Gutachten-Schema muss sv_kosten_netto UND sv_kosten_brutto als
+        separate Felder liefern (fuer Option A: Dual-Ereignis-Freigabe)."""
+        from backend.intake import extraktion
+        from backend.intake.registry_loader import lade_registry, standard_pfad
+        registry = lade_registry(standard_pfad())
+
+        text = (
+            "Sachverstaendigenhonorar netto: 850,00 EUR\n"
+            "Sachverstaendigenhonorar brutto: 1.011,50 EUR\n"
+            "Rechnungsnummer: R-2026-4711\n"
+        )
+        with mock.patch(
+            "backend.intake.extraktion.llm_service.extrahiere_nach_schema",
+            return_value=None,
+        ):
+            ergebnis = extraktion.extrahiere_felder(text, "gutachten", registry)
+        felder = ergebnis["felder"]
+        self.assertIn("sv_kosten_netto", felder,
+                      f"sv_kosten_netto fehlt in {felder!r}")
+        self.assertIn("sv_kosten_brutto", felder,
+                      f"sv_kosten_brutto fehlt in {felder!r}")
+        self.assertIn("sv_rechnungsnummer", felder,
+                      f"sv_rechnungsnummer fehlt in {felder!r}")
+        self.assertEqual(felder["sv_rechnungsnummer"], "R-2026-4711")
+
     def test_unbekannte_klasse_liefert_leere_felder(self):
         from backend.intake import extraktion
         registry = _mini_registry_mit_abrechnung()
