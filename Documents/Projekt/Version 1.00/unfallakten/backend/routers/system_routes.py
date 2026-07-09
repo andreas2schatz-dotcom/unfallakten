@@ -1,6 +1,7 @@
 import logging
 from flask import Blueprint, jsonify, request
-from ..auth.middleware import login_erforderlich
+from ..auth.middleware import login_erforderlich, nur_admin
+from ..services.fristablauf_service import verarbeite_faellige_todos
 from ..system.health_service import check_ramicro, get_status
 
 system_bp = Blueprint("system", __name__)
@@ -48,6 +49,18 @@ def ramicro_retry():
     check_ramicro()
     status = get_status()
     return jsonify(status["ramicro"])
+
+
+@system_bp.route("/system/fristablauf/manual", methods=["GET"])
+@nur_admin
+def fristablauf_manual():
+    """P1.6: manueller Trigger fuer den Fristablauf-Scheduler-Job.
+
+    Liest faellige system-todos und erzeugt fuer jede eines fristablauf-
+    Ereignis (idempotent ueber todos.fristablauf_ereignis_id).
+    """
+    anzahl = verarbeite_faellige_todos()
+    return jsonify({"verarbeitet": anzahl})
 
 
 @system_bp.route("/system/imap-polling", methods=["GET"])

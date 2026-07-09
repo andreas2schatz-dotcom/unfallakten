@@ -207,6 +207,9 @@ def erstelle_app(test_config: dict = None) -> Flask:
         from .system.health_service import check_ramicro as _check_ramicro
         from .email_import.polling_service import fuehre_polling_durch as _imap_polling
         from .intake.pipeline import tick as _intake_tick
+        from .services.fristablauf_service import (
+            verarbeite_faellige_todos as _fristablauf_tick,
+        )
         scheduler = APScheduler()
         app.config["SCHEDULER_API_ENABLED"] = False
         scheduler.init_app(app)
@@ -237,11 +240,25 @@ def erstelle_app(test_config: dict = None) -> Flask:
             max_instances=1,
             coalesce=True,
         )
+        # P1.6: taeglicher Fristablauf-Job (nachts, 03:15 lokal). Liest
+        # faellige system-todos und schreibt fuer jede ein fristablauf-
+        # Ereignis (idempotent ueber todos.fristablauf_ereignis_id).
+        scheduler.add_job(
+            id="fristablauf_job",
+            func=_fristablauf_tick,
+            trigger="cron",
+            hour=3,
+            minute=15,
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
         scheduler.start()
         import threading as _threading
         _threading.Thread(target=_check_ramicro, daemon=True).start()
         logger.info("APScheduler gestartet: RA-Micro Health-Check + "
-                    "IMAP-Polling (60s) + Intake-Worker (10s)")
+                    "IMAP-Polling (60s) + Intake-Worker (10s) + "
+                    "Fristablauf (taeglich 03:15)")
 
     @app.cli.command("sync-portal")
     def sync_portal_cmd():

@@ -303,6 +303,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     49: "-- migration_49_email_import_log_ausgeblendet", # Handled by _run_migration_49 (S1.9a)
     50: "-- migration_50_unfalldetails_create", # Handled by _run_migration_50 (Root-Cause-Fix zu Migration 28)
     51: "-- migration_51_ereignisse",  # Handled by _run_migration_51 (P1.2)
+    52: "-- migration_52_todos_fristablauf",  # Handled by _run_migration_52 (P1.6)
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -698,6 +699,49 @@ def _run_migration_51(conn: sqlite3.Connection) -> None:
     )
 
 
+def _run_migration_52(conn: sqlite3.Connection) -> None:
+    """
+    Migration 52 (P1.6) - todos.fristablauf_ereignis_id.
+
+    Idempotenz-Anker fuer den Scheduler-Job (verarbeite_faellige_todos):
+    jede todo-Zeile darf nur EIN fristablauf-Ereignis erzeugen. Der Job
+    setzt beim Anlegen des Ereignisses die Referenz und filtert kuenftig
+    ueber WHERE fristablauf_ereignis_id IS NULL.
+
+    Additiv (ALTER TABLE ADD COLUMN, nullable), kein Datenverlust an
+    bestehenden todos. Explizites commit() umgibt das ALTER (siehe
+    feedback_migration_executescript.md).
+    """
+    vorhandene_spalten = {
+        r[1] for r in conn.execute(
+            "PRAGMA table_info(todos)"
+        ).fetchall()
+    }
+    if "fristablauf_ereignis_id" not in vorhandene_spalten:
+        conn.commit()
+        conn.execute(
+            "ALTER TABLE todos ADD COLUMN fristablauf_ereignis_id "
+            "INTEGER REFERENCES ereignisse(id)"
+        )
+        conn.commit()
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_todos_fristablauf_pending "
+        "ON todos (quelle, erledigt, faellig_am, fristablauf_ereignis_id)"
+    )
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (?, ?)",
+        (52,
+         "Migration 52 - P1.6 todos.fristablauf_ereignis_id "
+         "(Idempotenz-Anker fuer Fristablauf-Scheduler)"),
+    )
+    logger.info(
+        "Migration 52 abgeschlossen (P1.6 todos.fristablauf_ereignis_id)."
+    )
+
+
 def _run_migration_49(conn: sqlite3.Connection) -> None:
     """
     Migration 49 (S1.9a) - email_import_log.ausgeblendet Flag.
@@ -1030,6 +1074,8 @@ def run_migrations() -> None:
                 _run_migration_51(conn)
             elif version == 50:
                 _run_migration_50(conn)
+            elif version == 52:
+                _run_migration_52(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
