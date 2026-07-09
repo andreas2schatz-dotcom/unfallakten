@@ -14,6 +14,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import T from "../config/theme.js";
 import { apiIntake, API_BASE, tokenStore } from "../api.js";
+import AktenLiveSuche from "../components/AktenLiveSuche.jsx";
 
 const KLASSEN = [
   "gutachten",
@@ -487,6 +488,12 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte }) {
             ausgewaehlt={gewaehlteAkte}
             onWaehle={setGewaehlteAkte}
           />
+          <div style={{ marginTop: 10 }}>
+            <div style={{ fontSize: T.textXs, color: T.textFaint, marginBottom: 4 }}>
+              Live-Suche nach Mandantenname oder Aktenzeichen (RA-Micro):
+            </div>
+            <AktenLiveSuche onWaehle={setGewaehlteAkte} />
+          </div>
           <input
             value={gewaehlteAkte}
             onChange={e => setGewaehlteAkte(e.target.value)}

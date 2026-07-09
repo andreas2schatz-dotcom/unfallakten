@@ -116,6 +116,32 @@ class TestExtraktion(unittest.TestCase):
             )
         self.assertNotIn("llm_konflikt", ergebnis)
 
+    def test_gutachten_regex_extrahiert_restwert_netto_und_brutto(self):
+        """Gutachten-Registry muss restwert_netto UND restwert_brutto als
+        separate Felder liefern (DEKRA-Gutachten zeigen beide Werte)."""
+        from backend.intake import extraktion
+        from backend.intake.registry_loader import lade_registry, standard_pfad
+        registry = lade_registry(standard_pfad())
+
+        text = (
+            "Wiederbeschaffungswert brutto: 15.900,00 EUR\n"
+            "Restwert netto: 4.201,68 EUR\n"
+            "Restwert brutto: 5.000,00 EUR\n"
+        )
+        with mock.patch(
+            "backend.intake.extraktion.llm_service.extrahiere_nach_schema",
+            return_value=None,
+        ):
+            ergebnis = extraktion.extrahiere_felder(text, "gutachten", registry)
+        felder = ergebnis["felder"]
+        self.assertIn("restwert_netto", felder,
+                      f"restwert_netto fehlt in {felder!r}")
+        self.assertIn("restwert_brutto", felder,
+                      f"restwert_brutto fehlt in {felder!r}")
+        # Werte als Strings aus Regex; Konversion macht extrahiere_felder
+        self.assertTrue(str(felder["restwert_netto"]).startswith("4"))
+        self.assertTrue(str(felder["restwert_brutto"]).startswith("5"))
+
     def test_unbekannte_klasse_liefert_leere_felder(self):
         from backend.intake import extraktion
         registry = _mini_registry_mit_abrechnung()

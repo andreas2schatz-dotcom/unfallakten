@@ -162,6 +162,51 @@ class TestAktenMatching(unittest.TestCase):
         for a, b in zip(kandidaten, kandidaten[1:]):
             self.assertGreaterEqual(a.score, b.score)
 
+    def test_mandantenname_ohne_datum_fallback_score_0_4(self):
+        """Fallback: Text enthaelt weder AZ noch KFZ noch Datum, aber einen
+        Mandanten-Nachnamen aus der DB. Score 0.4 (schwaechstes Signal,
+        aber besser als leere Kandidatenliste)."""
+        from backend.intake.akten_matching import finde_kandidaten
+        kandidaten = finde_kandidaten(
+            text="Anfrage vom Mandanten Riccio bezueglich Regulierung",
+            signale=[],
+        )
+        self.assertTrue(kandidaten,
+                        "Namens-Fallback muss Kandidat liefern")
+        top = kandidaten[0]
+        self.assertEqual(top.akte_az, "31/21")
+        self.assertEqual(top.quelle, "mandantenname")
+        self.assertAlmostEqual(top.score, 0.4, places=2)
+
+    def test_mandantenname_fallback_greift_nicht_bei_az_treffer(self):
+        """Wenn ein AZ trifft, brauchen wir den schwachen Namens-Fallback
+        nicht (sonst Kandidaten-Verwaesserung)."""
+        from backend.intake.akten_matching import finde_kandidaten
+        kandidaten = finde_kandidaten(
+            text="Bezug 31/21 -- Anfrage von Riccio", signale=[],
+        )
+        # 31/21 kommt nur EINMAL, mit Score 1.0 (nicht 0.4)
+        akten_31 = [k for k in kandidaten if k.akte_az == "31/21"]
+        self.assertEqual(len(akten_31), 1)
+        self.assertEqual(akten_31[0].score, 1.0)
+
+    def test_mandantenname_matcht_nur_mandant_rolle(self):
+        """Gegner/SV-Namen im Text duerfen den Fallback NICHT triggern --
+        wir wollen die Akte des Mandanten finden, nicht die vom Gegner."""
+        from backend.intake.akten_matching import finde_kandidaten
+        # Beteiligte-Zeile 'Gegner Meier' in Akte 31/21 anlegen
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            conn.execute(
+                "INSERT INTO beteiligte (akte_id, rolle, name) "
+                "VALUES ('31/21', 'gegner', 'Meier')"
+            )
+        kandidaten = finde_kandidaten(
+            text="Anschreiben an Gegner Meier", signale=[],
+        )
+        # Meier ist Gegner -> darf keinen Fallback ausloesen
+        self.assertEqual(kandidaten, [])
+
     def test_ra_micro_wird_bei_akte_nicht_lokal_konsultiert(self):
         """Wenn die SQLite-Akte fehlt, aber RA-Micro sie kennt, kommt sie
         als Kandidat mit dem SQLite-Score. RA-Micro-Aufruf ist gemockt."""

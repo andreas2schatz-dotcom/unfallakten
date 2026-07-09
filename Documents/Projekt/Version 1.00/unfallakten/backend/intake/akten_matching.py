@@ -33,6 +33,10 @@ SCORE_AZ_BASIS = 0.9
 SCORE_KFZ = 0.7
 SCORE_MAIL = 0.6
 SCORE_NAME_DATUM = 0.5
+# Schwaechstes Signal: Mandantenname im Text, ohne AZ/KFZ/Mail-Anker.
+# Nur relevant wenn KEIN staerkeres Signal getroffen hat -- sonst wuerde
+# es die Kandidatenliste verwaessern.
+SCORE_MANDANTENNAME = 0.4
 
 # AZ-Kandidatenmuster: 1-4 Ziffern / 2-4 Ziffern, optional SB-Kuerzel
 # (2-3 Grossbuchstaben), z.B. "31/21", "31/21AS", "285/26"
@@ -223,6 +227,40 @@ def _suche_name_und_datum_in_sqlite(text: str) -> List[AktenKandidat]:
     return ergebnis
 
 
+def _suche_mandantenname_in_sqlite(text: str) -> List[AktenKandidat]:
+    """Fallback: nur Mandantenname (rolle='mandant') im Text.
+
+    Wird vom Aufrufer nur bemueht, wenn KEIN staerkeres Signal (AZ, KFZ,
+    Mail, Name+Datum) getroffen hat -- sonst wuerden reine Namens-Treffer
+    die Kandidatenliste bei jedem Dokument aufblaehen.
+
+    Nur Nachnamen mit >=3 Zeichen, Case-insensitive Substring-Match. Score
+    0.4 (schwaechstes Signal).
+    """
+    if not text:
+        return []
+    text_upper = text.upper()
+    ergebnis: List[AktenKandidat] = []
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT b.akte_id, b.name "
+            "FROM beteiligte b "
+            "WHERE b.rolle = 'mandant' AND b.name IS NOT NULL "
+            "  AND LENGTH(b.name) >= 3"
+        ).fetchall()
+        for row in rows:
+            name = (row["name"] or "").strip()
+            akte_az = row["akte_id"]
+            if not name or not akte_az:
+                continue
+            if name.upper() in text_upper:
+                ergebnis.append(AktenKandidat(
+                    akte_az=akte_az, score=SCORE_MANDANTENNAME,
+                    quelle="mandantenname", treffer=name,
+                ))
+    return ergebnis
+
+
 def _suche_in_ramicro(text: str,
                      az_kandidaten: Sequence[str],
                      kfz_kandidaten: Sequence[str],
@@ -301,6 +339,12 @@ def finde_kandidaten(text: str,
     ergebnisse.extend(_suche_kfz_in_sqlite(kfz_kandidaten))
     ergebnisse.extend(_suche_mail_in_sqlite(mails))
     ergebnisse.extend(_suche_name_und_datum_in_sqlite(text))
+
+    # Namens-Fallback: nur wenn KEIN staerkeres Signal getroffen hat.
+    # Sonst wuerde jeder Text mit einem Mandanten-Nachnamen zusaetzliche
+    # 0.4-Kandidaten produzieren -- unerwuenscht.
+    if not ergebnisse:
+        ergebnisse.extend(_suche_mandantenname_in_sqlite(text))
 
     try:
         for az, score, quelle, treffer in _suche_in_ramicro(

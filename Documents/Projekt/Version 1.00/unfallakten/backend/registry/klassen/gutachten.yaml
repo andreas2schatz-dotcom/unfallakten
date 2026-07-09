@@ -21,6 +21,21 @@ regex_felder:
     - "Kennzeichen[:\\s]+([A-ZÄÖÜ]{1,3}-[A-Z]{1,2}\\s?\\d{1,4})"
   wiederbeschaffungswert:
     - "Wiederbeschaffungswert[^0-9]{0,40}([\\d\\.]+,\\d{2})"
+  # Restwert wird typisch mit "netto" und "brutto" separat ausgewiesen
+  # (DEKRA-Gutachten). Beide Werte werden als eigene Felder extrahiert.
+  restwert_netto:
+    - "Restwert\\s*(?:\\([^\\)]*\\)\\s*)?netto[^0-9]{0,40}([\\d\\.]+,\\d{2})"
+    - "Restwert\\s+netto[:\\s]+([\\d\\.]+,\\d{2})"
+    - "Netto[^0-9]{0,10}Restwert[^0-9]{0,40}([\\d\\.]+,\\d{2})"
+  restwert_brutto:
+    - "Restwert\\s*(?:\\([^\\)]*\\)\\s*)?brutto[^0-9]{0,40}([\\d\\.]+,\\d{2})"
+    - "Restwert\\s+brutto[:\\s]+([\\d\\.]+,\\d{2})"
+    - "Brutto[^0-9]{0,10}Restwert[^0-9]{0,40}([\\d\\.]+,\\d{2})"
+  # Legacy-Anker: Restwert ohne netto/brutto-Qualifikation.
+  # Bleibt zusaetzlich bestehen, damit Alt-Gutachten ohne Brutto/Netto-
+  # Kennzeichnung weiterhin erfasst werden.
+  restwert:
+    - "Restwert[^0-9a-zA-Z]{1,20}([\\d\\.]+,\\d{2})"
 
 schema:
   sv_buero: string
@@ -41,6 +56,8 @@ schema:
   reparaturkosten_brutto: number
   wiederbeschaffungswert: number
   restwert: number
+  restwert_netto: number
+  restwert_brutto: number
   wertminderung: number
   nutzungsausfall_tagessatz: number
   nutzungsausfall_tage: integer
@@ -52,7 +69,8 @@ pflichtfelder:
 
 kritische_felder:
   - wiederbeschaffungswert
-  - restwert
+  - restwert_netto
+  - restwert_brutto
   - reparaturkosten_netto
   - wertminderung
 
@@ -61,6 +79,8 @@ validierungsregeln:
     beschreibung: Wiederbeschaffungswert muss > 0 sein
   - name: restwert_kleiner_wbw
     beschreibung: Restwert ≤ Wiederbeschaffungswert
+  - name: restwert_brutto_groesser_netto
+    beschreibung: Restwert brutto ≥ Restwert netto
 
 fristrelevanz: false
 loeschfrist_jahre: 6
