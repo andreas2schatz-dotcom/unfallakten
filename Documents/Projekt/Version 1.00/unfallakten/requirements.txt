@@ -18,7 +18,7 @@ PyJWT==2.7.0                # JWT-Tokens (HS256)
 # ── PDF-Verarbeitung (Modul 4) ────────────────────────────────────────────────
 pdfplumber==0.11.9          # Textextraktion aus PDFs
 Pillow==12.1.1              # Bildverarbeitung (pdfplumber-Abhängigkeit)
-# PyMuPDF==1.24.3           # Optionaler Fallback (nicht im Testsystem)
+PyMuPDF==1.24.3             # Bild→PDF-Arbeitskopie im Intake (backend/intake/archiv.py)
 
 # ── Word-Dokumente (Modul 5) ──────────────────────────────────────────────────
 python-docx==1.2.0          # .docx-Generierung
