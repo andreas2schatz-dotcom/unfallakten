@@ -27,6 +27,29 @@ const KLASSEN = [
   "sonstiges",
 ];
 
+export function gruppiereQueue(eintraege) {
+  const nachZust = new Map();
+  eintraege.forEach(e => {
+    if (e.zustellung_id != null) nachZust.set(e.zustellung_id, e);
+  });
+  const gruppen = [];
+  const zuKind = new Map();
+  eintraege.forEach(e => {
+    const p = e.parent_zustellung_id;
+    if (p != null && nachZust.has(p)) {
+      if (!zuKind.has(p)) zuKind.set(p, []);
+      zuKind.get(p).push(e);
+    }
+  });
+  const istKind = new Set();
+  zuKind.forEach(kinder => kinder.forEach(k => istKind.add(k.id)));
+  eintraege.forEach(e => {
+    if (istKind.has(e.id)) return;
+    gruppen.push({ eintrag: e, kinder: zuKind.get(e.zustellung_id) || [] });
+  });
+  return gruppen;
+}
+
 export function TextVorschau({ text }) {
   return (
     <pre style={{
@@ -87,16 +110,19 @@ function KonfidenzChip({ wert }) {
   );
 }
 
-function QueueEintrag({ item, aktiv, onClick, onVerwerfen }) {
+function QueueEintrag({ item, aktiv, onClick, onVerwerfen, eingerueckt }) {
   const kandidat = item.akte_kandidat_top;
   return (
     <div onClick={onClick}
       style={{
         padding: "10px 12px",
+        marginLeft: eingerueckt ? 26 : 0,
         borderBottom: `1px solid ${T.border}`,
         cursor: "pointer",
         background: aktiv ? T.accentPale : "transparent",
-        borderLeft: aktiv ? `3px solid ${T.accent}` : "3px solid transparent",
+        borderLeft: aktiv
+          ? `3px solid ${T.accent}`
+          : eingerueckt ? `2px solid ${T.accent}40` : "3px solid transparent",
         position: "relative",
       }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -124,8 +150,15 @@ function QueueEintrag({ item, aktiv, onClick, onVerwerfen }) {
         >Verwerfen</button>
       </div>
       <div style={{ fontSize: T.textSm, fontFamily: T.fontBody, color: T.text }}>
+        {eingerueckt && <span title="Anhang">📎 </span>}
+        {item.payload_typ === "text" && <span title="E-Mail">📧 </span>}
         <strong>{item.klasse || "unbekannt"}</strong>
       </div>
+      {item.payload_typ === "text" && (item.absender || item.betreff) && (
+        <div style={{ fontSize: T.textXs, color: T.textMuted, marginTop: 2 }}>
+          {item.absender || ""}{item.betreff ? ` · ${item.betreff}` : ""}
+        </div>
+      )}
       <div style={{ fontSize: T.textXs, color: T.textMuted, marginTop: 3 }}>
         {kandidat
           ? <>Akte: <code>{kandidat.akte_az}</code> · Score {kandidat.score}</>
@@ -861,10 +894,18 @@ export default function ReviewQueueView({ onOpenAkte }) {
               Queue leer — alles freigegeben.
             </div>
           )}
-          {queue.map(q => (
-            <QueueEintrag key={q.id} item={q} aktiv={aktivId === q.id}
-              onClick={() => setAktivId(q.id)}
-              onVerwerfen={setVerwerfenDok} />
+          {gruppiereQueue(queue).map(gruppe => (
+            <React.Fragment key={gruppe.eintrag.id}>
+              <QueueEintrag item={gruppe.eintrag}
+                aktiv={aktivId === gruppe.eintrag.id}
+                onClick={() => setAktivId(gruppe.eintrag.id)}
+                onVerwerfen={setVerwerfenDok} />
+              {gruppe.kinder.map(k => (
+                <QueueEintrag key={k.id} item={k} aktiv={aktivId === k.id}
+                  onClick={() => setAktivId(k.id)}
+                  onVerwerfen={setVerwerfenDok} eingerueckt />
+              ))}
+            </React.Fragment>
           ))}
         </div>
       </div>
