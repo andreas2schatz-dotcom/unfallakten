@@ -304,6 +304,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     50: "-- migration_50_unfalldetails_create", # Handled by _run_migration_50 (Root-Cause-Fix zu Migration 28)
     51: "-- migration_51_ereignisse",  # Handled by _run_migration_51 (P1.2)
     52: "-- migration_52_todos_fristablauf",  # Handled by _run_migration_52 (P1.6)
+    53: "-- migration_53_intake_verworfen",  # Handled by _run_migration_53 (Verwerfen-Workflow)
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -758,6 +759,58 @@ def _run_migration_52(conn: sqlite3.Connection) -> None:
     )
 
 
+def _run_migration_53(conn: sqlite3.Connection) -> None:
+    """
+    Migration 53 - intake_dokumente.verworfen_* fuer Verwerfen-Workflow.
+
+    Drei additive Spalten:
+      * verworfen_grund  TEXT NULL   Kurzschluessel (spam/duplikat/...)
+      * verworfen_am     TEXT NULL   ISO-Timestamp
+      * verworfen_von    INTEGER NULL FK -> benutzer.id (nicht erzwungen,
+                                     SQLite ignoriert FKs standardmaessig)
+
+    queue_status kennt nach dieser Migration den Wert 'verworfen'. Keine
+    CHECK-Constraint auf queue_status -- die Spalte ist historisch TEXT
+    ohne Enum, s. intake_dokumente-DDL. Idempotent per PRAGMA table_info.
+    Explizites conn.commit() umgibt die ALTERs (feedback_migration_execute
+    script.md).
+    """
+    vorhandene_spalten = {
+        r[1] for r in conn.execute(
+            "PRAGMA table_info(intake_dokumente)"
+        ).fetchall()
+    }
+    if "verworfen_grund" not in vorhandene_spalten:
+        conn.commit()
+        conn.execute(
+            "ALTER TABLE intake_dokumente ADD COLUMN verworfen_grund TEXT"
+        )
+        conn.commit()
+    if "verworfen_am" not in vorhandene_spalten:
+        conn.commit()
+        conn.execute(
+            "ALTER TABLE intake_dokumente ADD COLUMN verworfen_am TEXT"
+        )
+        conn.commit()
+    if "verworfen_von" not in vorhandene_spalten:
+        conn.commit()
+        conn.execute(
+            "ALTER TABLE intake_dokumente ADD COLUMN verworfen_von INTEGER"
+        )
+        conn.commit()
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (?, ?)",
+        (53,
+         "Migration 53 - intake_dokumente.verworfen_grund/am/von "
+         "(Verwerfen-Workflow in Review-Queue)"),
+    )
+    logger.info(
+        "Migration 53 abgeschlossen (intake_dokumente Verwerfen-Felder)."
+    )
+
+
 def _run_migration_49(conn: sqlite3.Connection) -> None:
     """
     Migration 49 (S1.9a) - email_import_log.ausgeblendet Flag.
@@ -1092,6 +1145,8 @@ def run_migrations() -> None:
                 _run_migration_50(conn)
             elif version == 52:
                 _run_migration_52(conn)
+            elif version == 53:
+                _run_migration_53(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(

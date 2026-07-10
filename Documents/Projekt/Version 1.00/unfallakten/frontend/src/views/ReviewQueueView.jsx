@@ -54,7 +54,7 @@ function KonfidenzChip({ wert }) {
   );
 }
 
-function QueueEintrag({ item, aktiv, onClick }) {
+function QueueEintrag({ item, aktiv, onClick, onVerwerfen }) {
   const kandidat = item.akte_kandidat_top;
   return (
     <div onClick={onClick}
@@ -64,6 +64,7 @@ function QueueEintrag({ item, aktiv, onClick }) {
         cursor: "pointer",
         background: aktiv ? T.accentPale : "transparent",
         borderLeft: aktiv ? `3px solid ${T.accent}` : "3px solid transparent",
+        position: "relative",
       }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
         <StatusBadge status={item.queue_status} fristPrio={item.prioritaet_frist} />
@@ -71,6 +72,23 @@ function QueueEintrag({ item, aktiv, onClick }) {
         {item.klasse_quelle === "manuell" && (
           <span style={{ fontSize: T.textXs, color: T.textMuted }}>manuell</span>
         )}
+        <div style={{ flex: 1 }} />
+        <button
+          onClick={e => { e.stopPropagation(); onVerwerfen(item); }}
+          title="Dokument aus der Queue verwerfen (Soft-Delete)"
+          aria-label="Dokument verwerfen"
+          style={{
+            border: `1px solid ${T.redLight}`,
+            background: T.redBg,
+            color: T.redText,
+            cursor: "pointer",
+            padding: "3px 8px",
+            fontSize: T.textXs,
+            fontWeight: 600,
+            borderRadius: 4,
+            lineHeight: 1.1,
+          }}
+        >Verwerfen</button>
       </div>
       <div style={{ fontSize: T.textSm, fontFamily: T.fontBody, color: T.text }}>
         <strong>{item.klasse || "unbekannt"}</strong>
@@ -88,6 +106,98 @@ function QueueEintrag({ item, aktiv, onClick }) {
           {item.fehler_detail}
         </div>
       )}
+    </div>
+  );
+}
+
+const VERWERFEN_GRUENDE = [
+  { wert: "spam",            label: "Spam" },
+  { wert: "duplikat",        label: "Duplikat" },
+  { wert: "nicht_relevant",  label: "Nicht relevant" },
+  { wert: "falsche_kanzlei", label: "Falsche Kanzlei" },
+  { wert: "sonstiges",       label: "Sonstiges" },
+];
+
+function VerwerfenDialog({ dokument, onConfirm, onCancel, laeuft }) {
+  const [grund, setGrund] = useState("spam");
+  const [kommentar, setKommentar] = useState("");
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      zIndex: 900,
+    }}>
+      <div style={{
+        background: T.white, width: 480,
+        borderRadius: 10, padding: 24,
+        boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
+      }}>
+        <h3 style={{ margin: "0 0 6px", fontFamily: T.fontDisplay, color: T.navy }}>
+          Dokument verwerfen
+        </h3>
+        <div style={{ color: T.textMuted, marginBottom: 16, fontSize: T.textSm }}>
+          Dokument #{dokument.id}
+          {dokument.klasse ? <> (<strong>{dokument.klasse}</strong>)</> : null}
+          {" "}verschwindet aus der Queue. PDF bleibt am Filesystem,
+          Zeile bleibt in der DB.
+        </div>
+
+        <label style={{ display: "block", fontSize: T.textSm, fontWeight: 600, marginBottom: 4 }}>
+          Grund
+        </label>
+        <select
+          value={grund}
+          onChange={e => setGrund(e.target.value)}
+          disabled={laeuft}
+          style={{
+            width: "100%", boxSizing: "border-box",
+            padding: "6px 8px", marginBottom: 14,
+            border: `1px solid ${T.border}`, borderRadius: 4,
+            fontSize: T.textSm, background: T.white,
+          }}>
+          {VERWERFEN_GRUENDE.map(g => (
+            <option key={g.wert} value={g.wert}>{g.label}</option>
+          ))}
+        </select>
+
+        <label style={{ display: "block", fontSize: T.textSm, fontWeight: 600, marginBottom: 4 }}>
+          Kommentar <span style={{ fontWeight: 400, color: T.textMuted }}>(optional)</span>
+        </label>
+        <textarea
+          value={kommentar}
+          onChange={e => setKommentar(e.target.value)}
+          disabled={laeuft}
+          placeholder="z.B. kam gestern schon"
+          rows={3}
+          style={{
+            width: "100%", boxSizing: "border-box",
+            padding: "6px 10px", marginBottom: 18,
+            border: `1px solid ${T.border}`, borderRadius: 4,
+            fontFamily: T.fontBody, fontSize: T.textSm,
+          }}
+        />
+
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button onClick={onCancel} disabled={laeuft}
+            style={{
+              padding: "8px 16px", background: T.offWhite,
+              border: `1px solid ${T.border}`, borderRadius: 4,
+              cursor: laeuft ? "wait" : "pointer",
+            }}>
+            Abbrechen
+          </button>
+          <button
+            onClick={() => onConfirm({ grund, kommentar: kommentar.trim() || undefined })}
+            disabled={laeuft}
+            style={{
+              padding: "8px 16px", background: T.red || T.redText,
+              color: T.white, border: "none", borderRadius: 4,
+              cursor: laeuft ? "wait" : "pointer", fontWeight: 600,
+            }}>
+            {laeuft ? "Verwerfe…" : "Verwerfen"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -150,8 +260,16 @@ function KandidatenList({ kandidaten, ausgewaehlt, onWaehle }) {
 }
 
 function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
+                          ereignistypen, onEreignisChange,
                           onErsetztChange, onEreignisAdd, onEreignisDel,
                           onConfirm, onCancel, laeuft }) {
+  // Nur eingehende Typen anzeigen -- Review-Queue enthaelt eingegangene
+  // Dokumente. Ausgehend/intern sind fachlich unpassend.
+  const typenListe = (ereignistypen || []).filter(t => t.richtung === "eingehend");
+  const typLabel = (typ) => {
+    const eintrag = (ereignistypen || []).find(t => t.typ === typ);
+    return eintrag ? eintrag.label : typ;
+  };
   return (
     <div style={{
       position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)",
@@ -177,26 +295,46 @@ function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
             Ereignis-Vorschlaege (K-2)
           </div>
           <div style={{ fontSize: T.textXs, color: T.textMuted, marginBottom: 8 }}>
-            Bestaetigung/Korrektur. Persistierung ins Positionsmodell folgt mit P1.5.
+            Bestaetigung/Korrektur. Persistierung ins Positionsmodell folgt
+            mit P1.5e — heute wird nur als Kontext ins korrektur_log geschrieben
+            (Ausnahme: Gutachten schreibt bereits ein echtes Ereignis).
           </div>
           {ereignisse.map((ev, i) => (
             <div key={i} style={{
-              padding: "6px 10px", border: `1px solid ${T.border}`,
-              borderRadius: 4, marginBottom: 4, display: "flex",
+              padding: "8px 10px", border: `1px solid ${T.border}`,
+              borderRadius: 4, marginBottom: 6, display: "flex",
               alignItems: "center", gap: 8,
             }}>
-              <code style={{ flex: 1, fontSize: T.textXs }}>{JSON.stringify(ev)}</code>
+              <select
+                value={ev.typ || ""}
+                onChange={e => onEreignisChange(i, { ...ev, typ: e.target.value })}
+                style={{
+                  flex: 1, padding: "4px 6px",
+                  border: `1px solid ${T.border}`, borderRadius: 4,
+                  fontSize: T.textSm, background: T.white,
+                }}>
+                {!typenListe.some(t => t.typ === ev.typ) && ev.typ && (
+                  <option value={ev.typ}>{typLabel(ev.typ)} (unbekannt)</option>
+                )}
+                {typenListe.map(t => (
+                  <option key={t.typ} value={t.typ}>{t.label}</option>
+                ))}
+              </select>
               <button onClick={() => onEreignisDel(i)}
-                style={{ border: "none", background: "transparent", cursor: "pointer", color: T.redText }}>
+                title="Ereignis entfernen"
+                style={{ border: "none", background: "transparent", cursor: "pointer",
+                          color: T.redText, fontSize: 14, padding: "2px 6px" }}>
                 ✕
               </button>
             </div>
           ))}
           <button onClick={onEreignisAdd}
+            disabled={!typenListe.length}
             style={{
               padding: "4px 10px", fontSize: T.textXs,
               background: T.offWhite, border: `1px solid ${T.border}`,
-              borderRadius: 4, cursor: "pointer",
+              borderRadius: 4,
+              cursor: typenListe.length ? "pointer" : "default",
             }}>
             + Ereignis-Vorschlag hinzufuegen
           </button>
@@ -245,7 +383,8 @@ function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
   );
 }
 
-function DetailPanel({ id, onFreigegeben, onOpenAkte }) {
+function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
+                       ereignistypen }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState(null);
   const [meldung, setMeldung] = useState("");
@@ -527,6 +666,18 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte }) {
         </section>
 
         <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+          <button onClick={() => onVerwerfen && onVerwerfen(detail)}
+            disabled={aktion}
+            title="Dokument aus der Queue verwerfen (Soft-Delete)"
+            style={{
+              padding: "10px 16px",
+              background: T.redBg, color: T.redText,
+              border: `1px solid ${T.redLight}`, borderRadius: 4,
+              cursor: aktion ? "wait" : "pointer",
+              fontWeight: 600,
+            }}>
+            Verwerfen
+          </button>
           <button onClick={() => setZeigeFreigabe(true)}
             disabled={aktion || !gewaehlteAkte}
             style={{
@@ -546,11 +697,22 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte }) {
             akteAz={gewaehlteAkte}
             ereignisse={ereignisse}
             ersetztIds={ersetztIds}
+            ereignistypen={ereignistypen}
             onErsetztChange={setErsetztIds}
-            onEreignisAdd={() => setEreignisse(prev => [
-              ...prev,
-              { typ: `${detail.klasse}_eingegangen`, positionen: [] },
-            ])}
+            onEreignisAdd={() => {
+              // Sinnvoller Default: <klasse>_eingegangen, wenn die Registry
+              // den Typ kennt; sonst der erste eingehende Typ.
+              const eingehende = (ereignistypen || [])
+                .filter(t => t.richtung === "eingehend");
+              const kandidat = `${(detail.klasse || "").toLowerCase()}_eingegangen`;
+              const passt = eingehende.find(t => t.typ === kandidat);
+              const default_typ = passt ? passt.typ
+                                   : (eingehende[0]?.typ || kandidat);
+              setEreignisse(prev => [...prev,
+                { typ: default_typ, positionen: [] }]);
+            }}
+            onEreignisChange={(i, neu) => setEreignisse(prev =>
+              prev.map((e, j) => j === i ? neu : e))}
             onEreignisDel={i => setEreignisse(prev => prev.filter((_, j) => j !== i))}
             onConfirm={doFreigabe}
             onCancel={() => setZeigeFreigabe(false)}
@@ -566,6 +728,16 @@ export default function ReviewQueueView({ onOpenAkte }) {
   const [queue, setQueue] = useState([]);
   const [aktivId, setAktivId] = useState(null);
   const [ladeError, setLadeError] = useState(null);
+  const [verwerfenDok, setVerwerfenDok] = useState(null);
+  const [verwerfenLaeuft, setVerwerfenLaeuft] = useState(false);
+  const [ereignistypen, setEreignistypen] = useState([]);
+
+  // Ereignistypen aus der Registry einmalig laden (fuer Freigabe-Dropdown).
+  useEffect(() => {
+    apiIntake.ereignistypen()
+      .then(d => setEreignistypen(d.ereignistypen || []))
+      .catch(() => setEreignistypen([]));  // Fallback: Dropdown zeigt roh
+  }, []);
 
   const laden = useCallback(async () => {
     try {
@@ -580,6 +752,22 @@ export default function ReviewQueueView({ onOpenAkte }) {
     const t = setInterval(laden, 30000);
     return () => clearInterval(t);
   }, [laden]);
+
+  const doVerwerfen = useCallback(async ({ grund, kommentar }) => {
+    if (!verwerfenDok) return;
+    setVerwerfenLaeuft(true);
+    try {
+      await apiIntake.verwerfen(verwerfenDok.id, { grund, kommentar });
+      const wegId = verwerfenDok.id;
+      setVerwerfenDok(null);
+      if (aktivId === wegId) setAktivId(null);
+      laden();
+    } catch (e) {
+      setLadeError(e.message);
+    } finally {
+      setVerwerfenLaeuft(false);
+    }
+  }, [verwerfenDok, aktivId, laden]);
 
   const bereit = useMemo(
     () => queue.filter(q => q.queue_status === "bereit_zur_review"),
@@ -630,7 +818,8 @@ export default function ReviewQueueView({ onOpenAkte }) {
           )}
           {queue.map(q => (
             <QueueEintrag key={q.id} item={q} aktiv={aktivId === q.id}
-              onClick={() => setAktivId(q.id)} />
+              onClick={() => setAktivId(q.id)}
+              onVerwerfen={setVerwerfenDok} />
           ))}
         </div>
       </div>
@@ -639,7 +828,18 @@ export default function ReviewQueueView({ onOpenAkte }) {
           Dokument-Wechsel, sonst bleiben Live-Suche-Query, gewaehlteAkte,
           Meldung etc. vom Vor-Dokument stehen. */}
       <DetailPanel key={aktivId || "leer"} id={aktivId}
-                    onFreigegeben={onFreigegeben} onOpenAkte={onOpenAkte} />
+                    onFreigegeben={onFreigegeben} onOpenAkte={onOpenAkte}
+                    onVerwerfen={setVerwerfenDok}
+                    ereignistypen={ereignistypen} />
+
+      {verwerfenDok && (
+        <VerwerfenDialog
+          dokument={verwerfenDok}
+          onConfirm={doVerwerfen}
+          onCancel={() => setVerwerfenDok(null)}
+          laeuft={verwerfenLaeuft}
+        />
+      )}
     </div>
   );
 }

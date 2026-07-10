@@ -10,8 +10,11 @@ Endpunkte:
   GET   /intake/queue                       Liste Alter -> Konfidenz
   GET   /intake/dokument/<id>               Detail + parse + Kandidaten
   PATCH /intake/dokument/<id>/klasse        manuelle Reklassifikation
+  POST  /intake/dokument/<id>/reparse       erzwungener Re-Parse
   PATCH /intake/dokument/<id>/felder        Feld-Korrektur
   POST  /intake/dokument/<id>/freigabe      einzige Schreib-Op Richtung Akte
+  POST  /intake/dokument/<id>/verwerfen     Soft-Delete aus der Queue
+  GET   /intake/ereignistypen               Registry-Katalog fuer Freigabe-UI
 
 Design:
   * Alle Endpunkte verlangen Auth (@login_erforderlich).
@@ -104,6 +107,7 @@ def hole_queue():
             "       fehler_detail, parse_json "
             "FROM intake_dokumente "
             "WHERE queue_status IN ('bereit_zur_review','pipeline_fehler') "
+            "  AND verworfen_am IS NULL "
             "ORDER BY erstellt_am ASC, id ASC, "
             "         COALESCE(konfidenz, 0) DESC"
         ).fetchall()
@@ -264,6 +268,119 @@ def post_reparse(intake_id: int):
     logger.info("Intake %s manuell in Queue zurueckgestellt (reparse).",
                  intake_id)
     return _j({"ok": True, "queue_status": "neu"})
+
+
+# ─── POST /intake/dokument/<id>/verwerfen ─────────────────────────────────────
+
+_VERWERFEN_GRUENDE = {"spam", "duplikat", "nicht_relevant",
+                       "falsche_kanzlei", "sonstiges"}
+
+
+@intake_bp.route("/dokument/<int:intake_id>/verwerfen", methods=["POST"])
+@login_erforderlich
+def post_verwerfen(intake_id: int):
+    """Dokument aus der Review-Queue entfernen (Soft-Delete).
+
+    Setzt verworfen_grund/am/von auf der intake_dokumente-Zeile
+    (Migration 53). ``queue_status`` bleibt unangetastet -- der Wert
+    'verworfen' ist im CHECK-Constraint auf queue_status historisch nicht
+    vorgesehen, ein Table-Rebuild waere unverhaeltnismaessig. Verworfene
+    Zeilen werden ueber ``verworfen_am IS NOT NULL`` aus der Queue
+    ausgeblendet (siehe hole_queue).
+
+    PDF-Datei bleibt am Filesystem, Zeile bleibt in der DB. Nur
+    bereit_zur_review + pipeline_fehler + neu duerfen verworfen werden
+    -- bereits freigegebene Dokumente sind tabu (die haben schon eine
+    Akten-Wirkung).
+
+    Payload:
+      { "grund": "spam"|"duplikat"|"nicht_relevant"|"falsche_kanzlei"|
+                 "sonstiges" (Pflicht),
+        "kommentar": str (optional, Freitext) }
+    """
+    payload = request.get_json(silent=True) or {}
+    grund = (payload.get("grund") or "").strip()
+    if grund not in _VERWERFEN_GRUENDE:
+        return _err(
+            f"Feld 'grund' fehlt oder ungueltig. Erlaubt: "
+            f"{sorted(_VERWERFEN_GRUENDE)}", 400,
+        )
+    kommentar = (payload.get("kommentar") or "").strip() or None
+
+    dok = _lade_intake(intake_id)
+    if not dok:
+        return _err("Intake-Dokument nicht gefunden", 404)
+
+    if dok.get("verworfen_am"):
+        return _err("Dokument ist bereits verworfen.", 409)
+
+    status = dok.get("queue_status")
+    if status not in ("bereit_zur_review", "pipeline_fehler", "neu"):
+        return _err(
+            f"Dokument im Status {status!r} kann nicht mehr verworfen "
+            f"werden (Freigabe oder laufender Worker).", 409,
+        )
+
+    benutzer_id = getattr(g, "benutzer_id", None)
+    from datetime import datetime, timezone
+    jetzt = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE intake_dokumente "
+            "SET verworfen_grund=?, verworfen_am=?, verworfen_von=? "
+            "WHERE id=?",
+            (grund, jetzt, benutzer_id, intake_id),
+        )
+        _log_korrektur(
+            conn, intake_id, feld="verworfen",
+            wert_alt=status,
+            wert_neu={"grund": grund, "kommentar": kommentar},
+            klasse=dok.get("klasse"),
+            registry_version=dok.get("registry_version"),
+            benutzer_id=benutzer_id,
+        )
+
+    logger.info("Intake %s verworfen: grund=%s benutzer=%s",
+                 intake_id, grund, benutzer_id)
+    return _j({"ok": True, "verworfen": True,
+                "verworfen_grund": grund, "verworfen_am": jetzt})
+
+
+# ─── GET /intake/ereignistypen ────────────────────────────────────────────────
+
+@intake_bp.route("/ereignistypen", methods=["GET"])
+@login_erforderlich
+def hole_ereignistypen():
+    """Liefert die Ereignistypen aus der Positionsmodell-Registry fuer
+    den Freigabe-Dialog. Kein Filter serverseitig -- das Frontend
+    filtert nach richtung='eingehend' als Default.
+
+    Response:
+      { "ereignistypen": [
+          {"typ": "gutachten_eingegangen",
+           "label": "Gutachten eingegangen",
+           "richtung": "eingehend",
+           "default_wirkung": "gefordert"},
+          ...],
+        "wirkungen": ["gefordert", "anerkannt", ...] }
+    """
+    from ..services.positionsmodell_registry import lade_positionsmodell
+    from ..services.ereignis_service import _WIRKUNGEN
+    reg = lade_positionsmodell()
+    liste = [
+        {
+            "typ": typ,
+            "label": spec.get("label") or typ,
+            "richtung": spec["richtung"],
+            "default_wirkung": spec["default_wirkung"],
+        }
+        for typ, spec in sorted(reg.ereignistypen.items())
+    ]
+    return _j({
+        "ereignistypen": liste,
+        "wirkungen": sorted(_WIRKUNGEN),
+    })
 
 
 # ─── PATCH /intake/dokument/<id>/felder ───────────────────────────────────────

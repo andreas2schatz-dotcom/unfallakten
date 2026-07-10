@@ -7,6 +7,8 @@ Deckt Blueprint intake_bp mit:
   - PATCH /intake/dokument/<id>/klasse
   - PATCH /intake/dokument/<id>/felder
   - POST  /intake/dokument/<id>/freigabe
+  - POST  /intake/dokument/<id>/verwerfen (Verwerfen-Workflow, Migration 53)
+  - GET  /intake/ereignistypen (Registry-Katalog fuer Freigabe-Dropdown)
 """
 import importlib
 import json
@@ -482,6 +484,130 @@ class TestFreigabeGutachtenErzeugtEreignis(unittest.TestCase):
                 "SELECT COUNT(*) FROM ereignisse WHERE akte_az='44/22'"
             ).fetchone()[0]
         self.assertEqual(count, 0)
+
+
+class TestVerwerfen(unittest.TestCase):
+    """POST /intake/dokument/<id>/verwerfen (Soft-Delete, Migration 53)."""
+
+    def setUp(self):
+        self.client = _setup(self._testMethodName)
+        self.headers = _auth_header(self.client)
+
+    def test_ohne_grund_400(self):
+        did = _lege_intake_pdf_an("a")
+        r = self.client.post(
+            f"/intake/dokument/{did}/verwerfen",
+            json={}, headers=self.headers,
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_ungueltiger_grund_400(self):
+        did = _lege_intake_pdf_an("a")
+        r = self.client.post(
+            f"/intake/dokument/{did}/verwerfen",
+            json={"grund": "quatsch"}, headers=self.headers,
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_bereits_freigegeben_409(self):
+        did = _lege_intake_pdf_an("a", queue_status="freigegeben")
+        r = self.client.post(
+            f"/intake/dokument/{did}/verwerfen",
+            json={"grund": "spam"}, headers=self.headers,
+        )
+        self.assertEqual(r.status_code, 409)
+
+    def test_soft_delete_setzt_felder_und_status(self):
+        from backend.db.database import get_connection
+        did = _lege_intake_pdf_an("a", queue_status="bereit_zur_review")
+
+        r = self.client.post(
+            f"/intake/dokument/{did}/verwerfen",
+            json={"grund": "duplikat", "kommentar": "kam gestern schon"},
+            headers=self.headers,
+        )
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        data = r.get_json()
+        self.assertTrue(data["verworfen"])
+        self.assertEqual(data["verworfen_grund"], "duplikat")
+
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT queue_status, verworfen_grund, verworfen_am, "
+                "       verworfen_von FROM intake_dokumente WHERE id=?",
+                (did,),
+            ).fetchone()
+            log = conn.execute(
+                "SELECT feld, wert_alt, wert_neu FROM korrektur_log "
+                "WHERE intake_dokument_id=? AND feld='verworfen'",
+                (did,),
+            ).fetchone()
+        # queue_status bleibt unangetastet -- Ausblendung ueber verworfen_am
+        self.assertEqual(row["queue_status"], "bereit_zur_review")
+        self.assertEqual(row["verworfen_grund"], "duplikat")
+        self.assertIsNotNone(row["verworfen_am"])
+        # Kommentar landet im korrektur_log als JSON
+        self.assertIsNotNone(log)
+        self.assertEqual(log["wert_alt"], "bereit_zur_review")
+        payload = json.loads(log["wert_neu"])
+        self.assertEqual(payload["grund"], "duplikat")
+        self.assertEqual(payload["kommentar"], "kam gestern schon")
+
+    def test_verworfene_verschwinden_aus_queue(self):
+        did_a = _lege_intake_pdf_an("a", queue_status="bereit_zur_review")
+        _lege_intake_pdf_an("b", queue_status="bereit_zur_review")
+
+        r = self.client.post(
+            f"/intake/dokument/{did_a}/verwerfen",
+            json={"grund": "spam"}, headers=self.headers,
+        )
+        self.assertEqual(r.status_code, 200)
+
+        r = self.client.get("/intake/queue", headers=self.headers)
+        ids = [e["id"] for e in r.get_json()["eintraege"]]
+        self.assertNotIn(did_a, ids)
+        self.assertEqual(len(ids), 1)
+
+
+class TestEreignistypen(unittest.TestCase):
+    """GET /intake/ereignistypen -- Registry-Katalog fuer Freigabe-Dropdown."""
+
+    def setUp(self):
+        self.client = _setup(self._testMethodName)
+        self.headers = _auth_header(self.client)
+
+    def test_ohne_token_401(self):
+        r = self.client.get("/intake/ereignistypen")
+        self.assertEqual(r.status_code, 401)
+
+    def test_liefert_alle_typen_und_wirkungen(self):
+        r = self.client.get("/intake/ereignistypen", headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        data = r.get_json()
+        typen = data["ereignistypen"]
+        self.assertGreaterEqual(len(typen), 5)
+        # Struktur je Eintrag
+        eintrag = typen[0]
+        for feld in ("typ", "label", "richtung", "default_wirkung"):
+            self.assertIn(feld, eintrag)
+        # Kern-Eintraege vorhanden
+        typ_namen = {t["typ"] for t in typen}
+        for pflicht in ("gutachten_eingegangen", "abrechnung_eingegangen",
+                         "rechnung_eingegangen", "pruefbericht_eingegangen",
+                         "vollmacht_eingegangen"):
+            self.assertIn(pflicht, typ_namen)
+        # Wirkungen aus _WIRKUNGEN
+        wirkungen = set(data["wirkungen"])
+        self.assertIn("gefordert", wirkungen)
+        self.assertIn("anerkannt", wirkungen)
+        self.assertIn("beleg", wirkungen)
+
+    def test_eingehende_typen_haben_richtung_eingehend(self):
+        r = self.client.get("/intake/ereignistypen", headers=self.headers)
+        typen = r.get_json()["ereignistypen"]
+        eingehend = [t for t in typen if t["richtung"] == "eingehend"]
+        # Registry hat 5 eingehende Typen
+        self.assertEqual(len(eingehend), 5)
 
 
 if __name__ == "__main__":

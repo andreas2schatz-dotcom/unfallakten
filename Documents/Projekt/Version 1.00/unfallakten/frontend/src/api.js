@@ -1064,6 +1064,10 @@ export const apiIntake = {
   reparse:    (id)           => request(`/intake/dokument/${id}/reparse`, {
     method: 'POST',
   }),
+  verwerfen:  (id, payload)  => request(`/intake/dokument/${id}/verwerfen`, {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
+  ereignistypen: ()          => request('/intake/ereignistypen'),
 };
 
 // ─────────────────────────────────────────────────────────────
