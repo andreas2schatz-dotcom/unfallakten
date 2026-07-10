@@ -49,6 +49,15 @@
 
 ## 🔄 In Arbeit
 
+### 🎯 NÄCHSTE SESSION: Text-Pfad für Intake-Pipeline (Ursache 1)
+**Fertig geplant, Umsetzung ausstehend (Branch `intake-stufe1`).**
+- **Spec:** `docs/superpowers/specs/2026-07-10-text-pfad-intake-design.md` (freigegeben)
+- **Plan:** `docs/superpowers/plans/2026-07-10-text-pfad-intake.md` (6 TDD-Tasks) ← hiermit starten
+- **Ausführung:** subagent-driven-development (empfohlen) oder executing-plans.
+- **Problem:** Reine E-Mail-Texte (`payload_typ='text'`) scheitern in der Pipeline an „Arbeitskopie fehlt" (nur PDFs werden verarbeitet) → 52 `pipeline_fehler`. E-Mail-Text (mit Absender/AZ) geht dadurch verloren.
+- **Lösung:** Text-Zweig in `verarbeite_dokument` (Body direkt klassifizieren, ab `text_gesamt` läuft alles schon PDF-frei), verschachtelte Queue (E-Mail-Kopf + eingerückte Anhänge, Variante A), voller E-Mail-Kontext am Anhang (`eltern_email` via `zustellung.parent_id`), Backfill der 52. Kein Spam-Filter (manuelles Verwerfen), keine Migration.
+- **Kontext dieser Session (2026-07-10):** Ursache 2 (Bilder scheiterten, weil PyMuPDF im Docker-Image fehlte) bereits gefixt (`d8b450ec`), 25 Bilder repariert. Verwerfen-Workflow + Ereignistyp-Dropdown committet (`c55b7c9c`). Live-DB Schema 53. DB-Backups im `dev-data`-Volume.
+
 ### ⭐ Intake-Refactoring (Pipeline v7 + Positionsmodell) — GROSSPROJEKT
 **Maßgebliche Dokumente (immer zuerst lesen):** `freigabe.md` (verbindlich, übersteuert die Pläne) + `PIPELINE-REFACTORING-PLAN.md` + `POSITIONSMODELL-PLAN.md` (alle im Projekt-Root).
 **Arbeitsbranch:** `intake-stufe1` — alle Implementierungs-Sessions arbeiten auf diesem Branch, nicht auf main.
