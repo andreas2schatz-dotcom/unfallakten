@@ -134,6 +134,37 @@ def hole_queue():
 
 # ─── GET /intake/dokument/<id> ────────────────────────────────────────────────
 
+def _lade_eltern_email(conn, intake_id: int) -> Optional[Dict[str, Any]]:
+    """Voller E-Mail-Kontext eines Anhangs: ueber zustellung.parent_id die
+    Body-Zustellung finden und aus deren intake_dokument Text + AZ ziehen."""
+    kind = conn.execute(
+        "SELECT parent_id FROM zustellungen "
+        "WHERE intake_dokument_id=? AND parent_id IS NOT NULL "
+        "ORDER BY id ASC LIMIT 1", (intake_id,)
+    ).fetchone()
+    if not kind:
+        return None
+    parent = conn.execute(
+        "SELECT z.intake_dokument_id AS iid, z.absender, z.betreff, "
+        "       z.empfangen_am, i.parse_json "
+        "FROM zustellungen z JOIN intake_dokumente i "
+        "  ON i.id = z.intake_dokument_id "
+        "WHERE z.id=?", (kind["parent_id"],)
+    ).fetchone()
+    if not parent:
+        return None
+    parse = _parse(parent["parse_json"])
+    kand = parse.get("akten_kandidaten") or []
+    return {
+        "intake_id": parent["iid"],
+        "absender": parent["absender"],
+        "betreff": parent["betreff"],
+        "empfangen_am": parent["empfangen_am"],
+        "text": parse.get("text_gesamt", ""),
+        "akte_az": kand[0]["akte_az"] if kand else None,
+    }
+
+
 @intake_bp.route("/dokument/<int:intake_id>", methods=["GET"])
 @login_erforderlich
 def hole_detail(intake_id: int):
@@ -157,12 +188,15 @@ def hole_detail(intake_id: int):
             "ORDER BY id ASC",
             (intake_id,),
         ).fetchall()
+        eltern_email = _lade_eltern_email(conn, intake_id)
 
     return _j({
         "id": dok["id"],
         "sha256": dok["sha256"],
+        "payload_typ": dok.get("payload_typ"),
         "original_pfad": dok.get("original_pfad"),
         "arbeitskopie_pfad": dok.get("arbeitskopie_pfad"),
+        "eltern_email": eltern_email,
         "klasse": dok.get("klasse"),
         "klasse_quelle": dok.get("klasse_quelle"),
         "konfidenz": dok.get("konfidenz"),
