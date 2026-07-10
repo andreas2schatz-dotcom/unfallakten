@@ -305,6 +305,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     51: "-- migration_51_ereignisse",  # Handled by _run_migration_51 (P1.2)
     52: "-- migration_52_todos_fristablauf",  # Handled by _run_migration_52 (P1.6)
     53: "-- migration_53_intake_verworfen",  # Handled by _run_migration_53 (Verwerfen-Workflow)
+    54: "-- migration_54_textquelle_email_text",  # Handled by _run_migration_54 (Text-Pfad Intake)
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -428,7 +429,7 @@ def _run_migration_46(conn: sqlite3.Connection) -> None:
             klasse_quelle       TEXT CHECK (klasse_quelle IN ('auto','manuell')),
             konfidenz           REAL,
             parse_json          TEXT,
-            textquelle          TEXT CHECK (textquelle IN ('textebene','ocr','gemischt')),
+            textquelle          TEXT CHECK (textquelle IN ('textebene','ocr','gemischt','email_text')),
             registry_version    TEXT,
             llm_stack           TEXT,
             queue_status        TEXT NOT NULL DEFAULT 'neu'
@@ -811,6 +812,69 @@ def _run_migration_53(conn: sqlite3.Connection) -> None:
     )
 
 
+def _run_migration_54(conn: sqlite3.Connection) -> None:
+    """
+    Migration 54 - intake_dokumente.textquelle erlaubt 'email_text'.
+
+    Der Text-Zweig der Pipeline (payload_typ='text') stempelt textquelle=
+    'email_text' -- ein E-Mail-Body ist weder PDF-Textebene noch OCR. Der
+    bestehende CHECK-Constraint IN ('textebene','ocr','gemischt') verbietet
+    diesen Wert.
+
+    SQLite kann einen CHECK-Constraint nicht per ALTER TABLE aendern. Ein
+    Tabellen-Rebuild waere teuer und riskant (intake_dokumente traegt viele
+    ueber Migrationen gewachsene Spalten und wird von zustellungen/freigaben
+    referenziert). Daher wird der in sqlite_master gespeicherte DDL-Text
+    gezielt umgeschrieben (writable_schema) -- KEINE Datenbewegung, es waechst
+    ausschliesslich die erlaubte Werteliste des textquelle-CHECK.
+
+    Idempotent: kein Umschreiben, wenn 'email_text' bereits im DDL steht.
+    Fail-Loud: fehlt der erwartete CHECK-Ausdruck, Abbruch statt stiller No-Op.
+    """
+    row = conn.execute(
+        "SELECT sql FROM sqlite_master "
+        "WHERE type='table' AND name='intake_dokumente'"
+    ).fetchone()
+    ddl = row[0] if row else ""
+    if not ddl:
+        raise RuntimeError(
+            "Migration 54: intake_dokumente-DDL nicht in sqlite_master gefunden"
+        )
+
+    if "email_text" not in ddl:
+        alt = "textquelle IN ('textebene','ocr','gemischt')"
+        neu = "textquelle IN ('textebene','ocr','gemischt','email_text')"
+        if alt not in ddl:
+            raise RuntimeError(
+                "Migration 54: erwarteter textquelle-CHECK nicht im DDL "
+                "gefunden -- Abbruch statt stiller No-Op"
+            )
+        neuer_ddl = ddl.replace(alt, neu)
+
+        conn.commit()
+        schema_ver = conn.execute("PRAGMA schema_version").fetchone()[0]
+        conn.execute("PRAGMA writable_schema=ON")
+        conn.execute(
+            "UPDATE sqlite_master SET sql=? "
+            "WHERE type='table' AND name='intake_dokumente'",
+            (neuer_ddl,),
+        )
+        conn.execute(f"PRAGMA schema_version={schema_ver + 1}")
+        conn.execute("PRAGMA writable_schema=OFF")
+        conn.commit()
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (?, ?)",
+        (54,
+         "Migration 54 - intake_dokumente.textquelle erlaubt 'email_text' "
+         "(Text-Pfad Intake-Pipeline)"),
+    )
+    logger.info(
+        "Migration 54 abgeschlossen (textquelle erlaubt email_text)."
+    )
+
+
 def _run_migration_49(conn: sqlite3.Connection) -> None:
     """
     Migration 49 (S1.9a) - email_import_log.ausgeblendet Flag.
@@ -1147,6 +1211,8 @@ def run_migrations() -> None:
                 _run_migration_52(conn)
             elif version == 53:
                 _run_migration_53(conn)
+            elif version == 54:
+                _run_migration_54(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(

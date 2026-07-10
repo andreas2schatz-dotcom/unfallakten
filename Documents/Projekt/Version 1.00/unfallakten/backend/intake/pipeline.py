@@ -69,6 +69,7 @@ def _lade_dokument(intake_id: int) -> Dict[str, Any]:
     with get_connection() as conn:
         row = conn.execute(
             "SELECT id, sha256, arbeitskopie_pfad, original_pfad, "
+            "       payload_typ, structured_payload, "
             "       klasse, klasse_quelle, konfidenz "
             "FROM intake_dokumente WHERE id=?", (intake_id,)
         ).fetchone()
@@ -127,6 +128,12 @@ def _ocr_seite(pdf_bytes: bytes, seite_nr: int, sha256: str) -> str:
     return ocr_service.ocr_seite_mit_tsv(bild, tsv_pfad, lang="deu")
 
 
+def _synth_seite(text: str) -> SeitenText:
+    """E-Mail-Text als synthetische Ein-Seiten-Struktur (kein PDF/OCR)."""
+    return SeitenText(nr=1, text=text, braucht_ocr=False,
+                      ratio_salat=0.0, textquelle="email_text")
+
+
 def verarbeite_dokument(intake_id: int) -> bool:
     """Fuehrt den Textgewinnungs-Schritt aus. Liefert True bei Erfolg.
 
@@ -134,27 +141,37 @@ def verarbeite_dokument(intake_id: int) -> bool:
     """
     try:
         dok = _lade_dokument(intake_id)
-        arbeit = dok.get("arbeitskopie_pfad")
-        if not arbeit or not os.path.isfile(arbeit):
-            raise RuntimeError(
-                f"Arbeitskopie fehlt: {arbeit}"
-            )
-        with open(arbeit, "rb") as f:
-            pdf_bytes = f.read()
 
-        seiten = extrahiere_seiten(pdf_bytes)
-        if not seiten:
-            raise RuntimeError("Keine Seiten extrahierbar")
+        if dok.get("payload_typ") == "text":
+            text_roh = (dok.get("structured_payload") or "")
+            if not text_roh.strip():
+                raise RuntimeError("Text-Payload ohne Inhalt")
+            seiten = [_synth_seite(text_roh)]
+            text_gesamt = text_roh
+            textquelle = "email_text"
+        else:
+            arbeit = dok.get("arbeitskopie_pfad")
+            if not arbeit or not os.path.isfile(arbeit):
+                raise RuntimeError(
+                    f"Arbeitskopie fehlt: {arbeit}"
+                )
+            with open(arbeit, "rb") as f:
+                pdf_bytes = f.read()
 
-        for s in seiten:
-            if s.braucht_ocr:
-                s.text = _ocr_seite(pdf_bytes, s.nr, dok["sha256"])
-                s.textquelle = "ocr"
-            # sonst: s.textquelle wurde bereits von extrahiere_seiten auf
-            # 'textebene' gesetzt.
+            seiten = extrahiere_seiten(pdf_bytes)
+            if not seiten:
+                raise RuntimeError("Keine Seiten extrahierbar")
 
-        text_gesamt = "\n\n".join(s.text for s in seiten if s.text)
-        textquelle = aggregierte_textquelle(seiten)
+            for s in seiten:
+                if s.braucht_ocr:
+                    s.text = _ocr_seite(pdf_bytes, s.nr, dok["sha256"])
+                    s.textquelle = "ocr"
+                # sonst: s.textquelle wurde bereits von extrahiere_seiten auf
+                # 'textebene' gesetzt.
+
+            text_gesamt = "\n\n".join(s.text for s in seiten if s.text)
+            textquelle = aggregierte_textquelle(seiten)
+
         registry = lade_registry(standard_pfad())
 
         # ── Klassifikation (S1.6b Stufe 1 + Stufe 2) ─────────────────────
