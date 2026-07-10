@@ -27,6 +27,39 @@ const KLASSEN = [
   "sonstiges",
 ];
 
+export function TextVorschau({ text }) {
+  return (
+    <pre style={{
+      whiteSpace: "pre-wrap", wordBreak: "break-word",
+      fontFamily: T.fontBody, fontSize: T.textSm, color: T.text,
+      background: T.offWhite, border: `1px solid ${T.border}`,
+      borderRadius: 6, padding: 12, maxHeight: "60vh", overflow: "auto",
+    }}>{text || "(kein Text)"}</pre>
+  );
+}
+
+export function EmailKontextBox({ eltern }) {
+  if (!eltern) return null;
+  return (
+    <div style={{
+      border: `1px solid ${T.accent}`, background: T.accentPale,
+      borderRadius: 8, padding: 12, marginBottom: 12, fontSize: T.textSm,
+    }}>
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>📧 Kam mit E-Mail</div>
+      <div><strong>Absender:</strong> {eltern.absender || "—"}</div>
+      <div><strong>Betreff:</strong> {eltern.betreff || "—"}</div>
+      <div><strong>Datum:</strong> {eltern.empfangen_am || "—"}</div>
+      {eltern.akte_az && (
+        <div><strong>Aktenzeichen:</strong> {eltern.akte_az}</div>
+      )}
+      <details style={{ marginTop: 6 }}>
+        <summary style={{ cursor: "pointer" }}>E-Mail-Text anzeigen</summary>
+        <TextVorschau text={eltern.text} />
+      </details>
+    </div>
+  );
+}
+
 function StatusBadge({ status, fristPrio }) {
   const stil = status === "pipeline_fehler"
     ? { background: T.redBg, color: T.redText, border: `1px solid ${T.redLight}` }
@@ -516,10 +549,22 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
 
   return (
     <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-      {/* PDF-Vorschau */}
-      <div style={{ flex: 1, background: T.offWhite, borderRight: `1px solid ${T.border}` }}>
-        <iframe title={`intake-${id}`} src={pdfSrc}
-          style={{ width: "100%", height: "100%", border: "none" }} />
+      {/* Vorschau: E-Mail-Text oder PDF-iframe */}
+      <div style={{ flex: 1, background: T.offWhite, borderRight: `1px solid ${T.border}`,
+        overflow: "auto" }}>
+        {detail.eltern_email && (
+          <div style={{ padding: 12 }}>
+            <EmailKontextBox eltern={detail.eltern_email} />
+          </div>
+        )}
+        {detail.payload_typ === "text" ? (
+          <div style={{ padding: 12 }}>
+            <TextVorschau text={detail.parse?.text_gesamt} />
+          </div>
+        ) : (
+          <iframe title={`intake-${id}`} src={pdfSrc}
+            style={{ width: "100%", height: "100%", border: "none" }} />
+        )}
       </div>
 
       {/* Formular-Panel */}
