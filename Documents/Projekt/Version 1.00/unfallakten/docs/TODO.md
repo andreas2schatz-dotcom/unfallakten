@@ -49,14 +49,16 @@
 
 ## 🔄 In Arbeit
 
-### 🎯 NÄCHSTE SESSION: Text-Pfad für Intake-Pipeline (Ursache 1)
-**Fertig geplant, Umsetzung ausstehend (Branch `intake-stufe1`).**
-- **Spec:** `docs/superpowers/specs/2026-07-10-text-pfad-intake-design.md` (freigegeben)
-- **Plan:** `docs/superpowers/plans/2026-07-10-text-pfad-intake.md` (6 TDD-Tasks) ← hiermit starten
-- **Ausführung:** subagent-driven-development (empfohlen) oder executing-plans.
-- **Problem:** Reine E-Mail-Texte (`payload_typ='text'`) scheitern in der Pipeline an „Arbeitskopie fehlt" (nur PDFs werden verarbeitet) → 52 `pipeline_fehler`. E-Mail-Text (mit Absender/AZ) geht dadurch verloren.
-- **Lösung:** Text-Zweig in `verarbeite_dokument` (Body direkt klassifizieren, ab `text_gesamt` läuft alles schon PDF-frei), verschachtelte Queue (E-Mail-Kopf + eingerückte Anhänge, Variante A), voller E-Mail-Kontext am Anhang (`eltern_email` via `zustellung.parent_id`), Backfill der 52. Kein Spam-Filter (manuelles Verwerfen), keine Migration.
-- **Kontext dieser Session (2026-07-10):** Ursache 2 (Bilder scheiterten, weil PyMuPDF im Docker-Image fehlte) bereits gefixt (`d8b450ec`), 25 Bilder repariert. Verwerfen-Workflow + Ereignistyp-Dropdown committet (`c55b7c9c`). Live-DB Schema 53. DB-Backups im `dev-data`-Volume.
+### ✅ ERLEDIGT (2026-07-10): Text-Pfad für Intake-Pipeline (Ursache 1)
+**Vollständig umgesetzt (Branch `intake-stufe1`, 6 Commits `e73ab003`…`e2b5815a`).**
+- **Spec:** `docs/superpowers/specs/2026-07-10-text-pfad-intake-design.md` · **Plan:** `docs/superpowers/plans/2026-07-10-text-pfad-intake.md` (6 TDD-Tasks, alle grün).
+- **Umgesetzt:** Text-Zweig in `verarbeite_dokument` (`_synth_seite`, `payload_typ='text'` ohne Arbeitskopie, `textquelle='email_text'`); `hole_detail` liefert `payload_typ`+`eltern_email` (via `zustellung.parent_id`); `hole_queue` liefert Gruppierungs-Bezüge; Frontend `TextVorschau`+`EmailKontextBox`+`gruppiereQueue` (verschachtelte Queue, Variante A). 34 Backend- + 37 Frontend-Tests grün.
+- **Migration 54** (Plan-Abweichung, vom User freigegeben): `intake_dokumente.textquelle`-CHECK erlaubt zusätzlich `email_text` (writable_schema-DDL-Edit, keine Datenbewegung). Achtung Dev-Falle: Auto-Reload mitten im inkrementellen Edit hatte v54 über den Kommentar-Fallback falsch gestempelt → auf Dev-DB manuell nachgezogen. Prod (Deploy-all-at-once) nicht betroffen.
+- **Backfill (Live-Lauf):** 51 aufgelaufene Text-Dokumente reprocesst → `bereit_zur_review` (2 verbleibende `pipeline_fehler` sind verworfen). Skript: `scripts/backfill_textpfad.py`. Backup: `unfallakten.db.bak_pre_textbackfill_20260710_204323`.
+- **Kontext:** Ursache 2 (PyMuPDF im Docker-Image gefixt, `d8b450ec`, 25 Bilder repariert), Verwerfen-Workflow + Ereignistyp-Dropdown (`c55b7c9c`) waren bereits davor erledigt.
+
+### 🎯 NÄCHSTE SESSION: P1.5e (Review-Freigabe schreibt Ereignisse für alle Klassen)
+Siehe Detailbeschreibung im Abschnitt „Intake-Refactoring" unten (P1.5e). Heute persistiert nur die Gutachten-Freigabe ein echtes Ereignis; alle anderen Klassen landen nur im `korrektur_log`. P1.5e verdrahtet den Freigabe-Dialog mit `ereignis_service.schreibe_ereignis()`. Baseline: 212f/677p Backend + 37 Frontend-Tests. Danach P1.8 (Backfill synthetischer Ereignisse + K-M3).
 
 ### ⭐ Intake-Refactoring (Pipeline v7 + Positionsmodell) — GROSSPROJEKT
 **Maßgebliche Dokumente (immer zuerst lesen):** `freigabe.md` (verbindlich, übersteuert die Pläne) + `PIPELINE-REFACTORING-PLAN.md` + `POSITIONSMODELL-PLAN.md` (alle im Projekt-Root).
