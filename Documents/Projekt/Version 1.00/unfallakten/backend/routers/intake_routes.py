@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime
 from typing import Any, Dict, Optional
 
 from flask import Blueprint, g, jsonify, request, send_file
@@ -68,6 +69,22 @@ def _lade_intake(intake_id: int) -> Optional[Dict[str, Any]]:
             "SELECT * FROM intake_dokumente WHERE id=?", (intake_id,)
         ).fetchone()
     return dict(row) if row else None
+
+
+def _sekunden_seit(iso_ts: Optional[str]) -> Optional[int]:
+    """Sekunden zwischen ``iso_ts`` (Format 'YYYY-MM-DD HH:MM:SS') und jetzt.
+
+    N-08: Bearbeitungsdauer Queue-Oeffnung -> Freigabe. None bei fehlendem
+    oder unparsbarem Zeitstempel; negative Differenzen (Uhr-Drift) -> 0.
+    """
+    if not iso_ts:
+        return None
+    try:
+        start = datetime.fromisoformat(str(iso_ts)[:19])
+    except (TypeError, ValueError):
+        return None
+    delta = (datetime.now() - start).total_seconds()
+    return int(delta) if delta >= 0 else 0
 
 
 def _log_korrektur(conn, intake_id: int, feld: str,
@@ -188,6 +205,16 @@ def hole_detail(intake_id: int):
     parse = _parse(dok.get("parse_json"))
 
     with get_connection() as conn:
+        # N-08: erstes Oeffnen in der Queue als Baseline-Start festhalten.
+        # Nur setzen, wenn noch NULL und das Dokument in der Queue steht --
+        # erneutes Anschauen aendert den Zeitstempel nicht (erstes gewinnt).
+        conn.execute(
+            "UPDATE intake_dokumente "
+            "SET review_geoeffnet_am=datetime('now','localtime') "
+            "WHERE id=? AND review_geoeffnet_am IS NULL "
+            "  AND queue_status IN ('bereit_zur_review','pipeline_fehler')",
+            (intake_id,),
+        )
         zust = conn.execute(
             "SELECT id, quelle, absender, auth_status, betreff, "
             "       empfangen_am, konto, roh_referenz, erstellt_am "
@@ -552,6 +579,17 @@ def post_freigabe(intake_id: int):
             _log_korrektur(
                 conn, intake_id, feld="ersetzt_ids",
                 wert_alt=None, wert_neu=ersetzt_ids,
+                klasse=dok.get("klasse"),
+                registry_version=dok.get("registry_version"),
+                benutzer_id=benutzer_id,
+            )
+        # N-08: Bearbeitungsdauer Queue-Oeffnung -> Freigabe als Baseline.
+        # Best-Effort: nur wenn ein Oeffnungs-Zeitstempel vorliegt.
+        sekunden = _sekunden_seit(dok.get("review_geoeffnet_am"))
+        if sekunden is not None:
+            _log_korrektur(
+                conn, intake_id, feld="sekunden_bis_freigabe",
+                wert_alt=dok.get("review_geoeffnet_am"), wert_neu=sekunden,
                 klasse=dok.get("klasse"),
                 registry_version=dok.get("registry_version"),
                 benutzer_id=benutzer_id,

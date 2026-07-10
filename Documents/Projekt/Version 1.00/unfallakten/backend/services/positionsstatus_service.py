@@ -30,6 +30,7 @@ sind bereits durch ``ereignis_service`` in ``status='ersetzt'`` gehoben.
 from __future__ import annotations
 
 import logging
+import os
 from datetime import date, datetime
 from typing import Any, Dict, Optional
 
@@ -39,6 +40,17 @@ from .positionsmodell_registry import lade_positionsmodell
 logger = logging.getLogger(__name__)
 
 DEFAULT_QUOTE = 1.0  # PF-03: Standard-Haftungsquote 100%
+
+# N-07 (FREIGABE-NACHTRAG-1): Einfuehrungsdatum des Ereignismodells (ISO
+# 'YYYY-MM-DD'). Akten, die davor angelegt wurden, tragen Vor-Vorgaenge, die
+# das Ereignismodell (noch) nicht abbildet -> Bestandsakten-Hinweis im
+# Dashboard. Ueberschreibbar per Env-Var; beim Prod-Cutover auf den echten
+# Einfuehrungstag setzen. Default = Tag, an dem P1.2/P1.4 die ersten
+# Ereignisse schrieben. Sobald P1.8 rueckwirkende Backfill-Ereignisse mit
+# alten Daten einspielt, verschwindet der Hinweis fuer die betroffene Akte.
+EREIGNISMODELL_EINGEFUEHRT_AM = os.environ.get(
+    "EREIGNISMODELL_EINGEFUEHRT_AM", "2026-07-09"
+)
 
 
 def _empfohlene_stufe(tage: int, sta_anzahl: int) -> int:
@@ -192,3 +204,36 @@ def leite_positionsstatus_ab(
         ergebnis["_registry_version"] = reg.version
 
     return ergebnis
+
+
+def berechne_historie_hinweis(
+    akte_az: str,
+    *,
+    eingefuehrt_am: str = EREIGNISMODELL_EINGEFUEHRT_AM,
+) -> Dict[str, Any]:
+    """Bestandsakten-Hinweis fuer das Positions-Dashboard (N-07).
+
+    Zeigt True, wenn die Akte vor Einfuehrung des Ereignismodells angelegt
+    wurde (``unfallakte.erstellt_am`` < ``eingefuehrt_am``) UND bereits
+    Ereignisse hat -- dann ist die Ereignishistorie unvollstaendig und der
+    Nutzer wird auf die Regulierung fuer aeltere Vorgaenge verwiesen.
+
+    ``beginnt_am`` = fruehestes Ereignis-Datum der Akte (dient dem
+    AbleitungBadge als ``stand``). Neue Akten (Anlage >= Einfuehrung) und
+    Akten ohne Ereignisse liefern ``zeige=False``.
+    """
+    with get_connection() as conn:
+        akte = conn.execute(
+            "SELECT erstellt_am FROM unfallakte WHERE az=?", (akte_az,)
+        ).fetchone()
+        erstes = conn.execute(
+            "SELECT MIN(datum) AS d FROM ereignisse WHERE akte_az=?", (akte_az,)
+        ).fetchone()
+
+    beginnt_am = erstes["d"] if erstes else None
+    if not akte:
+        return {"zeige": False, "beginnt_am": None}
+
+    erstellt = (akte["erstellt_am"] or "")[:10]
+    zeige = bool(erstellt and erstellt < eingefuehrt_am and beginnt_am)
+    return {"zeige": zeige, "beginnt_am": beginnt_am}

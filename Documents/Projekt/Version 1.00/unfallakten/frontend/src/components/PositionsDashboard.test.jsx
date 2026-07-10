@@ -118,4 +118,37 @@ describe('PositionsDashboard', () => {
     render(<PositionsDashboard az="285/26" />);
     expect(screen.getByText(/wird geladen|lädt|lade/i)).toBeInTheDocument();
   });
+
+  it('zeigt Bestandsakten-Hinweis (N-07) bei historie_hinweis.zeige', async () => {
+    globalThis.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          ...antwort,
+          historie_hinweis: { zeige: true, beginnt_am: '2026-07-09' },
+        }),
+      })
+    );
+    const { container } = render(<PositionsDashboard az="285/26" />);
+    await screen.findByTestId('positionszeile-reparaturkosten');
+    expect(container.textContent).toMatch(/Ereignishistorie beginnt am\s*09\.07\.2026/);
+    expect(container.textContent).toMatch(/ältere Vorgänge siehe Regulierung/);
+  });
+
+  it('unterdrückt Bestandsakten-Hinweis bei zeige=false', async () => {
+    globalThis.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          ...antwort,
+          historie_hinweis: { zeige: false, beginnt_am: null },
+        }),
+      })
+    );
+    const { container } = render(<PositionsDashboard az="285/26" />);
+    await screen.findByTestId('positionszeile-reparaturkosten');
+    expect(container.textContent).not.toMatch(/Ereignishistorie beginnt am/);
+  });
 });

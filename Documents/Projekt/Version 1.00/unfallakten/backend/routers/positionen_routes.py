@@ -26,7 +26,10 @@ from flask import Blueprint, jsonify, request
 from ..auth.middleware import login_erforderlich
 from ..db.database import get_connection
 from ..services.positionsmodell_registry import lade_positionsmodell
-from ..services.positionsstatus_service import leite_positionsstatus_ab
+from ..services.positionsstatus_service import (
+    berechne_historie_hinweis,
+    leite_positionsstatus_ab,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +62,7 @@ def positionen_status(akte_az: str):
         "akte_az": akte_az,
         "positionen": ergebnis,
         "registry_version": registry_version,
+        "historie_hinweis": berechne_historie_hinweis(akte_az),
     })
 
 

@@ -24,6 +24,11 @@ function fmtEuro(v) {
   return n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 }
 
+function fmtDatum(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : null;
+}
+
 function eskalationLabel(stufe) {
   if (stufe >= 3) return 'STA Stufe 3';
   if (stufe === 2) return 'STA Stufe 2';
@@ -297,6 +302,28 @@ export default function PositionsDashboard({ az, onOeffneEreignisse = () => {} }
       </div>
 
       <div style={{ padding: 14 }}>
+        {daten.historie_hinweis?.zeige && fmtDatum(daten.historie_hinweis.beginnt_am) && (
+          <div
+            data-testid="historie-hinweis"
+            style={{
+              display: 'flex', alignItems: 'flex-start', gap: 8,
+              padding: '10px 12px', marginBottom: 12,
+              background: T.surface,
+              borderLeft: `3px solid ${T.accent}`,
+              borderRadius: 6,
+              fontSize: '0.78rem', color: T.textMid, lineHeight: 1.4,
+            }}
+          >
+            <span aria-hidden="true" style={{ fontSize: '1rem', lineHeight: 1 }}>🕓</span>
+            <span>
+              <b style={{ color: T.text }}>Bestandsakte:</b>{' '}
+              Ereignishistorie beginnt am{' '}
+              <b>{fmtDatum(daten.historie_hinweis.beginnt_am)}</b>
+              {' — ältere Vorgänge siehe Regulierung.'}
+            </span>
+          </div>
+        )}
+
         {eintraege.length === 0 && (
           <div style={{ padding: 20, textAlign: 'center', color: T.textMuted, fontSize: '0.85rem' }}>
             Noch keine Positionen mit Ereignissen erfasst.

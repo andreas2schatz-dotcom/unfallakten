@@ -306,6 +306,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     52: "-- migration_52_todos_fristablauf",  # Handled by _run_migration_52 (P1.6)
     53: "-- migration_53_intake_verworfen",  # Handled by _run_migration_53 (Verwerfen-Workflow)
     54: "-- migration_54_textquelle_email_text",  # Handled by _run_migration_54 (Text-Pfad Intake)
+    55: "-- migration_55_intake_review_geoeffnet",  # Handled by _run_migration_55 (N-08 Baseline Sekunden pro Freigabe)
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -812,6 +813,44 @@ def _run_migration_53(conn: sqlite3.Connection) -> None:
     )
 
 
+def _run_migration_55(conn: sqlite3.Connection) -> None:
+    """
+    Migration 55 (N-08) - intake_dokumente.review_geoeffnet_am.
+
+    Baseline "Sekunden pro Freigabe": haelt fest, wann ein Bearbeiter das
+    Dokument in der Review-Queue zum ersten Mal geoeffnet hat. Bei der
+    Freigabe wird daraus die Bearbeitungsdauer (Queue-Oeffnung -> Freigabe)
+    als korrektur_log-Zeile berechnet -- Vorher-Baseline fuer die
+    Stufe-2-Entscheidung (Bounding-Boxes/PDF.js, FREIGABE-NACHTRAG-1 N-08).
+
+    Ein additiver ALTER TABLE, nullable, kein Datenverlust. Idempotent per
+    PRAGMA table_info. Explizites conn.commit() umgibt das ALTER
+    (feedback_migration_executescript).
+    """
+    vorhandene_spalten = {
+        r[1] for r in conn.execute(
+            "PRAGMA table_info(intake_dokumente)"
+        ).fetchall()
+    }
+    if "review_geoeffnet_am" not in vorhandene_spalten:
+        conn.commit()
+        conn.execute(
+            "ALTER TABLE intake_dokumente ADD COLUMN review_geoeffnet_am TEXT"
+        )
+        conn.commit()
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (?, ?)",
+        (55,
+         "Migration 55 - intake_dokumente.review_geoeffnet_am "
+         "(N-08 Baseline Sekunden pro Freigabe)"),
+    )
+    logger.info(
+        "Migration 55 abgeschlossen (intake_dokumente.review_geoeffnet_am)."
+    )
+
+
 def _run_migration_54(conn: sqlite3.Connection) -> None:
     """
     Migration 54 - intake_dokumente.textquelle erlaubt 'email_text'.
@@ -1213,6 +1252,8 @@ def run_migrations() -> None:
                 _run_migration_53(conn)
             elif version == 54:
                 _run_migration_54(conn)
+            elif version == 55:
+                _run_migration_55(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
