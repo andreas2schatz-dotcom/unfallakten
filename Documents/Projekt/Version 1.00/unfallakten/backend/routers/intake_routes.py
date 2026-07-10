@@ -102,14 +102,22 @@ def hole_queue():
     """
     with get_connection() as conn:
         rows = conn.execute(
-            "SELECT id, sha256, klasse, klasse_quelle, konfidenz, "
-            "       queue_status, prioritaet_frist, erstellt_am, "
-            "       fehler_detail, parse_json "
-            "FROM intake_dokumente "
-            "WHERE queue_status IN ('bereit_zur_review','pipeline_fehler') "
-            "  AND verworfen_am IS NULL "
-            "ORDER BY erstellt_am ASC, id ASC, "
-            "         COALESCE(konfidenz, 0) DESC"
+            "SELECT i.id, i.sha256, i.klasse, i.klasse_quelle, i.konfidenz, "
+            "       i.queue_status, i.prioritaet_frist, i.erstellt_am, "
+            "       i.fehler_detail, i.parse_json, i.payload_typ, "
+            "  (SELECT z.id FROM zustellungen z WHERE z.intake_dokument_id=i.id "
+            "     ORDER BY z.id ASC LIMIT 1) AS zustellung_id, "
+            "  (SELECT z.parent_id FROM zustellungen z WHERE z.intake_dokument_id=i.id "
+            "     ORDER BY z.id ASC LIMIT 1) AS parent_zustellung_id, "
+            "  (SELECT z.absender FROM zustellungen z WHERE z.intake_dokument_id=i.id "
+            "     ORDER BY z.id ASC LIMIT 1) AS absender, "
+            "  (SELECT z.betreff FROM zustellungen z WHERE z.intake_dokument_id=i.id "
+            "     ORDER BY z.id ASC LIMIT 1) AS betreff "
+            "FROM intake_dokumente i "
+            "WHERE i.queue_status IN ('bereit_zur_review','pipeline_fehler') "
+            "  AND i.verworfen_am IS NULL "
+            "ORDER BY i.erstellt_am ASC, i.id ASC, "
+            "         COALESCE(i.konfidenz, 0) DESC"
         ).fetchall()
 
     eintraege = []
@@ -128,6 +136,11 @@ def hole_queue():
             "erstellt_am": r["erstellt_am"],
             "fehler_detail": r["fehler_detail"],
             "akte_kandidat_top": top,
+            "payload_typ": r["payload_typ"],
+            "zustellung_id": r["zustellung_id"],
+            "parent_zustellung_id": r["parent_zustellung_id"],
+            "absender": r["absender"],
+            "betreff": r["betreff"],
         })
     return _j({"eintraege": eintraege})
 
