@@ -138,3 +138,141 @@ class TestErzeugeAusFreigabe(_HelperBasis):
                 "AND ereignistyp='abrechnung_eingegangen'", (did,)
             ).fetchone()[0]
         self.assertEqual(n, 1)
+
+
+# ─── Teil B: HTTP-E2E ueber POST /intake/dokument/<id>/freigabe ──────────────
+
+class _RouteBasis(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.mkdtemp(prefix="p15e_route_")
+        self._db_pfad = os.path.join(self._tmp, "unfallakten.db")
+        self._uploads = os.path.join(self._tmp, "uploads")
+        self._artefakte = os.path.join(self._tmp, "artefakte")
+        os.makedirs(self._uploads, exist_ok=True)
+        os.makedirs(self._artefakte, exist_ok=True)
+        os.environ["DB_PATH"] = self._db_pfad
+        os.environ["UPLOAD_DIR"] = self._uploads
+        os.environ["INTAKE_ARTEFAKTE_ROOT"] = self._artefakte
+
+        import backend.db.database as db_mod
+        import backend.models.benutzer as ben_mod
+        import backend.models.akte as akte_mod
+        import backend.models.dokument as dok_mod
+        import backend.auth.jwt_handler as jwt_mod
+        import backend.auth.middleware as mw_mod
+        import backend.auth.service as svc_mod
+        import backend.routers.auth_routes as routes_mod
+        import backend.app as app_mod
+        for m in (db_mod, ben_mod, akte_mod, dok_mod,
+                  jwt_mod, mw_mod, svc_mod, routes_mod, app_mod):
+            importlib.reload(m)
+        self._app = app_mod.erstelle_app({"TESTING": True})
+        self.client = self._app.test_client()
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            conn.execute(
+                "INSERT INTO unfallakte (az, unfalldatum, status) "
+                "VALUES ('44/22', '2022-04-27', 'offen')"
+            )
+
+    def tearDown(self):
+        import shutil
+        for var in ("DB_PATH", "UPLOAD_DIR", "INTAKE_ARTEFAKTE_ROOT"):
+            os.environ.pop(var, None)
+        shutil.rmtree(self._tmp, ignore_errors=True)
+
+    def _login(self):
+        r = self.client.post("/auth/login", json={
+            "email": os.environ.get("ADMIN_EMAIL", "admin@test.de"),
+            "passwort": os.environ.get("ADMIN_PASSWORT", "Admin123!"),
+        })
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        return {"Authorization": f"Bearer {r.get_json()['access_token']}"}
+
+    def _pdf(self):
+        import fitz
+        doc = fitz.open()
+        doc.new_page(width=595, height=842).insert_text((72, 72), "T", fontsize=10)
+        return doc.write()
+
+    def _intake(self, klasse, felder, suffix):
+        from backend.db.database import get_connection
+        pfad = os.path.join(self._uploads, f"a_{suffix}.pdf")
+        with open(pfad, "wb") as f:
+            f.write(self._pdf())
+        sha = (suffix * 64)[:64]
+        parse = json.dumps({"felder": felder})
+        with get_connection() as conn:
+            cur = conn.execute(
+                "INSERT INTO intake_dokumente (sha256, arbeitskopie_pfad, "
+                "queue_status, klasse, parse_json) "
+                "VALUES (?, ?, 'bereit_zur_review', ?, ?)",
+                (sha, pfad, klasse, parse),
+            )
+            return cur.lastrowid
+
+    def _ereignisse(self, ereignistyp):
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            return conn.execute(
+                "SELECT id, herkunft FROM ereignisse WHERE ereignistyp=?",
+                (ereignistyp,),
+            ).fetchall()
+
+
+class TestFreigabeRouteE2E(_RouteBasis):
+    def test_gutachten_schreibt_ereignis_mit_positionen(self):
+        did = self._intake("gutachten",
+                            {"reparaturkosten_netto": "6.200,00"}, "gut")
+        h = self._login()
+        r = self.client.post(f"/intake/dokument/{did}/freigabe", headers=h,
+            json={"akte_az": "44/22",
+                  "kandidaten_ereignisse": [{"typ": "gutachten_eingegangen"}]})
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        evs = self._ereignisse("gutachten_eingegangen")
+        self.assertEqual(len(evs), 1)
+        self.assertEqual(evs[0]["herkunft"], "freigabe")
+
+    def test_abschlepprechnung_schreibt_beleg(self):
+        did = self._intake("abschlepprechnung", {"bruttobetrag": "350,00"}, "abs")
+        h = self._login()
+        r = self.client.post(f"/intake/dokument/{did}/freigabe", headers=h,
+            json={"akte_az": "44/22",
+                  "kandidaten_ereignisse": [{"typ": "rechnung_eingegangen"}]})
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        self.assertEqual(len(self._ereignisse("rechnung_eingegangen")), 1)
+
+    def test_abrechnung_fakt_ohne_positionen(self):
+        did = self._intake("abrechnungsschreiben", {}, "abr")
+        h = self._login()
+        r = self.client.post(f"/intake/dokument/{did}/freigabe", headers=h,
+            json={"akte_az": "44/22",
+                  "kandidaten_ereignisse": [{"typ": "abrechnung_eingegangen"}]})
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        self.assertEqual(len(self._ereignisse("abrechnung_eingegangen")), 1)
+
+    def test_pruefbericht_fakt(self):
+        did = self._intake("pruefbericht", {}, "prf")
+        h = self._login()
+        r = self.client.post(f"/intake/dokument/{did}/freigabe", headers=h,
+            json={"akte_az": "44/22",
+                  "kandidaten_ereignisse": [{"typ": "pruefbericht_eingegangen"}]})
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        self.assertEqual(len(self._ereignisse("pruefbericht_eingegangen")), 1)
+
+    def test_fallback_ohne_kandidaten_nutzt_registry_default(self):
+        did = self._intake("gutachten", {"reparaturkosten_netto": "6.200,00"}, "fb")
+        h = self._login()
+        r = self.client.post(f"/intake/dokument/{did}/freigabe", headers=h,
+            json={"akte_az": "44/22"})
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        self.assertEqual(len(self._ereignisse("gutachten_eingegangen")), 1)
+
+    def test_re_freigabe_kein_duplikat(self):
+        did = self._intake("abrechnungsschreiben", {}, "dup")
+        h = self._login()
+        body = {"akte_az": "44/22",
+                "kandidaten_ereignisse": [{"typ": "abrechnung_eingegangen"}]}
+        self.client.post(f"/intake/dokument/{did}/freigabe", headers=h, json=body)
+        self.client.post(f"/intake/dokument/{did}/freigabe", headers=h, json=body)
+        self.assertEqual(len(self._ereignisse("abrechnung_eingegangen")), 1)

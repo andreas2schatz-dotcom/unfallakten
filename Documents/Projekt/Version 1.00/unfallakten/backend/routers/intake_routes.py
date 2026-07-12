@@ -595,22 +595,12 @@ def post_freigabe(intake_id: int):
                 benutzer_id=benutzer_id,
             )
 
-    # Option A: Gutachten-Freigabe schreibt gutachten_eingegangen mit den
-    # extrahierten Positionen -- inklusive sv_kosten (DEKRA-Gutachten
-    # enthalten die SV-Rechnung im selben PDF, POSITIONSMODELL 5.2).
-    # Andere Klassen bleiben Alt-Pfad-getrieben (P1.5e kommt separat).
-    if (dok.get("klasse") or "").lower() == "gutachten":
-        try:
-            _schreibe_gutachten_ereignis(
-                akte_az=akte_az, dokument_id=dokument_id,
-                parse_json=dok.get("parse_json"),
-                benutzer_id=benutzer_id,
-            )
-        except Exception as exc:  # pragma: no cover -- Best-Effort
-            logger.warning(
-                "gutachten_eingegangen aus Freigabe fehlgeschlagen "
-                "(intake=%s, akte=%s): %s", intake_id, akte_az, exc,
-            )
+    # P1.5e: Bestaetigte (oder per Registry-Default vorbelegte) Ereignistypen
+    # ins Positionsmodell buchen. Positionen nur bei echten Betraegen.
+    _schreibe_freigabe_ereignisse(
+        dok=dok, akte_az=akte_az, dokument_id=dokument_id,
+        payload=payload, benutzer_id=benutzer_id,
+    )
 
     logger.info("Freigabe intake=%s -> Akte %s (dokument_id=%s, freigabe_id=%s)",
                 intake_id, akte_az, dokument_id, freigabe_id)
@@ -639,73 +629,60 @@ def _mandanten_vorsteuer(akte_az: str) -> bool:
     return str(row["vorsteuer"] or "N").upper() in ("J", "Y", "1")
 
 
-def _feld_zu_zahl(wert):
-    """'1.011,50' -> 1011.5 ; 850 -> 850.0 ; None -> None."""
-    if wert is None:
+def _default_ereignistyp(klasse: Optional[str]) -> Optional[str]:
+    if not klasse:
         return None
-    if isinstance(wert, (int, float)):
-        return float(wert)
-    s = str(wert).strip()
-    if not s:
-        return None
-    # Deutsche Notation: Punkt = Tausender, Komma = Dezimal
-    s = s.replace(".", "").replace(",", ".")
     try:
-        return float(s)
-    except ValueError:
+        from ..services.positionsmodell_registry import lade_positionsmodell
+        return lade_positionsmodell().klasse_ereignistyp.get(klasse)
+    except Exception:  # pragma: no cover -- Best-Effort
         return None
 
 
-def _schreibe_gutachten_ereignis(*, akte_az, dokument_id, parse_json,
-                                  benutzer_id):
-    """Leitet Positionen aus den extrahierten Feldern ab und ruft
-    ``erzeuge_aus_gutachten``. sv_kosten mit brutto (Privat) oder netto
-    (Vorsteuerabzug) je nach Mandanten-Flag."""
-    from ..services.eingehende_ereignisse import erzeuge_aus_gutachten
+def _anker_dokument_id(intake_id: Optional[int], dokument_id: int) -> int:
+    """Stabile dokument_id fuer den Doppelerfassungs-Guard.
 
-    parse = _parse(parse_json)
-    felder = parse.get("felder") or {}
-    if not isinstance(felder, dict):
-        return
+    schreibe_dokument() legt bei jeder Freigabe eine neue dokumente-Zeile
+    an (nicht idempotent) -- bei Re-Freigabe desselben Intake-Dokuments
+    waere die dokument_id sonst jedes Mal eine andere und der Guard in
+    erzeuge_aus_freigabe (Task 2) wuerde nie greifen. Anker ist daher die
+    dokument_id der ERSTEN je fuer dieses Intake-Dokument erfassten
+    Freigabe.
+    """
+    if not intake_id:
+        return dokument_id
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT dokument_id FROM freigaben WHERE intake_dokument_id=? "
+            "ORDER BY id ASC LIMIT 1", (intake_id,),
+        ).fetchone()
+    return row["dokument_id"] if row else dokument_id
 
-    # Direkte Positions-Felder + Aliase (netto/brutto -> Position-Key)
-    reparatur = (_feld_zu_zahl(felder.get("reparaturkosten"))
-                 or _feld_zu_zahl(felder.get("reparaturkosten_netto"))
-                 or _feld_zu_zahl(felder.get("reparaturkosten_brutto")))
-    wbw = (_feld_zu_zahl(felder.get("wiederbeschaffung"))
-           or _feld_zu_zahl(felder.get("wiederbeschaffungswert")))
-    restwert = (_feld_zu_zahl(felder.get("restwert"))
-                or _feld_zu_zahl(felder.get("restwert_netto"))
-                or _feld_zu_zahl(felder.get("restwert_brutto")))
-    wm = _feld_zu_zahl(felder.get("wertminderung"))
 
-    positionen: Dict[str, Any] = {}
-    if reparatur:
-        positionen["reparaturkosten"] = reparatur
-    if wbw:
-        positionen["wiederbeschaffung"] = wbw
-    if restwert:
-        positionen["restwert"] = restwert
-    if wm:
-        positionen["wertminderung"] = wm
+def _schreibe_freigabe_ereignisse(*, dok, akte_az, dokument_id, payload,
+                                   benutzer_id):
+    from ..services.eingehende_ereignisse import erzeuge_aus_freigabe
 
-    # sv_kosten: Vorsteuer-Weiche (analog belege_routes.py Z. 619-627).
-    sv_netto = _feld_zu_zahl(felder.get("sv_kosten_netto"))
-    sv_brutto = _feld_zu_zahl(felder.get("sv_kosten_brutto"))
-    if sv_netto or sv_brutto:
-        if _mandanten_vorsteuer(akte_az):
-            wert = sv_netto if sv_netto is not None else sv_brutto
-        else:
-            wert = sv_brutto if sv_brutto is not None else sv_netto
-        if wert:
-            positionen["sv_kosten"] = wert
+    klasse = dok.get("klasse") or ""
+    felder = _parse(dok.get("parse_json")).get("felder") or {}
+    vorsteuer = _mandanten_vorsteuer(akte_az)
+    dokument_id = _anker_dokument_id(dok.get("id"), dokument_id)
 
-    if not positionen:
-        return
+    typen = [e.get("typ") for e in (payload.get("kandidaten_ereignisse") or [])
+             if isinstance(e, dict) and e.get("typ")]
+    if not typen:
+        default = _default_ereignistyp(klasse)
+        typen = [default] if default else []
 
-    erzeuge_aus_gutachten(
-        akte_az=akte_az,
-        dokument_id=dokument_id,
-        positionen=positionen,
-        benutzer_id=benutzer_id,
-    )
+    for typ in typen:
+        try:
+            erzeuge_aus_freigabe(
+                akte_az=akte_az, dokument_id=dokument_id, ereignistyp=typ,
+                klasse=klasse, felder=felder, vorsteuer=vorsteuer,
+                benutzer_id=benutzer_id,
+            )
+        except Exception as exc:  # pragma: no cover -- Best-Effort
+            logger.warning(
+                "Freigabe-Ereignis %s fehlgeschlagen (intake=%s, akte=%s): %s",
+                typ, dok.get("id"), akte_az, exc,
+            )

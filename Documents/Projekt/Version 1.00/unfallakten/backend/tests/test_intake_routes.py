@@ -466,9 +466,11 @@ class TestFreigabeGutachtenErzeugtEreignis(unittest.TestCase):
         # Vorsteuer-Berechtigt -> Netto-Betrag
         self.assertAlmostEqual(row["betrag"], 850.00, places=2)
 
-    def test_freigabe_ohne_gutachten_klasse_erzeugt_keinen_gutachten_event(self):
-        """Alte Klassen (abrechnungsschreiben etc.) laufen weiterhin ueber
-        Alt-Pfade -- die Freigabe schreibt kein zusaetzliches Ereignis."""
+    def test_freigabe_ohne_gutachten_klasse_erzeugt_registry_default_event(self):
+        """P1.5e: auch Nicht-Gutachten-Klassen (abrechnungsschreiben etc.)
+        schreiben bei der Freigabe ein Ereignis -- ohne bestaetigte
+        kandidaten_ereignisse greift der Registry-Default
+        (abrechnungsschreiben -> abrechnung_eingegangen, ohne Positionen)."""
         from backend.db.database import get_connection
         _seed_akte("44/22")
         did = _lege_intake_pdf_an("a")  # klasse=abrechnungsschreiben
@@ -480,10 +482,11 @@ class TestFreigabeGutachtenErzeugtEreignis(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
 
         with get_connection() as conn:
-            count = conn.execute(
-                "SELECT COUNT(*) FROM ereignisse WHERE akte_az='44/22'"
-            ).fetchone()[0]
-        self.assertEqual(count, 0)
+            ereignisse = conn.execute(
+                "SELECT ereignistyp FROM ereignisse WHERE akte_az='44/22'"
+            ).fetchall()
+        self.assertEqual(len(ereignisse), 1)
+        self.assertEqual(ereignisse[0]["ereignistyp"], "abrechnung_eingegangen")
 
 
 class TestVerwerfen(unittest.TestCase):
