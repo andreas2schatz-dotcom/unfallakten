@@ -663,26 +663,32 @@ def _schreibe_freigabe_ereignisse(*, dok, akte_az, dokument_id, payload,
                                    benutzer_id):
     from ..services.eingehende_ereignisse import erzeuge_aus_freigabe
 
-    klasse = dok.get("klasse") or ""
-    felder = _parse(dok.get("parse_json")).get("felder") or {}
-    vorsteuer = _mandanten_vorsteuer(akte_az)
-    dokument_id = _anker_dokument_id(dok.get("id"), dokument_id)
+    try:
+        klasse = dok.get("klasse") or ""
+        felder = _parse(dok.get("parse_json")).get("felder") or {}
+        vorsteuer = _mandanten_vorsteuer(akte_az)
+        dokument_id = _anker_dokument_id(dok.get("id"), dokument_id)
 
-    typen = [e.get("typ") for e in (payload.get("kandidaten_ereignisse") or [])
-             if isinstance(e, dict) and e.get("typ")]
-    if not typen:
-        default = _default_ereignistyp(klasse)
-        typen = [default] if default else []
+        typen = [e.get("typ") for e in (payload.get("kandidaten_ereignisse") or [])
+                 if isinstance(e, dict) and e.get("typ")]
+        if not typen:
+            default = _default_ereignistyp(klasse)
+            typen = [default] if default else []
 
-    for typ in typen:
-        try:
-            erzeuge_aus_freigabe(
-                akte_az=akte_az, dokument_id=dokument_id, ereignistyp=typ,
-                klasse=klasse, felder=felder, vorsteuer=vorsteuer,
-                benutzer_id=benutzer_id,
-            )
-        except Exception as exc:  # pragma: no cover -- Best-Effort
-            logger.warning(
-                "Freigabe-Ereignis %s fehlgeschlagen (intake=%s, akte=%s): %s",
-                typ, dok.get("id"), akte_az, exc,
-            )
+        for typ in typen:
+            try:
+                erzeuge_aus_freigabe(
+                    akte_az=akte_az, dokument_id=dokument_id, ereignistyp=typ,
+                    klasse=klasse, felder=felder, vorsteuer=vorsteuer,
+                    benutzer_id=benutzer_id,
+                )
+            except Exception as exc:  # pragma: no cover -- Best-Effort
+                logger.warning(
+                    "Freigabe-Ereignis %s fehlgeschlagen (intake=%s, akte=%s): %s",
+                    typ, dok.get("id"), akte_az, exc,
+                )
+    except Exception as exc:  # pragma: no cover -- Best-Effort
+        logger.warning(
+            "Freigabe-Ereignisphase fehlgeschlagen (intake=%s, akte=%s): %s",
+            dok.get("id"), akte_az, exc,
+        )

@@ -215,7 +215,7 @@ class _RouteBasis(unittest.TestCase):
         from backend.db.database import get_connection
         with get_connection() as conn:
             return conn.execute(
-                "SELECT id, herkunft FROM ereignisse WHERE ereignistyp=?",
+                "SELECT id, herkunft, quelle FROM ereignisse WHERE ereignistyp=?",
                 (ereignistyp,),
             ).fetchall()
 
@@ -232,6 +232,15 @@ class TestFreigabeRouteE2E(_RouteBasis):
         evs = self._ereignisse("gutachten_eingegangen")
         self.assertEqual(len(evs), 1)
         self.assertEqual(evs[0]["herkunft"], "freigabe")
+        self.assertEqual(evs[0]["quelle"], "dokument")
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            pos = conn.execute(
+                "SELECT position_key FROM ereignis_positionen WHERE ereignis_id=?",
+                (evs[0]["id"],),
+            ).fetchall()
+        keys = {r["position_key"] for r in pos}
+        self.assertIn("reparaturkosten", keys)
 
     def test_abschlepprechnung_schreibt_beleg(self):
         did = self._intake("abschlepprechnung", {"bruttobetrag": "350,00"}, "abs")
