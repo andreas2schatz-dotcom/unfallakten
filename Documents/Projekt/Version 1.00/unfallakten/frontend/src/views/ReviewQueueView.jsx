@@ -329,6 +329,18 @@ export function initialeEreignisse(defaultTyp) {
   return defaultTyp ? [{ typ: defaultTyp }] : [];
 }
 
+// Form-Defaults aus dem geladenen Detail. `skipFormReset` (Hintergrund-Poll
+// waehrend `wartAufWorker`) liefert null: dann bleiben offene Dialog-Eingaben
+// (Akte/Ereignisse/Feld-Korrekturen) erhalten statt vom Poll-Tick ueberschrieben.
+export function naechsterFormState(detail, { skipFormReset = false } = {}) {
+  if (skipFormReset) return null;
+  return {
+    gewaehlteAkte: detail?.parse?.akten_kandidaten?.[0]?.akte_az || "",
+    ereignisse: initialeEreignisse(detail?.default_ereignistyp),
+    dirty: {},
+  };
+}
+
 function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
                           ereignistypen, onEreignisChange,
                           onErsetztChange, onEreignisAdd, onEreignisDel,
@@ -467,15 +479,17 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
   const [aktion, setAktion] = useState(false);
   const [pollAktiv, setPollAktiv] = useState(false);
 
-  const laden = useCallback(async () => {
+  const laden = useCallback(async ({ skipFormReset = false } = {}) => {
     try {
       setError(null);
       const d = await apiIntake.detail(id);
       setDetail(d);
-      setDirty({});
-      const top = d.parse.akten_kandidaten?.[0];
-      setGewaehlteAkte(top?.akte_az || "");
-      setEreignisse(initialeEreignisse(d.default_ereignistyp));
+      const form = naechsterFormState(d, { skipFormReset });
+      if (form) {
+        setDirty(form.dirty);
+        setGewaehlteAkte(form.gewaehlteAkte);
+        setEreignisse(form.ereignisse);
+      }
       return d;
     } catch (e) { setError(e.message); return null; }
   }, [id]);
@@ -488,7 +502,7 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
     const start = Date.now();
     while (Date.now() - start < 30000) {
       await new Promise(r => setTimeout(r, 1500));
-      const d = await laden();
+      const d = await laden({ skipFormReset: true });
       if (!d) break;
       if (d.queue_status !== "neu" && d.queue_status !== "laeuft") {
         setPollAktiv(false);
