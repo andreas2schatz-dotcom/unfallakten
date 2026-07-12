@@ -1,0 +1,19 @@
+# klasse_ereignistyp.yaml — P1.5e
+#
+# Mapping Dokumentenklasse (backend/registry/klassen/*.yaml) -> vorbelegter
+# EINGEHENDER Ereignistyp (ereignistypen.yaml, richtung: eingehend).
+#
+# Diese Datei liefert im Freigabe-Dialog nur die Vorbelegung; die tatsaechlich
+# gebuchten Ereignisse folgen der bestaetigten Dropdown-Auswahl (P1.5e).
+#
+# Der Loader (positionsmodell_registry.py) prueft: jeder Wert ist ein
+# existierender Ereignistyp mit richtung == eingehend.
+
+klasse_ereignistyp:
+  gutachten:            gutachten_eingegangen
+  rechnung:             rechnung_eingegangen
+  abschlepprechnung:    rechnung_eingegangen
+  standkostenrechnung:  rechnung_eingegangen
+  sv_rechnung:          rechnung_eingegangen
+  abrechnungsschreiben: abrechnung_eingegangen
+  pruefbericht:         pruefbericht_eingegangen

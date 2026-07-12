@@ -38,7 +38,8 @@ _KATEGORIEN = {"fahrzeugschaden", "nebenkosten", "personenschaden",
                "sonstiges"}
 
 _YAML_DATEIEN = ("positionsarten.yaml", "ereignistypen.yaml",
-                  "aktionen.yaml", "rechnungstyp_mapping.yaml")
+                  "aktionen.yaml", "rechnungstyp_mapping.yaml",
+                  "klasse_ereignistyp.yaml")
 
 # Sondermarker aus dem alten _KLASSE_POSITION_MAP: wird zur Laufzeit
 # auf sv_kosten resolved (belege_routes.py, abhaengig vom Vorsteuer-
@@ -54,6 +55,7 @@ class PositionsmodellRegistry:
     ereignistypen:         Dict[str, Dict[str, Any]]
     aktionen:              Dict[str, Dict[str, Any]]
     rechnungstyp_mapping:  Dict[str, str]
+    klasse_ereignistyp:    Dict[str, str]
 
 
 _cache: Dict[str, PositionsmodellRegistry] = {}
@@ -147,6 +149,13 @@ def lade_positionsmodell(pfad: Optional[str] = None, *,
     rechnungstyp_mapping = _validiere_rechnungstyp_mapping(
         rechnungstyp_mapping_roh, positionsarten,
     )
+    klasse_ereignistyp_roh = _extrahiere_mapping(
+        daten["klasse_ereignistyp.yaml"],
+        "klasse_ereignistyp", "klasse_ereignistyp.yaml",
+    )
+    klasse_ereignistyp = _validiere_klasse_ereignistyp(
+        klasse_ereignistyp_roh, ereignistypen,
+    )
 
     registry = PositionsmodellRegistry(
         version=hasher.hexdigest()[:16],
@@ -155,6 +164,7 @@ def lade_positionsmodell(pfad: Optional[str] = None, *,
         ereignistypen=ereignistypen,
         aktionen=aktionen,
         rechnungstyp_mapping=rechnungstyp_mapping,
+        klasse_ereignistyp=klasse_ereignistyp,
     )
     _cache[pfad_norm] = registry
     logger.info(
@@ -187,6 +197,30 @@ def _validiere_rechnungstyp_mapping(
                 "position_key, der nicht in positionsarten.yaml existiert"
             )
         ergebnis[klasse.strip()] = ziel.strip()
+    return ergebnis
+
+
+def _validiere_klasse_ereignistyp(
+    roh: Dict[str, Any],
+    ereignistypen: Dict[str, Dict[str, Any]],
+) -> Dict[str, str]:
+    ergebnis: Dict[str, str] = {}
+    for klasse, typ in roh.items():
+        if not isinstance(klasse, str) or not klasse.strip():
+            raise RuntimeError(
+                f"klasse_ereignistyp: leere Klasse {klasse!r}"
+            )
+        if not isinstance(typ, str) or typ not in ereignistypen:
+            raise RuntimeError(
+                f"klasse_ereignistyp[{klasse!r}]={typ!r} ist kein "
+                "existierender Ereignistyp"
+            )
+        if ereignistypen[typ]["richtung"] != "eingehend":
+            raise RuntimeError(
+                f"klasse_ereignistyp[{klasse!r}]={typ!r} ist nicht "
+                "eingehend (richtung != 'eingehend')"
+            )
+        ergebnis[klasse.strip()] = typ.strip()
     return ergebnis
 
 

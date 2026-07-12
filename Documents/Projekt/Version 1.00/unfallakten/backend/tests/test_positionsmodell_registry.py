@@ -83,7 +83,8 @@ class TestPositionsmodellRegistryFailLoud(unittest.TestCase):
 
     def test_defektes_yaml_wirft(self):
         for name in ("positionsarten.yaml", "ereignistypen.yaml",
-                     "aktionen.yaml"):
+                     "aktionen.yaml", "rechnungstyp_mapping.yaml",
+                     "klasse_ereignistyp.yaml"):
             with open(os.path.join(self._tmp, name), "w",
                       encoding="utf-8") as f:
                 f.write("nicht: gueltiges: yaml: [")
@@ -119,10 +120,47 @@ class TestPositionsmodellRegistryFailLoud(unittest.TestCase):
         with open(os.path.join(self._tmp, "rechnungstyp_mapping.yaml"), "w",
                    encoding="utf-8") as f:
             f.write("rechnungstyp_mapping: {}\n")
+        with open(os.path.join(self._tmp, "klasse_ereignistyp.yaml"), "w",
+                   encoding="utf-8") as f:
+            f.write("klasse_ereignistyp: {}\n")
 
         from backend.services.positionsmodell_registry import lade_positionsmodell
         with self.assertRaisesRegex(RuntimeError, "ungueltiger_typ_xyz"):
             lade_positionsmodell(reload=True)
+
+
+class TestKlasseEreignistyp(unittest.TestCase):
+    def test_mapping_geladen_und_nur_eingehende_typen(self):
+        from backend.services.positionsmodell_registry import lade_positionsmodell
+        reg = lade_positionsmodell(reload=True)
+        self.assertIsInstance(reg.klasse_ereignistyp, dict)
+        self.assertEqual(reg.klasse_ereignistyp["gutachten"], "gutachten_eingegangen")
+        self.assertEqual(reg.klasse_ereignistyp["abschlepprechnung"], "rechnung_eingegangen")
+        self.assertEqual(reg.klasse_ereignistyp["abrechnungsschreiben"], "abrechnung_eingegangen")
+        for klasse, typ in reg.klasse_ereignistyp.items():
+            self.assertIn(typ, reg.ereignistypen, f"{klasse}->{typ} kein Ereignistyp")
+            self.assertEqual(
+                reg.ereignistypen[typ]["richtung"], "eingehend",
+                f"{klasse}->{typ} ist nicht eingehend",
+            )
+
+    def test_ungueltiger_typ_wirft(self):
+        quelle = None
+        from backend.services.positionsmodell_registry import standard_pfad
+        quelle = standard_pfad()
+        tmp = tempfile.mkdtemp(prefix="reg_")
+        try:
+            for name in os.listdir(quelle):
+                if name.endswith(".yaml"):
+                    shutil.copy(os.path.join(quelle, name), os.path.join(tmp, name))
+            with open(os.path.join(tmp, "klasse_ereignistyp.yaml"), "w",
+                      encoding="utf-8") as f:
+                f.write("klasse_ereignistyp:\n  gutachten: forderung_generiert\n")
+            from backend.services.positionsmodell_registry import lade_positionsmodell
+            with self.assertRaises(RuntimeError):
+                lade_positionsmodell(tmp, reload=True)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 if __name__ == "__main__":
