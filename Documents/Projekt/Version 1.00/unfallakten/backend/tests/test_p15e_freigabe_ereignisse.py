@@ -277,6 +277,14 @@ class TestFreigabeRouteE2E(_RouteBasis):
         self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
         self.assertEqual(len(self._ereignisse("gutachten_eingegangen")), 1)
 
+    def test_detail_liefert_default_ereignistyp(self):
+        did = self._intake("abschlepprechnung", {}, "det")
+        h = self._login()
+        r = self.client.get(f"/intake/dokument/{did}", headers=h)
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        self.assertEqual(r.get_json()["default_ereignistyp"],
+                         "rechnung_eingegangen")
+
     def test_re_freigabe_kein_duplikat(self):
         did = self._intake("abrechnungsschreiben", {}, "dup")
         h = self._login()

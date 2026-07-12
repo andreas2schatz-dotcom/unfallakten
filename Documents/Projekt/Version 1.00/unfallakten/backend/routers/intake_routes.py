@@ -238,6 +238,7 @@ def hole_detail(intake_id: int):
         "arbeitskopie_pfad": dok.get("arbeitskopie_pfad"),
         "eltern_email": eltern_email,
         "klasse": dok.get("klasse"),
+        "default_ereignistyp": _default_ereignistyp(dok.get("klasse")),
         "klasse_quelle": dok.get("klasse_quelle"),
         "konfidenz": dok.get("konfidenz"),
         "queue_status": dok.get("queue_status"),

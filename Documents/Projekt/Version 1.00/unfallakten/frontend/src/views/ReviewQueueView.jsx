@@ -325,6 +325,10 @@ function KandidatenList({ kandidaten, ausgewaehlt, onWaehle }) {
   );
 }
 
+export function initialeEreignisse(defaultTyp) {
+  return defaultTyp ? [{ typ: defaultTyp }] : [];
+}
+
 function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
                           ereignistypen, onEreignisChange,
                           onErsetztChange, onEreignisAdd, onEreignisDel,
@@ -361,9 +365,10 @@ function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
             Ereignis-Vorschlaege (K-2)
           </div>
           <div style={{ fontSize: T.textXs, color: T.textMuted, marginBottom: 8 }}>
-            Bestaetigung/Korrektur. Persistierung ins Positionsmodell folgt
-            mit P1.5e — heute wird nur als Kontext ins korrektur_log geschrieben
-            (Ausnahme: Gutachten schreibt bereits ein echtes Ereignis).
+            Der bestaetigte Ereignistyp wird ins Positionsmodell gebucht.
+            Betraege werden nur uebernommen, wenn sie eindeutig im Dokument
+            stehen (Gutachten, Rechnungen); sonst wird das Ereignis als
+            Faktum ohne Betrag festgehalten.
           </div>
           {ereignisse.map((ev, i) => (
             <div key={i} style={{
@@ -470,6 +475,7 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
       setDirty({});
       const top = d.parse.akten_kandidaten?.[0];
       setGewaehlteAkte(top?.akte_az || "");
+      setEreignisse(initialeEreignisse(d.default_ereignistyp));
       return d;
     } catch (e) { setError(e.message); return null; }
   }, [id]);
