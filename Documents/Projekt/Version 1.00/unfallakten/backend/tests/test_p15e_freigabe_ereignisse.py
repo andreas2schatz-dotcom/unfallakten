@@ -79,6 +79,9 @@ class TestErzeugeAusFreigabe(_HelperBasis):
         self.assertEqual(keys, {"reparaturkosten", "wertminderung"})
         for r in rows:
             self.assertEqual(r["wirkung"], "gefordert")
+        betraege = {r["position_key"]: r["betrag"] for r in rows}
+        self.assertEqual(betraege["reparaturkosten"], 6200.0)
+        self.assertEqual(betraege["wertminderung"], 500.0)
         self.assertEqual(self._kopf(eid)["herkunft"], "freigabe")
 
     def test_rechnung_beleg_position_aus_mapping(self):

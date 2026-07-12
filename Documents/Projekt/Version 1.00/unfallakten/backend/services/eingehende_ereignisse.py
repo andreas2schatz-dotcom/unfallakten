@@ -544,7 +544,8 @@ def erzeuge_aus_freigabe(
                 betrag = (_feld_zu_zahl((felder or {}).get("bruttobetrag"))
                           or _feld_zu_zahl((felder or {}).get("nettobetrag")))
                 positionen.append({
-                    "position_key": pk, "wirkung": "beleg", "betrag": betrag,
+                    "position_key": pk, "wirkung": "beleg",
+                    "betrag": round(betrag, 2) if betrag is not None else None,
                 })
 
         positionen = _registry_kennt_alle(positionen)
