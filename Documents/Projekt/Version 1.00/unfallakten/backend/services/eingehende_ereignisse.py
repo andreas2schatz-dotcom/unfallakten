@@ -438,3 +438,130 @@ def erzeuge_aus_wdm(
             akte_az, exc,
         )
         return None
+
+
+# ── P1.5e: Review-Freigabe -> eingehendes Ereignis fuer alle Klassen ──────
+
+_GUTACHTEN_FELD_ALIASSE = {
+    "reparaturkosten": ("reparaturkosten", "reparaturkosten_netto",
+                        "reparaturkosten_brutto"),
+    "wiederbeschaffung": ("wiederbeschaffung", "wiederbeschaffungswert"),
+    "restwert": ("restwert", "restwert_netto", "restwert_brutto"),
+    "wertminderung": ("wertminderung",),
+}
+
+
+def _feld_zu_zahl(wert):
+    """'1.011,50' -> 1011.5 ; 850 -> 850.0 ; None/'' -> None.
+
+    Deutsche Notation: Punkt = Tausender, Komma = Dezimal.
+    """
+    if wert is None:
+        return None
+    if isinstance(wert, (int, float)):
+        return float(wert)
+    s = str(wert).strip()
+    if not s:
+        return None
+    s = s.replace(".", "").replace(",", ".")
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _gutachten_positionen(felder, vorsteuer):
+    """Leitet {position_key: betrag} aus geparsten Gutachten-Feldern ab."""
+    positionen = {}
+    if not isinstance(felder, dict):
+        return positionen
+    for pk, aliase in _GUTACHTEN_FELD_ALIASSE.items():
+        for name in aliase:
+            wert = _feld_zu_zahl(felder.get(name))
+            if wert:
+                positionen[pk] = wert
+                break
+    sv_netto = _feld_zu_zahl(felder.get("sv_kosten_netto"))
+    sv_brutto = _feld_zu_zahl(felder.get("sv_kosten_brutto"))
+    if sv_netto or sv_brutto:
+        if vorsteuer:
+            wert = sv_netto if sv_netto is not None else sv_brutto
+        else:
+            wert = sv_brutto if sv_brutto is not None else sv_netto
+        if wert:
+            positionen["sv_kosten"] = wert
+    return positionen
+
+
+def erzeuge_aus_freigabe(
+    *,
+    akte_az: str,
+    dokument_id: int,
+    ereignistyp: str,
+    klasse: str,
+    felder: Dict[str, Any],
+    vorsteuer: bool = False,
+    benutzer_id: Optional[int] = None,
+    datum: Optional[str] = None,
+) -> Optional[int]:
+    """Schreibt ein eingehendes Ereignis aus der Review-Freigabe (P1.5e).
+
+    Positionen nur bei eindeutigen Betraegen:
+      * gutachten_eingegangen -> Felder-Ableitung, Wirkung 'gefordert'.
+      * rechnung_eingegangen  -> ein position_key aus rechnungstyp_mapping,
+                                 Wirkung 'beleg', Betrag aus bruttobetrag/
+                                 nettobetrag. Fehlt das Mapping -> Fakt.
+      * sonst                 -> Fakt-Ereignis ohne Positionen.
+
+    Doppelerfassungs-Guard aktiv. Best-Effort (Ausnahmen werden geloggt).
+    """
+    try:
+        from datetime import date as _date
+        if datum is None:
+            datum = _date.today().isoformat()
+
+        vorhandene_id = pruefe_doppelerfassung(
+            akte_az=akte_az, dokument_id=dokument_id, ereignistyp=ereignistyp,
+        )
+        if vorhandene_id is not None:
+            logger.info(
+                "%s bereits erfasst (akte=%s, dokument=%s, alt_ereignis=%d) "
+                "-- kein neues Ereignis (Doppelerfassungs-Guard).",
+                ereignistyp, akte_az, dokument_id, vorhandene_id,
+            )
+            return vorhandene_id
+
+        positionen: List[Dict[str, Any]] = []
+        if ereignistyp == "gutachten_eingegangen":
+            for pk, betrag in _gutachten_positionen(felder, vorsteuer).items():
+                positionen.append({
+                    "position_key": pk, "wirkung": "gefordert",
+                    "betrag": round(betrag, 2),
+                })
+        elif ereignistyp == "rechnung_eingegangen":
+            pk = rechnungstyp_zu_position(klasse, vorsteuer=vorsteuer)
+            if pk:
+                betrag = (_feld_zu_zahl((felder or {}).get("bruttobetrag"))
+                          or _feld_zu_zahl((felder or {}).get("nettobetrag")))
+                positionen.append({
+                    "position_key": pk, "wirkung": "beleg", "betrag": betrag,
+                })
+
+        positionen = _registry_kennt_alle(positionen)
+
+        return schreibe_ereignis(
+            akte_az=akte_az,
+            ereignistyp=ereignistyp,
+            quelle="dokument",
+            datum=datum,
+            dokument_id=dokument_id,
+            herkunft="freigabe",
+            positionen=positionen,
+            erfasst_von=benutzer_id,
+        )
+    except Exception as exc:
+        logger.warning(
+            "%s aus Freigabe fehlgeschlagen (akte %s, dok %s): %s",
+            ereignistyp, akte_az, dokument_id, exc,
+        )
+        return None
