@@ -293,3 +293,40 @@ class TestFreigabeRouteE2E(_RouteBasis):
         self.client.post(f"/intake/dokument/{did}/freigabe", headers=h, json=body)
         self.client.post(f"/intake/dokument/{did}/freigabe", headers=h, json=body)
         self.assertEqual(len(self._ereignisse("abrechnung_eingegangen")), 1)
+
+    def test_mehrere_typen_je_ein_ereignis_und_guard(self):
+        did = self._intake("gutachten",
+                            {"reparaturkosten_netto": "6.200,00"}, "multi")
+        h = self._login()
+        body = {"akte_az": "44/22", "kandidaten_ereignisse": [
+            {"typ": "gutachten_eingegangen"},
+            {"typ": "vollmacht_eingegangen"},
+        ]}
+        r = self.client.post(f"/intake/dokument/{did}/freigabe", headers=h, json=body)
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        self.assertEqual(len(self._ereignisse("gutachten_eingegangen")), 1)
+        self.assertEqual(len(self._ereignisse("vollmacht_eingegangen")), 1)
+        # Re-Freigabe: Guard je (akte, dokument_id, typ) -> keine Duplikate.
+        self.client.post(f"/intake/dokument/{did}/freigabe", headers=h, json=body)
+        self.assertEqual(len(self._ereignisse("gutachten_eingegangen")), 1)
+        self.assertEqual(len(self._ereignisse("vollmacht_eingegangen")), 1)
+
+    def test_rechnung_mit_mapping_ohne_betrag_beleg_null(self):
+        did = self._intake("abschlepprechnung", {}, "nobetr")
+        h = self._login()
+        r = self.client.post(f"/intake/dokument/{did}/freigabe", headers=h,
+            json={"akte_az": "44/22",
+                  "kandidaten_ereignisse": [{"typ": "rechnung_eingegangen"}]})
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        evs = self._ereignisse("rechnung_eingegangen")
+        self.assertEqual(len(evs), 1)
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            rows = conn.execute(
+                "SELECT position_key, wirkung, betrag FROM ereignis_positionen "
+                "WHERE ereignis_id=?", (evs[0]["id"],),
+            ).fetchall()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["position_key"], "abschleppkosten")
+        self.assertEqual(rows[0]["wirkung"], "beleg")
+        self.assertIsNone(rows[0]["betrag"])

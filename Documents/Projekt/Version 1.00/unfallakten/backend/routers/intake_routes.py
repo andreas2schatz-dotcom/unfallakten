@@ -676,6 +676,20 @@ def _schreibe_freigabe_ereignisse(*, dok, akte_az, dokument_id, payload,
             default = _default_ereignistyp(klasse)
             typen = [default] if default else []
 
+        from ..services.positionsmodell_registry import lade_positionsmodell
+        reg = lade_positionsmodell()
+        gueltige = []
+        for typ in typen:
+            spec = reg.ereignistypen.get(typ)
+            if spec and spec.get("richtung") == "eingehend":
+                gueltige.append(typ)
+            else:
+                logger.warning(
+                    "Freigabe-Ereignis %r uebersprungen (kein eingehender "
+                    "Ereignistyp) intake=%s", typ, dok.get("id"),
+                )
+        typen = gueltige
+
         for typ in typen:
             try:
                 erzeuge_aus_freigabe(
