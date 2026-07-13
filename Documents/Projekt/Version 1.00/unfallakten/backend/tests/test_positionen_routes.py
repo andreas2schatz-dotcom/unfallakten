@@ -105,9 +105,21 @@ class TestPositionenStatus(unittest.TestCase):
         self.assertEqual(pos["stand"], "2022-05-10")
 
     def test_akte_404(self):
-        r = self.client.get("/akten/99%2F99/positionen/status",
+        # BUG-22: seit Umstellung auf den gemeinsamen pruefe_akte-Helper
+        # gilt ein wohlgeformtes AZ mit Slash als RA-MICRO-only-Akte (200,
+        # leer, analog anderer Router). Ein echt unnormalisierbares AZ
+        # bleibt 404.
+        r = self.client.get("/akten/keinaz/positionen/status",
                              headers=self.headers)
         self.assertEqual(r.status_code, 404)
+
+    def test_bug22_slashlose_az_wird_normalisiert(self):
+        # BUG-22: /akten/4422/... muss die Akte 44/22 finden (AZ-Normalisierung
+        # ueber den gemeinsamen _helpers.pruefe_akte-Helper), analog anderer Router.
+        r = self.client.get("/akten/4422/positionen/status",
+                             headers=self.headers)
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        self.assertEqual(r.get_json()["akte_az"], "44/22")
 
 
 class TestAktionen(unittest.TestCase):
@@ -159,8 +171,9 @@ class TestPositionsEreignisse(unittest.TestCase):
         self.assertEqual(d["position_key"], "reparaturkosten")
 
     def test_akte_404(self):
+        # BUG-22: unnormalisierbares AZ -> 404 (Slash-AZ waere RA-MICRO-only, 200).
         r = self.client.get(
-            "/akten/99%2F99/positionen/reparaturkosten/ereignisse",
+            "/akten/keinaz/positionen/reparaturkosten/ereignisse",
             headers=self.headers,
         )
         self.assertEqual(r.status_code, 404)

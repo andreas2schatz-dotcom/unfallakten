@@ -25,6 +25,7 @@ from flask import Blueprint, jsonify, request
 
 from ..auth.middleware import login_erforderlich
 from ..db.database import get_connection
+from ._helpers import pruefe_akte
 from ..services.positionsmodell_registry import lade_positionsmodell
 from ..services.positionsstatus_service import (
     berechne_historie_hinweis,
@@ -42,19 +43,13 @@ def _err(msg: str, status: int, **extra):
     return jsonify({"fehler": msg, "status": status, **extra}), status
 
 
-def _pruefe_akte(az: str) -> bool:
-    with get_connection() as conn:
-        row = conn.execute(
-            "SELECT 1 FROM unfallakte WHERE az = ?", (az,)
-        ).fetchone()
-    return row is not None
-
-
 @positionen_bp.route("/positionen/status", methods=["GET"])
 @login_erforderlich
 def positionen_status(akte_az: str):
-    if not _pruefe_akte(akte_az):
+    akte = pruefe_akte(akte_az)
+    if not akte:
         return _err(f"Akte {akte_az!r} nicht gefunden.", 404)
+    akte_az = akte.aktenzeichen
 
     ergebnis = leite_positionsstatus_ab(akte_az, mit_registry=True)
     registry_version = ergebnis.pop("_registry_version", None)
@@ -78,8 +73,10 @@ def position_ereignisse(akte_az: str, position_key: str):
     damit die UI die Historie zeigen kann; die Ableitung selbst
     ignoriert sie ohnehin (positionsstatus_service).
     """
-    if not _pruefe_akte(akte_az):
+    akte = pruefe_akte(akte_az)
+    if not akte:
         return _err(f"Akte {akte_az!r} nicht gefunden.", 404)
+    akte_az = akte.aktenzeichen
 
     with get_connection() as conn:
         rows = conn.execute(
@@ -122,8 +119,10 @@ def aktionen_matrix(akte_az: str):
     Ohne dokument_id: aggregiert ueber alle aktuellen Ereignisse der Akte.
     Mit dokument_id: nur Ereignisse dieses Dokuments.
     """
-    if not _pruefe_akte(akte_az):
+    akte = pruefe_akte(akte_az)
+    if not akte:
         return _err(f"Akte {akte_az!r} nicht gefunden.", 404)
+    akte_az = akte.aktenzeichen
 
     dok_id_raw = request.args.get("dokument_id")
     try:
