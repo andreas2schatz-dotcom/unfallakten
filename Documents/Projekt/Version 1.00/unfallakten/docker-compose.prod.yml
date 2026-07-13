@@ -5,7 +5,7 @@
 #   backend  – Flask/Gunicorn, 4 Worker, Port 5000 (intern)
 #   frontend – Vite-Build in nginx:alpine, Port 8080 (intern)
 #   nginx    – TLS-Termination, Routing Frontend/API, Port 80+443
-#   backup   – Nightly SQLite + Upload Backup
+#   backup   – Stündliches SQLite (.backup) + tägliches Upload Backup
 #
 # Voraussetzungen:
 #   1. .env anlegen (aus .env.example kopieren und ausfüllen)
@@ -106,22 +106,28 @@ services:
         limits:
           memory: 64M
 
-  # ── Automatische Backups ──────────────────────────────────────────────────────
+  # ── Automatische Backups (stündlich) ──────────────────────────────────────────
+  # alpine hat kein sqlite3-Binary -> Entrypoint installiert es vor crond.
+  # /data ist READ-WRITE gemountet: SQLite kann eine WAL-DB nicht von einem
+  # read-only-Mount öffnen (-shm braucht Schreibzugriff). `.backup` lässt den
+  # DB-Inhalt unverändert, nur die WAL-/shm-Koordination.
   backup:
     image: alpine:3.20
     container_name: unfallakten-backup
     volumes:
-      - prod-data:/data:ro
+      - prod-data:/data
       - prod-uploads:/uploads:ro
       - ./backups:/backups
       - ./scripts/backup.sh:/backup.sh:ro
     entrypoint: >
       sh -c "
-        echo '0 2 * * * sh /backup.sh' | crontab - &&
+        apk add --no-cache sqlite &&
+        echo '0 * * * * sh /backup.sh' | crontab - &&
         crond -f -l 8
       "
     environment:
       BACKUP_RETENTION_DAYS: "30"
+      BACKUP_HOURLY_RETENTION_HOURS: "48"
     restart: always
 
 volumes:

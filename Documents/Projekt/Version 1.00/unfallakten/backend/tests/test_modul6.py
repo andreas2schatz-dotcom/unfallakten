@@ -377,10 +377,70 @@ class TestGunicornKonfig(unittest.TestCase):
 # BACKUP-SCRIPT
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Hinweis: TestBackupScript (scripts/backup.sh) entfernt -- das Feature
-# existiert im Repo nicht mehr (Backup wird ueber docker-compose/RA-MICRO
-# gehandhabt, siehe Kanzleiflow-Dokumentation). Falls das Script zurueck-
-# kommt, koennen die Tests wiederhergestellt werden.
+class TestBackupInfra(unittest.TestCase):
+    """N-10: Backup-Service repariert + gehaertet.
+
+    Regressions-Guard gegen den Fund 2026-07-13: docker-compose.prod.yml
+    mountete ./scripts/backup.sh, das Skript existierte aber nicht mehr ->
+    Backup-Container lief ins Leere. Der Guard prueft generisch, dass jedes
+    in der Prod-Compose gemountete ./scripts/*.sh tatsaechlich existiert.
+    """
+
+    def setUp(self):
+        self.compose = _lese("docker-compose.prod.yml")
+        self.script = _lese("scripts/backup.sh")
+
+    def test_gemountete_skripte_existieren(self):
+        """Jedes ./scripts/*.sh, das die Prod-Compose mountet, muss existieren."""
+        mounts = re.findall(r"-\s*(\./scripts/[^:\s]+\.sh)\s*:", self.compose)
+        self.assertTrue(mounts, "Prod-Compose mountet kein ./scripts/*.sh mehr?")
+        for m in mounts:
+            self.assertTrue(
+                _exists(m.lstrip("./")),
+                f"Prod-Compose mountet '{m}', Datei fehlt im Repo (Backup laeuft ins Leere!)",
+            )
+
+    def test_backup_script_existiert(self):
+        self.assertTrue(_exists("scripts/backup.sh"))
+
+    def test_backup_script_hat_set_e(self):
+        self.assertIn("set -e", self.script)
+
+    def test_backup_script_nutzt_sqlite_backup(self):
+        """Konsistenter Online-Backup via .backup -- kein cp der Live-DB."""
+        self.assertIn("sqlite3", self.script)
+        self.assertIn(".backup", self.script)
+
+    def test_backup_script_kein_cp_der_live_db(self):
+        """WAL-DB per cp waere inkonsistent -- cp darf nicht auf die .db zeigen."""
+        for zeile in self.script.split("\n"):
+            s = zeile.strip()
+            if s.startswith("#"):
+                continue
+            if re.match(r"^cp\b", s):
+                self.assertNotIn(".db", s,
+                                 "cp der Live-DB ist unter WAL inkonsistent -- .backup nutzen")
+
+    def test_backup_script_tar_uploads(self):
+        self.assertIn("tar", self.script)
+        self.assertIn(".tar.gz", self.script)
+
+    def test_backup_script_retention(self):
+        self.assertIn("RETENTION_DAYS", self.script)
+        self.assertIn("mtime", self.script)
+
+    def test_backup_script_logging(self):
+        self.assertIn("[backup]", self.script)
+
+    def test_compose_backup_stuendlich(self):
+        """N-10: Cron von naechtlich (0 2 * * *) auf stuendlich (0 * * * *)."""
+        self.assertIn("0 * * * *", self.compose)
+        self.assertNotIn("0 2 * * *", self.compose)
+
+    def test_compose_backup_installiert_sqlite(self):
+        """alpine hat kein sqlite3-Binary -- Entrypoint muss es nachziehen."""
+        self.assertIn("apk add", self.compose)
+        self.assertIn("sqlite", self.compose)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -459,7 +519,7 @@ if __name__ == "__main__":
         TestNginxKonfiguration,
         TestRequirements,
         TestGunicornKonfig,
-        TestBackupScript,
+        TestBackupInfra,
         TestMakefile,
         TestGitignore,
     ]:
