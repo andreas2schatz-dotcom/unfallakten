@@ -452,9 +452,11 @@ _GUTACHTEN_FELD_ALIASSE = {
 
 
 def _feld_zu_zahl(wert):
-    """'1.011,50' -> 1011.5 ; 850 -> 850.0 ; None/'' -> None.
+    """'1.011,50' -> 1011.5 ; '850.00' -> 850.0 ; 850 -> 850.0 ; None/'' -> None.
 
-    Deutsche Notation: Punkt = Tausender, Komma = Dezimal.
+    BUG-05: Format-sicherer Helper ``parse_betrag`` statt striktem Punkt-
+    Entfernen -- '850.00' (LLM-Dezimalpunkt) darf NICHT 85000.0 werden.
+    Unparsbare Werte -> None (lieber kein Betrag als ein falscher).
     """
     if wert is None:
         return None
@@ -463,11 +465,8 @@ def _feld_zu_zahl(wert):
     s = str(wert).strip()
     if not s:
         return None
-    s = s.replace(".", "").replace(",", ".")
-    try:
-        return float(s)
-    except ValueError:
-        return None
+    from ..parsers.pdf_utils import parse_betrag
+    return parse_betrag(s)
 
 
 def _gutachten_positionen(felder, vorsteuer):

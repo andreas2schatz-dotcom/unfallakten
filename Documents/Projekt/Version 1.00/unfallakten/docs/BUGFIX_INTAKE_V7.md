@@ -17,9 +17,9 @@
 | BUG-02 | P0 | `backend/email_import/import_service.py:442` | Anhänge verschwinden stumm bei Registrierungsfehler | **behoben** ✅ |
 | BUG-03 | P0 | `backend/routers/dokumente_routes.py:151` | Upload-Ziel-Akte wird verworfen → Falschablage | **behoben** ✅ |
 | BUG-04 | P0 | `backend/routers/email_routes.py:368` | Alt-E-Mails: In-Akte-Import ersatzlos gesperrt | **behoben** ✅ |
-| BUG-05 | P1 | `backend/services/eingehende_ereignisse.py:466` | Beträge werden verhundertfacht (Punkt-Dezimal) | offen |
-| BUG-06 | P1 | `backend/routers/intake_routes.py:530` | Verworfene/bereits freigegebene Dokumente freigebbar | offen |
-| BUG-07 | P1 | `backend/routers/intake_routes.py:660` | Ereignis-Anker zeigt auf Dokument fremder Akte | offen |
+| BUG-05 | P1 | `backend/services/eingehende_ereignisse.py:466` | Beträge werden verhundertfacht (Punkt-Dezimal) | **behoben** ✅ |
+| BUG-06 | P1 | `backend/routers/intake_routes.py:530` | Verworfene/bereits freigegebene Dokumente freigebbar | **behoben** ✅ |
+| BUG-07 | P1 | `backend/routers/intake_routes.py:660` | Ereignis-Anker zeigt auf Dokument fremder Akte | **behoben** ✅ |
 | BUG-08 | P2 | `backend/routers/intake_routes.py:535` | Freigabe auf RA-MICRO-only-Akten → 404 | offen |
 | BUG-09 | P2 | `backend/services/fristablauf_service.py:134` | SQLite-Selbstblockade im Fristablauf-Job | offen |
 | BUG-10 | P2 | `gunicorn.conf.py:19` | Scheduler laufen unter Gunicorn 4-fach parallel | offen |
@@ -80,19 +80,22 @@
 
 ## P1 — Kritisch: Falsche Daten in der Akte
 
-### - [ ] BUG-05 — Beträge werden verhundertfacht (Punkt-Dezimal)
+### - [x] BUG-05 — Beträge werden verhundertfacht (Punkt-Dezimal)
+- **Fix (2026-07-13, Commit `<pending>`):** `_feld_zu_zahl` delegiert die String-Zerlegung jetzt an den format-sicheren Helper `backend/parsers/pdf_utils.parse_betrag`; die int/float-Kurzschluss-Behandlung bleibt. `'850.00' → 850.0` (statt 85000.0), `'1234.56' → 1234.56` (statt 123456.0); `'1.234,56'`/`'1011,50'`/Ganzzahlen unverändert korrekt. Unparsbare Werte → `None` (kein Betrag statt falscher Betrag — deckt sich mit dem P1.5e-Prinzip „nur echte Beträge buchen"; die Position wird dann als Fakt ohne Betrag gebucht). **Bekannte Grenze:** US-Tausendertrennung `'1,234.56'` liefert `None` (parse_betrag unterstützt sie trotz Docstring nicht) — im deutschen Rechtskontext praktisch irrelevant und sicher (kein 100×-Fehler). Tests: `test_bugfix_p1_intake_v7.py::TestBug05FeldZuZahl` (8).
 - **Datei:** `backend/services/eingehende_ereignisse.py:466` (`_feld_zu_zahl`)
 - **Problem:** `_feld_zu_zahl` unterstellt strikt deutsche Notation und entfernt **alle** Punkte (`replace('.','').replace(',','.')`). Die Feldwerte kommen aus `llm_service.extrahiere_nach_schema`, das das rohe LLM-JSON ohne Format-Normalisierung durchreicht (`_RESPONSE_FORMAT = None`, LM Studio kann kein response_format) — Strings mit Dezimalpunkt wie `"850.00"` sind häufig.
 - **Auswirkung:** `_feld_zu_zahl('850.00') → 85000.0`; `erzeuge_aus_freigabe` bucht `rechnung_eingegangen` mit 85.000,00 € statt 850,00 €. PositionsDashboard und Regulierungs-Ableitung zeigen 100-fach falsche Forderungsbeträge, ohne dass der Reviewer eine Abweichung sieht.
 - **Fix-Richtung:** Vorhandenen format-sicheren Helper `backend/parsers/pdf_utils.parse_betrag` verwenden (kann `1.234,56`, `1234.56`, `1,234.56`). *(3× unabhängig gefunden.)*
 
-### - [ ] BUG-06 — Verworfene/bereits freigegebene Dokumente freigebbar
+### - [x] BUG-06 — Verworfene/bereits freigegebene Dokumente freigebbar
+- **Fix (2026-07-13, Commit `<pending>`):** Guard in `post_freigabe` direkt nach dem Not-Found-Check (Pendant zum bestehenden `post_verwerfen`-Guard): `verworfen_am IS NOT NULL` → HTTP 409 „Dokument ist verworfen …"; `queue_status='freigegeben'` → HTTP 409 „Dokument ist bereits freigegeben." Damit erzeugen Doppel-Submits/Race-Freigaben keine zweite `dokumente`-/`freigaben`-Zeile und kein Doppel-Ereignis mehr. **Entscheidung zu BUG-07-Interaktion:** Mehrfach-Freigabe in eine *andere* Akte wird bewusst gesperrt (einfacher, sicherer Guard lt. Session-Prompt) — der `_anker_dokument_id`-Fix (BUG-07) bleibt als Defence-in-depth trotzdem korrekt. Tests: `test_bugfix_p1_intake_v7.py::TestBug06FreigabeGuards` (3). Keine Regression bei den P1.5e-Re-Freigabe-Tests (die prüfen nur Ereignis-Anzahl, nicht den Status-Code).
 - **Datei:** `backend/routers/intake_routes.py:530–532` (`post_freigabe`)
 - **Problem:** `post_freigabe` prüft weder `verworfen_am` noch `queue_status` (`_lade_intake` ist ein ungefiltertes `SELECT * FROM intake_dokumente WHERE id=?`). Die Gegenrichtung (Verwerfen nach Freigabe) ist in `post_verwerfen` explizit mit 409 gesperrt — hier fehlt das Pendant.
 - **Auswirkung:** Kollege A verwirft ein Spam-Dokument, Kollege B (oder ein alter Browser-Tab / Doppel-Submit) gibt es trotzdem frei: `schreibe_dokument` legt eine `dokumente`-Zeile an, ein eingehendes Ereignis wird ins Positionsmodell gebucht, `queue_status` springt auf `freigegeben` (Verwerfen still aufgehoben). Doppel-Submits erzeugen doppelte `dokumente`-Zeilen.
 - **Fix-Richtung:** Guard in `post_freigabe`: 409 bei `verworfen_am IS NOT NULL` oder `queue_status='freigegeben'` (Mehrfach-Freigabe in **andere** Akte ggf. bewusst erlauben — dann zusammen mit BUG-07 entscheiden).
 
-### - [ ] BUG-07 — Ereignis-Anker zeigt auf Dokument fremder Akte
+### - [x] BUG-07 — Ereignis-Anker zeigt auf Dokument fremder Akte
+- **Fix (2026-07-13, Commit `<pending>`):** `_anker_dokument_id` erhält Parameter `akte_az` und filtert die erste Freigabe jetzt mit `WHERE intake_dokument_id=? AND akte_az=? ORDER BY id ASC LIMIT 1`. Der einzige Aufrufer (`_schreibe_freigabe_ereignisse`) reicht die Ziel-Akte durch. Damit ankert das Ereignis der Ziel-Akte auf deren eigene erste Freigabe (dokument_id), nicht mehr auf ein Dokument einer fremden Akte. Tests: `test_bugfix_p1_intake_v7.py::TestBug07AnkerZielakte` (2). Da BUG-06 die Route-seitige Mehrfach-Freigabe sperrt, ist der Fix v.a. Defence-in-depth + direkt unit-getestet.
 - **Datei:** `backend/routers/intake_routes.py:660` (`_anker_dokument_id`)
 - **Problem:** `_anker_dokument_id` nimmt immer die **erste** Freigabe (`SELECT dokument_id FROM freigaben WHERE intake_dokument_id=? ORDER BY id ASC LIMIT 1`, ohne `akte_az`-Filter) und überschreibt damit die frische dokument_id.
 - **Auswirkung:** Freigabe erst in Akte 100/26 (dokument_id 5), nach Korrektur erneut in Akte 200/26 (dokument_id 9): das Ereignis für 200/26 verweist auf Dokument 5 der fremden Akte — Link in Ereignisliste/PositionsDashboard führt ins Leere bzw. in die falsche Akte, und der Doppelerfassungs-Guard keyed auf die fremde ID.

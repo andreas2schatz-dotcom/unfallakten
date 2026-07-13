@@ -531,6 +531,15 @@ def post_freigabe(intake_id: int):
     if not dok:
         return _err("Intake-Dokument nicht gefunden", 404)
 
+    # BUG-06: Pendant zum Verwerfen-Guard -- verworfene oder bereits
+    # freigegebene Dokumente sind tabu (sonst stille Doppel-Wirkung /
+    # doppelte dokumente-Zeilen bei Doppel-Submit).
+    if dok.get("verworfen_am"):
+        return _err("Dokument ist verworfen und kann nicht freigegeben "
+                    "werden.", 409)
+    if dok.get("queue_status") == "freigegeben":
+        return _err("Dokument ist bereits freigegeben.", 409)
+
     with get_connection() as conn:
         akte = conn.execute(
             "SELECT az FROM unfallakte WHERE az=?", (akte_az,)
@@ -640,7 +649,8 @@ def _default_ereignistyp(klasse: Optional[str]) -> Optional[str]:
         return None
 
 
-def _anker_dokument_id(intake_id: Optional[int], dokument_id: int) -> int:
+def _anker_dokument_id(intake_id: Optional[int], dokument_id: int,
+                       akte_az: str) -> int:
     """Stabile dokument_id fuer den Doppelerfassungs-Guard.
 
     schreibe_dokument() legt bei jeder Freigabe eine neue dokumente-Zeile
@@ -649,13 +659,17 @@ def _anker_dokument_id(intake_id: Optional[int], dokument_id: int) -> int:
     erzeuge_aus_freigabe (Task 2) wuerde nie greifen. Anker ist daher die
     dokument_id der ERSTEN je fuer dieses Intake-Dokument erfassten
     Freigabe.
+
+    BUG-07: Der Anker muss sich auf die erste Freigabe DERSELBEN Ziel-Akte
+    beziehen (``akte_az``-Filter). Sonst zeigt das Ereignis einer zweiten
+    Akte auf ein Dokument der ersten (fremden) Akte.
     """
     if not intake_id:
         return dokument_id
     with get_connection() as conn:
         row = conn.execute(
             "SELECT dokument_id FROM freigaben WHERE intake_dokument_id=? "
-            "ORDER BY id ASC LIMIT 1", (intake_id,),
+            "AND akte_az=? ORDER BY id ASC LIMIT 1", (intake_id, akte_az),
         ).fetchone()
     return row["dokument_id"] if row else dokument_id
 
@@ -668,7 +682,7 @@ def _schreibe_freigabe_ereignisse(*, dok, akte_az, dokument_id, payload,
         klasse = dok.get("klasse") or ""
         felder = _parse(dok.get("parse_json")).get("felder") or {}
         vorsteuer = _mandanten_vorsteuer(akte_az)
-        dokument_id = _anker_dokument_id(dok.get("id"), dokument_id)
+        dokument_id = _anker_dokument_id(dok.get("id"), dokument_id, akte_az)
 
         typen = [e.get("typ") for e in (payload.get("kandidaten_ereignisse") or [])
                  if isinstance(e, dict) and e.get("typ")]
