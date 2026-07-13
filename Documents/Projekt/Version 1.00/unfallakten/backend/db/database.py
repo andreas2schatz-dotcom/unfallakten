@@ -42,6 +42,7 @@ def get_raw_connection() -> sqlite3.Connection:
 
     # Kritische PRAGMA-Einstellungen
     conn.execute("PRAGMA journal_mode=WAL;")        # Write-Ahead Logging
+    conn.execute("PRAGMA busy_timeout=30000;")      # 30s Schreib-Lock-Wartezeit (explizit, unabhaengig vom Connect-timeout)
     conn.execute("PRAGMA foreign_keys=ON;")         # FK-Constraints erzwingen
     conn.execute("PRAGMA synchronous=NORMAL;")      # Balance: Sicherheit vs. Speed
     conn.execute("PRAGMA cache_size=-64000;")       # 64 MB Cache
