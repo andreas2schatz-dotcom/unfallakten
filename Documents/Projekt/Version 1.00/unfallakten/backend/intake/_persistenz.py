@@ -20,14 +20,16 @@ import logging
 from typing import Any
 
 from ..db.database import get_connection
+from . import archiv
 from .archiv import erzeuge_arbeitskopie, lege_original_ab
 
 logger = logging.getLogger(__name__)
 
-# Erweiterungen, fuer die eine PDF-Arbeitskopie erzeugt werden kann.
-# HEIC ist im Archiv-Modul explizit vertagt und darf hier keinen Abbruch
-# aus loesen — Arbeitskopie bleibt bei unbekannten Typen leer.
-_ARBEITSKOPIE_UNTERSTUETZT = {"pdf", "docx", "doc", "jpg", "jpeg", "png"}
+# Erweiterungen, fuer die eine PDF-Arbeitskopie erzeugt werden kann — direkt
+# aus dem Konverter-Mapping abgeleitet, damit ein neuer Konverter in archiv.py
+# nicht zusaetzlich hier nachgezogen werden muss. HEIC ist im Archiv-Modul
+# explizit vertagt (nicht in _KONVERTER) und bleibt damit ausgeschlossen.
+_ARBEITSKOPIE_UNTERSTUETZT = set(archiv._KONVERTER.keys())
 
 
 def _sha256_bytes(daten: bytes) -> str:

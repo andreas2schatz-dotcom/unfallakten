@@ -73,8 +73,7 @@ def _tage_seit(iso_datum: Optional[str]) -> int:
 
 
 def _zustand(gefordert: float, anerkannt: float, gekuerzt: float,
-              abgelehnt: float, hat_erledigt: bool,
-              hat_bestritten_only: bool) -> str:
+              abgelehnt: float, hat_erledigt: bool) -> str:
     if hat_erledigt:
         return "erledigt"
     if gefordert <= 0 and anerkannt <= 0 and gekuerzt <= 0 and abgelehnt <= 0:
@@ -166,7 +165,7 @@ def leite_positionsstatus_ab(
         zustand = _zustand(
             st["gefordert"], st["anerkannt"],
             st["gekuerzt"],  st["abgelehnt"],
-            st["erledigt_flag"], False,
+            st["erledigt_flag"],
         )
         offen = max(0.0, st["gefordert"] * quote - st["anerkannt"])
 

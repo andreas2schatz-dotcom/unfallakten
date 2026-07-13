@@ -30,6 +30,7 @@ Gemeinsame Design-Regeln (aus P1.5-Prompt + freigabe.md):
 from __future__ import annotations
 
 import logging
+from datetime import date
 from typing import Any, Dict, List, Optional
 
 from .ereignis_service import (
@@ -39,6 +40,11 @@ from .ereignis_service import (
 from .positionsmodell_registry import lade_positionsmodell
 
 logger = logging.getLogger(__name__)
+
+
+def _heute_wenn_leer(datum: Optional[str]) -> str:
+    """Gibt ``datum`` zurueck oder das heutige ISO-Datum, wenn es fehlt."""
+    return datum if datum is not None else date.today().isoformat()
 
 
 # ── Wirkungs-Ableitung (ReguWizard, P1.5a) ────────────────────────────────
@@ -229,9 +235,7 @@ def erzeuge_aus_beleg(
     Aufruf desselben Beleges).
     """
     try:
-        from datetime import date as _date
-        if datum is None:
-            datum = _date.today().isoformat()
+        datum = _heute_wenn_leer(datum)
 
         vorhandene_id = pruefe_doppelerfassung(
             akte_az=akte_az,
@@ -338,9 +342,7 @@ def erzeuge_aus_gutachten(
     ANDERE dokument_id -- der Guard traegt hier nicht.
     """
     try:
-        from datetime import date as _date
-        if datum is None:
-            datum = _date.today().isoformat()
+        datum = _heute_wenn_leer(datum)
 
         vorhandene_id = pruefe_doppelerfassung(
             akte_az=akte_az,
@@ -415,9 +417,7 @@ def erzeuge_aus_wdm(
     WDM-Alt-Pfad verhindert Mehrfach-Importe bereits mit HTTP 409.
     """
     try:
-        from datetime import date as _date
-        if datum is None:
-            datum = _date.today().isoformat()
+        datum = _heute_wenn_leer(datum)
 
         wirkungen = _regulierungs_wirkungen(positionen, haftungsart=haftungsart)
         wirkungen = _registry_kennt_alle(wirkungen)
@@ -515,9 +515,7 @@ def erzeuge_aus_freigabe(
     Doppelerfassungs-Guard aktiv. Best-Effort (Ausnahmen werden geloggt).
     """
     try:
-        from datetime import date as _date
-        if datum is None:
-            datum = _date.today().isoformat()
+        datum = _heute_wenn_leer(datum)
 
         vorhandene_id = pruefe_doppelerfassung(
             akte_az=akte_az, dokument_id=dokument_id, ereignistyp=ereignistyp,

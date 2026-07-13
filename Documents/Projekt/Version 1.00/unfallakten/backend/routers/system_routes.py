@@ -31,7 +31,7 @@ def registry_status():
             "ok": True,
             "version": reg.version,
             "klassen": sorted(reg.klassen.keys()),
-            "fehler": list(reg.fehler),
+            "fehler": [],
         })
     except RuntimeError as exc:
         logger.error("Registry-Status: Ladefehler: %s", exc)

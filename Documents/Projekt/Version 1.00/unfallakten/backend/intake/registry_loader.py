@@ -18,7 +18,7 @@ import hashlib
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,6 @@ class Registry:
     version: str
     klassen: Dict[str, Dict[str, Any]]
     pfad: str
-    fehler: List[str]
 
 
 _cache: Dict[str, Registry] = {}
@@ -91,7 +90,6 @@ def lade_registry(pfad: Optional[str] = None, *, reload: bool = False) -> Regist
         )
 
     klassen: Dict[str, Dict[str, Any]] = {}
-    fehler: List[str] = []
     hasher = hashlib.sha256()
 
     for dateiname in yaml_dateien:
@@ -122,7 +120,6 @@ def lade_registry(pfad: Optional[str] = None, *, reload: bool = False) -> Regist
         version=version,
         klassen=klassen,
         pfad=pfad_norm,
-        fehler=fehler,
     )
     _cache[pfad_norm] = registry
     logger.info(
