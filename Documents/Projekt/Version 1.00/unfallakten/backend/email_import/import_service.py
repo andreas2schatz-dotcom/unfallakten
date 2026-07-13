@@ -245,7 +245,7 @@ def _verarbeite_eine(uid, roh_bytes, imap, bericht, up_dir, bearbeiter_id, konto
     # ── PRD-22c: Fragebogen-E-Mails separat verarbeiten ──────────────────────
     if _ist_fragebogen_email(parsed):
         als_fragebogen = _verarbeite_fragebogen(
-            parsed, bericht, bearbeiter_id, up_dir
+            parsed, bericht, bearbeiter_id, up_dir, konto
         )
         if als_fragebogen:
             markiere_als_gelesen(imap, uid)
@@ -434,20 +434,49 @@ def _verarbeite_eine(uid, roh_bytes, imap, bericht, up_dir, bearbeiter_id, konto
             )
         )
 
-    # ── S1.3: Doppelschreiben in intake_dokumente/zustellungen ────────────
-    # Best-Effort — der Alt-Pfad darf durch den Adapter niemals brechen.
+    # ── S1.3: Registrierung in intake_dokumente/zustellungen ──────────────
+    # Unter INTAKE_REVIEW_PFLICHT ist der IMAP-Adapter der EINZIGE
+    # Registrierungspfad. Ein Fehler darf die Mail dann NICHT als erledigt
+    # gelten lassen (BUG-02) -- sonst verschwinden die Anhaenge stumm und
+    # der naechste Poll (nur ungelesene) holt sie nicht erneut.
+    # Im Alt-Pfad (Flag=false) ist der Adapter nur Doppelschreiber -- die
+    # echten dokumente-Zeilen entstanden bereits oben; dort bleibt er
+    # Best-Effort.
+    registrierung_ok = True
     try:
         from ..intake.adapter_imap import verarbeite_email as _intake_imap
         _intake_imap(roh_bytes, konto=konto, roh_referenz=eml_pfad)
     except Exception as _e:
-        logger.debug("Intake-Doppelschreiben (IMAP) fehlgeschlagen: %s", _e)
+        registrierung_ok = False
+        if _rev_pflicht_aktiv():
+            logger.error(
+                "Intake-Registrierung (IMAP) fehlgeschlagen fuer %s: %s",
+                msg_id, _e,
+            )
+        else:
+            logger.debug("Intake-Doppelschreiben (IMAP) fehlgeschlagen: %s", _e)
 
-    # ── Als gelesen markieren ─────────────────────────────────────────────────
-    markiere_als_gelesen(imap, uid)
+    registrierung_fatal = _rev_pflicht_aktiv() and not registrierung_ok
+    if registrierung_fatal:
+        status = "fehler"
+        with get_connection() as conn:
+            conn.execute(
+                "UPDATE email_import_log SET status = 'fehler', notizen = ? "
+                "WHERE message_id = ?",
+                (
+                    "Intake-Registrierung fehlgeschlagen - Anhaenge nicht "
+                    "uebernommen. Mail bleibt ungelesen fuer erneuten Poll.",
+                    msg_id,
+                ),
+            )
 
-    # ── IMAP: nach UA_Eingang verschieben (nur unfall@) ───────────────────────
-    if konto == "unfall":
-        verschiebe_in_ua(imap, uid, "eingang")
+    # ── Als gelesen markieren / verschieben (nur bei erfolgreicher Ablage) ──
+    # Bei fatalem Registrierungsfehler bleibt die Mail ungelesen, damit der
+    # naechste Poll sie erneut abholt.
+    if not registrierung_fatal:
+        markiere_als_gelesen(imap, uid)
+        if konto == "unfall":
+            verschiebe_in_ua(imap, uid, "eingang")
 
     # ── Bericht aktualisieren ─────────────────────────────────────────────────
     if status == "zugeordnet":
@@ -858,7 +887,8 @@ def _ist_fragebogen_email(parsed: dict) -> bool:
 
 
 def _verarbeite_fragebogen(parsed: dict, bericht: dict,
-                           bearbeiter_id: Optional[int], up_dir: Path) -> bool:
+                           bearbeiter_id: Optional[int], up_dir: Path,
+                           konto: str = None) -> bool:
     """
     Verarbeitet eine Fragebogen-E-Mail (PRD-22c).
 
@@ -869,6 +899,7 @@ def _verarbeite_fragebogen(parsed: dict, bericht: dict,
     Returns False wenn kein gültiger Fragebogen-Anhang gefunden (normal weitermachen).
     """
     fragebogen = None
+    fragebogen_dateiname = None
     for anh in parsed.get("anhaenge_json", []):
         import re as _re
         if not _re.match(r"^unfallbogen_.*\.json$", anh.get("dateiname", ""),
@@ -876,6 +907,7 @@ def _verarbeite_fragebogen(parsed: dict, bericht: dict,
             continue
         fragebogen = parse_fragebogen_anhang(anh["inhalt"])
         if fragebogen is not None:
+            fragebogen_dateiname = anh.get("dateiname")
             break
 
     if fragebogen is None:
@@ -885,6 +917,17 @@ def _verarbeite_fragebogen(parsed: dict, bericht: dict,
             parsed.get("betreff", "")[:80],
         )
         return False
+
+    # ── BUG-01: Unter INTAKE_REVIEW_PFLICHT den Unfallbogen in die Review-
+    # Queue legen, statt ihn (bei No-op-Enrichment) still zu verlieren. Ein
+    # Fehler hier wird NICHT verschluckt -- er propagiert nach
+    # _verarbeite_alle, das die Mail als Fehler zaehlt und ungelesen laesst
+    # (naechster Poll wiederholt). Feld-Uebernahme in die Akte erst mit
+    # Freigabe (eigener Folge-Task).
+    from ..intake.feature_flags import review_pflicht_aktiv
+    if review_pflicht_aktiv():
+        _fragebogen_in_intake_queue(fragebogen, parsed, fragebogen_dateiname,
+                                    konto)
 
     try:
         if fragebogen["hat_aktenzeichen"]:
@@ -898,6 +941,46 @@ def _verarbeite_fragebogen(parsed: dict, bericht: dict,
         bericht["fehler"] += 1
 
     return True
+
+
+def _fragebogen_in_intake_queue(fragebogen: dict, parsed: dict,
+                                dateiname: str = None,
+                                konto: str = None) -> None:
+    """BUG-01: Legt den Unfallbogen als Intake-Dokument in die Review-Queue.
+
+    Der geparste Fragebogen wird verlustfrei als JSON-Payload gespeichert; das
+    (ggf. vorhandene) Aktenzeichen wird als ``az``-Signal durchgereicht, damit
+    ``akten_matching.finde_kandidaten`` die Akte im Freigabe-Dialog als Top-
+    Kandidat vorbelegt. Die eigentliche Feld-Uebernahme in die Akte erfolgt
+    erst mit der Freigabe (nicht Teil dieses P0-Fixes).
+
+    Fehler werden bewusst NICHT geschluckt -- der Aufrufer laesst sie
+    propagieren, damit die Mail bei einem Speicherfehler nicht verloren geht.
+    """
+    from ..intake._persistenz import (
+        oder_intake_dokument_fuer_text, erzeuge_zustellung,
+    )
+    payload = json.dumps(fragebogen.get("_roh") or {}, ensure_ascii=False,
+                         indent=2)
+    intake_id, _sha = oder_intake_dokument_fuer_text(payload)
+    signale = {
+        "dateiname": dateiname or "unfallbogen.json",
+        "dokument_art": "fragebogen",
+    }
+    if fragebogen.get("hat_aktenzeichen") and fragebogen.get("aktenzeichen"):
+        signale["az"] = fragebogen["aktenzeichen"]
+    erzeuge_zustellung(
+        intake_id,
+        quelle="imap",
+        absender=(parsed.get("absender") or "")[:200] or None,
+        betreff=(parsed.get("betreff") or "")[:500] or None,
+        empfangen_am=parsed.get("empfangen_am"),
+        signale=signale,
+        konto=konto,
+        roh_referenz=parsed.get("message_id"),
+    )
+    logger.info("Fragebogen in Review-Queue gelegt (intake_dokument=%s, az=%s)",
+                intake_id, signale.get("az"))
 
 
 def _fragebogen_bestehende_akte(fragebogen: dict, parsed: dict,

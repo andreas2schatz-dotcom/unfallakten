@@ -42,16 +42,22 @@ INTAKE_PFADE = (
 # unfalldetails / personenschaden / fragebogen_erstkontakt).
 #
 #   * import_service.py Zeile 306 — Alt-Pfad Anhang-Registrierung (S1.9b).
-#   * import_service.py Zeilen 737 + 767 — manuelle "In Akte importieren"-
-#     Aktion und .eml-Registrierung. Route in email_routes gibt jetzt 202
-#     zurueck und ruft die Funktion nicht mehr auf (S1.9d).
-#   * import_service.py Zeile 1055 — Fragebogen-JSON-Archivierung (K-P1,
+#   * import_service.py Zeilen 766 + 796 — manuelle "In Akte importieren"-
+#     Aktion und .eml-Registrierung. Route in email_routes gibt bei
+#     vorhandenen Intake-Dokumenten 202 zurueck; nur fuer Alt-Mails ohne
+#     Intake-Eintrag laeuft der Fallback (BUG-04).
+#   * import_service.py Zeile 1138 — Fragebogen-JSON-Archivierung (K-P1,
 #     Guard-hinter-Flag ab S1.9d).
 #   * upload_service.py Zeile 171 — Upload-Route Alt-Pfad (S1.9c).
 #   * upload_service.py Zeile 293 — Auto-setze_schadenpositionen (S1.9c).
 #   * eakte_routes.py Zeile 254 — E-Akte-Import Alt-Pfad (S1.9c).
+#
+# Hinweis: Die Zeilennummern verschieben sich, wenn import_service.py
+# waechst -- sie werden beim Anpassen aktualisiert (reiner Status-Quo-Anker,
+# kein neuer Schreibpfad). BUG-01/BUG-02-Fixes haben 737/767/1055 auf
+# 766/796/1138 verschoben.
 BEKANNTE_ALT_AUFRUFER = {
-    ("email_import/import_service.py", "registriere_dokument"): {306, 737, 767, 1055},
+    ("email_import/import_service.py", "registriere_dokument"): {306, 766, 796, 1138},
     ("pdf/upload_service.py",         "registriere_dokument"):    {171},
     ("pdf/upload_service.py",         "setze_schadenpositionen"): {293},
     ("routers/eakte_routes.py",       "registriere_dokument"):    {254},

@@ -163,13 +163,31 @@ class TestS19dNoIntakeWrites(unittest.TestCase):
 
     def test_in_akte_klick_schreibt_nicht_in_akten_tabellen(self):
         from backend.db.database import get_connection
+        # BUG-04: Nur wenn Intake-Dokumente in der Queue vorliegen, verweist
+        # die Route auf die Review-Queue (202) und schreibt nichts. Daher
+        # hier ein verknuepftes Intake-Dokument seeden (Link ueber
+        # zustellungen.roh_referenz == email_import_log.eml_pfad).
+        eml_pfad = os.path.join(_tmp_dir, "in_akte_mail.eml")
         with get_connection() as conn:
             conn.execute(
                 "INSERT INTO email_import_log "
                 "(id, message_id, betreff, absender, empfangen_am, konto, "
-                " akte_id, status) "
+                " akte_id, status, eml_pfad) "
                 "VALUES (1, '<mid1>', 'x', 'test@x', '2026-01-01', 'unfall', "
-                "'44/22', 'zugeordnet')"
+                "'44/22', 'zugeordnet', ?)",
+                (eml_pfad,)
+            )
+            conn.execute(
+                "INSERT INTO intake_dokumente (sha256, payload_typ, queue_status) "
+                "VALUES ('sha-inakte', 'text', 'neu')"
+            )
+            row = conn.execute(
+                "SELECT id FROM intake_dokumente WHERE sha256='sha-inakte'"
+            ).fetchone()
+            conn.execute(
+                "INSERT INTO zustellungen (intake_dokument_id, quelle, roh_referenz) "
+                "VALUES (?, 'imap', ?)",
+                (row["id"], eml_pfad)
             )
         r = self.client.post(
             "/email/import/log/1/in-akte",

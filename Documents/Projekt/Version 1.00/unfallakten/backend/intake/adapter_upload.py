@@ -27,9 +27,15 @@ def verarbeite_datei(
     absender: str | None = None,
     hochgeladen_von: int | None = None,
     roh_referenz: str | None = None,
+    ziel_akte: str | None = None,
 ) -> dict[str, Any]:
     """
     Legt eine hochgeladene Datei ins Intake-Datenmodell.
+
+    ``ziel_akte``: Beim Upload ueber ``POST /akten/<id>/dokumente`` ist die
+    Ziel-Akte bekannt. Sie wird als ``az``-Signal durchgereicht, damit
+    ``akten_matching.finde_kandidaten`` sie als Top-Kandidat vorbelegt
+    (BUG-03 -- sonst Text-Matching allein, Gefahr der Falschablage).
 
     Rueckgabe: ``{"intake_dokument_id": int, "zustellung_id": int, "sha256": str}``.
     """
@@ -39,6 +45,8 @@ def verarbeite_datei(
     signale = {"dateiname": dateiname}
     if hochgeladen_von is not None:
         signale["hochgeladen_von"] = hochgeladen_von
+    if ziel_akte:
+        signale["az"] = ziel_akte
 
     zust_id = erzeuge_zustellung(
         intake_id,

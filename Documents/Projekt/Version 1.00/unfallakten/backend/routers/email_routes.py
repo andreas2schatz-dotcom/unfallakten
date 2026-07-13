@@ -348,6 +348,24 @@ def log_eintrag_dokumente(log_id: int):
 
 # ── POST /email/import/log/<id>/in-akte ──────────────────────────────────────
 
+def _hat_intake_dokumente(log_id: int) -> bool:
+    """True, wenn zu diesem Log-Eintrag Intake-Dokumente in der Review-Queue
+    vorliegen. Verknuepfung: ``zustellungen.roh_referenz == email_import_log.eml_pfad``
+    (der Import-Service ruft den IMAP-Adapter mit ``roh_referenz=eml_pfad`` auf).
+    """
+    with get_connection() as conn:
+        log = conn.execute(
+            "SELECT eml_pfad FROM email_import_log WHERE id = ?", (log_id,)
+        ).fetchone()
+        if not log or not log["eml_pfad"]:
+            return False
+        row = conn.execute(
+            "SELECT 1 FROM zustellungen WHERE roh_referenz = ? LIMIT 1",
+            (log["eml_pfad"],),
+        ).fetchone()
+    return row is not None
+
+
 @email_bp.route("/import/log/<int:log_id>/in-akte", methods=["POST"])
 @login_erforderlich
 def log_in_akte_importieren(log_id: int):
@@ -365,7 +383,12 @@ def log_in_akte_importieren(log_id: int):
       Response 400: { "fehler": "Keine Akte zugeordnet." }
     """
     from ..intake.feature_flags import review_pflicht_aktiv
-    if review_pflicht_aktiv():
+    # BUG-04: Nur auf die Review-Queue verweisen, wenn fuer diesen Log-Eintrag
+    # tatsaechlich Intake-Dokumente existieren. Fuer Alt-Eintraege (vor dem
+    # Branch-Deployment) und Faelle mit fehlgeschlagenem IMAP-Adapter (BUG-02)
+    # gibt es keine -- dort muss der Alt-Pfad greifen, sonst sind die Anhaenge
+    # dauerhaft nicht in die Akte uebernehmbar.
+    if review_pflicht_aktiv() and _hat_intake_dokumente(log_id):
         return _j({
             "in_review": True,
             "log_id": log_id,

@@ -59,6 +59,34 @@ def _setup(test_id: str):
     return client
 
 
+def _seed_intake_fuer_log(log_id: int, eml_pfad: str = "/tmp/mail1.eml"):
+    """Verknuepft einen Log-Eintrag mit einem Intake-Dokument in der Queue.
+
+    Der Link laeuft ueber ``zustellungen.roh_referenz == email_import_log.eml_pfad``
+    (so ruft der Import-Service den IMAP-Adapter auf: roh_referenz=eml_pfad).
+    """
+    from backend.db.database import get_connection
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE email_import_log SET eml_pfad = ? WHERE id = ?",
+            (eml_pfad, log_id),
+        )
+        conn.execute(
+            "INSERT INTO intake_dokumente (sha256, payload_typ, queue_status) "
+            "VALUES (?, 'text', 'neu')",
+            (f"sha-{log_id}",),
+        )
+        row = conn.execute(
+            "SELECT id FROM intake_dokumente WHERE sha256 = ?",
+            (f"sha-{log_id}",),
+        ).fetchone()
+        conn.execute(
+            "INSERT INTO zustellungen (intake_dokument_id, quelle, roh_referenz) "
+            "VALUES (?, 'imap', ?)",
+            (row["id"], eml_pfad),
+        )
+
+
 def _auth(client):
     r = client.post("/auth/login", json={
         "email": os.environ.get("ADMIN_EMAIL", "admin@test.de"),
@@ -82,6 +110,7 @@ class TestInAkteFlag(unittest.TestCase):
             os.environ["INTAKE_REVIEW_PFLICHT"] = self._alt_flag
 
     def test_default_flag_true_liefert_202_review(self):
+        _seed_intake_fuer_log(1)
         r = self.client.post(
             "/email/import/log/1/in-akte",
             headers=self.headers,
@@ -91,6 +120,7 @@ class TestInAkteFlag(unittest.TestCase):
         self.assertTrue(body.get("in_review"))
 
     def test_default_flag_true_ruft_importiere_in_akte_nicht_auf(self):
+        _seed_intake_fuer_log(1)
         with mock.patch(
             "backend.email_import.import_service.importiere_in_akte"
         ) as mck:
@@ -100,6 +130,31 @@ class TestInAkteFlag(unittest.TestCase):
             )
         self.assertEqual(r.status_code, 202, r.get_data(as_text=True))
         mck.assert_not_called()
+
+    def test_flag_true_ohne_intake_faellt_auf_altpfad_zurueck(self):
+        # BUG-04: Alt-Mail (kein Intake-Dokument in der Queue) muss weiterhin
+        # ueber den Alt-Pfad importierbar sein, sonst sind ihre Anhaenge
+        # dauerhaft nicht in die Akte uebernehmbar.
+        with mock.patch(
+            "backend.routers.email_routes.importiere_in_akte",
+            return_value={"ok": True, "dok_ids": [1], "importiert_am": "12:00"},
+        ) as mck:
+            r = self.client.post(
+                "/email/import/log/1/in-akte",
+                headers=self.headers,
+            )
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        mck.assert_called_once()
+
+    def test_flag_true_mit_intake_bleibt_202_review(self):
+        # Ist das Dokument in der Review-Queue vorhanden -> weiterhin 202.
+        _seed_intake_fuer_log(1)
+        r = self.client.post(
+            "/email/import/log/1/in-akte",
+            headers=self.headers,
+        )
+        self.assertEqual(r.status_code, 202, r.get_data(as_text=True))
+        self.assertTrue(r.get_json().get("in_review"))
 
     def test_flag_false_ruft_importiere_in_akte_auf(self):
         os.environ["INTAKE_REVIEW_PFLICHT"] = "false"

@@ -149,6 +149,7 @@ def upload(akte_id: str):
                 dateiname=datei.filename,
                 hochgeladen_von=getattr(g, "benutzer_id", None),
                 roh_referenz=f"upload/akte:{akte_id}",
+                ziel_akte=akte_id,
             )
         except Exception as exc:
             logger.error("Intake-Upload fehlgeschlagen (Akte %s): %s",
