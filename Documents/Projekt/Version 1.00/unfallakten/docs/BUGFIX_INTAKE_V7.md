@@ -6,7 +6,7 @@
 > **Arbeitsregeln für alle Fixes:**
 > - TDD: erst fehlschlagender Test, dann Fix. Kein Refactoring über den Fix hinaus.
 > - RA-MICRO bleibt **read-only** (betrifft v.a. BUG-08).
-> - Baseline muss grün bleiben: Backend **204f/732p** (Failures nur in bekannten Alt-Clustern, null in Pipeline-v7-Dateien) + **44 Frontend-Tests**.
+> - Baseline muss grün bleiben: Backend Failures nur in bekannten Alt-Clustern (`test_modul2/3/4/7`, u.a. `ModuleNotFoundError: backend.email_import.parser`), **null in Pipeline-v7-Dateien** + **48 Frontend-Tests** (44 + 4 aus BUG-30).
 > - Beim Abhaken: `[x]` setzen und Commit-Hash hinter den Titel schreiben.
 
 ## Status-Übersicht
@@ -32,17 +32,17 @@
 | BUG-17 | P3 | `backend/intake/akten_matching.py:47` | KFZ-Muster erkennt keine Umlaut-Kennzeichen (TÖL, FÜ …) | **behoben** ✅ |
 | BUG-18 | P3 | `backend/routers/email_routes.py:912` | Kurze E-Mail-Bodies (<10 Zeichen) werden unterdrückt | **behoben** ✅ |
 | BUG-19 | P3 | `backend/routers/intake_routes.py:136` | Queue-Sortierung: Konfidenz-Schlüssel ist toter Code | **behoben** ✅ |
-| BUG-20 | P4 | `backend/routers/intake_routes.py:141` | hole_queue lädt komplettes parse_json pro Zeile | offen |
-| BUG-21 | P4 | `backend/routers/intake_routes.py:125` | 4 identische korrelierte Subselects auf zustellungen | offen |
-| BUG-22 | P4 | `backend/routers/positionen_routes.py:45` | Eigenes `_pruefe_akte` ohne AZ-Normalisierung | offen |
-| BUG-23 | P4 | `backend/email_import/import_service.py:67` | IMAP-Config dupliziert, EMAIL_FOLDER/MAX_FETCH ignoriert | offen |
-| BUG-24 | P4 | `backend/intake/adapter_imap.py:178` | `_html_zu_text` ist divergierte Kopie aus email_parser | offen |
-| BUG-25 | P4 | `backend/intake/_persistenz.py:30` | Arbeitskopie-Set dupliziert `archiv._KONVERTER`-Keys | offen |
-| BUG-26 | P4 | `frontend/src/views/ReviewQueueView.jsx:19` | KLASSEN hartcodiert statt aus Backend-Registry | offen |
-| BUG-27 | P4 | `backend/services/positionsstatus_service.py:77` | Toter Parameter `hat_bestritten_only` | offen |
-| BUG-28 | P4 | `backend/intake/registry_loader.py:43` | `Registry.fehler` wird nie befüllt (totes Feld) | offen |
-| BUG-29 | P4 | `backend/services/eingehende_ereignisse.py:232` | `date.today()`-Block 4× copy-gepastet | offen |
-| BUG-30 | P4 | `frontend/src/views/ReviewQueueView.jsx:503` | `wartAufWorker` pollt nach Unmount unkündbar weiter | offen |
+| BUG-20 | P4 | `backend/routers/intake_routes.py:141` | hole_queue lädt komplettes parse_json pro Zeile | **behoben** ✅ |
+| BUG-21 | P4 | `backend/routers/intake_routes.py:125` | 4 identische korrelierte Subselects auf zustellungen | **behoben** ✅ |
+| BUG-22 | P4 | `backend/routers/positionen_routes.py:45` | Eigenes `_pruefe_akte` ohne AZ-Normalisierung | **behoben** ✅ |
+| BUG-23 | P4 | `backend/email_import/import_service.py:67` | IMAP-Config dupliziert, EMAIL_FOLDER/MAX_FETCH ignoriert | **behoben** ✅ |
+| BUG-24 | P4 | `backend/intake/adapter_imap.py:178` | `_html_zu_text` ist divergierte Kopie aus email_parser | **behoben** ✅ |
+| BUG-25 | P4 | `backend/intake/_persistenz.py:30` | Arbeitskopie-Set dupliziert `archiv._KONVERTER`-Keys | **behoben** ✅ |
+| BUG-26 | P4 | `frontend/src/views/ReviewQueueView.jsx:19` | KLASSEN hartcodiert statt aus Backend-Registry | **behoben** ✅ |
+| BUG-27 | P4 | `backend/services/positionsstatus_service.py:77` | Toter Parameter `hat_bestritten_only` | **behoben** ✅ |
+| BUG-28 | P4 | `backend/intake/registry_loader.py:43` | `Registry.fehler` wird nie befüllt (totes Feld) | **behoben** ✅ |
+| BUG-29 | P4 | `backend/services/eingehende_ereignisse.py:232` | `date.today()`-Block 4× copy-gepastet | **behoben** ✅ |
+| BUG-30 | P4 | `frontend/src/views/ReviewQueueView.jsx:503` | `wartAufWorker` pollt nach Unmount unkündbar weiter | **behoben** ✅ |
 
 ---
 
@@ -197,71 +197,82 @@
 
 ## P4 — Niedrig: Performance / Code-Hygiene
 
-### - [ ] BUG-20 — hole_queue lädt komplettes parse_json pro Zeile
+### - [x] BUG-20 — hole_queue lädt komplettes parse_json pro Zeile
 - **Datei:** `backend/routers/intake_routes.py:141`
 - **Problem:** Für jede Queue-Zeile wird das komplette `parse_json` (enthält `text_gesamt` des ganzen Dokuments) geladen und deserialisiert, nur um `akten_kandidaten[0]` zu extrahieren — bei jedem 30-s-Frontend-Poll.
 - **Auswirkung:** Queue mit 100 OCR-Dokumenten à ~100 KB Volltext → ~10 MB JSON-Deserialisierung pro Poll.
 - **Fix-Richtung:** `json_extract(parse_json,'$.akten_kandidaten[0]')` im SELECT oder Top-Kandidat als eigene Spalte beim Pipeline-Stempeln.
+- **Fix (2026-07-13, Commit `8bac957f`):** `json_extract(i.parse_json,'$.akten_kandidaten[0]')` im SELECT statt Deserialisierung des ganzen `parse_json` pro Zeile; `akte_kandidat_top` via `json.loads` des Teilobjekts unverändert.
 
-### - [ ] BUG-21 — 4 identische korrelierte Subselects auf zustellungen
+### - [x] BUG-21 — 4 identische korrelierte Subselects auf zustellungen
 - **Datei:** `backend/routers/intake_routes.py:125`
 - **Problem:** `hole_queue` nutzt vier identische korrelierte Subselects (je `ORDER BY z.id LIMIT 1`) für `zustellung_id`/`parent_id`/`absender`/`betreff` statt eines JOINs auf die erste Zustellung.
 - **Auswirkung:** 4×N Subquery-Ausführungen pro Poll; `zustellungen` wächst unbegrenzt.
 - **Fix-Richtung:** LEFT JOIN auf `MIN(z.id)` pro `intake_dokument_id`.
+- **Fix (2026-07-13, Commit `8bac957f`):** Ein `LEFT JOIN` auf die erste Zustellung (`MIN(id)` je `intake_dokument_id`) ersetzt die 4 korrelierten Subselects; gleiche „erste Zustellung"-Semantik, BUG-19-Sortierung unverändert.
 
-### - [ ] BUG-22 — Eigenes `_pruefe_akte` ohne AZ-Normalisierung
+### - [x] BUG-22 — Eigenes `_pruefe_akte` ohne AZ-Normalisierung
 - **Datei:** `backend/routers/positionen_routes.py:45`
 - **Problem:** Eigene `_pruefe_akte`-Implementierung mit exaktem az-Vergleich statt des Helpers `backend/routers/_helpers.pruefe_akte` mit `_normiere_az` (Projekt-Regel: Rückgabewert immer für az-Extraktion nutzen).
 - **Auswirkung:** AZ-Schreibweise `28526` liefert auf `/akten/<az>/positionen/*` 404, während dieselbe Akte über andere Router funktioniert.
 - **Fix-Richtung:** Helper verwenden.
+- **Fix (2026-07-13, Commit `1f469367`):** `_helpers.pruefe_akte` (mit `_normiere_az`) statt eigenem exaktem Vergleich; Rückgabewert (`akte.aktenzeichen`) an allen 3 Endpoints für Folge-Queries genutzt. RA-MICRO-only-Akten liefern nun 200/leer (konsistent mit anderen Routern); `test_akte_404` auf unnormalisierbares AZ umgestellt.
 
-### - [ ] BUG-23 — IMAP-Config dupliziert, EMAIL_FOLDER/MAX_FETCH ignoriert
+### - [x] BUG-23 — IMAP-Config dupliziert, EMAIL_FOLDER/MAX_FETCH ignoriert
 - **Datei:** `backend/email_import/import_service.py:67` (`_imap_cfg_fuer_konto`)
 - **Problem:** Dupliziert `polling_service._imap_config_fuer_account` mit stiller Abweichung: `folder` fest `INBOX`, `max_fetch` fest 50; `EMAIL_FOLDER`/`EMAIL_MAX_FETCH` werden ignoriert.
 - **Auswirkung:** Bei konfiguriertem EMAIL_FOLDER liest der Auto-Poll den richtigen Ordner, manueller Import und UA-Verschiebung arbeiten auf INBOX — Mails werden nicht gefunden/verschoben.
 - **Fix-Richtung:** Gemeinsame Config-Funktion verwenden.
+- **Fix (2026-07-13, Commit `f175fe2c`):** `import_service._imap_cfg_fuer_konto` liest jetzt `EMAIL_FOLDER`/`EMAIL_MAX_FETCH`; `polling_service` importiert dieselbe Funktion (Alias, echte Dedup), lokale Kopie + ungenutztes `_env`/`os` entfernt. Guard-Zeilennummern unverändert.
 
-### - [ ] BUG-24 — `_html_zu_text` ist divergierte Kopie aus email_parser
+### - [x] BUG-24 — `_html_zu_text` ist divergierte Kopie aus email_parser
 - **Datei:** `backend/intake/adapter_imap.py:178`
 - **Problem:** `_html_zu_text` und die Body-Walk-Logik sind Kopien von `email_parser._html_zu_text`/`_extrahiere_text` — bereits divergiert: email_parser filtert unlesbaren Binär-Text (Lesbarkeits-Check über `decoded[:200]`), der Adapter nicht.
 - **Auswirkung:** `intake_dokumente.structured_payload` kann Binärmüll enthalten; jede Korrektur muss doppelt gepflegt werden.
 - **Fix-Richtung:** Import statt Duplikat (Muster ist im Modul für `dekodiere_email_payload` bereits etabliert).
+- **Fix (2026-07-13, Commit `f175fe2c`):** Adapter nutzt `email_parser._html_zu_text` per lokalem Import (spiegelt die dortige Zyklenvermeidung); Duplikat entfernt.
 
-### - [ ] BUG-25 — Arbeitskopie-Set dupliziert `archiv._KONVERTER`-Keys
+### - [x] BUG-25 — Arbeitskopie-Set dupliziert `archiv._KONVERTER`-Keys
 - **Datei:** `backend/intake/_persistenz.py:30` (`_ARBEITSKOPIE_UNTERSTUETZT`)
 - **Problem:** Handgepflegtes Set `{pdf,docx,doc,jpg,jpeg,png}` statt Ableitung aus dem Konverter-Mapping.
 - **Auswirkung:** Neuer Konverter in `archiv.py` (z. B. heic) ohne Set-Nachzug → „Arbeitskopie fehlt", Dokument landet nach 3 Versuchen in `pipeline_fehler`, obwohl der Konverter existiert.
 - **Fix-Richtung:** Set aus `archiv._KONVERTER.keys()` ableiten.
+- **Fix (2026-07-13, Commit `b9254e09`):** `_ARBEITSKOPIE_UNTERSTUETZT = set(archiv._KONVERTER.keys())` — neuer Konverter fließt automatisch ein.
 
-### - [ ] BUG-26 — KLASSEN hartcodiert statt aus Backend-Registry
+### - [x] BUG-26 — KLASSEN hartcodiert statt aus Backend-Registry
 - **Datei:** `frontend/src/views/ReviewQueueView.jsx:19`
 - **Problem:** `KLASSEN` ist eine hartcodierte Frontend-Kopie der Backend-Registry-Klassen (`backend/registry/klassen/*.yaml`); der Ereignistyp-Katalog wird bereits per Endpoint geladen (`apiIntake.ereignistypen`), für Klassen fehlt das Pendant.
 - **Auswirkung:** Neue Klasse als YAML → Reklassifikations-Dropdown kennt sie nicht.
 - **Fix-Richtung:** Klassen-Endpoint analog Ereignistypen + Frontend lädt dynamisch.
+- **Fix (2026-07-13, Commit `b822cfa8`):** Neuer Endpoint `GET /intake/klassen` (Intake-Registry); Frontend lädt via `apiIntake.klassen`, `KLASSEN_FALLBACK` nur noch als Fehlerfall-Fallback.
 
-### - [ ] BUG-27 — Toter Parameter `hat_bestritten_only`
+### - [x] BUG-27 — Toter Parameter `hat_bestritten_only`
 - **Datei:** `backend/services/positionsstatus_service.py:77` (`_zustand`)
 - **Problem:** Parameter wird im Funktionskörper nie verwendet, einziger Aufrufer übergibt fest `False`.
 - **Auswirkung:** Suggeriert eine Steuerung, die nicht existiert.
 - **Fix-Richtung:** Ersatzlos streichen.
+- **Fix (2026-07-13, Commit `b9254e09`):** Parameter `hat_bestritten_only` aus Signatur + Aufrufstelle ersatzlos gestrichen.
 
-### - [ ] BUG-28 — `Registry.fehler` wird nie befüllt
+### - [x] BUG-28 — `Registry.fehler` wird nie befüllt
 - **Datei:** `backend/intake/registry_loader.py:43`
 - **Problem:** `Registry.fehler` als Liste initialisiert, aber alle Fehlerpfade werfen `RuntimeError` — dauerhaft leeres, totes Feld.
 - **Auswirkung:** Konsumenten sehen immer `[]` und melden „alles ok".
 - **Fix-Richtung:** Feld entfernen (oder Soft-Fehler tatsächlich sammeln).
+- **Fix (2026-07-13, Commit `b9254e09`):** Feld `Registry.fehler` entfernt (inkl. lokaler Liste + `List`-Import); Health-Endpoint liefert weiterhin `"fehler": []` (Response-Form unverändert). Testhelfer-`Registry(...)`-Aufrufe nachgezogen.
 
-### - [ ] BUG-29 — `date.today()`-Block 4× copy-gepastet
+### - [x] BUG-29 — `date.today()`-Block 4× copy-gepastet
 - **Datei:** `backend/services/eingehende_ereignisse.py:232` (u. a.)
 - **Problem:** `from datetime import date as _date; if datum is None: datum=_date.today().isoformat()` ist in `erzeuge_aus_beleg`, `erzeuge_aus_gutachten`, `erzeuge_aus_wdm`, `erzeuge_aus_freigabe` identisch dupliziert; `ausgehende_ereignisse.py` macht es bereits mit Modul-Import + Einzeiler.
 - **Auswirkung:** Reine Wartungslast.
 - **Fix-Richtung:** Modul-Import + kleiner Helper.
+- **Fix (2026-07-13, Commit `b9254e09`):** Modul-Import `from datetime import date` + Helper `_heute_wenn_leer`; die 4 identischen Blöcke ersetzt (Verhalten identisch, P1.5e-Tests grün).
 
-### - [ ] BUG-30 — `wartAufWorker` pollt nach Unmount unkündbar weiter
+### - [x] BUG-30 — `wartAufWorker` pollt nach Unmount unkündbar weiter
 - **Datei:** `frontend/src/views/ReviewQueueView.jsx:503`
 - **Problem:** `wartAufWorker` pollt in einer unkündbaren while-Schleife bis 30 s weiter, auch wenn das DetailPanel unmountet (Dokumentwechsel erzwingt Re-Mount per `key`) — kein AbortController/mounted-Flag.
 - **Auswirkung:** Klick auf ein anderes Dokument während eines Re-Parse → bis zu 20 weitere Detail-Requests für das verlassene Dokument + setState auf unmounteter Komponente (React-Warnungen, unnötige Backend-Last inkl. UPDATE-Statements des Detail-Endpoints).
 - **Fix-Richtung:** Abbruch-Flag/AbortController beim Unmount bzw. Dokumentwechsel.
+- **Fix (2026-07-13, Commit `b822cfa8`):** Poll-Schleife in reine, testbare Funktion `polleWorkerBisFertig` extrahiert; Mount-Flag (`useRef`) stoppt den Poll bei Unmount/Dokumentwechsel sofort. `skipFormReset`-Verhalten (P1.5e) erhalten. Vitest `ReviewQueueView.poll.test.jsx` (4).
 
 ---
 
