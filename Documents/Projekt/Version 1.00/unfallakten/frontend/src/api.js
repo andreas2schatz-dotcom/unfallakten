@@ -1068,6 +1068,7 @@ export const apiIntake = {
     method: 'POST', body: JSON.stringify(payload),
   }),
   ereignistypen: ()          => request('/intake/ereignistypen'),
+  klassen: ()                => request('/intake/klassen'),
 };
 
 // ─────────────────────────────────────────────────────────────

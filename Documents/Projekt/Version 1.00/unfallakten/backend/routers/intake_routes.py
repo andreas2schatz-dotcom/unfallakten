@@ -459,6 +459,22 @@ def hole_ereignistypen():
     })
 
 
+# ─── GET /intake/klassen ──────────────────────────────────────────────────────
+
+@intake_bp.route("/klassen", methods=["GET"])
+@login_erforderlich
+def hole_klassen():
+    """Liefert die Dokumentklassen aus der Intake-Registry fuer das
+    Reklassifikations-Dropdown, damit das Frontend die Klassenliste nicht
+    hartcodieren muss (eine neue klassen/*.yaml erscheint automatisch).
+
+    Response: { "klassen": ["abrechnungsschreiben", "gutachten", ...] }
+    """
+    from ..intake.registry_loader import lade_registry, standard_pfad
+    reg = lade_registry(standard_pfad())
+    return _j({"klassen": sorted(reg.klassen.keys())})
+
+
 # ─── PATCH /intake/dokument/<id>/felder ───────────────────────────────────────
 
 @intake_bp.route("/dokument/<int:intake_id>/felder", methods=["PATCH"])

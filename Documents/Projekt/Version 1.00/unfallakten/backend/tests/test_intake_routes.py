@@ -196,6 +196,26 @@ class TestIntakeQueue(unittest.TestCase):
         self.assertIsNone(e["parent_zustellung_id"])
 
 
+class TestIntakeKlassen(unittest.TestCase):
+    """BUG-26: Klassen-Katalog-Endpoint fuer das Reklassifikations-Dropdown."""
+
+    def setUp(self):
+        self.client = _setup(self._testMethodName)
+        self.headers = _auth_header(self.client)
+
+    def test_klassen_ohne_token_401(self):
+        r = self.client.get("/intake/klassen")
+        self.assertEqual(r.status_code, 401)
+
+    def test_klassen_liefert_registry_klassen(self):
+        r = self.client.get("/intake/klassen", headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        klassen = r.get_json()["klassen"]
+        self.assertIn("gutachten", klassen)
+        self.assertIn("abrechnungsschreiben", klassen)
+        self.assertIn("sonstiges", klassen)
+
+
 class TestIntakeDetail(unittest.TestCase):
     def setUp(self):
         self.client = _setup(self._testMethodName)

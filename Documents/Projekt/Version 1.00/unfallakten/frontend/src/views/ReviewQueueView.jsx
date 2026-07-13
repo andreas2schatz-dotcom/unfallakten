@@ -11,12 +11,14 @@
  * Bounding-Boxen im PDF-Overlay sind Stufe 2 (PDF.js). Hier reicht ein
  * iframe.
  */
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import T from "../config/theme.js";
 import { apiIntake, API_BASE, tokenStore } from "../api.js";
 import AktenLiveSuche from "../components/AktenLiveSuche.jsx";
 
-const KLASSEN = [
+// Fallback nur fuer den Fehlerfall des Klassen-Endpoints (BUG-26): im
+// Normalbetrieb laedt die View die Klassen dynamisch aus der Registry.
+const KLASSEN_FALLBACK = [
   "gutachten",
   "abrechnungsschreiben",
   "pruefbericht",
@@ -341,6 +343,27 @@ export function naechsterFormState(detail, { skipFormReset = false } = {}) {
   };
 }
 
+// Pollt den Worker bis Endstatus, Timeout oder Unmount (BUG-30). Reine Logik
+// mit injizierten Abhaengigkeiten, damit sie ohne React testbar ist und der
+// Poll nach Unmount/Dokumentwechsel (`istMontiert` -> false) sofort stoppt,
+// statt weiter Detail-Requests + setState auf einer toten Komponente zu feuern.
+export async function polleWorkerBisFertig(
+  { tick, istMontiert, sleep, jetzt, timeoutMs = 30000 },
+) {
+  const start = jetzt();
+  while (jetzt() - start < timeoutMs) {
+    await sleep(1500);
+    if (!istMontiert()) return { status: "abgebrochen" };
+    const d = await tick();
+    if (!istMontiert()) return { status: "abgebrochen" };
+    if (!d) return { status: "fehler" };
+    if (d.queue_status !== "neu" && d.queue_status !== "laeuft") {
+      return { status: "fertig", detail: d };
+    }
+  }
+  return { status: "timeout" };
+}
+
 function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
                           ereignistypen, onEreignisChange,
                           onErsetztChange, onEreignisAdd, onEreignisDel,
@@ -467,7 +490,7 @@ function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
 }
 
 function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
-                       ereignistypen }) {
+                       ereignistypen, klassen }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState(null);
   const [meldung, setMeldung] = useState("");
@@ -496,26 +519,35 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
 
   useEffect(() => { if (id) laden(); }, [id, laden]);
 
+  // Mount-Flag: der key-Re-Mount bei Dokumentwechsel unmountet dieses Panel;
+  // ein laufender wartAufWorker-Poll muss dann sofort stoppen (BUG-30).
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
   // Polling: nach Reklassifikation/Reparse den Worker abwarten (bis 30s).
   const wartAufWorker = useCallback(async () => {
     setPollAktiv(true);
-    const start = Date.now();
-    while (Date.now() - start < 30000) {
-      await new Promise(r => setTimeout(r, 1500));
-      const d = await laden({ skipFormReset: true });
-      if (!d) break;
-      if (d.queue_status !== "neu" && d.queue_status !== "laeuft") {
-        setPollAktiv(false);
-        setMeldung(d.queue_status === "pipeline_fehler"
-          ? "Re-Parse fehlgeschlagen: " + (d.fehler_detail || "unbekannt")
-          : "Re-Parse fertig.");
-        setTimeout(() => setMeldung(""), 4000);
-        return;
-      }
-    }
+    const ergebnis = await polleWorkerBisFertig({
+      tick: () => laden({ skipFormReset: true }),
+      istMontiert: () => mountedRef.current,
+      sleep: (ms) => new Promise(r => setTimeout(r, ms)),
+      jetzt: () => Date.now(),
+    });
+    if (!mountedRef.current) return;  // abgebrochen: kein setState nach Unmount
     setPollAktiv(false);
-    setMeldung("Worker antwortet nicht (30s Timeout).");
-    setTimeout(() => setMeldung(""), 5000);
+    if (ergebnis.status === "fertig") {
+      const d = ergebnis.detail;
+      setMeldung(d.queue_status === "pipeline_fehler"
+        ? "Re-Parse fehlgeschlagen: " + (d.fehler_detail || "unbekannt")
+        : "Re-Parse fertig.");
+      setTimeout(() => setMeldung(""), 4000);
+    } else if (ergebnis.status !== "abgebrochen") {
+      setMeldung("Worker antwortet nicht (30s Timeout).");
+      setTimeout(() => setMeldung(""), 5000);
+    }
   }, [laden]);
 
   if (!id) {
@@ -665,7 +697,8 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
                 fontSize: T.textSm, background: T.white,
               }}>
               <option value="">— unbekannt —</option>
-              {KLASSEN.map(k => <option key={k} value={k}>{k}</option>)}
+              {(klassen && klassen.length ? klassen : KLASSEN_FALLBACK)
+                .map(k => <option key={k} value={k}>{k}</option>)}
             </select>
             <KonfidenzChip wert={detail.konfidenz} />
             <button
@@ -829,12 +862,20 @@ export default function ReviewQueueView({ onOpenAkte }) {
   const [verwerfenDok, setVerwerfenDok] = useState(null);
   const [verwerfenLaeuft, setVerwerfenLaeuft] = useState(false);
   const [ereignistypen, setEreignistypen] = useState([]);
+  const [klassen, setKlassen] = useState([]);
 
   // Ereignistypen aus der Registry einmalig laden (fuer Freigabe-Dropdown).
   useEffect(() => {
     apiIntake.ereignistypen()
       .then(d => setEreignistypen(d.ereignistypen || []))
       .catch(() => setEreignistypen([]));  // Fallback: Dropdown zeigt roh
+  }, []);
+
+  // Dokumentklassen aus der Registry laden (BUG-26: nicht mehr hartcodiert).
+  useEffect(() => {
+    apiIntake.klassen()
+      .then(d => setKlassen(d.klassen || []))
+      .catch(() => setKlassen([]));  // Fallback: KLASSEN_FALLBACK im Dropdown
   }, []);
 
   const laden = useCallback(async () => {
@@ -936,7 +977,7 @@ export default function ReviewQueueView({ onOpenAkte }) {
       <DetailPanel key={aktivId || "leer"} id={aktivId}
                     onFreigegeben={onFreigegeben} onOpenAkte={onOpenAkte}
                     onVerwerfen={setVerwerfenDok}
-                    ereignistypen={ereignistypen} />
+                    ereignistypen={ereignistypen} klassen={klassen} />
 
       {verwerfenDok && (
         <VerwerfenDialog
