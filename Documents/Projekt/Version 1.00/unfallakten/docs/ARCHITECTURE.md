@@ -53,7 +53,7 @@ Volume `dev-data` → SQLite-DB, `dev-uploads` → hochgeladene PDFs, `/mnt/eakt
 | `unfallakten-backend` | `unfallakten-backend:prod` (python:3.12-slim, non-root) | 5000 | Gunicorn 4 Worker · 60 s Timeout | — |
 | `unfallakten-frontend` | `unfallakten-frontend:prod` (Vite-Build → nginx:alpine) | 8080 | Statisches SPA via nginx | — |
 | `unfallakten-nginx` | `nginx:1.27-alpine` | **80, 443** | TLS-Termination · HTTP→HTTPS · Routing API/SPA | backend + frontend healthy |
-| `unfallakten-backup` | `alpine:3.20` | — | Nightly Cron (02:00) → SQLite + Uploads sichern, 30 Tage Retention | — |
+| `unfallakten-backup` | `alpine:3.20` | — | Stündlicher Cron → SQLite `.backup` (hourly/, 48h) + tägl. Snapshot & Upload-Tar (daily/, 30 Tage). `/data` **read-write** (WAL braucht `-shm`-Schreibzugriff), Entrypoint `apk add sqlite`. Skript: `scripts/backup.sh` | — |
 
 nginx-Routing:
 - `GET /health` → backend:5000 (kein Rate-Limit)
@@ -105,7 +105,7 @@ unfallakten/
 ├── docker-compose.prod.yml    Produktions-Stack (+ nginx + backup)
 ├── gunicorn.conf.py           Gunicorn: 4 Worker, Timeout 60 s
 ├── .env.example               Alle Konfigurationsvariablen dokumentiert
-├── backups/                   Nightly-Backups (SQLite + Uploads)
+├── backups/                   Stündliche Backups: hourly/ (48h) + daily/ (30 Tage, SQLite + Uploads)
 ├── docs/                      API-Dokumentation (openapi.yaml, ARCHITECTURE.md)
 └── handover/                  Session-Übergabe-Dokumente, PRD-Mappen, Architecture-Map
 ```
