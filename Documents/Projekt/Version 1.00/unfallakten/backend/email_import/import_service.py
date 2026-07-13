@@ -65,7 +65,7 @@ def _upload_dir() -> Path:
 
 
 def _imap_cfg_fuer_konto(konto: str) -> dict | None:
-    """Baut IMAP-Config für einen Account aus ENV-Vars (analog polling_service)."""
+    """Baut IMAP-Config für einen Account aus ENV-Vars. SSOT (auch polling_service)."""
     host     = os.environ.get("EMAIL_HOST", "").strip()
     user     = os.environ.get(f"EMAIL_USER_{konto.upper()}", "").strip()
     password = os.environ.get(f"EMAIL_PASSWORD_{konto.upper()}", "").strip()
@@ -73,11 +73,11 @@ def _imap_cfg_fuer_konto(konto: str) -> dict | None:
         return None
     return {
         "host":      host,
-        "port":      int(os.environ.get("EMAIL_PORT", "993")),
+        "port":      int(os.environ.get("EMAIL_PORT", "993") or "993"),
         "user":      user,
         "password":  password,
-        "folder":    "INBOX",
-        "max_fetch": 50,
+        "folder":    os.environ.get("EMAIL_FOLDER", "").strip() or "INBOX",
+        "max_fetch": int(os.environ.get("EMAIL_MAX_FETCH", "").strip() or "50"),
         "ssl":       os.environ.get("EMAIL_PORT", "993") != "143",
     }
 

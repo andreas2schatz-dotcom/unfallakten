@@ -185,20 +185,12 @@ def _extrahiere_body_text(msg: EmailMessage) -> str:
     if text_teile:
         return "\n".join(text_teile).strip()
     if html_teile:
+        # Kanonische HTML->Text-Konvertierung aus email_parser (kein Duplikat).
+        # Lokaler Import spiegelt die dortige Zyklenvermeidung (email_parser
+        # importiert dekodiere_email_payload seinerseits lokal von hier).
+        from ..email_import.email_parser import _html_zu_text
         return _html_zu_text("\n".join(html_teile))
     return ""
-
-
-def _html_zu_text(html: str) -> str:
-    text = re.sub(r"<(script|style)[^>]*>.*?</(script|style)>", "", html,
-                  flags=re.IGNORECASE | re.DOTALL)
-    text = re.sub(r"<(br|p|div|tr)[^>]*>", "\n", text, flags=re.IGNORECASE)
-    text = re.sub(r"<[^>]+>", " ", text)
-    text = (text.replace("&nbsp;", " ").replace("&lt;", "<")
-            .replace("&gt;", ">").replace("&amp;", "&").replace("&quot;", '"'))
-    text = re.sub(r"[ \t]+", " ", text)
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    return text.strip()
 
 
 def _extrahiere_anhaenge(msg: EmailMessage) -> list[dict]:

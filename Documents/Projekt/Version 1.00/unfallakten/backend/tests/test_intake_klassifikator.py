@@ -53,7 +53,7 @@ def _mini_registry():
             "loeschfrist_jahre": 6,
         },
     }
-    return Registry(version="test", klassen=klassen, pfad="", fehler=[])
+    return Registry(version="test", klassen=klassen, pfad="")
 
 
 class TestStufe1(unittest.TestCase):

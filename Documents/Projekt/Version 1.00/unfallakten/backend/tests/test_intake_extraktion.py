@@ -41,7 +41,7 @@ def _mini_registry_mit_abrechnung():
             "loeschfrist_jahre": 6,
         }
     }
-    return Registry(version="test", klassen=klassen, pfad="", fehler=[])
+    return Registry(version="test", klassen=klassen, pfad="")
 
 
 class TestExtraktion(unittest.TestCase):

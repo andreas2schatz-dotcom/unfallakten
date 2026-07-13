@@ -5,36 +5,16 @@ Verwaltet das automatische Polling für 4 IMAP-Accounts.
 Job-Funktion fuehre_polling_durch() wird von APScheduler jede Minute aufgerufen.
 """
 
-import os
 import logging
 from datetime import datetime
 
 from ..db.database import get_connection
-from .import_service import fuehre_import_lauf_durch
+from .import_service import (
+    fuehre_import_lauf_durch,
+    _imap_cfg_fuer_konto as _imap_config_fuer_account,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def _env(key: str) -> str:
-    return os.environ.get(key, "").strip()
-
-
-def _imap_config_fuer_account(account: str) -> dict | None:
-    """Baut IMAP-Config für einen Account aus ENV-Vars. None wenn Credentials fehlen."""
-    host     = _env("EMAIL_HOST")
-    user     = _env(f"EMAIL_USER_{account.upper()}")
-    password = _env(f"EMAIL_PASSWORD_{account.upper()}")
-    if not host or not user or not password:
-        return None
-    return {
-        "host":      host,
-        "port":      int(_env("EMAIL_PORT") or "993"),
-        "user":      user,
-        "password":  password,
-        "folder":    _env("EMAIL_FOLDER") or "INBOX",
-        "max_fetch": int(_env("EMAIL_MAX_FETCH") or "50"),
-        "ssl":       (_env("EMAIL_PORT") or "993") != "143",
-    }
 
 
 def hole_accounts() -> list[dict]:

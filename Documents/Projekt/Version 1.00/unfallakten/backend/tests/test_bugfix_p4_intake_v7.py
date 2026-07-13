@@ -49,6 +49,54 @@ class TestBug28RegistryFehler:
         assert "fehler" not in feldnamen
 
 
+# ── BUG-23: IMAP-Config dedupliziert, EMAIL_FOLDER/MAX_FETCH respektiert ───
+class TestBug23ImapConfig:
+    def test_import_service_respektiert_email_folder_und_max_fetch(self, monkeypatch):
+        from backend.email_import import import_service
+
+        monkeypatch.setenv("EMAIL_HOST", "imap.example.de")
+        monkeypatch.setenv("EMAIL_USER_UNFALL", "unfall@example.de")
+        monkeypatch.setenv("EMAIL_PASSWORD_UNFALL", "geheim")
+        monkeypatch.setenv("EMAIL_FOLDER", "Archiv/Unfall")
+        monkeypatch.setenv("EMAIL_MAX_FETCH", "7")
+
+        cfg = import_service._imap_cfg_fuer_konto("unfall")
+        assert cfg is not None
+        assert cfg["folder"] == "Archiv/Unfall"
+        assert cfg["max_fetch"] == 7
+
+    def test_polling_und_import_teilen_dieselbe_config_funktion(self):
+        from backend.email_import import import_service, polling_service
+
+        assert (
+            polling_service._imap_config_fuer_account
+            is import_service._imap_cfg_fuer_konto
+        )
+
+
+# ── BUG-24: _html_zu_text nicht mehr im Adapter dupliziert ────────────────
+class TestBug24HtmlZuText:
+    def test_adapter_definiert_kein_eigenes_html_zu_text(self):
+        from backend.intake import adapter_imap
+
+        # Duplikat entfernt: der Adapter nutzt email_parser._html_zu_text
+        # (per lokalem Import), definiert es also nicht mehr selbst.
+        assert "_html_zu_text" not in vars(adapter_imap)
+
+    def test_adapter_konvertiert_html_ueber_email_parser(self):
+        from backend.intake import adapter_imap
+        from email.message import EmailMessage
+
+        msg = EmailMessage()
+        msg["From"] = "a@b.de"
+        msg.set_content("<p>Hallo<br>Welt</p>", subtype="html")
+
+        from backend.email_import.email_parser import _html_zu_text
+        text = adapter_imap._extrahiere_body_text(msg)
+        assert text == _html_zu_text("<p>Hallo<br>Welt</p>")
+        assert "Hallo" in text and "Welt" in text
+
+
 # ── BUG-29: date.today()-Block dedupliziert ───────────────────────────────
 class TestBug29DatumHelper:
     def test_helper_setzt_heute_bei_none(self):
