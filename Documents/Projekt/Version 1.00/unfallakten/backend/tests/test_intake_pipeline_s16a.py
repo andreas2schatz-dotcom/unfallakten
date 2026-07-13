@@ -142,6 +142,51 @@ class TestOcrPfad(_BasePipelineTest):
         self.assertIn("OCR-Text", parse["text_gesamt"])
 
 
+class TestSeitenauswahlExtraktion(_BasePipelineTest):
+    def test_llm_extraktion_bekommt_nur_ausgewaehlte_seiten(self):
+        """N-06: mehrseitiges Dokument -> LLM-Extraktion erhaelt Seite 1 +
+        letzte Seite (+ Regex-/Tabellen-Seiten), nicht die irrelevanten
+        Fuellseiten dazwischen."""
+        from backend.intake import pipeline
+        from backend.db.database import get_connection
+        import fitz
+
+        seiten_texte = [
+            "Schadennummer: 12-345-67890 Datum 22.04.2026 Betrag 268,35 EUR",
+            "FUELLSEITEZWEI ohne relevanten Inhalt nur Fliesstext hier drin",
+            "FUELLSEITEDREI ebenfalls voellig irrelevanter Fliesstext Seite",
+            "Mit freundlichen Gruessen ABSCHLUSSSEITE Ihre Kanzlei am Ende",
+        ]
+        doc = fitz.open()
+        for t in seiten_texte:
+            p = doc.new_page(width=595, height=842)
+            p.insert_text((72, 72), t, fontsize=11)
+        pdf = doc.write()
+
+        did = self._lege_dokument_mit_arbeitskopie_an(pdf)
+        # Manuelle Klasse fixieren -> Extraktion nutzt das abrechnungs-Schema.
+        with get_connection() as conn:
+            conn.execute(
+                "UPDATE intake_dokumente SET klasse='abrechnungsschreiben', "
+                "klasse_quelle='manuell' WHERE id=?", (did,))
+
+        erhalten = {}
+
+        def _fake_extrakt(schema, text):
+            erhalten["text"] = text
+            return None
+
+        with mock.patch(
+            "backend.intake.extraktion.llm_service.extrahiere_nach_schema",
+            side_effect=_fake_extrakt,
+        ):
+            self.assertTrue(pipeline.verarbeite_dokument(did))
+
+        self.assertIn("Schadennummer", erhalten["text"])
+        self.assertIn("ABSCHLUSSSEITE", erhalten["text"])
+        self.assertNotIn("FUELLSEITEZWEI", erhalten["text"])
+
+
 class TestTick(_BasePipelineTest):
     def test_tick_leer_gibt_false(self):
         from backend.intake.pipeline import tick

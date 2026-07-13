@@ -38,7 +38,8 @@ from ..intake.klassifikator import (
 from ..intake.queue import markiere_bereit, markiere_fehler, reserviere_naechsten
 from ..intake.registry_loader import lade_registry, standard_pfad
 from ..intake.text_extraktion import (
-    extrahiere_seiten, aggregierte_textquelle, SeitenText,
+    extrahiere_seiten, aggregierte_textquelle, waehle_extraktions_text,
+    SeitenText,
 )
 from ..services import ocr_service, glm_ocr_service
 
@@ -131,6 +132,18 @@ def _ocr_seite(pdf_bytes: bytes, seite_nr: int, sha256: str) -> str:
     return ocr_service.ocr_seite_mit_tsv(bild, tsv_pfad, lang="deu")
 
 
+def _regex_muster_der_klasse(registry, klasse: str) -> list:
+    """Flache Liste aller regex_felder-Muster der Klasse (fuer N-06-Auswahl)."""
+    eintrag = (registry.klassen.get(klasse)
+               if getattr(registry, "klassen", None) else None)
+    if not eintrag:
+        return []
+    muster: list = []
+    for liste in (eintrag.get("regex_felder") or {}).values():
+        muster.extend(liste or [])
+    return muster
+
+
 def _synth_seite(text: str) -> SeitenText:
     """E-Mail-Text als synthetische Ein-Seiten-Struktur (kein PDF/OCR)."""
     return SeitenText(nr=1, text=text, braucht_ocr=False,
@@ -208,7 +221,13 @@ def verarbeite_dokument(intake_id: int) -> bool:
         # ── Feld-Extraktion (S1.6b) ──────────────────────────────────────
         # WICHTIG: gegen die effektive Klasse (manuell hat Vorrang), nicht
         # gegen den Auto-Vorschlag.
-        extraktion = extrahiere_felder(text_gesamt, klasse, registry)
+        # N-06: Die LLM-Extraktion bekommt gezielt Seite 1 + letzte Seite +
+        # Regex-/Tabellen-Seiten (statt der ersten 10.000 Zeichen). Die
+        # Regex-Anker laufen weiter auf dem Volltext.
+        text_fuer_extraktion = waehle_extraktions_text(
+            seiten, _regex_muster_der_klasse(registry, klasse))
+        extraktion = extrahiere_felder(text_gesamt, klasse, registry,
+                                       llm_text=text_fuer_extraktion)
         felder = extraktion.get("felder", {})
         llm_konflikt = extraktion.get("llm_konflikt")
 

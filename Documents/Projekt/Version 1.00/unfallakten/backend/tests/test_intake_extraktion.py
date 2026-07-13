@@ -169,6 +169,39 @@ class TestExtraktion(unittest.TestCase):
                       f"sv_rechnungsnummer fehlt in {felder!r}")
         self.assertEqual(felder["sv_rechnungsnummer"], "R-2026-4711")
 
+    def test_llm_text_param_geht_an_llm_regex_bleibt_volltext(self):
+        """N-06: Die LLM-Extraktion bekommt den ausgewaehlten Seitenauszug,
+        die Regex-Anker laufen weiter auf dem Volltext."""
+        from backend.intake import extraktion
+        registry = _mini_registry_mit_abrechnung()
+        volltext = "Schadennummer: 12-345-67890 Datum 22.04.2026"
+        llm_auszug = "nur der ausgewaehlte Seitentext ohne Schadennummer"
+        with mock.patch(
+            "backend.intake.extraktion.llm_service.extrahiere_nach_schema",
+            return_value=None,
+        ) as m:
+            ergebnis = extraktion.extrahiere_felder(
+                volltext, "abrechnungsschreiben", registry,
+                llm_text=llm_auszug,
+            )
+        # LLM bekommt den Auszug (zweites Positionsargument = text)
+        self.assertEqual(m.call_args.args[1], llm_auszug)
+        # Regex-Anker weiterhin auf dem Volltext
+        self.assertEqual(ergebnis["felder"]["schadennummer"], "12-345-67890")
+
+    def test_ohne_llm_text_bleibt_verhalten_gleich(self):
+        from backend.intake import extraktion
+        registry = _mini_registry_mit_abrechnung()
+        volltext = "Schadennummer: 12-345-67890 Datum 22.04.2026"
+        with mock.patch(
+            "backend.intake.extraktion.llm_service.extrahiere_nach_schema",
+            return_value=None,
+        ) as m:
+            extraktion.extrahiere_felder(
+                volltext, "abrechnungsschreiben", registry,
+            )
+        self.assertEqual(m.call_args.args[1], volltext)
+
     def test_unbekannte_klasse_liefert_leere_felder(self):
         from backend.intake import extraktion
         registry = _mini_registry_mit_abrechnung()

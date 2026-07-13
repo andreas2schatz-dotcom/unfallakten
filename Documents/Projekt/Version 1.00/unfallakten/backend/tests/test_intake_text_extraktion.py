@@ -15,6 +15,8 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+from backend.intake.text_extraktion import MAX_ZEICHENSALAT_RATIO
+
 
 def _pdf_mit_text(seiten_texte: list) -> bytes:
     """Erzeugt ein PDF mit Textebene via PyMuPDF (fitz).
@@ -99,6 +101,57 @@ class TestExtrahiereSeiten(unittest.TestCase):
         self.assertTrue(seiten[1].braucht_ocr)
 
 
+class TestWoerterbuchQuote(unittest.TestCase):
+    def test_deutscher_text_hat_hohe_quote(self):
+        from backend.intake.text_extraktion import woerterbuch_quote
+        text = ("Sehr geehrte Damen und Herren, in der oben genannten "
+                "Angelegenheit uebersenden wir Ihnen die Rechnung ueber "
+                "den Betrag fuer die Reparatur des Fahrzeugs.")
+        self.assertGreater(woerterbuch_quote(text), 0.3)
+
+    def test_gibberish_hat_niedrige_quote(self):
+        from backend.intake.text_extraktion import woerterbuch_quote
+        text = ("xkfjq wrtpl mnbvc zxcvb qwrtz plkjh gfdsa lkjhg "
+                "poiuz trewq vbnml sdfgh")
+        self.assertLess(woerterbuch_quote(text), 0.05)
+
+    def test_leerer_text_ist_0(self):
+        from backend.intake.text_extraktion import woerterbuch_quote
+        self.assertEqual(woerterbuch_quote(""), 0.0)
+
+
+class TestKorrupteFontKodierung(unittest.TestCase):
+    """Golden-File N-01: hohe Textdichte, niedrige Zeichensalat-Ratio, aber
+    keine Woerterbuch-Treffer -> korruptes Font-Encoding -> OCR-Fallback."""
+
+    def test_dichter_gibberish_text_braucht_ocr(self):
+        from backend.intake.text_extraktion import extrahiere_seiten
+        # Simuliert korrupte Font-Kodierung: viele gueltige ASCII-"Woerter"
+        # ohne Sinn (niedrige Zeichensalat-Ratio, aber keine echten Woerter).
+        zeilen = ["xkfjq wrtpl mnbvc zxcvb qwrtz plkjh gfdsa lkjhg"] * 12
+        pdf = _pdf_mit_text(["\n".join(zeilen)])
+        seiten = extrahiere_seiten(pdf)
+        self.assertEqual(len(seiten), 1)
+        self.assertLess(seiten[0].ratio_salat, MAX_ZEICHENSALAT_RATIO,
+                        "Zeichensalat-Check allein wuerde nicht greifen")
+        self.assertTrue(seiten[0].braucht_ocr)
+        self.assertLess(seiten[0].quote_woerter, 0.05)
+
+    def test_echter_dichter_deutscher_text_nicht_ocr(self):
+        from backend.intake.text_extraktion import extrahiere_seiten
+        zeilen = [
+            "Sehr geehrte Damen und Herren in der oben genannten",
+            "Angelegenheit uebersenden wir Ihnen die Rechnung ueber",
+            "den Betrag fuer die Reparatur des Fahrzeugs nach dem",
+            "Unfall vom fuenften Mai. Wir bitten um Zahlung des",
+            "offenen Betrages an unsere Kanzlei bis zum Ende des Monats.",
+        ]
+        pdf = _pdf_mit_text(["\n".join(zeilen)])
+        seiten = extrahiere_seiten(pdf)
+        self.assertFalse(seiten[0].braucht_ocr)
+        self.assertGreater(seiten[0].quote_woerter, 0.3)
+
+
 class TestTextquelleGesamt(unittest.TestCase):
     def test_alle_textebene_ergibt_textebene(self):
         from backend.intake.text_extraktion import (
@@ -132,6 +185,90 @@ class TestTextquelleGesamt(unittest.TestCase):
                        textquelle="ocr"),
         ]
         self.assertEqual(aggregierte_textquelle(seiten), "gemischt")
+
+
+class TestWaehleExtraktionsText(unittest.TestCase):
+    """N-06: Seitenauswahl fuer die Feld-Extraktion (Seite 1 + letzte +
+    Regex-Treffer-Seiten + Tabellen-Seiten)."""
+
+    def _seite(self, nr, text, hat_tabelle=False):
+        from backend.intake.text_extraktion import SeitenText
+        return SeitenText(nr=nr, text=text, braucht_ocr=False,
+                          ratio_salat=0.0, textquelle="textebene",
+                          hat_tabelle=hat_tabelle)
+
+    def test_einzelseite_liefert_ganzen_text(self):
+        from backend.intake.text_extraktion import waehle_extraktions_text
+        seiten = [self._seite(1, "nur eine seite mit inhalt")]
+        self.assertEqual(waehle_extraktions_text(seiten, []),
+                         "nur eine seite mit inhalt")
+
+    def test_leere_seitenliste(self):
+        from backend.intake.text_extraktion import waehle_extraktions_text
+        self.assertEqual(waehle_extraktions_text([], []), "")
+
+    def test_erste_und_letzte_immer_dabei_mitte_faellt_weg(self):
+        from backend.intake.text_extraktion import waehle_extraktions_text
+        seiten = [self._seite(i + 1, f"seite{i + 1}") for i in range(5)]
+        text = waehle_extraktions_text(seiten, [])
+        self.assertIn("seite1", text)
+        self.assertIn("seite5", text)
+        self.assertNotIn("seite3", text)
+
+    def test_regex_treffer_seite_wird_aufgenommen(self):
+        from backend.intake.text_extraktion import waehle_extraktions_text
+        seiten = [self._seite(i + 1, f"seite{i + 1}") for i in range(5)]
+        seiten[2].text = "Rechnungsbetrag 1.234,56 EUR"
+        text = waehle_extraktions_text(seiten, [r"\d+,\d{2}\s*EUR"])
+        self.assertIn("Rechnungsbetrag", text)
+
+    def test_tabellen_seite_wird_aufgenommen(self):
+        from backend.intake.text_extraktion import waehle_extraktions_text
+        seiten = [self._seite(i + 1, f"seite{i + 1}") for i in range(5)]
+        seiten[3].hat_tabelle = True
+        text = waehle_extraktions_text(seiten, [])
+        self.assertIn("seite4", text)
+
+    def test_reihenfolge_bleibt_seitenweise(self):
+        from backend.intake.text_extraktion import waehle_extraktions_text
+        seiten = [self._seite(i + 1, f"seite{i + 1}") for i in range(5)]
+        seiten[3].hat_tabelle = True
+        text = waehle_extraktions_text(seiten, [])
+        self.assertLess(text.index("seite1"), text.index("seite4"))
+        self.assertLess(text.index("seite4"), text.index("seite5"))
+
+
+class TestTabellenErkennung(unittest.TestCase):
+    def test_seite_mit_tabellen_gitter_setzt_hat_tabelle(self):
+        from backend.intake.text_extraktion import extrahiere_seiten
+        import fitz
+        doc = fitz.open()
+        page = doc.new_page(width=595, height=842)
+        # Einfaches 3x3-Gitter (Linien) + Zellentext -> pdfplumber-Tabelle.
+        x0, y0, dx, dy = 72, 72, 120, 40
+        for r in range(4):
+            y = y0 + r * dy
+            page.draw_line((x0, y), (x0 + 3 * dx, y))
+        for c in range(4):
+            x = x0 + c * dx
+            page.draw_line((x, y0), (x, y0 + 3 * dy))
+        for r in range(3):
+            for c in range(3):
+                page.insert_text((x0 + c * dx + 8, y0 + r * dy + 25),
+                                 f"Z{r}{c}", fontsize=10)
+        pdf = doc.write()
+        seiten = extrahiere_seiten(pdf)
+        self.assertEqual(len(seiten), 1)
+        self.assertTrue(seiten[0].hat_tabelle)
+
+    def test_reine_textseite_ohne_tabelle(self):
+        from backend.intake.text_extraktion import extrahiere_seiten
+        pdf = _pdf_mit_text([
+            "Sehr geehrte Damen und Herren dies ist ein Fliesstext "
+            "ohne jede Tabelle und ohne Gitterlinien im Dokument."
+        ])
+        seiten = extrahiere_seiten(pdf)
+        self.assertFalse(seiten[0].hat_tabelle)
 
 
 if __name__ == "__main__":

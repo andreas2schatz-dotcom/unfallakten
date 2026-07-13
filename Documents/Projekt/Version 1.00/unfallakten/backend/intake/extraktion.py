@@ -42,8 +42,15 @@ def _regex_extraktion(text: str,
     return ergebnis
 
 
-def extrahiere_felder(text: str, klasse: str, registry) -> Dict[str, Any]:
+def extrahiere_felder(text: str, klasse: str, registry,
+                      llm_text: str = None) -> Dict[str, Any]:
     """Extrahiere Felder gemaess YAML-Registry-Eintrag der ``klasse``.
+
+    Args:
+        text:     Volltext des Dokuments (Basis fuer die Regex-Anker).
+        llm_text: N-06 -- Seitenauszug (Seite 1 + letzte + Regex-/Tabellen-
+                  Seiten) fuer die LLM-Extraktion. Ohne Angabe nutzt der LLM
+                  den Volltext (Alt-Verhalten).
 
     Returns:
         ``{"felder": {...}}`` oder bei Divergenz zusaetzlich
@@ -58,7 +65,8 @@ def extrahiere_felder(text: str, klasse: str, registry) -> Dict[str, Any]:
     regex_werte = _regex_extraktion(text, eintrag.get("regex_felder") or {})
 
     schema = eintrag.get("schema") or {}
-    llm_werte = llm_service.extrahiere_nach_schema(schema, text) or {}
+    llm_werte = llm_service.extrahiere_nach_schema(
+        schema, llm_text if llm_text is not None else text) or {}
     if not isinstance(llm_werte, dict):
         llm_werte = {}
 
