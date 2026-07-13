@@ -115,10 +115,13 @@ def _ocr_seite(pdf_bytes: bytes, seite_nr: int, sha256: str) -> str:
     tsv_verzeichnis = os.path.join(_artefakte_root(), sha256)
     tsv_pfad = os.path.join(tsv_verzeichnis, f"seite_{seite_nr}.tsv")
 
-    bilder = ocr_service.pdf_zu_bildern(pdf_bytes)
-    if not bilder or seite_nr - 1 >= len(bilder):
+    # BUG-12: nur DIESE Seite rendern (first_page/last_page), nicht das ganze
+    # PDF pro Seite -- sonst O(n^2) Renderings (30 Seiten -> 900 statt 30).
+    bilder = ocr_service.pdf_zu_bildern(
+        pdf_bytes, first_page=seite_nr, last_page=seite_nr)
+    if not bilder:
         return ""
-    bild = bilder[seite_nr - 1]
+    bild = bilder[0]
 
     # GLM-OCR (Feature-Flag, F-01) — Stufe-1-Default False, Tesseract primaer.
     text_glm = glm_ocr_service.glm_ocr_seite(bild)

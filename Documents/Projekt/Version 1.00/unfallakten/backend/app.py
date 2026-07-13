@@ -203,7 +203,11 @@ def erstelle_app(test_config: dict = None) -> Flask:
     logger.info("Alle Blueprints registriert.")
 
     # ── APScheduler: Hintergrund-Health-Checks ────────────────────────────────
-    if not app.testing:
+    # BUG-10: Unter Gunicorn laufen mehrere Worker -- der Scheduler darf nur in
+    # EINEM Prozess starten (sonst 4x Polling / vervielfachte Fristablauf-
+    # Ereignisse). Prozessuebergreifender Lease via Loopback-Bind.
+    from .services.scheduler_lease import erwirb_scheduler_lease
+    if not app.testing and erwirb_scheduler_lease():
         from .system.health_service import check_ramicro as _check_ramicro
         from .email_import.polling_service import fuehre_polling_durch as _imap_polling
         from .intake.pipeline import tick as _intake_tick

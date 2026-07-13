@@ -89,12 +89,17 @@ def _positionen_aus_ausloesendem_ereignis(
              for r in pos_rows]
 
 
-def _erzeuge_fristablauf_fuer_todo(conn, todo: Dict[str, Any]) -> Optional[int]:
+def _erzeuge_fristablauf_fuer_todo(todo: Dict[str, Any]) -> Optional[int]:
     dok_id = todo.get("dok_id")
     if dok_id is not None:
-        positionen = _positionen_aus_ausloesendem_ereignis(
-            conn, akte_az=todo["akte_az"], dokument_id=int(dok_id),
-        )
+        # BUG-09: Positions-Lesen in einer EIGENEN, kurzlebigen Verbindung,
+        # die vor dem schreibe_ereignis-Aufruf wieder freigegeben wird --
+        # sonst haelt sie einen Lock, den schreibe_ereignis (neue Verbindung)
+        # nicht bekommt ("database is locked").
+        with get_connection() as conn:
+            positionen = _positionen_aus_ausloesendem_ereignis(
+                conn, akte_az=todo["akte_az"], dokument_id=int(dok_id),
+            )
     else:
         positionen = []
 
@@ -126,19 +131,24 @@ def verarbeite_faellige_todos() -> int:
     """
     with get_connection() as conn:
         offene = _lade_faellige_todos(conn)
-        if not offene:
-            return 0
+    if not offene:
+        return 0
 
-        erzeugt = 0
-        for todo in offene:
-            ev_id = _erzeuge_fristablauf_fuer_todo(conn, todo)
-            if ev_id is None:
-                continue
+    # BUG-09: pro Todo mit KURZLEBIGEN Verbindungen arbeiten. schreibe_ereignis
+    # oeffnet intern eine eigene Verbindung; wuerde die aeussere Schleife eine
+    # unkommittierte Schreib-Transaktion halten (UPDATE todos), liefe die
+    # zweite Frist in den SQLite-Write-Lock ("database is locked").
+    erzeugt = 0
+    for todo in offene:
+        ev_id = _erzeuge_fristablauf_fuer_todo(todo)
+        if ev_id is None:
+            continue
+        with get_connection() as conn:
             conn.execute(
                 "UPDATE todos SET fristablauf_ereignis_id=? WHERE id=?",
                 (ev_id, todo["id"]),
             )
-            erzeugt += 1
+        erzeugt += 1
 
     if erzeugt:
         logger.info(

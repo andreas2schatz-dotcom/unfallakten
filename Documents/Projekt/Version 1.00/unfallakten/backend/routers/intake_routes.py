@@ -540,14 +540,28 @@ def post_freigabe(intake_id: int):
     if dok.get("queue_status") == "freigegeben":
         return _err("Dokument ist bereits freigegeben.", 409)
 
+    benutzer_id = getattr(g, "benutzer_id", None)
+
     with get_connection() as conn:
         akte = conn.execute(
             "SELECT az FROM unfallakte WHERE az=?", (akte_az,)
         ).fetchone()
     if not akte:
-        return _err(f"Akte {akte_az!r} nicht gefunden", 404)
-
-    benutzer_id = getattr(g, "benutzer_id", None)
+        # BUG-08: Akten-Kandidaten stammen auch aus RA-MICRO (tblAkten) und
+        # existieren dort, aber noch nicht in SQLite. Statt 404 die Akte
+        # on-demand in SQLite anlegen -- gleiches Muster wie beim ersten
+        # Oeffnen einer RA-MICRO-Akte (models.akte.erstelle_oder_hole_akte).
+        # RA-MICRO bleibt read-only; geschrieben wird nur in SQLite. Der
+        # Verwerfen/Freigegeben-Guard (BUG-06) laeuft bewusst DAVOR, damit
+        # ein verworfenes Dokument keine Akte anlegt.
+        try:
+            from ..models.akte import erstelle_oder_hole_akte
+            erstelle_oder_hole_akte(akte_az, bearbeiter_id=benutzer_id)
+        except Exception as exc:
+            logger.error("Freigabe: Akte %r konnte nicht angelegt werden: %s",
+                         akte_az, exc)
+            return _err(f"Akte {akte_az!r} konnte nicht angelegt werden: {exc}",
+                        400)
 
     try:
         dokument_id = schreibe_dokument(dok, akte_az,

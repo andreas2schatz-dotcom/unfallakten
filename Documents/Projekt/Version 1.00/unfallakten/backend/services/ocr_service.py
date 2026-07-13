@@ -102,8 +102,15 @@ def ocr_verfuegbar() -> bool:
 # S1.6a: image_to_data + TSV-Persistierung
 # ══════════════════════════════════════════════════════════════════════════════
 
-def pdf_zu_bildern(pdf_bytes: bytes, dpi: int = 300) -> list:
+def pdf_zu_bildern(pdf_bytes: bytes, dpi: int = 300,
+                   first_page: int | None = None,
+                   last_page: int | None = None) -> list:
     """PDF-Seiten -> PIL-Images (fuer die per-Seite-OCR-Pipeline S1.6a).
+
+    ``first_page``/``last_page`` grenzen die zu rendernden Seiten ein
+    (BUG-12): die per-Seite-OCR ruft die Funktion mit
+    ``first_page=last_page=N`` auf, damit nur DIESE Seite gerendert wird
+    statt des ganzen PDFs pro Seite (O(n) statt O(n^2)).
 
     Rueckgabe: leere Liste bei Fehler oder nicht verfuegbarem pdf2image.
     """
@@ -113,7 +120,8 @@ def pdf_zu_bildern(pdf_bytes: bytes, dpi: int = 300) -> list:
         logger.warning("pdf2image nicht verfuegbar - keine Bild-Konvertierung.")
         return []
     try:
-        return convert_from_bytes(pdf_bytes, dpi=dpi)
+        return convert_from_bytes(pdf_bytes, dpi=dpi,
+                                  first_page=first_page, last_page=last_page)
     except Exception as e:
         logger.error("PDF->Bild-Konvertierung fehlgeschlagen: %s", e)
         return []

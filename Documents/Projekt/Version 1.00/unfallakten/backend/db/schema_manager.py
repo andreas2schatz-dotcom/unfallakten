@@ -2800,7 +2800,12 @@ def _run_migration_50(conn: sqlite3.Connection) -> None:
     ergaenzt (gleiche Logik wie Migration 28, aber diesmal mit
     existierender Tabelle).
     """
-    conn.executescript("""
+    # BUG-13: KEIN conn.executescript() -- executescript committet implizit
+    # und laesst bei Abbruch/Dev-Reloader ALTER-Spalten und schema_version-
+    # Stempel auseinanderfallen (feedback_migration_executescript). Statt-
+    # dessen einzelne execute()-Aufrufe mit expliziten Commits, Muster wie
+    # Migrationen 52-55.
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS unfalldetails (
             id                          INTEGER PRIMARY KEY AUTOINCREMENT,
             akte_id                     TEXT NOT NULL UNIQUE
@@ -2825,14 +2830,18 @@ def _run_migration_50(conn: sqlite3.Connection) -> None:
             aktivlegitimation_datum     TEXT,
             erstellt_am                 TEXT DEFAULT (datetime('now','localtime')),
             geaendert_am                TEXT DEFAULT (datetime('now','localtime'))
-        );
-        CREATE INDEX IF NOT EXISTS idx_unfalldetails_akte
-            ON unfalldetails(akte_id);
+        )
     """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_unfalldetails_akte "
+        "ON unfalldetails(akte_id)"
+    )
+    conn.commit()
 
     # Falls die Tabelle aus einem alten Dev-Stand noch ohne die
     # Aktivlegitimations-Spalten existiert (CREATE TABLE IF NOT EXISTS
-    # greift dann nicht) -> gleiche ALTER-Logik wie Migration 28.
+    # greift dann nicht) -> gleiche ALTER-Logik wie Migration 28, jetzt mit
+    # expliziten Commits um jedes ALTER.
     vorhandene = {r[1] for r in conn.execute(
         "PRAGMA table_info(unfalldetails)").fetchall()}
     for spalte, typ in (
@@ -2841,13 +2850,16 @@ def _run_migration_50(conn: sqlite3.Connection) -> None:
         ("aktivlegitimation_datum",    "TEXT"),
     ):
         if spalte not in vorhandene:
+            conn.commit()
             conn.execute(f"ALTER TABLE unfalldetails ADD COLUMN {spalte} {typ}")
+            conn.commit()
             logger.info("Migration 50: unfalldetails.%s per ALTER nachgetragen.", spalte)
 
     conn.execute(
         "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
         "VALUES (50, 'Migration 50 - unfalldetails-Tabelle nachtraeglich angelegt (Root-Cause-Fix zu Migration 28 SKIPPED)')"
     )
+    conn.commit()
     logger.info("Migration 50: unfalldetails-Tabelle angelegt/geprueft.")
 
 

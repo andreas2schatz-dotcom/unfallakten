@@ -142,6 +142,15 @@ def upload(akte_id: str):
     # ausschliesslich ueber die Review-Queue -- keine dokumente-Zeile mehr.
     from ..intake.feature_flags import review_pflicht_aktiv as _rev_pflicht_aktiv
     if _rev_pflicht_aktiv():
+        # BUG-11: dieselbe Datei-Validierung wie der Alt-Pfad (Erweiterungs-
+        # Whitelist, Leere-Datei, MAX_DATEIGROESSE, PDF-Signatur) VOR dem
+        # Intake-Upload -- sonst landen 300-MB-Videos / getarnte PDFs still
+        # als 202 in der Queue statt als klarer 422.
+        from ..pdf.upload_service import _validiere_datei
+        try:
+            _validiere_datei(datei.filename, datei_bytes)
+        except UploadFehler as e:
+            return _err(e.nachricht, e.status_code)
         try:
             from ..intake.adapter_upload import verarbeite_datei as _intake_upload
             ergebnis_intake = _intake_upload(
