@@ -331,6 +331,16 @@ export function initialeEreignisse(defaultTyp) {
   return defaultTyp ? [{ typ: defaultTyp }] : [];
 }
 
+// Reine Logik fuer den Druckbutton: PDF -> native Viewer-URL, E-Mail-Text ->
+// dedizierte Textansicht. Der eigentliche window.open/print-Aufruf bleibt
+// browserseitig (nicht unit-testbar) im DetailPanel.
+export function druckZiel(detail, pdfSrc) {
+  if (detail?.payload_typ === "text") {
+    return { typ: "text", text: detail?.parse?.text_gesamt ?? "" };
+  }
+  return { typ: "pdf", url: pdfSrc };
+}
+
 // Form-Defaults aus dem geladenen Detail. `skipFormReset` (Hintergrund-Poll
 // waehrend `wartAufWorker`) liefert null: dann bleiben offene Dialog-Eingaben
 // (Akte/Ereignisse/Feld-Korrekturen) erhalten statt vom Poll-Tick ueberschrieben.
@@ -632,6 +642,28 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
     finally { setAktion(false); }
   };
 
+  // Drucken: PDF im nativen Viewer (druckt zuverlaessig), E-Mail-Text in einem
+  // dedizierten Druckfenster. Blockiert bewusst nicht pollAktiv/aktion.
+  const handleDrucken = () => {
+    const ziel = druckZiel(detail, pdfSrc);
+    if (ziel.typ === "pdf") {
+      window.open(ziel.url, "_blank", "noopener");
+      return;
+    }
+    const w = window.open("", "_blank");
+    if (!w) return;
+    const esc = (ziel.text || "").replace(/[&<>]/g, c =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    w.document.write(
+      `<!doctype html><meta charset="utf-8"><title>Dokument #${detail.id}</title>` +
+      `<pre style="white-space:pre-wrap;word-break:break-word;` +
+      `font-family:system-ui,sans-serif;font-size:13px;padding:16px">${esc}</pre>`,
+    );
+    w.document.close();
+    w.focus();
+    w.print();
+  };
+
   return (
     <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
       {/* Vorschau: E-Mail-Text oder PDF-iframe */}
@@ -659,7 +691,19 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
             <h3 style={{ margin: 0, fontFamily: T.fontDisplay, color: T.navy }}>
               Dokument #{detail.id}
             </h3>
-            <StatusBadge status={detail.queue_status} fristPrio={detail.prioritaet_frist} />
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={handleDrucken}
+                title="Dokument drucken"
+                style={{
+                  padding: "4px 10px", fontSize: T.textXs, fontWeight: 600,
+                  background: T.offWhite, color: T.navy,
+                  border: `1px solid ${T.border}`, borderRadius: 4,
+                  cursor: "pointer", whiteSpace: "nowrap",
+                }}>
+                🖨 Drucken
+              </button>
+              <StatusBadge status={detail.queue_status} fristPrio={detail.prioritaet_frist} />
+            </div>
           </div>
           <div style={{ fontSize: T.textXs, color: T.textFaint, marginTop: 4 }}>
             sha256: <code>{detail.sha256?.slice(0, 16)}…</code>
