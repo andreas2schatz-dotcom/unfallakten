@@ -26,12 +26,12 @@
 | BUG-11 | P2 | `backend/routers/dokumente_routes.py:147` | Upload-Validierung (Größe/Typ/PDF-Signatur) umgangen | **behoben** ✅ |
 | BUG-12 | P2 | `backend/intake/pipeline.py:118` | O(n²)-OCR: ganzes PDF wird pro Seite neu gerendert | **behoben** ✅ |
 | BUG-13 | P2 | `backend/db/schema_manager.py:2844` | Migration 50 verletzt executescript()-Verbotsregel | **behoben** ✅ |
-| BUG-14 | P3 | `backend/intake/adapter_imap.py:327` + `pipeline.py:91` | Absender-Signale erreichen Anhänge nie | offen |
-| BUG-15 | P3 | `backend/intake/akten_matching.py:87` | Absender-Mail-Match (Score 0.6) ist toter Code | offen |
-| BUG-16 | P3 | `backend/intake/adapter_eakte.py:49` | Key-Mismatch `akte_az` vs. `az` — E-Akte-Quelle ohne Vorschlag | offen |
-| BUG-17 | P3 | `backend/intake/akten_matching.py:47` | KFZ-Muster erkennt keine Umlaut-Kennzeichen (TÖL, FÜ …) | offen |
-| BUG-18 | P3 | `backend/routers/email_routes.py:912` | Kurze E-Mail-Bodies (<10 Zeichen) werden unterdrückt | offen |
-| BUG-19 | P3 | `backend/routers/intake_routes.py:136` | Queue-Sortierung: Konfidenz-Schlüssel ist toter Code | offen |
+| BUG-14 | P3 | `backend/intake/adapter_imap.py:327` + `pipeline.py:91` | Absender-Signale erreichen Anhänge nie | **behoben** ✅ |
+| BUG-15 | P3 | `backend/intake/akten_matching.py:87` | Absender-Mail-Match (Score 0.6) ist toter Code | **behoben** ✅ |
+| BUG-16 | P3 | `backend/intake/adapter_eakte.py:49` | Key-Mismatch `akte_az` vs. `az` — E-Akte-Quelle ohne Vorschlag | **behoben** ✅ |
+| BUG-17 | P3 | `backend/intake/akten_matching.py:47` | KFZ-Muster erkennt keine Umlaut-Kennzeichen (TÖL, FÜ …) | **behoben** ✅ |
+| BUG-18 | P3 | `backend/routers/email_routes.py:912` | Kurze E-Mail-Bodies (<10 Zeichen) werden unterdrückt | **behoben** ✅ |
+| BUG-19 | P3 | `backend/routers/intake_routes.py:136` | Queue-Sortierung: Konfidenz-Schlüssel ist toter Code | **behoben** ✅ |
 | BUG-20 | P4 | `backend/routers/intake_routes.py:141` | hole_queue lädt komplettes parse_json pro Zeile | offen |
 | BUG-21 | P4 | `backend/routers/intake_routes.py:125` | 4 identische korrelierte Subselects auf zustellungen | offen |
 | BUG-22 | P4 | `backend/routers/positionen_routes.py:45` | Eigenes `_pruefe_akte` ohne AZ-Normalisierung | offen |
@@ -151,37 +151,43 @@
 
 ## P3 — Mittel: Matching-/Signal-Qualität & UI-Korrektheit
 
-### - [ ] BUG-14 — Absender-Signale erreichen Anhänge nie
+### - [x] BUG-14 — Absender-Signale erreichen Anhänge nie
+- **Fix (2026-07-13, Commit «HASH»):** `adapter_imap.verarbeite_email` vererbt die Absender-Registry-Signale (`absender_kategorie`/`versicherer_name`/`klasse_kandidat`/`vertrauensstufe`) jetzt auch an die **Anhang**-Zustellungen (gemeinsames Dict `geerbte_signale`, per `{**geerbte_signale, "dateiname": …}` gemergt) — der `dateiname`-Schlüssel bleibt erhalten. Fix am Erzeugungsort (Adapter), nicht am Ladeort — damit bleibt `pipeline._lade_zustellungs_signale` unverändert. Der Hauptfall der S1.4-Registry (Versicherungspost als PDF-Anhang) bekommt jetzt den Stufe-1-Signal-Boost. Tests: `test_bugfix_p3_intake_v7.py::TestBug14AbsenderSignaleAnAnhaenge` (1).
 - **Dateien:** `backend/intake/adapter_imap.py:327` + `backend/intake/pipeline.py:91`
 - **Problem:** Anhang-Zustellungen bekommen nur `signale={'dateiname': ...}`; die Absender-Registry-Signale (`klasse_kandidat`, `versicherer_name`, `vertrauensstufe`) werden nur in die Body-Zustellung gemerged, und `pipeline._lade_zustellungs_signale` liest nur die Zustellungen des Dokuments selbst (keine Vererbung über `parent_id`).
 - **Auswirkung:** Versicherer-Domain ist in `email_absender_vorlagen` registriert (z. B. `klasse_kandidat='abrechnungsschreiben'`), schickt das Abrechnungsschreiben als PDF-Anhang: die Stufe-1-Klassifikation des PDFs bekommt keinen Signal-Boost und fällt bei markerarmen Scans auf `sonstiges/0.5` zurück — genau der Hauptanwendungsfall der S1.4-Registry (Versicherungspost als PDF-Anhang) verliert die Registry komplett.
 - **Fix-Richtung:** Signale an Anhang-Zustellungen vererben (beim Erzeugen im Adapter oder beim Laden via `parent_id`).
 
-### - [ ] BUG-15 — Absender-Mail-Match (Score 0.6) ist toter Code
+### - [x] BUG-15 — Absender-Mail-Match (Score 0.6) ist toter Code
+- **Fix (2026-07-13, Commit «HASH»):** Neuer Helper `adapter_imap._email_aus_from_header` parst die reine, kleingeschriebene Absenderadresse (via `email.utils.parseaddr`) und schreibt sie als Signal-Key `absender_email` in **Body-** und **Anhang**-Zustellungen (zusammen mit BUG-14). `_sammle_signale_mails` liest diesen Key bereits (die Lese-Seite war korrekt, nur nie befüllt) → der 0.6-Score `beteiligten_mail` feuert jetzt, wenn der Mandant von seiner in `beteiligte.email` hinterlegten Adresse schreibt. Tests: `test_bugfix_p3_intake_v7.py::TestBug15AbsenderMailSignal` (2: Adapter schreibt Signal + finde_kandidaten matcht).
 - **Datei:** `backend/intake/akten_matching.py:87` (`_sammle_signale_mails`)
 - **Problem:** `_sammle_signale_mails` erwartet Signal-Keys `absender`/`absender_email`, die kein Adapter jemals in `signale_json` schreibt — die Absenderadresse liegt nur in der Spalte `zustellungen.absender`.
 - **Auswirkung:** Der geplante 0.6-Score-Treffer `beteiligten_mail` (Mandant schreibt von der in `beteiligte.email` hinterlegten Adresse) feuert nie; ein Drittel der Score-Staffel ist wirkungslos, ohne dass ein Test es bemerkt.
 - **Fix-Richtung:** Absenderadresse aus der Spalte lesen oder als Signal-Key mitschreiben (zusammen mit BUG-14 lösen).
 
-### - [ ] BUG-16 — Key-Mismatch `akte_az` vs. `az`: E-Akte-Quelle ohne Vorschlag
+### - [x] BUG-16 — Key-Mismatch `akte_az` vs. `az`: E-Akte-Quelle ohne Vorschlag
+- **Fix (2026-07-13, Commit «HASH»):** `adapter_eakte.verarbeite_eakte_dokument` schreibt das bekannte Aktenzeichen jetzt unter dem Signal-Key `az` (statt `akte_az`) — denselben Key, den `akten_matching.finde_kandidaten` liest (analog BUG-03-Mechanismus). Der Signal-Key `akte_az` wurde nachweislich von keinem Downstream-Konsumenten gelesen (nur `finde_kandidaten` wertet Zustellungs-Signale aus; `intake_routes` liest `akte_az` ausschließlich aus dem `AktenKandidat`-Dict in `parse_json`, nicht aus dem Signal). E-Akte-Import einer bekannten Akte liefert jetzt den `az_exakt`-Vorschlag (Score 1.0). Tests: `test_bugfix_p3_intake_v7.py::TestBug16EakteKeyMismatch` (1).
 - **Datei:** `backend/intake/adapter_eakte.py:49`
 - **Problem:** Der E-Akte-Adapter schreibt das bekannte Aktenzeichen als Signal-Key `akte_az`, aber `akten_matching.finde_kandidaten` liest nur `az`/`aktenzeichen`/`erkannt_az` (analog zum früheren `sonstiges_wdm`/`extra_wdm`-Key-Mismatch-Bug).
 - **Auswirkung:** Dokument aus der E-Akte von 285/26 importiert → Review-Queue zeigt „Keine Akten-Vorschläge", obwohl die Quelle die Akte kannte; jede E-Akte-Zustellung muss manuell zugeordnet werden.
 - **Fix-Richtung:** Key vereinheitlichen (Remap oder Adapter anpassen); denselben Mechanismus für BUG-03 (Upload-Ziel-Akte) nutzen.
 
-### - [ ] BUG-17 — KFZ-Muster erkennt keine Umlaut-Kennzeichen
+### - [x] BUG-17 — KFZ-Muster erkennt keine Umlaut-Kennzeichen
+- **Fix (2026-07-13, Commit «HASH»):** Zeichenklasse `[A-ZAEOU]` → `[A-ZÄÖÜ]` im ersten Segment von `_KFZ_MUSTER` (der Unterscheidungskennzeichen-Teil vor dem Bindestrich). Umlaut-Kennzeichen (TÖL, FÜ, BÖ, GÖ) matchen jetzt. Python-Unicode-`\b` sieht Umlaute als Wortzeichen, die Wortgrenze vor dem Kennzeichen bleibt also korrekt (per Test verifiziert). Zweites Segment (Erkennungsnummer nach dem Bindestrich) bleibt `[A-Z]` — deutsche Erkennungsnummern haben keine Umlaute. Tests: `test_bugfix_p3_intake_v7.py::TestBug17UmlautKfz` (2: Muster-Match für vier Umlaut-Kennzeichen + finde_kandidaten-Integration).
 - **Datei:** `backend/intake/akten_matching.py:47` (`_KFZ_MUSTER`)
 - **Problem:** Zeichenklasse `[A-ZAEOU]` — A, E, O, U sind in A-Z redundant, gemeint waren offensichtlich ÄÖÜ. Deutsche Unterscheidungszeichen wie TÖL, FÜ, BÖ, GÖ matchen nie; es gibt auch keine Umlaut-Normalisierung im Umfeld.
 - **Auswirkung:** Dokument nennt `TÖL-A 123` → kein KFZ-Kandidat (Score 0.7), `_suche_kfz_in_sqlite` wird nie abgefragt, Review-Dialog ohne Akten-Vorschlag trotz exakt passendem Beteiligten-Kennzeichen.
 - **Fix-Richtung:** `[A-ZÄÖÜ]` (ggf. plus `\b`-Verhalten bei Umlauten prüfen — Python-Unicode-`\b` sieht Ö als Wortzeichen). *(2× unabhängig gefunden.)*
 
-### - [ ] BUG-18 — Kurze E-Mail-Bodies (<10 Zeichen) werden unterdrückt
+### - [x] BUG-18 — Kurze E-Mail-Bodies (<10 Zeichen) werden unterdrückt
+- **Fix (2026-07-13, Commit «HASH»):** Der Längen-Schwellwert (`body_stripped if len(body_stripped) >= 10 else ""`) in `log_eintrag_meta` entfernt — der bereits `.strip()`-normalisierte Body wird direkt geliefert. Reine Whitespace-Bodies sind durch das `strip()` weiterhin leer, aber legitime Kurz-Antworten („OK, passt"/„Ja") bleiben sichtbar. Tests: `test_bugfix_p3_intake_v7.py::TestBug18KurzerBody` (1: Body „Ja" wird geliefert).
 - **Datei:** `backend/routers/email_routes.py:912` (`log_eintrag_meta`)
 - **Problem:** Neu: `body_text` wird nur zurückgegeben, wenn `len(body_stripped) >= 10`, sonst `""` — die alte Zusicherung „lesbarer Plaintext-Body wird immer angezeigt" ist für legitime Kurz-Antworten entfallen.
 - **Auswirkung:** Mandant/Versicherer antwortet „OK, passt" oder „Ja" → Detailansicht zeigt leeren Body; der Sachbearbeiter hält die Mail für inhaltsleer und übersieht eine ggf. rechtlich relevante Zustimmung.
 - **Fix-Richtung:** Schwellwert entfernen oder nur auf reine Whitespace-/Artefakt-Bodies anwenden.
 
-### - [ ] BUG-19 — Queue-Sortierung: Konfidenz-Schlüssel ist toter Code
+### - [x] BUG-19 — Queue-Sortierung: Konfidenz-Schlüssel ist toter Code
+- **Fix (2026-07-13, Commit «HASH»):** Sortierschlüssel-Reihenfolge korrigiert: `ORDER BY i.erstellt_am ASC, COALESCE(i.konfidenz, 0) DESC, i.id ASC` (Konfidenz **vor** der eindeutigen id). Damit greift die dokumentierte Triage-Reihenfolge (freigabe.md Stufe 1: Alter aufsteigend, dann Konfidenz absteigend); `id ASC` bleibt als stabiler Tiebreaker. Tests: `test_bugfix_p3_intake_v7.py::TestBug19QueueSortierung` (1: bei gleichem erstellt_am kommt die höhere Konfidenz zuerst, obwohl sie die höhere id hat).
 - **Datei:** `backend/routers/intake_routes.py:136` (`hole_queue`)
 - **Problem:** `ORDER BY i.erstellt_am ASC, i.id ASC, COALESCE(i.konfidenz,0) DESC` — die eindeutige `id` vor dem Konfidenz-Schlüssel löst jede Bindung auf; das dokumentierte „dann Konfidenz absteigend" (Docstring + freigabe.md Stufe 1) findet nie statt.
 - **Auswirkung:** Dokumente desselben Imports (gleiche erstellt_am-Sekunde) erscheinen in Insert- statt Triage-Reihenfolge; der tote Schlüssel verschleiert das.

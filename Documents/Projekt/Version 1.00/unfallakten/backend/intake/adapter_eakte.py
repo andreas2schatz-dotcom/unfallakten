@@ -45,8 +45,10 @@ def verarbeite_eakte_dokument(
     ext = pfad.suffix.lstrip(".").lower() or "pdf"
     intake_id, sha = oder_intake_dokument_fuer_datei(daten, ext)
 
+    # BUG-16: Key ``az`` (nicht ``akte_az``), damit akten_matching.finde_kandidaten
+    # den bekannten Aktenzeichen-Vorschlag auswertet (liest az/aktenzeichen/erkannt_az).
     signale = {
-        "akte_az": akte_az,
+        "az": akte_az,
         "eakte_nr": eakte_nr,
     }
     if dateiname:

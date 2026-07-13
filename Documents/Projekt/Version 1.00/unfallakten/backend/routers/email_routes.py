@@ -932,7 +932,10 @@ def log_eintrag_meta(log_id: int):
                 body_text = text.strip()[:1500]
 
         body_stripped = body_text.strip()
-        return _j({"anhaenge": anhaenge, "body_text": body_stripped if len(body_stripped) >= 10 else ""})
+        # BUG-18: kein Laengen-Schwellwert -- legitime Kurz-Antworten wie "Ja"
+        # oder "OK, passt" muessen sichtbar bleiben. Reine Whitespace-Bodies
+        # sind durch das .strip() bereits leer.
+        return _j({"anhaenge": anhaenge, "body_text": body_stripped})
 
     except Exception as e:
         logger.error("log_eintrag_meta Fehler: %s", e)

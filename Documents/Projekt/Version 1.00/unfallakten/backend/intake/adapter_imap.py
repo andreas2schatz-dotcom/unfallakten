@@ -22,6 +22,7 @@ from __future__ import annotations
 import email
 import email.header
 import email.policy
+import email.utils
 import logging
 import re
 from email.message import EmailMessage
@@ -91,6 +92,19 @@ def _domain_aus_from_header(from_header: str) -> str | None:
     if "@" not in email_addr:
         return None
     return email_addr.split("@")[-1].strip().lower() or None
+
+
+def _email_aus_from_header(from_header: str) -> str | None:
+    """From: Max <a@b.de> oder From: a@b.de → 'a@b.de' (lower).
+
+    Liefert die reine, kleingeschriebene Adresse fuer den Signal-Key
+    ``absender_email`` (BUG-15) -- Grundlage des 0.6-Absender-Mail-Matches.
+    """
+    if not from_header:
+        return None
+    _, addr = email.utils.parseaddr(from_header)
+    addr = (addr or "").strip().lower()
+    return addr if "@" in addr else None
 
 
 # ── Encoding-Helfer (eigene Wahrheitsquelle, aus email_parser hierher umgezogen)
@@ -300,6 +314,16 @@ def verarbeite_email(
     )
     body_signale.update(absender_signale)
 
+    # BUG-14/15: Absender-Signale, die auch die Anhang-Zustellungen brauchen
+    # (Versicherungspost als PDF-Anhang ist der Hauptfall der S1.4-Registry).
+    # ``absender_email`` (geparst, kleingeschrieben) ist der Signal-Key fuer
+    # den 0.6-Absender-Mail-Match in akten_matching.
+    geerbte_signale: dict[str, Any] = dict(absender_signale)
+    absender_email = _email_aus_from_header(absender)
+    if absender_email:
+        geerbte_signale["absender_email"] = absender_email
+        body_signale["absender_email"] = absender_email
+
     body_intake_id, body_sha = oder_intake_dokument_fuer_text(body_text)
     body_zust_id = erzeuge_zustellung(
         body_intake_id,
@@ -324,7 +348,7 @@ def verarbeite_email(
             auth_status=auth_status,
             betreff=betreff[:500] if betreff else None,
             empfangen_am=empfangen_am,
-            signale={"dateiname": anh["dateiname"]},
+            signale={**geerbte_signale, "dateiname": anh["dateiname"]},
             konto=konto,
             roh_referenz=roh_referenz,
         )

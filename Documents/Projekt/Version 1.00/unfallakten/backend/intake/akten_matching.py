@@ -42,9 +42,11 @@ SCORE_MANDANTENNAME = 0.4
 # (2-3 Grossbuchstaben), z.B. "31/21", "31/21AS", "285/26"
 _AZ_MUSTER = re.compile(r"\b(\d{1,4}/\d{2,4}[A-Z]{0,3})\b")
 
-# KFZ-Kandidatenmuster: 1-3 Grossbuchstaben, Bindestrich, 1-2 Buchstaben,
-# optional Leerzeichen, 1-4 Ziffern, z.B. "OF-MU 1234", "F-XY 9876"
-_KFZ_MUSTER = re.compile(r"\b([A-ZAEOU]{1,3}-[A-Z]{1,2}\s?\d{1,4})\b")
+# KFZ-Kandidatenmuster: 1-3 Grossbuchstaben (inkl. Umlaute -- TOEL, FUE, BOE,
+# GOE), Bindestrich, 1-2 Buchstaben, optional Leerzeichen, 1-4 Ziffern, z.B.
+# "OF-MU 1234", "F-XY 9876", "TOEL-A 123". Python-Unicode-\b sieht Umlaute als
+# Wortzeichen, daher matcht \b weiterhin an der Wortgrenze vor dem Kennzeichen.
+_KFZ_MUSTER = re.compile(r"\b([A-ZÄÖÜ]{1,3}-[A-Z]{1,2}\s?\d{1,4})\b")
 
 # Datums-Muster: DD.MM.YYYY
 _DATUM_MUSTER = re.compile(r"\b(\d{2}\.\d{2}\.\d{4})\b")

@@ -133,8 +133,8 @@ def hole_queue():
             "FROM intake_dokumente i "
             "WHERE i.queue_status IN ('bereit_zur_review','pipeline_fehler') "
             "  AND i.verworfen_am IS NULL "
-            "ORDER BY i.erstellt_am ASC, i.id ASC, "
-            "         COALESCE(i.konfidenz, 0) DESC"
+            "ORDER BY i.erstellt_am ASC, "
+            "         COALESCE(i.konfidenz, 0) DESC, i.id ASC"
         ).fetchall()
 
     eintraege = []
