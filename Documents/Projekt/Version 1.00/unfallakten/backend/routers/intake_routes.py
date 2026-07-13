@@ -121,16 +121,18 @@ def hole_queue():
         rows = conn.execute(
             "SELECT i.id, i.sha256, i.klasse, i.klasse_quelle, i.konfidenz, "
             "       i.queue_status, i.prioritaet_frist, i.erstellt_am, "
-            "       i.fehler_detail, i.parse_json, i.payload_typ, "
-            "  (SELECT z.id FROM zustellungen z WHERE z.intake_dokument_id=i.id "
-            "     ORDER BY z.id ASC LIMIT 1) AS zustellung_id, "
-            "  (SELECT z.parent_id FROM zustellungen z WHERE z.intake_dokument_id=i.id "
-            "     ORDER BY z.id ASC LIMIT 1) AS parent_zustellung_id, "
-            "  (SELECT z.absender FROM zustellungen z WHERE z.intake_dokument_id=i.id "
-            "     ORDER BY z.id ASC LIMIT 1) AS absender, "
-            "  (SELECT z.betreff FROM zustellungen z WHERE z.intake_dokument_id=i.id "
-            "     ORDER BY z.id ASC LIMIT 1) AS betreff "
+            "       i.fehler_detail, i.payload_typ, "
+            "       json_extract(i.parse_json, '$.akten_kandidaten[0]') "
+            "         AS akte_kandidat_top_json, "
+            "       z.id AS zustellung_id, "
+            "       z.parent_id AS parent_zustellung_id, "
+            "       z.absender AS absender, "
+            "       z.betreff AS betreff "
             "FROM intake_dokumente i "
+            "LEFT JOIN (SELECT intake_dokument_id, MIN(id) AS min_id "
+            "           FROM zustellungen GROUP BY intake_dokument_id) ze "
+            "  ON ze.intake_dokument_id = i.id "
+            "LEFT JOIN zustellungen z ON z.id = ze.min_id "
             "WHERE i.queue_status IN ('bereit_zur_review','pipeline_fehler') "
             "  AND i.verworfen_am IS NULL "
             "ORDER BY i.erstellt_am ASC, "
@@ -139,9 +141,8 @@ def hole_queue():
 
     eintraege = []
     for r in rows:
-        parse = _parse(r["parse_json"])
-        kandidaten = parse.get("akten_kandidaten") or []
-        top = kandidaten[0] if kandidaten else None
+        top_json = r["akte_kandidat_top_json"]
+        top = json.loads(top_json) if top_json else None
         eintraege.append({
             "id": r["id"],
             "sha256": r["sha256"],

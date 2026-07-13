@@ -144,6 +144,57 @@ class TestIntakeQueue(unittest.TestCase):
         self.assertEqual(ids, [id_a, id_b],
                          "Erwartet: Aeltestes zuerst (id_a vor id_b)")
 
+    def test_bug20_queue_deserialisiert_nicht_ganzes_parse_json(self):
+        # BUG-20: Top-Kandidat kommt per json_extract; das ganze parse_json
+        # (inkl. text_gesamt) wird nicht mehr pro Queue-Zeile deserialisiert.
+        import backend.routers.intake_routes as ir
+        _lege_intake_pdf_an("a")  # parse_json enthaelt text_gesamt + akten_kandidaten
+        gesehen = []
+        orig = ir._parse
+
+        def _spy(text):
+            gesehen.append(text)
+            return orig(text)
+
+        ir._parse = _spy
+        try:
+            r = self.client.get("/intake/queue", headers=self.headers)
+        finally:
+            ir._parse = orig
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(
+            any("text_gesamt" in (t or "") for t in gesehen),
+            "hole_queue deserialisiert weiterhin das ganze parse_json pro Zeile",
+        )
+        top = r.get_json()["eintraege"][0]["akte_kandidat_top"]
+        self.assertEqual(top["akte_az"], "44/22")
+
+    def test_bug21_queue_nutzt_erste_zustellung(self):
+        # BUG-21: eine LEFT-JOIN-Zustellung (MIN(id)) statt 4 korrelierter
+        # Subselects — dieselbe "erste Zustellung"-Semantik.
+        from backend.db.database import get_connection
+        did = _lege_intake_pdf_an("a")
+        with get_connection() as conn:
+            erste_id = conn.execute(
+                "INSERT INTO zustellungen "
+                "(intake_dokument_id, quelle, absender, betreff, empfangen_am, "
+                " parent_id) VALUES (?, 'imap', 'erst@x.de', 'Erste', "
+                "'2022-05-01', NULL)",
+                (did,),
+            ).lastrowid
+            conn.execute(
+                "INSERT INTO zustellungen "
+                "(intake_dokument_id, quelle, absender, betreff, empfangen_am, "
+                " parent_id) VALUES (?, 'imap', 'zweit@x.de', 'Zweite', "
+                "'2022-05-02', ?)",
+                (did, erste_id),
+            )
+        r = self.client.get("/intake/queue", headers=self.headers)
+        e = [x for x in r.get_json()["eintraege"] if x["id"] == did][0]
+        self.assertEqual(e["absender"], "erst@x.de")
+        self.assertEqual(e["betreff"], "Erste")
+        self.assertIsNone(e["parent_zustellung_id"])
+
 
 class TestIntakeDetail(unittest.TestCase):
     def setUp(self):
