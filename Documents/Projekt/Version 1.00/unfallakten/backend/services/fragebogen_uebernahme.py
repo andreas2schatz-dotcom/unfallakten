@@ -112,8 +112,11 @@ def _schreibe_beteiligte(conn, akte_az: str, rolle: str,
     row = conn.execute("SELECT id FROM beteiligte WHERE akte_id=? AND rolle=?",
                        (akte_az, rolle)).fetchone()
     if row is None:
-        cols = ["akte_id", "rolle"] + list(aenderungen)
-        werte = [akte_az, rolle] + list(aenderungen.values())
+        # beteiligte.name ist NOT NULL -> beim Neuanlegen ohne Namen leer setzen.
+        spalten = dict(aenderungen)
+        spalten.setdefault("name", "")
+        cols = ["akte_id", "rolle"] + list(spalten)
+        werte = [akte_az, rolle] + list(spalten.values())
         platz = ", ".join(["?"] * len(cols))
         conn.execute(f"INSERT INTO beteiligte ({', '.join(cols)}) VALUES ({platz})",
                      werte)

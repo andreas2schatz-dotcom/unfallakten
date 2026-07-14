@@ -101,6 +101,16 @@ class TestSchreibeBeteiligte(_ServiceBasis):
                                "WHERE akte_id='44/22' AND rolle='mandant'").fetchone()
         self.assertEqual(row["ort"], "Neu-Isenburg")
 
+    def test_insert_ohne_name_in_aenderungen(self):
+        from backend.db.database import get_connection
+        from backend.services.fragebogen_uebernahme import _schreibe_beteiligte
+        with get_connection() as conn:
+            _schreibe_beteiligte(conn, "44/22", "gegner", {"versicherung": "HUK"})
+            row = conn.execute("SELECT name, versicherung FROM beteiligte "
+                               "WHERE akte_id='44/22' AND rolle='gegner'").fetchone()
+        self.assertEqual(row["versicherung"], "HUK")
+        self.assertEqual(row["name"], "")
+
 
 if __name__ == "__main__":
     unittest.main()
