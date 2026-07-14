@@ -212,6 +212,31 @@ class TestDispatcher(_ServiceBasis):
         self.assertEqual(row["ort"], "Neu-Isenburg")
         self.assertTrue(any(x["feld"] == "ort" for x in erg2["geschrieben"]))
 
+    def test_uebernehme_abschnitt_fehler_rollt_partiellen_write_zurueck(self):
+        from backend.db.database import get_connection
+        from backend.services import fragebogen_uebernahme as fu
+        # Fake-Schreiber fuer 'unfall': macht einen Teil-Write, wirft dann.
+        def kaputt(conn, akte_az, aenderungen):
+            conn.execute("UPDATE unfallakte SET unfallort=? WHERE az=?",
+                         ("TEILWRITE", akte_az))
+            raise RuntimeError("boom")
+        orig = fu._SCHREIBE["unfall"]
+        fu._SCHREIBE = {**fu._SCHREIBE, "unfall": kaputt}
+        try:
+            erg = fu.uebernehme(
+                "44/22",
+                {"mandant": {"telefon": "069 1"}, "unfall": {"unfallort": "X"}},
+                ["mandant", "unfall"])
+        finally:
+            fu._SCHREIBE = {**fu._SCHREIBE, "unfall": orig}
+        with get_connection() as conn:
+            m = conn.execute("SELECT telefon FROM beteiligte "
+                             "WHERE akte_id='44/22' AND rolle='mandant'").fetchone()
+            a = conn.execute("SELECT unfallort FROM unfallakte WHERE az='44/22'").fetchone()
+        self.assertEqual(m["telefon"], "069 1")   # erfolgreicher Abschnitt bleibt
+        self.assertIsNone(a["unfallort"])          # partieller Write zurueckgerollt
+        self.assertTrue(any(f["abschnitt"] == "unfall" for f in erg["fehler"]))
+
 
 if __name__ == "__main__":
     unittest.main()
