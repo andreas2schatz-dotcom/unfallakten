@@ -220,6 +220,25 @@ class TestIntakeQueue(unittest.TestCase):
         self.assertEqual(e["betreff"], "Erste")
         self.assertIsNone(e["parent_zustellung_id"])
 
+    def test_queue_liefert_bildseiten_anzahl(self):
+        parse = json.dumps({
+            "text_gesamt": "x",
+            "seiten": [
+                {"nr": 1, "textquelle": "textebene", "ratio_salat": 0.0,
+                 "zeichen": 10, "ist_bildseite": False},
+                {"nr": 2, "textquelle": "ocr", "ratio_salat": 1.0,
+                 "zeichen": 3, "ist_bildseite": True},
+            ],
+            "klassifikation": {"kandidaten": [], "hinweise": []},
+            "felder": {}, "akten_kandidaten": [],
+            "bildseiten_anzahl": 1,
+        }, ensure_ascii=False)
+        _lege_intake_pdf_an(sha_suffix="b", parse_json=parse)
+        r = self.client.get("/intake/queue", headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        eintraege = r.get_json()["eintraege"]
+        self.assertEqual(eintraege[0]["bildseiten_anzahl"], 1)
+
 
 class TestIntakeKlassen(unittest.TestCase):
     """BUG-26: Klassen-Katalog-Endpoint fuer das Reklassifikations-Dropdown."""

@@ -125,6 +125,8 @@ def hole_queue():
             "       i.ocr_ratio_salat, i.ocr_quote_woerter, i.llm_degradiert, "
             "       json_extract(i.parse_json, '$.akten_kandidaten[0]') "
             "         AS akte_kandidat_top_json, "
+            "       json_extract(i.parse_json, '$.bildseiten_anzahl') "
+            "         AS bildseiten_anzahl, "
             "       z.id AS zustellung_id, "
             "       z.parent_id AS parent_zustellung_id, "
             "       z.absender AS absender, "
@@ -159,6 +161,7 @@ def hole_queue():
             "ocr_ratio_salat": r["ocr_ratio_salat"],
             "ocr_quote_woerter": r["ocr_quote_woerter"],
             "llm_degradiert": r["llm_degradiert"],
+            "bildseiten_anzahl": r["bildseiten_anzahl"] or 0,
             "zustellung_id": r["zustellung_id"],
             "parent_zustellung_id": r["parent_zustellung_id"],
             "absender": r["absender"],
@@ -263,6 +266,7 @@ def hole_detail(intake_id: int):
             "akten_kandidaten": parse.get("akten_kandidaten", []),
             "llm_konflikt": parse.get("llm_konflikt"),
             "degradation": parse.get("degradation"),
+            "bildseiten_anzahl": parse.get("bildseiten_anzahl", 0),
         },
         "zustellungen": [dict(z) for z in zust],
         "freigaben": [dict(f) for f in frg],
