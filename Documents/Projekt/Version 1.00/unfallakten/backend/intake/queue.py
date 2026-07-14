@@ -13,6 +13,11 @@ das Lease ab (Worker-Absturz), uebernimmt der naechste Worker (F-10).
 Backoff bei Fehlversuchen: 1/5/30 Minuten. Nach ``MAX_VERSUCHE`` Fehlversuchen
 landet der Eintrag in ``pipeline_fehler`` und die Queue laeuft weiter (kein
 Poison-Pill-Blocking).
+
+Fehlerkategorien (N-03, siehe ``klassifiziere_fehler``): zusaetzlich zu
+timeout/unbekannt (Backoff wie oben) gibt es ``ressourcendruck`` (bleibt
+'neu', nur zurueckgestellt +15min, Zaehler UNVERAENDERT, keine harte Grenze)
+und ``reproduzierbar`` (sofort 'pipeline_fehler', kein Retry).
 """
 from __future__ import annotations
 
@@ -48,14 +53,14 @@ _MUSTER_RESSOURCE = ("connection", "verbindung", "refused", "reset by peer",
                      "temporarily")
 _MUSTER_REPRODUZIERBAR = ("keine seiten extrahierbar", "ohne inhalt",
                           "cannot open", "damaged", "not a pdf", "no /root",
-                          "invalid", "unsupported", "arbeitskopie fehlt")
+                          "invalid pdf", "unsupported format", "arbeitskopie fehlt")
 
 
-def klassifiziere_fehler(meldung: str) -> str:
+def klassifiziere_fehler(meldung: Optional[str]) -> str:
     """Ordnet eine Fehlermeldung einer Retry-Kategorie zu (N-03).
 
     Timeout hat Vorrang vor Ressourcendruck (ein Read-Timeout ist mit Backoff
-    behebbar). Default 'unbekannt' -> wird wie 'timeout' retriet (sicher).
+    behebbar). Default 'unbekannt' -> wird wie 'timeout' behandelt (sicher).
     """
     m = (meldung or "").lower()
     if any(s in m for s in _MUSTER_TIMEOUT):

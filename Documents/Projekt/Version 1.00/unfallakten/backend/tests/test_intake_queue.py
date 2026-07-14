@@ -268,6 +268,13 @@ class TestFehlerKlassifikation(unittest.TestCase):
         self.assertEqual(
             klassifiziere_fehler("connection timed out"), "timeout")
 
+    def test_reproduzierbar_muster_verengt(self):
+        from backend.intake.queue import klassifiziere_fehler
+        self.assertEqual(
+            klassifiziere_fehler("invalid argument"), "unbekannt")
+        self.assertEqual(
+            klassifiziere_fehler("invalid PDF structure"), "reproduzierbar")
+
 
 class TestMarkiereFehlerKategorien(_BaseQueueTest):
     def _status(self, did):
