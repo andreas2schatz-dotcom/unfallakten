@@ -39,7 +39,7 @@ from ..intake.queue import markiere_bereit, markiere_fehler, reserviere_naechste
 from ..intake.registry_loader import lade_registry, standard_pfad
 from ..intake.text_extraktion import (
     extrahiere_seiten, aggregierte_textquelle, waehle_extraktions_text,
-    dokument_ocr_qualitaet, SeitenText,
+    dokument_ocr_qualitaet, SeitenText, text_abdeckung, ist_bildseite,
 )
 from ..services import ocr_service, glm_ocr_service
 
@@ -107,11 +107,14 @@ def _lade_zustellungs_signale(intake_id: int) -> list:
     return signale
 
 
-def _ocr_seite(pdf_bytes: bytes, seite_nr: int, sha256: str) -> str:
-    """OCR fuer eine einzelne Seite via Tesseract mit TSV-Persistierung.
+def _ocr_seite(pdf_bytes: bytes, seite_nr: int, sha256: str):
+    """OCR einer Seite mit Bildseiten-Triage (N-04).
 
-    Optional: GLM-OCR wenn Feature-Flag gesetzt (dort dann kein TSV,
-    weil die LLM-Antwort direkt Text ist).
+    Tesseract zuerst (billig, TSV ohnehin gebraucht) -> Textabdeckung. Foto-
+    seiten (geringe Abdeckung) werden als Bildseite markiert und ueberspringen
+    GLM; nur texttragende Seiten gehen (falls aktiviert) an GLM.
+
+    Rueckgabe: (text, ist_bildseite).
     """
     tsv_verzeichnis = os.path.join(_artefakte_root(), sha256)
     tsv_pfad = os.path.join(tsv_verzeichnis, f"seite_{seite_nr}.tsv")
@@ -121,15 +124,19 @@ def _ocr_seite(pdf_bytes: bytes, seite_nr: int, sha256: str) -> str:
     bilder = ocr_service.pdf_zu_bildern(
         pdf_bytes, first_page=seite_nr, last_page=seite_nr)
     if not bilder:
-        return ""
+        return "", False
     bild = bilder[0]
+
+    tess_text, boxen = ocr_service.ocr_seite_daten(bild, tsv_pfad, lang="deu")
+    breite, hoehe = bild.size
+    if ist_bildseite(text_abdeckung(boxen, float(breite) * float(hoehe))):
+        return tess_text, True
 
     # GLM-OCR (Feature-Flag, F-01) — Stufe-1-Default False, Tesseract primaer.
     text_glm = glm_ocr_service.glm_ocr_seite(bild)
     if text_glm:
-        return text_glm
-
-    return ocr_service.ocr_seite_mit_tsv(bild, tsv_pfad, lang="deu")
+        return text_glm, False
+    return tess_text, False
 
 
 def _regex_muster_der_klasse(registry, klasse: str) -> list:
@@ -180,7 +187,8 @@ def verarbeite_dokument(intake_id: int) -> bool:
 
             for s in seiten:
                 if s.braucht_ocr:
-                    s.text = _ocr_seite(pdf_bytes, s.nr, dok["sha256"])
+                    s.text, s.ist_bildseite = _ocr_seite(
+                        pdf_bytes, s.nr, dok["sha256"])
                     s.textquelle = "ocr"
                 # sonst: s.textquelle wurde bereits von extrahiere_seiten auf
                 # 'textebene' gesetzt.
@@ -250,7 +258,8 @@ def verarbeite_dokument(intake_id: int) -> bool:
             "seiten": [
                 {"nr": s.nr, "textquelle": s.textquelle,
                  "ratio_salat": round(s.ratio_salat, 3),
-                 "zeichen": len(s.text)}
+                 "zeichen": len(s.text),
+                 "ist_bildseite": s.ist_bildseite}
                 for s in seiten
             ],
             "klassifikation": {
@@ -271,6 +280,7 @@ def verarbeite_dokument(intake_id: int) -> bool:
             },
             "felder": felder,
             "akten_kandidaten": akten_kandidaten_json,
+            "bildseiten_anzahl": sum(1 for s in seiten if s.ist_bildseite),
         }
         if llm_konflikt:
             parse_dict["llm_konflikt"] = llm_konflikt

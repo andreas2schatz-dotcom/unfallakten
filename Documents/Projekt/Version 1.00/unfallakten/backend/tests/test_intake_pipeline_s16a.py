@@ -113,8 +113,8 @@ class TestOcrPfad(_BasePipelineTest):
         pdf = doc.write()
         did = self._lege_dokument_mit_arbeitskopie_an(pdf)
 
-        # OCR-Aufruf mocken – pdf_zu_bildern liefert Dummies, ocr_seite_mit_tsv
-        # liefert Text und "schreibt" TSV.
+        # OCR-Aufruf mocken – pdf_zu_bildern liefert Dummies, ocr_seite_daten
+        # liefert (Text, Boxen) und "schreibt" TSV.
         from PIL import Image
         dummy_img = Image.new("RGB", (10, 10), "white")
 
@@ -122,11 +122,11 @@ class TestOcrPfad(_BasePipelineTest):
             os.makedirs(os.path.dirname(tsv_pfad), exist_ok=True)
             with open(tsv_pfad, "w", encoding="utf-8") as f:
                 f.write("dummy-tsv")
-            return "OCR-Text von Seite"
+            return "OCR-Text von Seite", []
 
         with mock.patch("backend.services.ocr_service.pdf_zu_bildern",
                         return_value=[dummy_img]), \
-             mock.patch("backend.services.ocr_service.ocr_seite_mit_tsv",
+             mock.patch("backend.services.ocr_service.ocr_seite_daten",
                         side_effect=_ocr_mock):
             ergebnis = pipeline.verarbeite_dokument(did)
 
