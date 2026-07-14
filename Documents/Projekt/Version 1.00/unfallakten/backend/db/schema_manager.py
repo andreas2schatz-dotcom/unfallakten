@@ -307,6 +307,8 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     53: "-- migration_53_intake_verworfen",  # Handled by _run_migration_53 (Verwerfen-Workflow)
     54: "-- migration_54_textquelle_email_text",  # Handled by _run_migration_54 (Text-Pfad Intake)
     55: "-- migration_55_intake_review_geoeffnet",  # Handled by _run_migration_55 (N-08 Baseline Sekunden pro Freigabe)
+    56: "-- migration_56_intake_ocr_qualitaet",  # Handled by _run_migration_56 (N-02 OCR-Qualitaetsmetriken)
+    57: "-- migration_57_intake_llm_degradiert",  # Handled by _run_migration_57 (N-03 Degradations-Signal)
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -851,6 +853,80 @@ def _run_migration_55(conn: sqlite3.Connection) -> None:
     )
 
 
+def _run_migration_56(conn: sqlite3.Connection) -> None:
+    """
+    Migration 56 (N-02) - intake_dokumente.ocr_ratio_salat + ocr_quote_woerter.
+
+    Persistiert die OCR-Qualitaetsmetriken je Dokument (Schlechteste-Seite-
+    Aggregat aus text_extraktion.dokument_ocr_qualitaet): Zeichensalat-Anteil
+    und Woerterbuch-Quote. Die Review-Queue nutzt sie als Hinweissignal (Badge
+    bei schlechter OCR-Qualitaet, FREIGABE-NACHTRAG-1 N-02).
+
+    Zwei additive ALTER TABLE, nullable REAL, kein Datenverlust. Idempotent per
+    PRAGMA table_info. Explizites conn.commit() umgibt die ALTERs
+    (feedback_migration_executescript).
+    """
+    vorhandene_spalten = {
+        r[1] for r in conn.execute(
+            "PRAGMA table_info(intake_dokumente)"
+        ).fetchall()
+    }
+    if "ocr_ratio_salat" not in vorhandene_spalten:
+        conn.commit()
+        conn.execute(
+            "ALTER TABLE intake_dokumente ADD COLUMN ocr_ratio_salat REAL"
+        )
+        conn.commit()
+    if "ocr_quote_woerter" not in vorhandene_spalten:
+        conn.commit()
+        conn.execute(
+            "ALTER TABLE intake_dokumente ADD COLUMN ocr_quote_woerter REAL"
+        )
+        conn.commit()
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (?, ?)",
+        (56,
+         "Migration 56 - intake_dokumente.ocr_ratio_salat + ocr_quote_woerter "
+         "(N-02 OCR-Qualitaetsmetriken)"),
+    )
+    logger.info(
+        "Migration 56 abgeschlossen "
+        "(intake_dokumente.ocr_ratio_salat + ocr_quote_woerter)."
+    )
+
+
+def _run_migration_57(conn: sqlite3.Connection) -> None:
+    """
+    Migration 57 (N-03) - intake_dokumente.llm_degradiert.
+
+    Flag (0/1/NULL): 1 = KI-Feldextraktion war eingeschaltet, lieferte aber
+    nichts (weggeschluckter LLM-Fehler) -> Review-Queue zeigt "nur Regex".
+    Additives ALTER TABLE, nullable INTEGER, kein Datenverlust. Idempotent per
+    PRAGMA table_info. Explizites conn.commit() (feedback_migration_executescript).
+    """
+    vorhandene_spalten = {
+        r[1] for r in conn.execute(
+            "PRAGMA table_info(intake_dokumente)"
+        ).fetchall()
+    }
+    if "llm_degradiert" not in vorhandene_spalten:
+        conn.commit()
+        conn.execute(
+            "ALTER TABLE intake_dokumente ADD COLUMN llm_degradiert INTEGER"
+        )
+        conn.commit()
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (?, ?)",
+        (57, "Migration 57 - intake_dokumente.llm_degradiert "
+             "(N-03 Degradations-Signal)"),
+    )
+    logger.info("Migration 57 abgeschlossen (intake_dokumente.llm_degradiert).")
+
+
 def _run_migration_54(conn: sqlite3.Connection) -> None:
     """
     Migration 54 - intake_dokumente.textquelle erlaubt 'email_text'.
@@ -1254,6 +1330,10 @@ def run_migrations() -> None:
                 _run_migration_54(conn)
             elif version == 55:
                 _run_migration_55(conn)
+            elif version == 56:
+                _run_migration_56(conn)
+            elif version == 57:
+                _run_migration_57(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
