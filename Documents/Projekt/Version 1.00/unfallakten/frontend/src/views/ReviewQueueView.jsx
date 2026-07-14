@@ -143,6 +143,24 @@ function OcrBadge({ item }) {
   );
 }
 
+export function istDegradiert(item) {
+  return item?.llm_degradiert === 1;
+}
+
+function DegradationBadge({ item }) {
+  if (!istDegradiert(item)) return null;
+  return (
+    <span title="Feld-Extraktion ohne KI (nur Regex) — Felder bitte manuell pruefen."
+      style={{
+        background: T.amber + "22", color: T.amber, padding: "1px 7px",
+        borderRadius: 8, fontSize: T.textXs, fontFamily: T.fontMono,
+        whiteSpace: "nowrap",
+      }}>
+      nur Regex
+    </span>
+  );
+}
+
 function KonfidenzChip({ wert }) {
   if (wert == null) return null;
   const prozent = Math.round(wert * 100);
@@ -174,6 +192,7 @@ function QueueEintrag({ item, aktiv, onClick, onVerwerfen, eingerueckt }) {
         <StatusBadge status={item.queue_status} fristPrio={item.prioritaet_frist} />
         <KonfidenzChip wert={item.konfidenz} />
         <OcrBadge item={item} />
+        <DegradationBadge item={item} />
         {item.klasse_quelle === "manuell" && (
           <span style={{ fontSize: T.textXs, color: T.textMuted }}>manuell</span>
         )}
@@ -810,6 +829,15 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
               ))}
             </ul>
           ) : null}
+          {detail.parse?.degradation?.llm_extraktion === "ausgefallen" && (
+            <div role="alert" style={{
+              marginTop: 8, padding: "6px 10px", borderRadius: 4,
+              background: T.amber + "18", color: T.amber,
+              fontSize: T.textXs, border: `1px solid ${T.amber}55`,
+            }}>
+              ⚠ Extraktion ohne KI (nur Regex) — Felder bitte manuell prüfen.
+            </div>
+          )}
           {detail.parse.llm_konflikt && (
             <div style={{ marginTop: 6, padding: "6px 10px",
               background: T.amberBg, color: T.amberText,
