@@ -161,6 +161,27 @@ function DegradationBadge({ item }) {
   );
 }
 
+export function bildseiten(item) {
+  const n = item?.bildseiten_anzahl;
+  if (!n || n < 1) return null;
+  return n;
+}
+
+function BildseitenBadge({ item }) {
+  const n = bildseiten(item);
+  if (!n) return null;
+  return (
+    <span title={`${n} Seite(n) als Foto/Bild erkannt — nicht durch KI-OCR.`}
+      style={{
+        background: T.textMuted + "22", color: T.textMuted, padding: "1px 7px",
+        borderRadius: 8, fontSize: T.textXs, fontFamily: T.fontMono,
+        whiteSpace: "nowrap",
+      }}>
+      🖼 {n}
+    </span>
+  );
+}
+
 function KonfidenzChip({ wert }) {
   if (wert == null) return null;
   const prozent = Math.round(wert * 100);
@@ -193,6 +214,7 @@ function QueueEintrag({ item, aktiv, onClick, onVerwerfen, eingerueckt }) {
         <KonfidenzChip wert={item.konfidenz} />
         <OcrBadge item={item} />
         <DegradationBadge item={item} />
+        <BildseitenBadge item={item} />
         {item.klasse_quelle === "manuell" && (
           <span style={{ fontSize: T.textXs, color: T.textMuted }}>manuell</span>
         )}
