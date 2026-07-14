@@ -92,5 +92,47 @@ class TestTextFreigabeLegtDokumentAn(_FragebogenFreigabeBasis):
         self.assertEqual(n, 1, "Freigabe eines Text-Dokuments legt eine dokumente-Zeile an")
 
 
+class TestVorschauEndpoint(_FragebogenFreigabeBasis):
+    def test_detail_meldet_ist_fragebogen(self):
+        did = self._lege_fragebogen_intake_an()
+        headers = self._login()
+        r = self.client.get(f"/intake/dokument/{did}", headers=headers)
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.get_json()["ist_fragebogen"])
+
+    def test_vorschau_endpoint_liefert_abschnitte(self):
+        did = self._lege_fragebogen_intake_an()
+        headers = self._login()
+        r = self.client.get(
+            f"/intake/dokument/{did}/fragebogen-vorschau?akte_az=44%2F22",
+            headers=headers)
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        body = r.get_json()
+        self.assertEqual(body["akte_az"], "44/22")
+        keys = [a["key"] for a in body["abschnitte"]]
+        self.assertEqual(keys, ["mandant", "gegner", "unfall", "personenschaden"])
+
+    def test_vorschau_422_ohne_akte_az(self):
+        did = self._lege_fragebogen_intake_an()
+        headers = self._login()
+        r = self.client.get(f"/intake/dokument/{did}/fragebogen-vorschau",
+                            headers=headers)
+        self.assertEqual(r.status_code, 422)
+
+    def test_vorschau_422_bei_nicht_fragebogen(self):
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            cur = conn.execute(
+                "INSERT INTO intake_dokumente "
+                "(sha256, payload_typ, structured_payload, queue_status) "
+                "VALUES ('nofrb0000', 'text', 'nur text', 'bereit_zur_review')")
+            did = cur.lastrowid
+        headers = self._login()
+        r = self.client.get(
+            f"/intake/dokument/{did}/fragebogen-vorschau?akte_az=44%2F22",
+            headers=headers)
+        self.assertEqual(r.status_code, 422)
+
+
 if __name__ == "__main__":
     unittest.main()

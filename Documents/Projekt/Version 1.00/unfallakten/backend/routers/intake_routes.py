@@ -41,6 +41,9 @@ from ..auth.middleware import login_erforderlich
 from ..db.database import get_connection
 from ..intake.queue import enqueue
 from ..ramicro.output_adapter import schreibe_dokument
+from ..services.fragebogen_uebernahme import (
+    parse_fragebogen_payload, vorschau_liste, uebernehme,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -244,6 +247,7 @@ def hole_detail(intake_id: int):
         "id": dok["id"],
         "sha256": dok["sha256"],
         "payload_typ": dok.get("payload_typ"),
+        "ist_fragebogen": parse_fragebogen_payload(dok.get("structured_payload")) is not None,
         "original_pfad": dok.get("original_pfad"),
         "arbeitskopie_pfad": dok.get("arbeitskopie_pfad"),
         "eltern_email": eltern_email,
@@ -273,6 +277,21 @@ def hole_detail(intake_id: int):
         "zustellungen": [dict(z) for z in zust],
         "freigaben": [dict(f) for f in frg],
     })
+
+
+@intake_bp.route("/dokument/<int:intake_id>/fragebogen-vorschau", methods=["GET"])
+@login_erforderlich
+def fragebogen_vorschau(intake_id: int):
+    dok = _lade_intake(intake_id)
+    if not dok:
+        return _err("Intake-Dokument nicht gefunden", 404)
+    akte_az = (request.args.get("akte_az") or "").strip()
+    if not akte_az:
+        return _err("Feld 'akte_az' fehlt", 422)
+    parsed = parse_fragebogen_payload(dok.get("structured_payload"))
+    if parsed is None:
+        return _err("Dokument ist kein Fragebogen", 422)
+    return _j({"akte_az": akte_az, "abschnitte": vorschau_liste(akte_az, parsed)})
 
 
 # ─── GET /intake/dokument/<id>/pdf ────────────────────────────────────────────
