@@ -720,7 +720,12 @@ def post_freigabe(intake_id: int):
         except Exception as exc:
             logger.error("Freigabe %s: Fragebogen-Uebernahme fehlgeschlagen: %s",
                          intake_id, exc, exc_info=True)
-            uebernahme_ergebnis = {"fehler": str(exc)}
+            # Shape-Parität zum uebernehme()-Normalfall: fehler ist immer eine
+            # Liste von {abschnitt, fehler}; Abschnitt "*" = globaler Fehler.
+            uebernahme_ergebnis = {
+                "geschrieben": [], "uebersprungen": [],
+                "fehler": [{"abschnitt": "*", "fehler": str(exc)}],
+            }
 
     logger.info("Freigabe intake=%s -> Akte %s (dokument_id=%s, freigabe_id=%s)",
                 intake_id, akte_az, dokument_id, freigabe_id)

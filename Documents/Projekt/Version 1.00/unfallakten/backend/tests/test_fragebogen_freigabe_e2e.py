@@ -184,6 +184,23 @@ class TestFreigabeUebernahme(_FragebogenFreigabeBasis):
         self.assertEqual(r.status_code, 200)
         self.assertIsNone(r.get_json()["fragebogen_uebernahme"])
 
+    def test_uebernahme_ausserer_fehler_liefert_listen_shape(self):
+        """Follow-up: Bei einem unerwarteten Fehler in der Uebernahme bleibt die
+        Response-Shape identisch zum Normalfall (fehler ist eine Liste, nicht
+        ein String) und die Freigabe bleibt gueltig (Best-Effort)."""
+        from unittest import mock
+        did = self._lege_fragebogen_intake_an(sha="frbErr")
+        headers = self._login()
+        with mock.patch("backend.routers.intake_routes.uebernehme",
+                        side_effect=RuntimeError("boom")):
+            r = self._freigabe(did, headers, {"mandant": {"name": "X"}},
+                               ["mandant"])
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        u = r.get_json()["fragebogen_uebernahme"]
+        self.assertIsInstance(u["fehler"], list)
+        self.assertEqual(u["geschrieben"], [])
+        self.assertTrue(any("boom" in f["fehler"] for f in u["fehler"]))
+
 
 if __name__ == "__main__":
     unittest.main()

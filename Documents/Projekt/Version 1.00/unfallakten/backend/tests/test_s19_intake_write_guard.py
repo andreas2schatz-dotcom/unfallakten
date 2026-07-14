@@ -63,7 +63,12 @@ BEKANNTE_ALT_AUFRUFER = {
     ("routers/eakte_routes.py",       "registriere_dokument"):    {254},
 }
 
-VERBOTEN = {"registriere_dokument", "setze_schadenpositionen"}
+# `uebernehme` (services/fragebogen_uebernahme.py) schreibt direkt in Akten-
+# Stammdaten (beteiligte/unfallakte/unfalldetails/personenschaden) und ist damit
+# ein zweiter sanktionierter Schreibweg -- erlaubt AUSSCHLIESSLICH aus der
+# menschlichen Review-Freigabe (intake_routes.post_freigabe, NICHT in
+# INTAKE_PFADE). Jeder Aufruf aus einem Intake-Auto-Pfad soll hier anschlagen.
+VERBOTEN = {"registriere_dokument", "setze_schadenpositionen", "uebernehme"}
 
 
 def _sammle_calls(pfad: str, funktion: str) -> set[int]:
@@ -124,6 +129,30 @@ class TestIntakeWriteGuard(unittest.TestCase):
                 f"{key[0]}: neuer Aufruf von {key[1]}() an Zeile(n) "
                 f"{zusaetzlich} -- S1.9-Regel verletzt.",
             )
+
+    def test_guard_erkennt_uebernehme_aufruf(self):
+        """Follow-up-Härtung: ein direkter uebernehme()-Aufruf (Fragebogen-
+        Feld-Übernahme) in einem Intake-Auto-Pfad wird vom Guard erfasst.
+        Absicherung gegen kuenftige Umgehung des einzigen erlaubten Schreibwegs
+        (menschliche Freigabe in intake_routes.post_freigabe)."""
+        self.assertIn("uebernehme", VERBOTEN)
+        import tempfile
+        quelle = (
+            "from backend.services.fragebogen_uebernahme import uebernehme\n"
+            "def boeser_auto_pfad(az):\n"
+            "    uebernehme(az, {}, ['mandant'])\n"
+        )
+        with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False,
+                                         encoding="utf-8") as f:
+            f.write(quelle)
+            pfad = f.name
+        try:
+            treffer = _sammle_calls(pfad, "uebernehme")
+        finally:
+            os.remove(pfad)
+        self.assertTrue(treffer,
+                        "Guard muss einen uebernehme()-Aufruf erkennen (Import "
+                        "allein zaehlt nicht, echter Call schon)")
 
     def test_output_adapter_ist_der_erlaubte_pfad(self):
         """Der output_adapter muss existieren und den einen Aufruf enthalten,
