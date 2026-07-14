@@ -507,7 +507,7 @@ export function FragebogenUebernahme({ abschnitte, state, onToggle, onFeld, onAd
         {sichtbar.map(a => {
           const aktiv = state.aktive.includes(a.key);
           const zu = state.collapsed.includes(a.key);
-          const felder = editierbareFelder(a.felder);
+          const felder = a.felder;
           return (
             <div key={a.key} style={{ borderTop: `1px solid ${T.border}` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8,
@@ -523,7 +523,26 @@ export function FragebogenUebernahme({ abschnitte, state, onToggle, onFeld, onAd
               </div>
               {aktiv && !zu && (
                 <div style={{ padding: "6px 10px", display: "grid", gap: 6 }}>
-                  {felder.map(f => (
+                  {felder.map(f => {
+                    if (!f.ist_leer && !f.konflikt) {
+                      return (
+                        <div key={f.feld} style={{ display: "grid",
+                             gridTemplateColumns: "110px 1fr", gap: 8, alignItems: "start" }}>
+                          <label style={{ fontSize: T.textXs, color: T.textMid, paddingTop: 6 }}>
+                            {f.label}
+                          </label>
+                          <div style={{ padding: "5px 8px", fontSize: T.textSm,
+                                        border: `1px dashed ${T.border}`, borderRadius: 4,
+                                        background: T.surface, color: T.textMuted }}>
+                            {f.akte_wert}
+                            <div style={{ fontSize: T.textXs, color: T.textFaint, marginTop: 2 }}>
+                              🔒 bereits in Akte
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
                     <div key={f.feld} style={{ display: "grid",
                          gridTemplateColumns: "110px 1fr", gap: 8, alignItems: "start" }}>
                       <label style={{ fontSize: T.textXs, color: T.textMid, paddingTop: 6 }}>
@@ -558,7 +577,8 @@ export function FragebogenUebernahme({ abschnitte, state, onToggle, onFeld, onAd
                         )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

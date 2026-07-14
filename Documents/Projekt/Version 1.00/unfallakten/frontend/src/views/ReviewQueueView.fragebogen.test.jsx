@@ -45,4 +45,12 @@ describe("Fragebogen-Uebernahme Helfer", () => {
     expect(screen.getByText("Telefon")).toBeInTheDocument();
     expect(screen.getByText(/Bogen übernehmen/)).toBeInTheDocument();  // Konflikt-Feld
   });
+
+  it("rendert bereits gefüllte (gleiche) Felder als gesperrte Zeile", () => {
+    const s = initialUebernahme(ABSCHNITTE);
+    render(<FragebogenUebernahme abschnitte={ABSCHNITTE} state={s}
+             onToggle={() => {}} onFeld={() => {}} onAdopt={() => {}} />);
+    expect(screen.getByText("Riccio")).toBeInTheDocument();
+    expect(screen.getByText(/bereits in Akte/)).toBeInTheDocument();
+  });
 });
