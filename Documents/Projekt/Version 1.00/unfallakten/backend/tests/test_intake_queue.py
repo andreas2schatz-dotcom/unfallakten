@@ -237,5 +237,37 @@ class TestEnqueue(_BaseQueueTest):
         self.assertIsNone(row["worker_lease"])
 
 
+class TestFehlerKlassifikation(unittest.TestCase):
+    def test_timeout(self):
+        from backend.intake.queue import klassifiziere_fehler
+        self.assertEqual(klassifiziere_fehler("LLM Timeout nach 60s"), "timeout")
+        self.assertEqual(klassifiziere_fehler("Read timed out."), "timeout")
+
+    def test_ressourcendruck(self):
+        from backend.intake.queue import klassifiziere_fehler
+        for m in ("Connection refused", "Verbindungsfehler zum Server",
+                  "HTTP 503 Service Unavailable", "connection reset by peer",
+                  "too many requests"):
+            self.assertEqual(klassifiziere_fehler(m), "ressourcendruck", m)
+
+    def test_reproduzierbar(self):
+        from backend.intake.queue import klassifiziere_fehler
+        for m in ("Keine Seiten extrahierbar", "Text-Payload ohne Inhalt",
+                  "cannot open broken document", "Arbeitskopie fehlt: /x.pdf",
+                  "not a PDF"):
+            self.assertEqual(klassifiziere_fehler(m), "reproduzierbar", m)
+
+    def test_default_unbekannt(self):
+        from backend.intake.queue import klassifiziere_fehler
+        self.assertEqual(klassifiziere_fehler("irgendein anderer fehler"), "unbekannt")
+        self.assertEqual(klassifiziere_fehler(""), "unbekannt")
+        self.assertEqual(klassifiziere_fehler(None), "unbekannt")
+
+    def test_timeout_hat_vorrang_vor_connection(self):
+        from backend.intake.queue import klassifiziere_fehler
+        self.assertEqual(
+            klassifiziere_fehler("connection timed out"), "timeout")
+
+
 if __name__ == "__main__":
     unittest.main()

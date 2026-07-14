@@ -38,6 +38,35 @@ def _iso(dt: datetime) -> str:
     return dt.strftime(_ZEITFORMAT)
 
 
+RUECKSTELL_S = 900  # 15 min: Ressourcendruck-Rueckstellung (N-03)
+
+_MUSTER_TIMEOUT = ("timeout", "timed out", "zeitueberschreitung",
+                   "zeitüberschreitung")
+_MUSTER_RESSOURCE = ("connection", "verbindung", "refused", "reset by peer",
+                     "broken pipe", " 503", " 502", "overload", "ueberlast",
+                     "überlast", "unavailable", "too many requests",
+                     "temporarily")
+_MUSTER_REPRODUZIERBAR = ("keine seiten extrahierbar", "ohne inhalt",
+                          "cannot open", "damaged", "not a pdf", "no /root",
+                          "invalid", "unsupported", "arbeitskopie fehlt")
+
+
+def klassifiziere_fehler(meldung: str) -> str:
+    """Ordnet eine Fehlermeldung einer Retry-Kategorie zu (N-03).
+
+    Timeout hat Vorrang vor Ressourcendruck (ein Read-Timeout ist mit Backoff
+    behebbar). Default 'unbekannt' -> wird wie 'timeout' retriet (sicher).
+    """
+    m = (meldung or "").lower()
+    if any(s in m for s in _MUSTER_TIMEOUT):
+        return "timeout"
+    if any(s in m for s in _MUSTER_RESSOURCE):
+        return "ressourcendruck"
+    if any(s in m for s in _MUSTER_REPRODUZIERBAR):
+        return "reproduzierbar"
+    return "unbekannt"
+
+
 def enqueue(intake_dokument_id: int) -> None:
     """Setzt ein Dokument (zurueck) auf 'neu', unabhaengig von Backoff/Fehlern.
 
