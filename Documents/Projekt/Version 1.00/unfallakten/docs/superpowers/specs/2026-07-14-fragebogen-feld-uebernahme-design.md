@@ -48,6 +48,22 @@ Aufgabe fügt die Feld-Übernahme genau an der Freigabe an.
 
 ## Architektur
 
+### 0. Voraussetzung: Text-Dokument-Freigabe reparieren
+
+**Fund (2026-07-14):** `post_freigabe` ruft `output_adapter.schreibe_dokument`, das
+zwingend eine Datei-**Arbeitskopie** verlangt (`FileNotFoundError`, sonst HTTP 500).
+Ein Fragebogen ist aber ein **Text-Dokument** (`payload_typ='text'`, keine
+Arbeitskopie) → die Freigabe bräche ab, bevor die Feld-Übernahme läuft. Betrifft
+Text-Dokumente generell (auch freigegebene E-Mail-Bodies) — latenter Bug.
+
+**Lösung (Nutzerentscheidung):** Beim Freigeben eines Text-Dokuments wird der
+`structured_payload` (Fragebogen-JSON bzw. E-Mail-Text) in eine Datei
+materialisiert und als Arbeitskopie an `schreibe_dokument` übergeben. Der
+Fragebogen landet damit **auch als `dokumente`-Zeile** in der Akte (Audit-Trail),
+und die Text-Freigabe funktioniert generisch. `output_adapter` bleibt unangetastet
+(datei-basiert); die Materialisierung ist ein lokaler Helfer im Freigabe-Pfad
+(`_sichere_text_arbeitskopie` in `intake_routes.py`).
+
 ### 1. Erkennung & Datenquelle
 
 Ein Intake-Dokument ist ein Fragebogen ⇔ `payload_typ=='text'` **und**
@@ -102,11 +118,13 @@ Enthält das JSON→Spalten-Mapping (aus `_ergaenze_*` übernommen).
   (SB kann Ziel-Akte im Dropdown wechseln → Vorschau pro Akte neu). Kein Fragebogen
   → 422. Fehlt `akte_az` → 422.
 - `hole_detail` → zusätzliches Feld `ist_fragebogen`.
-- `post_freigabe` → akzeptiert optionalen Payload-Block
-  `fragebogen_uebernahme: {abschnitte: [...], werte: {mandant:{...}, ...}}`.
-  **Nach** erfolgreichem `schreibe_dokument` (und den Ereignissen) ruft die Route
-  `uebernehme(...)`, gekapselt in try/except: Fehler → Log + `response.uebernahme_fehler`,
-  Freigabe bleibt gültig. Erfolg → `response.uebernahme = {geschrieben, uebersprungen}`.
+- `post_freigabe` → (a) materialisiert bei `payload_typ='text'` die Arbeitskopie
+  (Abschnitt 0), damit `schreibe_dokument` das Dokument anlegt; (b) akzeptiert
+  optionalen Payload-Block `fragebogen_uebernahme: {abschnitte: [...], werte:
+  {mandant:{...}, ...}}` und ruft **nach** erfolgreichem `schreibe_dokument` (und den
+  Ereignissen) `uebernehme(...)`, gekapselt in try/except: Fehler → Log +
+  `response.fragebogen_uebernahme = {fehler}`, Freigabe bleibt gültig. Erfolg →
+  `response.fragebogen_uebernahme = {geschrieben, uebersprungen}`.
 
 ### 4. Frontend (`frontend/src/views/ReviewQueueView.jsx`)
 
