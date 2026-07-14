@@ -230,6 +230,8 @@ def verarbeite_dokument(intake_id: int) -> bool:
                                        llm_text=text_fuer_extraktion)
         felder = extraktion.get("felder", {})
         llm_konflikt = extraktion.get("llm_konflikt")
+        llm_status = extraktion.get("llm_status")
+        llm_degradiert = 1 if llm_status == "ausgefallen" else 0
 
         # ── Akten-Matching (S1.7) ────────────────────────────────────────
         # Kandidatenliste mit Score. KEIN Auto-Zuordnen -- akte_az wird
@@ -272,6 +274,8 @@ def verarbeite_dokument(intake_id: int) -> bool:
         }
         if llm_konflikt:
             parse_dict["llm_konflikt"] = llm_konflikt
+        if llm_degradiert:
+            parse_dict["degradation"] = {"llm_extraktion": "ausgefallen"}
         parse_json = json.dumps(parse_dict, ensure_ascii=False)
 
         # N-02: OCR-Qualitaet (Schlechteste-Seite-Aggregat auf dem Finaltext)
@@ -283,11 +287,11 @@ def verarbeite_dokument(intake_id: int) -> bool:
                 "UPDATE intake_dokumente SET "
                 "klasse=?, klasse_quelle=?, konfidenz=?, "
                 "textquelle=?, registry_version=?, llm_stack=?, parse_json=?, "
-                "ocr_ratio_salat=?, ocr_quote_woerter=? "
+                "ocr_ratio_salat=?, ocr_quote_woerter=?, llm_degradiert=? "
                 "WHERE id=?",
                 (klasse, neue_klasse_quelle, konfidenz, textquelle,
                  registry.version, _llm_stack_json(), parse_json,
-                 ocr_ratio_salat, ocr_quote_woerter, intake_id),
+                 ocr_ratio_salat, ocr_quote_woerter, llm_degradiert, intake_id),
             )
         markiere_bereit(intake_id)
         logger.info(
