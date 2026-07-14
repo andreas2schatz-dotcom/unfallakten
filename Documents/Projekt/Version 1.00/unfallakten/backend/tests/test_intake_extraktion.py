@@ -233,5 +233,10 @@ class TestExtraktion(unittest.TestCase):
             self.assertIn(feld, schema_arg)
 
 
+def test_ist_aktiviert_spiegelt_enabled_flag():
+    from backend.services import llm_service
+    assert llm_service.ist_aktiviert() is llm_service._ENABLED
+
+
 if __name__ == "__main__":
     unittest.main()

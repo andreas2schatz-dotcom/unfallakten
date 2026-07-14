@@ -59,6 +59,11 @@ def get_active_model() -> str:
     return _aktives_modell
 
 
+def ist_aktiviert() -> bool:
+    """True, wenn LLM_ENABLED gesetzt ist (N-03 Degradations-Erkennung)."""
+    return _ENABLED
+
+
 def set_active_model(model: str) -> None:
     """Setzt das aktive Modell zur Laufzeit (kein Container-Neustart nötig)."""
     global _aktives_modell
