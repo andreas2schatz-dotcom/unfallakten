@@ -127,52 +127,77 @@ def pdf_zu_bildern(pdf_bytes: bytes, dpi: int = 300,
         return []
 
 
-def ocr_seite_mit_tsv(bild, tsv_ziel_pfad: str, lang: str = "deu") -> str:
-    """OCR einer einzelnen Seite mit TSV-Persistierung.
+def _parse_tsv(tsv: str):
+    """TSV-String -> (text, wort_boxen).
 
-    Ruft ``pytesseract.image_to_data(output_type=TSV)`` auf, schreibt das TSV
-    unter ``tsv_ziel_pfad`` und liefert den erkannten Text (Konkatenation der
-    'text'-Spalte, ohne Confidence-Filter).
+    Boxen nur fuer Zeilen mit nichtleerem Text; jede Box hat
+    {"breite","hoehe","conf","text"}.
+    """
+    zeilen = tsv.strip().splitlines()
+    if not zeilen:
+        return "", []
+    kopf = zeilen[0].split("\t")
+    idx = {n: i for i, n in enumerate(kopf)}
+    t_i = idx.get("text")
+    if t_i is None:
+        return "", []
+    w_i, h_i, c_i = idx.get("width"), idx.get("height"), idx.get("conf")
+    hat_box = None not in (w_i, h_i, c_i)
+    woerter, boxen = [], []
+    for z in zeilen[1:]:
+        sp = z.split("\t")
+        if len(sp) <= t_i:
+            continue
+        w = sp[t_i].strip()
+        if not w:
+            continue
+        woerter.append(w)
+        if hat_box and len(sp) > max(w_i, h_i, c_i):
+            try:
+                boxen.append({
+                    "breite": int(sp[w_i]),
+                    "hoehe": int(sp[h_i]),
+                    "conf": float(sp[c_i]),
+                    "text": w,
+                })
+            except (ValueError, TypeError):
+                pass
+    return " ".join(woerter), boxen
 
-    Ohne Tesseract-Verfuegbarkeit: leerer String, kein TSV.
+
+def ocr_seite_daten(bild, tsv_ziel_pfad: str, lang: str = "deu"):
+    """OCR einer Seite mit TSV-Persistierung; liefert (text, wort_boxen).
+
+    Wort-Boxen: [{"breite","hoehe","conf","text"}, ...] (N-04).
+    Ohne Tesseract: ("", []).
     """
     if not _pruefeVerfuegbarkeit():
-        return ""
+        return "", []
     try:
         import pytesseract
     except ImportError:
-        return ""
-
+        return "", []
     try:
         tsv = pytesseract.image_to_data(
             bild, lang=lang, output_type=pytesseract.Output.STRING
         )
     except AttributeError:
-        # Fallback fuer aeltere pytesseract-Versionen: Output.STRING kann fehlen
         tsv = pytesseract.image_to_data(bild, lang=lang)
     except Exception as e:
         logger.error("image_to_data fehlgeschlagen: %s", e)
-        return ""
+        return "", []
 
-    # TSV persistieren
     os.makedirs(os.path.dirname(tsv_ziel_pfad), exist_ok=True)
     with open(tsv_ziel_pfad, "w", encoding="utf-8") as f:
         f.write(tsv)
 
-    # Text aus TSV extrahieren: letzte Spalte 'text' der data-Zeilen
-    zeilen = tsv.strip().splitlines()
-    if not zeilen:
-        return ""
-    kopf = zeilen[0].split("\t")
-    try:
-        text_idx = kopf.index("text")
-    except ValueError:
-        return ""
-    woerter = []
-    for z in zeilen[1:]:
-        spalten = z.split("\t")
-        if len(spalten) > text_idx:
-            w = spalten[text_idx].strip()
-            if w:
-                woerter.append(w)
-    return " ".join(woerter)
+    return _parse_tsv(tsv)
+
+
+def ocr_seite_mit_tsv(bild, tsv_ziel_pfad: str, lang: str = "deu") -> str:
+    """OCR einer einzelnen Seite mit TSV-Persistierung; liefert den Text.
+
+    Duenner Wrapper um ``ocr_seite_daten`` (rueckwaertskompatibel).
+    """
+    text, _ = ocr_seite_daten(bild, tsv_ziel_pfad, lang)
+    return text
