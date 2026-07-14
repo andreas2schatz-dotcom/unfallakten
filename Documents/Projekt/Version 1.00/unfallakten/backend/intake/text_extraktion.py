@@ -81,6 +81,7 @@ class SeitenText:
     textquelle: Optional[str] = None  # "textebene" | "ocr" - wird spaeter gesetzt
     quote_woerter: float = 1.0        # N-01: Woerterbuch-Trefferquote
     hat_tabelle: bool = False         # N-06: Seite traegt eine Tabelle
+    ist_bildseite: bool = False       # N-04: Foto-/Bildseite, kein GLM
 
 
 def zeichensalat_ratio(text: str) -> float:
@@ -252,13 +253,15 @@ def dokument_ocr_qualitaet(seiten: List[SeitenText]):
 def aggregierte_textquelle(seiten: List[SeitenText]) -> str:
     """Aggregiert die Seiten-textquelle zu einem Dokument-Level-Stempel.
 
-    * Alle 'textebene' -> 'textebene'
-    * Alle 'ocr'       -> 'ocr'
-    * Gemischt         -> 'gemischt'
+    Bildseiten (N-04) bleiben unberuecksichtigt. Ein Dokument, das nur aus
+    Bildseiten besteht, gilt als 'ocr' (bleibt im gueltigen Spalten-CHECK).
     """
     if not seiten:
         return "textebene"
-    quellen = {s.textquelle for s in seiten if s.textquelle}
+    nicht_bild = [s for s in seiten if not s.ist_bildseite]
+    if not nicht_bild:
+        return "ocr"
+    quellen = {s.textquelle for s in nicht_bild if s.textquelle}
     if len(quellen) == 1:
         return quellen.pop()
     return "gemischt"

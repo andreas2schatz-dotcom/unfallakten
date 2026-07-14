@@ -361,5 +361,24 @@ class TestTextAbdeckung(unittest.TestCase):
             0.0)
 
 
+class TestAggregierteTextquelleBildseiten(unittest.TestCase):
+    def _seite(self, nr, quelle, bild=False):
+        from backend.intake.text_extraktion import SeitenText
+        return SeitenText(nr=nr, text="", braucht_ocr=bild, ratio_salat=0.0,
+                          textquelle=quelle, ist_bildseite=bild)
+
+    def test_bildseiten_werden_ignoriert(self):
+        from backend.intake.text_extraktion import aggregierte_textquelle
+        seiten = [self._seite(1, "textebene"),
+                  self._seite(2, "ocr", bild=True)]
+        self.assertEqual(aggregierte_textquelle(seiten), "textebene")
+
+    def test_nur_bildseiten_ergibt_ocr(self):
+        from backend.intake.text_extraktion import aggregierte_textquelle
+        seiten = [self._seite(1, "ocr", bild=True),
+                  self._seite(2, "ocr", bild=True)]
+        self.assertEqual(aggregierte_textquelle(seiten), "ocr")
+
+
 if __name__ == "__main__":
     unittest.main()
