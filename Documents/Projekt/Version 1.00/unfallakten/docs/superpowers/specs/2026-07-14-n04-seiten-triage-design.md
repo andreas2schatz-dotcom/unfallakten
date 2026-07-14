@@ -31,49 +31,83 @@ sofortige Transparenz), kein Fehler.
 
 ## Ansatz
 
-**Tesseract als kostenlose Triage.** Tesseract (lokal, billig) läuft auf jeder
-OCR-Seite ohnehin. Sein Ergebnis ist das Triage-Signal:
+**Tesseract-Textabdeckung als kostenlose Triage.** Tesseract (lokal, billig)
+läuft auf jeder OCR-Seite ohnehin und liefert je erkanntem Wort eine
+Bounding-Box (Position + Größe), die wir bereits als TSV persistieren. Das
+Triage-Signal ist die **Textabdeckung**: welcher Anteil der Seitenfläche von
+(hinreichend sicherem) Text bedeckt ist.
 
-- Findet Tesseract **wenig** Text (unter Schwelle) → **Bildseite** →
-  GLM wird übersprungen.
-- Findet Tesseract **genug** Text → texttragende Seite → GLM läuft (wenn
-  aktiviert), sonst Tesseract-Text.
+- **Geringe** Textabdeckung (unter Schwelle) → **Bildseite** → GLM übersprungen.
+  Robust gegen Bildunterschriften: eine 1–2-zeilige Unterschrift bedeckt nur
+  wenige Prozent der Seite, unabhängig von ihrer Wortzahl.
+- **Hohe** Textabdeckung → texttragende Seite → GLM läuft (wenn aktiviert),
+  sonst Tesseract-Text.
+
+Warum Fläche statt Wortzahl: eine gescannte Fotoseite mit eingebrannter
+Bildunterschrift kann 15+ Wörter haben und würde eine Wortzahl-Schwelle
+reißen; ihre Textabdeckung bleibt aber niedrig (schmales Textband). Eine echte
+Textseite füllt große Teile der Seite. Die Fläche trennt beide Fälle sauber,
+die reine Wortzahl nicht.
 
 Das kehrt die heutige Reihenfolge in `_ocr_seite` um (von „GLM zuerst,
 Tesseract als Fallback" zu „Tesseract zuerst als Triage, GLM danach nur bei
 Textseiten"). Verhalten bei GLM=aus ändert sich nicht (GLM lieferte schon
 heute `None` → Tesseract-Text).
 
+**Häufigster Fall ist ohnehin sicher:** Bei digital erzeugten Gutachten steht
+die Bildunterschrift meist als echte Textebene im PDF → die Seite hat genug
+Textebene, `braucht_ocr=False`, kommt gar nicht erst in die OCR/GLM. Der
+kritische Fall ist allein die **gescannte** Fotoseite mit eingebrannter
+Unterschrift — und den fängt die Textabdeckung.
+
 ### Verworfene Alternativen
 
-- **Separater Pixel-/Bild-Heuristik-Pass** (Anteil Nicht-Weiß-Pixel o.ä.) vor
-  Tesseract: unnötig, da Tesseract eh läuft; zusätzlicher Code, ungenauer bei
-  Text-auf-Foto.
+- **Wortzahl-Schwelle** (Seite gilt als Bild, wenn < N Wörter): brüchig bei
+  Fotoseiten mit Bildunterschrift (Beschriftung überschreitet die Schwelle) →
+  fälschlich Textseite. Verworfen zugunsten der Flächen-basierten Abdeckung.
+- **Separater Pixel-/Bildflächen-Pass** (großes eingebettetes Bild deckt die
+  Seite): kann Foto und **gescannten Text** nicht unterscheiden — beide sind
+  ein seitenfüllendes Rasterbild. Taugt höchstens als Zusatz-Bestätigung, nicht
+  als Primärsignal. Verworfen.
 - **`textquelle='bild'` als neuer Spaltenwert** mit CHECK-Rebuild-Migration:
   semantisch etwas sauberer, aber Migration + Deploy-Reihenfolge-Risiko für
   minimalen Gewinn. Verworfen zugunsten migrationsfreier Flag-Lösung.
 
 ## Komponenten & Änderungen
 
-### 1. Triage-Funktion (rein, unit-testbar)
+### 1. Textabdeckung + Triage-Prädikat (rein, unit-testbar)
 
-Neue reine Funktion in `backend/intake/text_extraktion.py`:
+Zwei neue reine Funktionen in `backend/intake/text_extraktion.py`:
 
 ```
-ist_bildseite(text: str) -> bool
+text_abdeckung(wort_boxen: list[dict], seiten_flaeche: float) -> float
+ist_bildseite(abdeckung: float) -> bool
 ```
 
-- Liefert `True`, wenn der (OCR-)Text als Fotoseite ohne nennenswerten Text
-  gilt: Wortzahl unter Schwelle. Optionaler Zusatz-Guard über
-  `woerterbuch_quote`, damit eine kurze *echte* Textseite nicht fälschlich als
-  Bild gilt (Design: nur wenn Wortzahl unter Schwelle **und** Wörterbuchquote
-  sehr niedrig → Bildseite; eine kurze Seite mit echten deutschen Wörtern
-  bleibt Textseite).
-- Neue Konstante `MIN_WOERTER_BILDSEITE` (Default 8), plus Nutzung der
-  bestehenden `MIN_WOERTERBUCH_QUOTE`. Alle Schwellen als Modul-Konstanten,
+- **`text_abdeckung`**: Anteil der Seitenfläche, der von Text bedeckt ist.
+  Summe der Wort-Box-Flächen (`breite * hoehe`) über alle Boxen mit
+  Konfidenz ≥ `MIN_KONFIDENZ_WORT` und nichtleerem Text, geteilt durch
+  `seiten_flaeche` (Bildbreite × Bildhöhe in Pixeln). Überlappungen werden
+  nicht abgezogen (Wörter überlappen praktisch nie; die Summe ist eine gute,
+  billige Näherung). Ergebnis auf `[0, 1]` geklemmt. Leere Boxenliste /
+  Fläche 0 → `0.0`.
+- **`ist_bildseite`**: `abdeckung < MAX_TEXT_ABDECKUNG_BILDSEITE`.
+- Neue Konstanten: `MIN_KONFIDENZ_WORT` (Default 30) und
+  `MAX_TEXT_ABDECKUNG_BILDSEITE` (Default 0.12). Als Modul-Konstanten,
   jederzeit nachjustierbar.
 - Konsequenz einer Fehlklassifikation ist gering: eine als Bild markierte
-  Seite bleibt in der Arbeitskopie sichtbar, sie wird nur nicht ge-GLM't.
+  Seite bleibt in der Arbeitskopie sichtbar, sie wird nur nicht ge-GLM't; ihr
+  (i.d.R. spärlicher) Tesseract-Text fließt weiterhin in den Dokumenttext.
+
+### 1b. OCR liefert die Wort-Boxen mit
+
+`backend/services/ocr_service.py`: Die Tesseract-Funktion berechnet die
+Wort-Boxen für den TSV ohnehin (`image_to_data`). Sie wird so erweitert, dass
+sie neben dem Text auch die **strukturierten Wortdaten**
+(`left/top/width/height/conf/text`) und die **Bildmaße** zurückgibt, damit die
+Abdeckung ohne erneutes Parsen des TSV-Files berechnet werden kann. Der
+bestehende TSV-Schreibpfad und die Text-Rückgabe bleiben unverändert
+(rückwärtskompatibel bzw. neuer paralleler Rückgabewert).
 
 ### 2. `SeitenText` erweitern
 
@@ -92,10 +126,11 @@ E-Mail-Text) bleiben unverändert korrekt.
 
 1. Seite rendern (`ocr_service.pdf_zu_bildern(first_page=nr, last_page=nr)`,
    unverändert, BUG-12-Verhalten bleibt).
-2. **Tesseract zuerst** (`ocr_service.ocr_seite_mit_tsv` → TSV persistiert wie
-   bisher).
-3. `ist_bildseite(tess_text)`? → **ja:** GLM überspringen, als Bildseite
-   zurückgeben (Text = Tesseract-Ergebnis, i.d.R. leer/minimal).
+2. **Tesseract zuerst** (TSV persistiert wie bisher) → Text + Wort-Boxen +
+   Bildmaße.
+3. `text_abdeckung(...)` berechnen; `ist_bildseite(abdeckung)`? → **ja:** GLM
+   überspringen, als Bildseite zurückgeben (Text = Tesseract-Ergebnis, i.d.R.
+   leer/minimal, z.B. die Bildunterschrift).
 4. **nein** (texttragend): `glm_ocr_service.glm_ocr_seite(bild)`; bei Treffer
    dessen Text, sonst Tesseract-Text.
 
@@ -165,7 +200,7 @@ Arbeitskopie-PDF
   └─ extrahiere_seiten()  → SeitenText[] (braucht_ocr je Seite, wie bisher)
        └─ Seiten-Schleife:
             braucht_ocr? → _ocr_seite():
-                 Tesseract → ist_bildseite()?
+                 Tesseract (Text + Wort-Boxen) → text_abdeckung → ist_bildseite?
                     ja  → (text, True)   GLM übersprungen
                     nein→ GLM (falls an) → (text, False)
        └─ aggregierte_textquelle(): Bildseiten ausgeblendet
@@ -184,16 +219,20 @@ heute (leerer Seitentext).
 
 ## Tests (TDD)
 
-1. **Unit `ist_bildseite`** (`test_intake_text_extraktion.py`): wenig/kein Text
-   → `True`; echter dichter DE-Text → `False`; kurze Seite mit echten Wörtern
-   → `False` (Zusatz-Guard greift).
+1. **Unit `text_abdeckung` + `ist_bildseite`** (`test_intake_text_extraktion.py`):
+   synthetische Wort-Boxen. Schmales Textband (Bildunterschrift, auch mit
+   vielen Wörtern) → geringe Abdeckung → `ist_bildseite=True`; seitenfüllende
+   Text-Boxen → hohe Abdeckung → `False`; leere Boxenliste → `0.0`; Boxen unter
+   `MIN_KONFIDENZ_WORT` zählen nicht mit. **Explizit der Kern-Fall:** Fotoseite
+   mit 15-Wort-Unterschrift bleibt Bildseite (Wortzahl hoch, Fläche niedrig).
 2. **Unit `aggregierte_textquelle`**: Textebenen-Seiten + Bildseiten → Bild
    wird ignoriert (`"textebene"`); nur Bildseiten → `"ocr"`.
-3. **Pipeline-E2E** (`test_intake_pipeline_s16a.py` bzw. neue
-   `test_n04_seiten_triage.py`): Dokument mit einer Textseite + einer
-   „Fotoseite"; `ocr_service.ocr_seite_mit_tsv` und `glm_ocr_service.glm_ocr_seite`
-   gemockt → Fotoseite `ist_bildseite=True`, **GLM für die Fotoseite NICHT
-   aufgerufen** (Mock-Assertion), `parse_json.bildseiten_anzahl == 1`.
+3. **Pipeline-E2E** (neue `test_n04_seiten_triage.py`): Dokument mit einer
+   Textseite + einer „Fotoseite". Die Tesseract-Funktion wird gemockt und
+   liefert für die Fotoseite spärliche, kleinflächige Boxen (niedrige
+   Abdeckung), für die Textseite seitenfüllende Boxen; `glm_ocr_service.glm_ocr_seite`
+   gemockt → Fotoseite `ist_bildseite=True` und **GLM für die Fotoseite NICHT
+   aufgerufen** (Mock-Assertion), Textseite ge-GLM't; `parse_json.bildseiten_anzahl == 1`.
 4. **Frontend-Vitest** (`ReviewQueueView.bildseiten.test.jsx`): Badge erscheint
    bei `bildseiten_anzahl > 0`, fehlt bei 0/undefined.
 5. **Golden-Files unverändert grün** (`test_s16a_golden_e2e.py`,
