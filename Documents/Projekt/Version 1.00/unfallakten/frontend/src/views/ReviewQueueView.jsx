@@ -459,10 +459,121 @@ export async function polleWorkerBisFertig(
   return { status: "timeout" };
 }
 
+export function abschnittHatAufgabe(felder) {
+  return (felder || []).some(f => f.ist_leer || f.konflikt);
+}
+
+// Editierbar sind nur leere und abweichende Felder. Default-Wert: leer -> geparst,
+// Konflikt -> Akten-Wert (bleibt, bis der SB "Bogen uebernehmen" klickt).
+function editierbareFelder(felder) {
+  return (felder || []).filter(f => f.ist_leer || f.konflikt);
+}
+
+export function initialUebernahme(abschnitte) {
+  const aktive = [];
+  const collapsed = [];
+  const werte = {};
+  (abschnitte || []).forEach(a => {
+    if (!a.felder || !a.felder.length) return;
+    aktive.push(a.key);
+    if (!abschnittHatAufgabe(a.felder)) collapsed.push(a.key);
+    const w = {};
+    editierbareFelder(a.felder).forEach(f => {
+      w[f.feld] = f.ist_leer ? (f.geparst ?? "") : (f.akte_wert ?? "");
+    });
+    werte[a.key] = w;
+  });
+  return { aktive, collapsed, werte };
+}
+
+export function baueUebernahmePayload(abschnitte, state) {
+  const werte = {};
+  (abschnitte || []).forEach(a => {
+    if (!state.aktive.includes(a.key)) return;
+    werte[a.key] = { ...(state.werte[a.key] || {}) };
+  });
+  return { abschnitte: [...state.aktive], werte };
+}
+
+export function FragebogenUebernahme({ abschnitte, state, onToggle, onFeld, onAdopt }) {
+  const sichtbar = (abschnitte || []).filter(a => a.felder && a.felder.length);
+  if (!sichtbar.length) return null;
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontSize: T.textSm, fontWeight: 600, marginBottom: 6 }}>
+        Fragebogen-Übernahme
+      </div>
+      <div style={{ border: `1px solid ${T.border}`, borderRadius: 8, overflow: "hidden" }}>
+        {sichtbar.map(a => {
+          const aktiv = state.aktive.includes(a.key);
+          const zu = state.collapsed.includes(a.key);
+          const felder = editierbareFelder(a.felder);
+          return (
+            <div key={a.key} style={{ borderTop: `1px solid ${T.border}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8,
+                            padding: "8px 10px", background: T.surface, cursor: "pointer" }}
+                   onClick={() => onToggle(a.key, "collapsed")}>
+                <input type="checkbox" checked={aktiv}
+                       onClick={e => e.stopPropagation()}
+                       onChange={() => onToggle(a.key, "aktiv")} />
+                <strong style={{ fontSize: T.textSm }}>{a.label}</strong>
+                <span style={{ marginLeft: "auto", fontSize: T.textXs, color: T.textMuted }}>
+                  {zu ? "▸" : "▾"}
+                </span>
+              </div>
+              {aktiv && !zu && (
+                <div style={{ padding: "6px 10px", display: "grid", gap: 6 }}>
+                  {felder.map(f => (
+                    <div key={f.feld} style={{ display: "grid",
+                         gridTemplateColumns: "110px 1fr", gap: 8, alignItems: "start" }}>
+                      <label style={{ fontSize: T.textXs, color: T.textMid, paddingTop: 6 }}>
+                        {f.label}
+                      </label>
+                      <div>
+                        <input
+                          value={state.werte[a.key]?.[f.feld] ?? ""}
+                          onChange={e => onFeld(a.key, f.feld, e.target.value)}
+                          style={{ width: "100%", boxSizing: "border-box",
+                                   padding: "5px 8px", fontSize: T.textSm,
+                                   border: `1px solid ${f.konflikt ? T.amber : T.greenLight}`,
+                                   borderRadius: 4,
+                                   background: f.konflikt ? T.amberBg : T.white }}
+                        />
+                        {f.konflikt && (
+                          <div style={{ display: "flex", gap: 8, alignItems: "center",
+                                        marginTop: 3, fontSize: T.textXs, color: T.amberText }}>
+                            <span>⚠ Akte: {f.akte_wert} · Bogen: {f.geparst}</span>
+                            <button type="button" onClick={() => onAdopt(a.key, f.feld, f.geparst)}
+                              style={{ fontSize: T.textXs, border: `1px solid ${T.amber}`,
+                                       background: "transparent", color: T.amberText,
+                                       borderRadius: 4, padding: "1px 6px", cursor: "pointer" }}>
+                              Bogen übernehmen
+                            </button>
+                          </div>
+                        )}
+                        {f.ist_leer && (
+                          <div style={{ fontSize: T.textXs, color: T.greenText, marginTop: 3 }}>
+                            leer → wird gefüllt
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
                           ereignistypen, onEreignisChange,
                           onErsetztChange, onEreignisAdd, onEreignisDel,
-                          onConfirm, onCancel, laeuft }) {
+                          onConfirm, onCancel, laeuft,
+                          fbVorschau, fbState, onFbToggle, onFbFeld, onFbAdopt }) {
   // Nur eingehende Typen anzeigen -- Review-Queue enthaelt eingegangene
   // Dokumente. Ausgehend/intern sind fachlich unpassend.
   const typenListe = (ereignistypen || []).filter(t => t.richtung === "eingehend");
@@ -488,6 +599,12 @@ function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
           Dokument #{dokument.id} wird als <strong>{dokument.klasse}</strong> in
           Akte <code>{akteAz}</code> uebernommen.
         </div>
+
+        {fbVorschau && fbState && (
+          <FragebogenUebernahme
+            abschnitte={fbVorschau} state={fbState}
+            onToggle={onFbToggle} onFeld={onFbFeld} onAdopt={onFbAdopt} />
+        )}
 
         {/* K-2: Ereignis-Vorschläge */}
         <div style={{ marginBottom: 16 }}>
@@ -596,6 +713,8 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
   const [ersetztIds, setErsetztIds] = useState("");
   const [aktion, setAktion] = useState(false);
   const [pollAktiv, setPollAktiv] = useState(false);
+  const [fbVorschau, setFbVorschau] = useState(null);
+  const [fbState, setFbState] = useState(null);
 
   const laden = useCallback(async ({ skipFormReset = false } = {}) => {
     try {
@@ -613,6 +732,19 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
   }, [id]);
 
   useEffect(() => { if (id) laden(); }, [id, laden]);
+
+  // Fragebogen-Vorschau: nur laden, wenn Dokument ein Fragebogen ist und eine
+  // Akte gewaehlt wurde; neu laden bei Akten-Wechsel.
+  useEffect(() => {
+    if (!detail?.ist_fragebogen || !gewaehlteAkte) { setFbVorschau(null); setFbState(null); return; }
+    let aktiv = true;
+    apiIntake.fragebogenVorschau(id, gewaehlteAkte)
+      .then(d => { if (!aktiv) return;
+        setFbVorschau(d.abschnitte);
+        setFbState(initialUebernahme(d.abschnitte)); })
+      .catch(() => { if (aktiv) { setFbVorschau(null); setFbState(null); } });
+    return () => { aktiv = false; };
+  }, [id, detail?.ist_fragebogen, gewaehlteAkte]);
 
   // Mount-Flag: der key-Re-Mount bei Dokumentwechsel unmountet dieses Panel;
   // ein laufender wartAufWorker-Poll muss dann sofort stoppen (BUG-30).
@@ -720,6 +852,8 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
         akte_az: gewaehlteAkte,
         kandidaten_ereignisse: ereignisse,
         ersetzt_ids: ids,
+        fragebogen_uebernahme: (fbVorschau && fbState)
+          ? baueUebernahmePayload(fbVorschau, fbState) : undefined,
       });
       setZeigeFreigabe(false);
       onFreigegeben && onFreigegeben(gewaehlteAkte);
@@ -967,6 +1101,20 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
             ereignisse={ereignisse}
             ersetztIds={ersetztIds}
             ereignistypen={ereignistypen}
+            fbVorschau={fbVorschau}
+            fbState={fbState}
+            onFbToggle={(key, art) => setFbState(s => {
+              if (art === "aktiv") {
+                const an = s.aktive.includes(key);
+                return { ...s, aktive: an ? s.aktive.filter(k => k !== key) : [...s.aktive, key] };
+              }
+              const zu = s.collapsed.includes(key);
+              return { ...s, collapsed: zu ? s.collapsed.filter(k => k !== key) : [...s.collapsed, key] };
+            })}
+            onFbFeld={(sec, feld, wert) => setFbState(s => ({
+              ...s, werte: { ...s.werte, [sec]: { ...s.werte[sec], [feld]: wert } } }))}
+            onFbAdopt={(sec, feld, wert) => setFbState(s => ({
+              ...s, werte: { ...s.werte, [sec]: { ...s.werte[sec], [feld]: wert } } }))}
             onErsetztChange={setErsetztIds}
             onEreignisAdd={() => {
               // Sinnvoller Default: <klasse>_eingegangen, wenn die Registry

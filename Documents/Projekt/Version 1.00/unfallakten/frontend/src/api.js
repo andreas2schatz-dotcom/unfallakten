@@ -1052,6 +1052,8 @@ export const apiSvPortal = {
 export const apiIntake = {
   queue:      ()             => request('/intake/queue'),
   detail:     (id)           => request(`/intake/dokument/${id}`),
+  fragebogenVorschau: (id, akteAz) =>
+    request(`/intake/dokument/${id}/fragebogen-vorschau?akte_az=${encodeURIComponent(akteAz)}`),
   setKlasse:  (id, klasse)   => request(`/intake/dokument/${id}/klasse`, {
     method: 'PATCH', body: JSON.stringify({ klasse }),
   }),
