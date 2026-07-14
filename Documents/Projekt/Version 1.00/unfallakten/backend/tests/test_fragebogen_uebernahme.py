@@ -153,5 +153,65 @@ class TestVorschauPersonenschaden(_ServiceBasis):
         self.assertEqual(row["krankgeschrieben"], 1)
 
 
+_PARSED = {
+    "mandant": {"name": "Riccio", "ort": "Neu-Isenburg", "telefon": "069 1"},
+    "gegner": {"fahrer": "Khaniani"},
+    "unfall": {"datum": "2026-03-12"},
+    "personenschaden": None,
+}
+
+
+class TestDispatcher(_ServiceBasis):
+    def test_baue_vorschau_alle_abschnitte(self):
+        from backend.services.fragebogen_uebernahme import baue_vorschau, ABSCHNITTE
+        v = baue_vorschau("44/22", _PARSED)
+        self.assertEqual(set(v), set(ABSCHNITTE))
+        felder = {f["feld"] for f in v["mandant"]["felder"]}
+        self.assertEqual(felder, {"name", "ort", "telefon"})
+
+    def test_vorschau_liste_reihenfolge_und_labels(self):
+        from backend.services.fragebogen_uebernahme import vorschau_liste
+        liste = vorschau_liste("44/22", _PARSED)
+        self.assertEqual([a["key"] for a in liste],
+                         ["mandant", "gegner", "unfall", "personenschaden"])
+        self.assertEqual(liste[0]["label"], "Mandant")
+
+    def test_uebernehme_fuellt_und_ueberspringt_inaktiv(self):
+        from backend.db.database import get_connection
+        from backend.services.fragebogen_uebernahme import uebernehme
+        werte = {
+            "mandant": {"name": "Riccio", "telefon": "069 1"},
+            "gegner": {"name": "Khaniani"},
+        }
+        erg = uebernehme("44/22", werte, ["mandant"])  # gegner inaktiv
+        with get_connection() as conn:
+            m = conn.execute("SELECT telefon FROM beteiligte "
+                             "WHERE akte_id='44/22' AND rolle='mandant'").fetchone()
+            g = conn.execute("SELECT COUNT(*) FROM beteiligte "
+                             "WHERE akte_id='44/22' AND rolle='gegner'").fetchone()[0]
+        self.assertEqual(m["telefon"], "069 1")
+        self.assertEqual(g, 0)   # inaktiver Abschnitt nicht geschrieben
+        self.assertTrue(any(x["feld"] == "telefon" for x in erg["geschrieben"]))
+
+    def test_uebernehme_ueberschreibt_nur_bei_abweichung(self):
+        from backend.db.database import get_connection
+        from backend.services.fragebogen_uebernahme import uebernehme
+        with get_connection() as conn:
+            conn.execute("INSERT INTO beteiligte (akte_id, rolle, name, ort) "
+                         "VALUES ('44/22', 'mandant', 'Riccio', 'Offenbach')")
+        # gleicher Wert -> uebersprungen; abweichender -> geschrieben
+        erg = uebernehme("44/22",
+                         {"mandant": {"ort": "Offenbach", "telefon": "069 1"}},
+                         ["mandant"])
+        self.assertTrue(any(x["feld"] == "ort" and x["grund"] == "unveraendert"
+                            for x in erg["uebersprungen"]))
+        erg2 = uebernehme("44/22", {"mandant": {"ort": "Neu-Isenburg"}}, ["mandant"])
+        with get_connection() as conn:
+            row = conn.execute("SELECT ort FROM beteiligte "
+                               "WHERE akte_id='44/22' AND rolle='mandant'").fetchone()
+        self.assertEqual(row["ort"], "Neu-Isenburg")
+        self.assertTrue(any(x["feld"] == "ort" for x in erg2["geschrieben"]))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -223,3 +223,81 @@ def _schreibe_personenschaden(conn, akte_az: str, aenderungen: Dict[str, Any]) -
         setzt = ", ".join(f"{k}=?" for k in voll)
         conn.execute(f"UPDATE personenschaden SET {setzt} WHERE id=?",
                      list(voll.values()) + [row["id"]])
+
+
+# ── Dispatch-Tabellen + oeffentliche API ─────────────────────────────────────
+
+_GEPARST = {
+    "mandant": _geparst_mandant, "gegner": _geparst_gegner,
+    "unfall": _geparst_unfall, "personenschaden": _geparst_personenschaden,
+}
+_AKTE = {
+    "mandant": _akte_mandant, "gegner": _akte_gegner,
+    "unfall": _akte_unfall, "personenschaden": _akte_personenschaden,
+}
+_SCHREIBE = {
+    "mandant": lambda c, a, ae: _schreibe_beteiligte(c, a, "mandant", ae),
+    "gegner": lambda c, a, ae: _schreibe_beteiligte(c, a, "gegner", ae),
+    "unfall": _schreibe_unfall, "personenschaden": _schreibe_personenschaden,
+}
+
+
+def baue_vorschau(akte_az: str, parsed: dict) -> Dict[str, dict]:
+    parsed = parsed or {}
+    ergebnis: Dict[str, dict] = {}
+    with get_connection() as conn:
+        for sec in ABSCHNITTE:
+            geparst = _GEPARST[sec](parsed.get(sec) or {})
+            akte = _AKTE[sec](conn, akte_az)
+            ergebnis[sec] = {"felder": _vorschau_felder(geparst, akte)}
+    return ergebnis
+
+
+def vorschau_liste(akte_az: str, parsed: dict) -> List[dict]:
+    roh = baue_vorschau(akte_az, parsed)
+    return [{"key": sec, "label": _LABELS[sec], "felder": roh[sec]["felder"]}
+            for sec in ABSCHNITTE]
+
+
+def uebernehme(akte_az: str, werte: dict,
+               aktive_abschnitte: List[str]) -> Dict[str, list]:
+    """Schreibt bestaetigte Werte je aktivem Abschnitt: leer -> fuellen,
+    abweichend -> ueberschreiben (nur bei echter Abweichung). Pro Abschnitt
+    Best-Effort: ein fehlgeschlagener Abschnitt stoppt die anderen nicht."""
+    werte = werte or {}
+    aktiv = set(aktive_abschnitte or [])
+    geschrieben: List[dict] = []
+    uebersprungen: List[dict] = []
+    fehler: List[dict] = []
+    with get_connection() as conn:
+        for sec in ABSCHNITTE:
+            if sec not in aktiv:
+                continue
+            eingaben = werte.get(sec) or {}
+            if not eingaben:
+                continue
+            try:
+                akte = _AKTE[sec](conn, akte_az)
+                aenderungen: Dict[str, Any] = {}
+                for feld, neu in eingaben.items():
+                    neu_n = _norm(neu)
+                    if not neu_n:
+                        uebersprungen.append({"abschnitt": sec, "feld": feld,
+                                              "grund": "leer"})
+                        continue
+                    akt = _norm(akte.get(feld))
+                    if akt == "" or akt.casefold() != neu_n.casefold():
+                        aenderungen[feld] = neu
+                        geschrieben.append({"abschnitt": sec, "feld": feld,
+                                            "wert": neu})
+                    else:
+                        uebersprungen.append({"abschnitt": sec, "feld": feld,
+                                              "grund": "unveraendert"})
+                if aenderungen:
+                    _SCHREIBE[sec](conn, akte_az, aenderungen)
+            except Exception as exc:  # pragma: no cover -- Best-Effort je Abschnitt
+                logger.error("Fragebogen-Uebernahme Abschnitt %s (Akte %s): %s",
+                             sec, akte_az, exc, exc_info=True)
+                fehler.append({"abschnitt": sec, "fehler": str(exc)})
+    return {"geschrieben": geschrieben, "uebersprungen": uebersprungen,
+            "fehler": fehler}
