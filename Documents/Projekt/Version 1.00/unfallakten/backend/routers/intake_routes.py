@@ -30,7 +30,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from flask import Blueprint, g, jsonify, request, send_file
@@ -533,6 +535,31 @@ def patch_felder(intake_id: int):
 
 # ─── POST /intake/dokument/<id>/freigabe ──────────────────────────────────────
 
+def _upload_basis() -> Path:
+    default = Path(__file__).resolve().parent.parent / "uploads"
+    return Path(os.environ.get("UPLOAD_DIR") or default)
+
+
+def _sichere_text_arbeitskopie(dok: Dict[str, Any]) -> Optional[str]:
+    """Materialisiert den Payload eines Text-Dokuments als Datei-Arbeitskopie.
+
+    output_adapter.schreibe_dokument verlangt eine Datei; Text-Dokumente
+    (Fragebogen/E-Mail-Body) haben keine. Gibt den (vorhandenen oder neu
+    geschriebenen) Pfad zurueck, oder None, wenn es kein Text-Dokument ist.
+    """
+    if dok.get("payload_typ") != "text":
+        return None
+    vorhanden = dok.get("arbeitskopie_pfad")
+    if vorhanden and os.path.isfile(vorhanden):
+        return vorhanden
+    inhalt = dok.get("structured_payload") or ""
+    ziel_dir = _upload_basis() / "intake_text"
+    ziel_dir.mkdir(parents=True, exist_ok=True)
+    pfad = ziel_dir / f"dok_{dok['id']}.txt"
+    pfad.write_text(inhalt, encoding="utf-8")
+    return str(pfad)
+
+
 @intake_bp.route("/dokument/<int:intake_id>/freigabe", methods=["POST"])
 @login_erforderlich
 def post_freigabe(intake_id: int):
@@ -591,6 +618,9 @@ def post_freigabe(intake_id: int):
             return _err(f"Akte {akte_az!r} konnte nicht angelegt werden: {exc}",
                         400)
 
+    text_pfad = _sichere_text_arbeitskopie(dok)
+    if text_pfad:
+        dok = {**dok, "arbeitskopie_pfad": text_pfad}
     try:
         dokument_id = schreibe_dokument(dok, akte_az,
                                          freigegeben_von=benutzer_id)
