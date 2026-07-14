@@ -278,7 +278,7 @@ class TestBug12OcrLinear(unittest.TestCase):
         import backend.intake.pipeline as pipeline
 
         class _Bild:
-            pass
+            size = (1000, 1000)
 
         with mock.patch.object(
             pipeline.ocr_service, "pdf_zu_bildern",
@@ -286,9 +286,9 @@ class TestBug12OcrLinear(unittest.TestCase):
         ) as m_conv, mock.patch.object(
             pipeline.glm_ocr_service, "glm_ocr_seite", return_value="",
         ), mock.patch.object(
-            pipeline.ocr_service, "ocr_seite_mit_tsv", return_value="TEXT",
+            pipeline.ocr_service, "ocr_seite_daten", return_value=("TEXT", []),
         ):
-            text = pipeline._ocr_seite(b"%PDF-fake", 3, "abc123")
+            text, _ist_bild = pipeline._ocr_seite(b"%PDF-fake", 3, "abc123")
 
         self.assertEqual(text, "TEXT")
         # Kern-Bug: pro Seite darf nur DIESE Seite gerendert werden, nicht das
