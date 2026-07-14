@@ -53,22 +53,32 @@ def extrahiere_felder(text: str, klasse: str, registry,
                   den Volltext (Alt-Verhalten).
 
     Returns:
-        ``{"felder": {...}}`` oder bei Divergenz zusaetzlich
-        ``{"felder": {...}, "llm_konflikt": {feld: {"llm": ..., "regex": ...}}}``.
+        ``{"felder": {...}, "llm_status": "ok"|"aus"|"ausgefallen"}`` oder bei
+        Divergenz zusaetzlich
+        ``{"felder": {...}, "llm_status": ..., "llm_konflikt": {feld: {"llm": ..., "regex": ...}}}``.
 
         ``felder`` ist LLM-primaer, faellt aber auf Regex zurueck.
+        ``llm_status``: "aus" ohne Schema oder bei deaktiviertem LLM,
+        "ausgefallen" bei aktiviertem LLM ohne Werte, sonst "ok".
     """
     eintrag = registry.klassen.get(klasse) if getattr(registry, "klassen", None) else None
     if not eintrag:
-        return {"felder": {}}
+        return {"felder": {}, "llm_status": "aus"}
 
     regex_werte = _regex_extraktion(text, eintrag.get("regex_felder") or {})
 
     schema = eintrag.get("schema") or {}
-    llm_werte = llm_service.extrahiere_nach_schema(
-        schema, llm_text if llm_text is not None else text) or {}
-    if not isinstance(llm_werte, dict):
-        llm_werte = {}
+    llm_aktiv = llm_service.ist_aktiviert()
+    llm_roh = llm_service.extrahiere_nach_schema(
+        schema, llm_text if llm_text is not None else text)
+    llm_werte = llm_roh if isinstance(llm_roh, dict) else {}
+
+    if not schema or not llm_aktiv:
+        llm_status = "aus"
+    elif not llm_werte:
+        llm_status = "ausgefallen"
+    else:
+        llm_status = "ok"
 
     # LLM ist Primaerquelle, Regex-Werte fuellen fehlende Schluessel.
     felder: Dict[str, Any] = {}
@@ -82,7 +92,7 @@ def extrahiere_felder(text: str, klasse: str, registry,
     for feld, wert in regex_werte.items():
         felder.setdefault(feld, wert)
 
-    ergebnis: Dict[str, Any] = {"felder": felder}
+    ergebnis: Dict[str, Any] = {"felder": felder, "llm_status": llm_status}
 
     konflikte: Dict[str, Dict[str, Any]] = {}
     for feld, regex_wert in regex_werte.items():

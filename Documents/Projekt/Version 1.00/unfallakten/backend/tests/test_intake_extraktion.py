@@ -238,5 +238,47 @@ def test_ist_aktiviert_spiegelt_enabled_flag():
     assert llm_service.ist_aktiviert() is llm_service._ENABLED
 
 
+class TestLlmStatus(unittest.TestCase):
+    def _registry(self):
+        class _R:
+            klassen = {"abrechnung": {"schema": {"betrag": "geld"},
+                                      "regex_felder": {}}}
+        return _R()
+
+    def test_status_ok_wenn_aktiv_und_werte(self):
+        from backend.intake import extraktion
+        with mock.patch("backend.intake.extraktion.llm_service.ist_aktiviert",
+                        return_value=True), \
+             mock.patch("backend.intake.extraktion.llm_service.extrahiere_nach_schema",
+                        return_value={"betrag": "100"}):
+            erg = extraktion.extrahiere_felder("txt", "abrechnung", self._registry())
+        self.assertEqual(erg["llm_status"], "ok")
+
+    def test_status_ausgefallen_wenn_aktiv_aber_none(self):
+        from backend.intake import extraktion
+        with mock.patch("backend.intake.extraktion.llm_service.ist_aktiviert",
+                        return_value=True), \
+             mock.patch("backend.intake.extraktion.llm_service.extrahiere_nach_schema",
+                        return_value=None):
+            erg = extraktion.extrahiere_felder("txt", "abrechnung", self._registry())
+        self.assertEqual(erg["llm_status"], "ausgefallen")
+
+    def test_status_aus_wenn_deaktiviert(self):
+        from backend.intake import extraktion
+        with mock.patch("backend.intake.extraktion.llm_service.ist_aktiviert",
+                        return_value=False), \
+             mock.patch("backend.intake.extraktion.llm_service.extrahiere_nach_schema",
+                        return_value=None):
+            erg = extraktion.extrahiere_felder("txt", "abrechnung", self._registry())
+        self.assertEqual(erg["llm_status"], "aus")
+
+    def test_status_aus_bei_unbekannter_klasse(self):
+        from backend.intake import extraktion
+        class _R:
+            klassen = {}
+        erg = extraktion.extrahiere_felder("txt", "gibtsnicht", _R())
+        self.assertEqual(erg.get("llm_status"), "aus")
+
+
 if __name__ == "__main__":
     unittest.main()
