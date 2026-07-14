@@ -330,5 +330,36 @@ class TestTabellenErkennung(unittest.TestCase):
         self.assertFalse(seiten[0].hat_tabelle)
 
 
+class TestTextAbdeckung(unittest.TestCase):
+    def test_schmales_textband_ist_bildseite(self):
+        from backend.intake.text_extraktion import text_abdeckung, ist_bildseite
+        # Bildunterschrift: 15 Woerter, aber schmales Band -> ~1.2% Flaeche
+        boxen = [{"breite": 40, "hoehe": 20, "conf": 90, "text": f"w{i}"}
+                 for i in range(15)]
+        abdeckung = text_abdeckung(boxen, 1000 * 1000)
+        self.assertLess(abdeckung, 0.12)
+        self.assertTrue(ist_bildseite(abdeckung))
+
+    def test_seitenfuellender_text_keine_bildseite(self):
+        from backend.intake.text_extraktion import text_abdeckung, ist_bildseite
+        boxen = [{"breite": 60, "hoehe": 30, "conf": 90, "text": f"w{i}"}
+                 for i in range(300)]  # ~54% Flaeche
+        abdeckung = text_abdeckung(boxen, 1000 * 1000)
+        self.assertGreater(abdeckung, 0.12)
+        self.assertFalse(ist_bildseite(abdeckung))
+
+    def test_niedrige_konfidenz_zaehlt_nicht(self):
+        from backend.intake.text_extraktion import text_abdeckung
+        boxen = [{"breite": 500, "hoehe": 500, "conf": 10, "text": "x"}]
+        self.assertEqual(text_abdeckung(boxen, 1000 * 1000), 0.0)
+
+    def test_leere_boxen_und_flaeche_null(self):
+        from backend.intake.text_extraktion import text_abdeckung
+        self.assertEqual(text_abdeckung([], 1000 * 1000), 0.0)
+        self.assertEqual(
+            text_abdeckung([{"breite": 10, "hoehe": 10, "conf": 90, "text": "a"}], 0),
+            0.0)
+
+
 if __name__ == "__main__":
     unittest.main()

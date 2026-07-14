@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 # Schwellenwerte
 MIN_WOERTER_TEXTEBENE = 5      # < 5 Woerter -> braucht OCR
 MAX_ZEICHENSALAT_RATIO = 0.30  # > 30% "Rausch"-Zeichen -> braucht OCR
+MIN_KONFIDENZ_WORT = 30              # Tesseract-Konfidenz-Schwelle (N-04)
+MAX_TEXT_ABDECKUNG_BILDSEITE = 0.12  # < 12% Textflaeche -> Bildseite (N-04)
 # N-01: Woerterbuch-Abgleich. Eine dichte Seite (viele Woerter), deren Text
 # aber kaum echte deutsche Woerter/Rechtsbegriffe enthaelt, stammt aus einer
 # korrupten Font-Kodierung (CID-Mapping-Bruch): niedrige Zeichensalat-Ratio,
@@ -106,6 +108,34 @@ def woerterbuch_quote(text: str) -> float:
         return 0.0
     treffer = sum(1 for t in tokens if t in _WOERTERBUCH)
     return treffer / len(tokens)
+
+
+def text_abdeckung(wort_boxen: List[dict], seiten_flaeche: float) -> float:
+    """Anteil der Seitenflaeche, der von sicherem Text bedeckt ist (N-04).
+
+    Summe der Flaechen der Wort-Boxen mit conf >= MIN_KONFIDENZ_WORT und
+    nichtleerem Text, geteilt durch seiten_flaeche. Ueberlappungen werden nicht
+    abgezogen (Woerter ueberlappen praktisch nie). Auf [0, 1] geklemmt.
+    """
+    if not wort_boxen or seiten_flaeche <= 0:
+        return 0.0
+    summe = 0.0
+    for b in wort_boxen:
+        try:
+            conf = float(b.get("conf", -1))
+        except (TypeError, ValueError):
+            continue
+        if conf < MIN_KONFIDENZ_WORT:
+            continue
+        if not (b.get("text") or "").strip():
+            continue
+        summe += float(b.get("breite", 0)) * float(b.get("hoehe", 0))
+    return min(1.0, summe / seiten_flaeche)
+
+
+def ist_bildseite(abdeckung: float) -> bool:
+    """True, wenn die Textabdeckung unter der Bildseiten-Schwelle liegt (N-04)."""
+    return abdeckung < MAX_TEXT_ABDECKUNG_BILDSEITE
 
 
 def extrahiere_seiten(pdf_bytes: bytes, max_seiten: int = 30) -> List[SeitenText]:
