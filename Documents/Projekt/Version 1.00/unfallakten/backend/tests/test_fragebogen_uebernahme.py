@@ -112,5 +112,46 @@ class TestSchreibeBeteiligte(_ServiceBasis):
         self.assertEqual(row["name"], "")
 
 
+class TestVorschauUnfall(_ServiceBasis):
+    def test_schilderung_mit_uhrzeit_prefix(self):
+        from backend.db.database import get_connection
+        from backend.services.fragebogen_uebernahme import (
+            _geparst_unfall, _akte_unfall, _vorschau_felder)
+        with get_connection() as conn:
+            akte = _akte_unfall(conn, "44/22")
+        felder = _vorschau_felder(
+            _geparst_unfall({"datum": "2026-03-12", "ort": "OF",
+                             "zeit": "14:20", "schilderung": "Auffahrunfall"}), akte)
+        nach = {f["feld"]: f for f in felder}
+        self.assertEqual(nach["schilderung"]["geparst"], "[Uhrzeit: 14:20] Auffahrunfall")
+        self.assertTrue(nach["unfalldatum"]["ist_leer"])
+
+    def test_schreibe_unfall_beide_tabellen(self):
+        from backend.db.database import get_connection
+        from backend.services.fragebogen_uebernahme import _schreibe_unfall
+        with get_connection() as conn:
+            _schreibe_unfall(conn, "44/22",
+                             {"unfalldatum": "2026-03-12", "schilderung": "X"})
+            a = conn.execute("SELECT unfalldatum FROM unfallakte WHERE az='44/22'").fetchone()
+            d = conn.execute("SELECT schilderung FROM unfalldetails WHERE akte_id='44/22'").fetchone()
+        self.assertEqual(a["unfalldatum"], "2026-03-12")
+        self.assertEqual(d["schilderung"], "X")
+
+
+class TestVorschauPersonenschaden(_ServiceBasis):
+    def test_schreibe_setzt_abgeleitete_flags(self):
+        from backend.db.database import get_connection
+        from backend.services.fragebogen_uebernahme import _schreibe_personenschaden
+        with get_connection() as conn:
+            _schreibe_personenschaden(conn, "44/22",
+                                      {"krankenhaus_name": "Klinikum", "krank_von": "2026-03-13"})
+            row = conn.execute(
+                "SELECT krankenhaus_name, krankenhaus_aufenthalt, krankgeschrieben "
+                "FROM personenschaden WHERE akte_id='44/22'").fetchone()
+        self.assertEqual(row["krankenhaus_name"], "Klinikum")
+        self.assertEqual(row["krankenhaus_aufenthalt"], 1)
+        self.assertEqual(row["krankgeschrieben"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()
