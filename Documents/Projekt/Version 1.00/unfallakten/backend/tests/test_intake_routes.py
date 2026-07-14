@@ -58,7 +58,7 @@ def _auth_header(client):
 
 def _lege_intake_pdf_an(sha_suffix="a", klasse="abrechnungsschreiben",
                          konfidenz=0.9, queue_status="bereit_zur_review",
-                         parse_json=None):
+                         parse_json=None, llm_degradiert=None):
     from backend.db.database import get_connection
     uploads = os.environ["UPLOAD_DIR"]
     os.makedirs(uploads, exist_ok=True)
@@ -87,9 +87,11 @@ def _lege_intake_pdf_an(sha_suffix="a", klasse="abrechnungsschreiben",
         cur = conn.execute(
             "INSERT INTO intake_dokumente "
             "(sha256, arbeitskopie_pfad, klasse, klasse_quelle, "
-            " konfidenz, queue_status, parse_json, registry_version) "
-            "VALUES (?, ?, ?, 'auto', ?, ?, ?, 'v1')",
-            (sha, pfad, klasse, konfidenz, queue_status, parse_json),
+            " konfidenz, queue_status, parse_json, registry_version, "
+            " llm_degradiert) "
+            "VALUES (?, ?, ?, 'auto', ?, ?, ?, 'v1', ?)",
+            (sha, pfad, klasse, konfidenz, queue_status, parse_json,
+             llm_degradiert),
         )
         return cur.lastrowid
 
@@ -149,6 +151,14 @@ class TestIntakeQueue(unittest.TestCase):
         e = [x for x in r.get_json()["eintraege"] if x["id"] == did][0]
         self.assertAlmostEqual(e["ocr_ratio_salat"], 0.42)
         self.assertAlmostEqual(e["ocr_quote_woerter"], 0.07)
+
+    def test_n03_queue_liefert_llm_degradiert(self):
+        did = _lege_intake_pdf_an("a", queue_status="bereit_zur_review",
+                                  llm_degradiert=1)
+        r = self.client.get("/intake/queue", headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        e = [x for x in r.get_json()["eintraege"] if x["id"] == did][0]
+        self.assertEqual(e["llm_degradiert"], 1)
 
     def test_queue_sortierung_alter_dann_konfidenz(self):
         # b (aelter) bekommt niedrigere ID (sqlite AUTOINCREMENT -> aelter)
@@ -252,6 +262,19 @@ class TestIntakeDetail(unittest.TestCase):
     def test_detail_404_bei_unbekannter_id(self):
         r = self.client.get("/intake/dokument/99999", headers=self.headers)
         self.assertEqual(r.status_code, 404)
+
+    def test_n03_detail_liefert_degradation(self):
+        parse_json = json.dumps({
+            "text_gesamt": "Aktenzeichen 44/22 ...",
+            "felder": {},
+            "akten_kandidaten": [],
+            "degradation": {"llm_extraktion": "ausgefallen"},
+        }, ensure_ascii=False)
+        did = _lege_intake_pdf_an("a", parse_json=parse_json)
+        r = self.client.get(f"/intake/dokument/{did}", headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.get_json()["parse"]["degradation"],
+                         {"llm_extraktion": "ausgefallen"})
 
 
 class TestPatchKlasse(unittest.TestCase):
