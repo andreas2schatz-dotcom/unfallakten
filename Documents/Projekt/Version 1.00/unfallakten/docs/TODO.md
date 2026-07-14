@@ -49,6 +49,13 @@
 
 ## 🔄 In Arbeit
 
+### 🎯 AKTIV — NÄCHSTE SESSION (frisch starten): Fragebogen-Feld-Übernahme bei Freigabe
+**Vom Nutzer als nächste Aufgabe gesetzt (2026-07-14), Umsetzung in frischer Session.** Direkter Alltagsnutzen (Folge aus BUG-01): Wird ein **Unfallbogen/Fragebogen** in der Review-Queue **freigegeben**, sollen die geparsten Felder (Mandant/Gegner/Unfalldetails/Personenschaden) in die Akte übernommen werden — heute muss der SB sie manuell nacherfassen.
+- **Startprompt/Handover (zuerst lesen):** `handover/naechste_session_fragebogen_feld_uebernahme_prompt.md` (Aufgabe, Leitplanken, grounded Andockpunkte, offene Fragen, SDD-Lehren aus N-04).
+- **Vorgehen:** mit `superpowers:brainstorming` starten (UX-Kernfrage: Auto-Übernahme vs. editierbare Vorschau im Freigabe-Dialog), dann Spec → Plan → TDD (Subagent-Driven).
+- **Kern-Andockpunkte:** `post_freigabe` (`backend/routers/intake_routes.py`); `_ergaenze_mandant/_gegner/_unfalldetails/_personenschaden` + `_fragebogen_in_intake_queue` (`backend/email_import/import_service.py`, unter `INTAKE_REVIEW_PFLICHT` heute stillgelegt — Logik wiederverwenden, jetzt bei Freigabe auslösen); `fragebogen_parser.py` + Tabelle `fragebogen_erstkontakt`. Guard `test_s19_intake_write_guard.py` mitpflegen.
+- **Leitplanke:** Menschliche Freigabe = einzige Schreiboperation Richtung Akte (passt); RA-MICRO read-only.
+
 ### ✅ ERLEDIGT (2026-07-10): Text-Pfad für Intake-Pipeline (Ursache 1)
 **Vollständig umgesetzt (Branch `intake-stufe1`, 6 Commits `e73ab003`…`e2b5815a`).**
 - **Spec:** `docs/superpowers/specs/2026-07-10-text-pfad-intake-design.md` · **Plan:** `docs/superpowers/plans/2026-07-10-text-pfad-intake.md` (6 TDD-Tasks, alle grün).
