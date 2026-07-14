@@ -703,6 +703,25 @@ def post_freigabe(intake_id: int):
         payload=payload, benutzer_id=benutzer_id,
     )
 
+    # Fragebogen-Feld-Uebernahme (nur wenn Payload-Block vorhanden UND das
+    # Dokument tatsaechlich ein Fragebogen ist). Best-Effort: ein Fehler bricht
+    # die bereits erfolgte Freigabe nicht ab.
+    uebernahme_ergebnis = None
+    ueb = payload.get("fragebogen_uebernahme")
+    if ueb:
+        try:
+            parsed = parse_fragebogen_payload(dok.get("structured_payload"))
+            if parsed is not None:
+                uebernahme_ergebnis = uebernehme(
+                    akte_az,
+                    ueb.get("werte") or {},
+                    ueb.get("abschnitte") or [],
+                )
+        except Exception as exc:
+            logger.error("Freigabe %s: Fragebogen-Uebernahme fehlgeschlagen: %s",
+                         intake_id, exc, exc_info=True)
+            uebernahme_ergebnis = {"fehler": str(exc)}
+
     logger.info("Freigabe intake=%s -> Akte %s (dokument_id=%s, freigabe_id=%s)",
                 intake_id, akte_az, dokument_id, freigabe_id)
     return _j({
@@ -710,6 +729,7 @@ def post_freigabe(intake_id: int):
         "dokument_id": dokument_id,
         "freigabe_id": freigabe_id,
         "akte_az": akte_az,
+        "fragebogen_uebernahme": uebernahme_ergebnis,
     })
 
 

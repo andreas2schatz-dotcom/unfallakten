@@ -134,5 +134,56 @@ class TestVorschauEndpoint(_FragebogenFreigabeBasis):
         self.assertEqual(r.status_code, 422)
 
 
+class TestFreigabeUebernahme(_FragebogenFreigabeBasis):
+    def _freigabe(self, did, headers, werte, abschnitte):
+        return self.client.post(
+            f"/intake/dokument/{did}/freigabe",
+            json={"akte_az": "44/22",
+                  "fragebogen_uebernahme": {"abschnitte": abschnitte, "werte": werte}},
+            headers=headers)
+
+    def test_freigabe_uebernimmt_felder_in_beteiligte(self):
+        did = self._lege_fragebogen_intake_an()
+        headers = self._login()
+        r = self._freigabe(
+            did, headers,
+            {"mandant": {"name": "Riccio", "telefon": "069 8402271"},
+             "gegner": {"name": "Khaniani"}},
+            ["mandant", "gegner"])
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        self.assertIn("fragebogen_uebernahme", r.get_json())
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            m = conn.execute("SELECT telefon FROM beteiligte "
+                             "WHERE akte_id='44/22' AND rolle='mandant'").fetchone()
+            g = conn.execute("SELECT name FROM beteiligte "
+                             "WHERE akte_id='44/22' AND rolle='gegner'").fetchone()
+        self.assertEqual(m["telefon"], "069 8402271")
+        self.assertEqual(g["name"], "Khaniani")
+
+    def test_freigabe_ueberschreibt_abweichendes_feld(self):
+        from backend.db.database import get_connection
+        did = self._lege_fragebogen_intake_an()
+        headers = self._login()
+        with get_connection() as conn:
+            conn.execute("INSERT INTO beteiligte (akte_id, rolle, name, ort) "
+                         "VALUES ('44/22', 'mandant', 'Bestand', 'Offenbach')")
+        r = self._freigabe(did, headers,
+                           {"mandant": {"ort": "Neu-Isenburg"}}, ["mandant"])
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        with get_connection() as conn:
+            row = conn.execute("SELECT ort FROM beteiligte "
+                               "WHERE akte_id='44/22' AND rolle='mandant'").fetchone()
+        self.assertEqual(row["ort"], "Neu-Isenburg")
+
+    def test_freigabe_ohne_uebernahme_block_bleibt_gueltig(self):
+        did = self._lege_fragebogen_intake_an()
+        headers = self._login()
+        r = self.client.post(f"/intake/dokument/{did}/freigabe",
+                             json={"akte_az": "44/22"}, headers=headers)
+        self.assertEqual(r.status_code, 200)
+        self.assertIsNone(r.get_json()["fragebogen_uebernahme"])
+
+
 if __name__ == "__main__":
     unittest.main()
