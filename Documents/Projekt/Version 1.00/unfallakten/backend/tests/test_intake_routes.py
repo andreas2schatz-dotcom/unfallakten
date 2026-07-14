@@ -135,6 +135,21 @@ class TestIntakeQueue(unittest.TestCase):
         self.assertEqual(stati, ["bereit_zur_review", "pipeline_fehler"])
         self.assertEqual(len(eintraege), 2)
 
+    def test_n02_queue_liefert_ocr_qualitaet(self):
+        from backend.db.database import get_connection
+        did = _lege_intake_pdf_an("a", queue_status="bereit_zur_review")
+        with get_connection() as conn:
+            conn.execute(
+                "UPDATE intake_dokumente "
+                "SET ocr_ratio_salat=0.42, ocr_quote_woerter=0.07 WHERE id=?",
+                (did,),
+            )
+        r = self.client.get("/intake/queue", headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        e = [x for x in r.get_json()["eintraege"] if x["id"] == did][0]
+        self.assertAlmostEqual(e["ocr_ratio_salat"], 0.42)
+        self.assertAlmostEqual(e["ocr_quote_woerter"], 0.07)
+
     def test_queue_sortierung_alter_dann_konfidenz(self):
         # b (aelter) bekommt niedrigere ID (sqlite AUTOINCREMENT -> aelter)
         id_a = _lege_intake_pdf_an("a", konfidenz=0.9)

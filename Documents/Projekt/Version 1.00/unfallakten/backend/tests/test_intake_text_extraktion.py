@@ -152,6 +152,65 @@ class TestKorrupteFontKodierung(unittest.TestCase):
         self.assertGreater(seiten[0].quote_woerter, 0.3)
 
 
+class TestDokumentOcrQualitaet(unittest.TestCase):
+    """N-02: Dokument-Level OCR-Qualitaet als schlechteste-Seite-Aggregat.
+
+    ratio_salat = groesster (schlechtester) Wert ueber alle texttragenden
+    Seiten; quote_woerter = kleinster (schlechtester) Wert. Gerechnet auf dem
+    FINALEN Seitentext (nach OCR), damit ein sauber OCR'tes Scan-Dokument
+    nicht faelschlich als schlecht gilt.
+    """
+
+    def _seite(self, nr, text, ratio_salat=0.0, quote_woerter=1.0):
+        from backend.intake.text_extraktion import SeitenText
+        return SeitenText(nr=nr, text=text, braucht_ocr=False,
+                          ratio_salat=ratio_salat, quote_woerter=quote_woerter,
+                          textquelle="textebene")
+
+    def test_gute_einzelseite(self):
+        from backend.intake.text_extraktion import dokument_ocr_qualitaet
+        seiten = [self._seite(1,
+            "Sehr geehrte Damen und Herren wir uebersenden Ihnen die "
+            "Rechnung fuer die Reparatur des Fahrzeugs nach dem Unfall.")]
+        ratio, quote = dokument_ocr_qualitaet(seiten)
+        self.assertLess(ratio, 0.05)
+        self.assertGreater(quote, 0.3)
+
+    def test_schlechteste_seite_gewinnt(self):
+        from backend.intake.text_extraktion import dokument_ocr_qualitaet
+        gut = ("Sehr geehrte Damen und Herren wir uebersenden Ihnen die "
+               "Rechnung fuer die Reparatur des Fahrzeugs.")
+        salat = "\x01\x02\x03 §$%&/ ~~~ \x07\x0b ###@@@ ^^^ °°° |||"
+        seiten = [self._seite(1, gut), self._seite(2, salat)]
+        ratio, quote = dokument_ocr_qualitaet(seiten)
+        # ratio_salat = Maximum (schlechteste Seite = die Salat-Seite)
+        from backend.intake.text_extraktion import (
+            zeichensalat_ratio, woerterbuch_quote)
+        self.assertAlmostEqual(ratio, round(zeichensalat_ratio(salat), 3))
+        # quote_woerter = Minimum (Salat-Seite hat 0 Woerterbuch-Treffer)
+        self.assertAlmostEqual(quote, round(woerterbuch_quote(salat), 3))
+
+    def test_ignoriert_gestempelte_werte_und_rechnet_auf_finaltext(self):
+        # Stale-Stempel (ratio_salat=1.0/quote=0.0 aus Vor-OCR-Textebene),
+        # aber der finale Text ist gut -> Funktion rechnet neu und liefert gut.
+        from backend.intake.text_extraktion import dokument_ocr_qualitaet
+        seiten = [self._seite(1,
+            "Sehr geehrte Damen und Herren wir uebersenden die Rechnung fuer "
+            "die Reparatur des Fahrzeugs nach dem Unfall an unsere Kanzlei.",
+            ratio_salat=1.0, quote_woerter=0.0)]
+        ratio, quote = dokument_ocr_qualitaet(seiten)
+        self.assertLess(ratio, 0.05)
+        self.assertGreater(quote, 0.3)
+
+    def test_leere_seiten_geben_none(self):
+        from backend.intake.text_extraktion import dokument_ocr_qualitaet
+        self.assertEqual(dokument_ocr_qualitaet([]), (None, None))
+        self.assertEqual(
+            dokument_ocr_qualitaet([self._seite(1, ""),
+                                    self._seite(2, "   ")]),
+            (None, None))
+
+
 class TestTextquelleGesamt(unittest.TestCase):
     def test_alle_textebene_ergibt_textebene(self):
         from backend.intake.text_extraktion import (

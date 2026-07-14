@@ -39,7 +39,7 @@ from ..intake.queue import markiere_bereit, markiere_fehler, reserviere_naechste
 from ..intake.registry_loader import lade_registry, standard_pfad
 from ..intake.text_extraktion import (
     extrahiere_seiten, aggregierte_textquelle, waehle_extraktions_text,
-    SeitenText,
+    dokument_ocr_qualitaet, SeitenText,
 )
 from ..services import ocr_service, glm_ocr_service
 
@@ -274,14 +274,20 @@ def verarbeite_dokument(intake_id: int) -> bool:
             parse_dict["llm_konflikt"] = llm_konflikt
         parse_json = json.dumps(parse_dict, ensure_ascii=False)
 
+        # N-02: OCR-Qualitaet (Schlechteste-Seite-Aggregat auf dem Finaltext)
+        # als Hinweissignal fuer die Review-Queue persistieren.
+        ocr_ratio_salat, ocr_quote_woerter = dokument_ocr_qualitaet(seiten)
+
         with get_connection() as conn:
             conn.execute(
                 "UPDATE intake_dokumente SET "
                 "klasse=?, klasse_quelle=?, konfidenz=?, "
-                "textquelle=?, registry_version=?, llm_stack=?, parse_json=? "
+                "textquelle=?, registry_version=?, llm_stack=?, parse_json=?, "
+                "ocr_ratio_salat=?, ocr_quote_woerter=? "
                 "WHERE id=?",
                 (klasse, neue_klasse_quelle, konfidenz, textquelle,
-                 registry.version, _llm_stack_json(), parse_json, intake_id),
+                 registry.version, _llm_stack_json(), parse_json,
+                 ocr_ratio_salat, ocr_quote_woerter, intake_id),
             )
         markiere_bereit(intake_id)
         logger.info(

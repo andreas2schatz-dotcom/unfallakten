@@ -122,6 +122,7 @@ def hole_queue():
             "SELECT i.id, i.sha256, i.klasse, i.klasse_quelle, i.konfidenz, "
             "       i.queue_status, i.prioritaet_frist, i.erstellt_am, "
             "       i.fehler_detail, i.payload_typ, "
+            "       i.ocr_ratio_salat, i.ocr_quote_woerter, "
             "       json_extract(i.parse_json, '$.akten_kandidaten[0]') "
             "         AS akte_kandidat_top_json, "
             "       z.id AS zustellung_id, "
@@ -155,6 +156,8 @@ def hole_queue():
             "fehler_detail": r["fehler_detail"],
             "akte_kandidat_top": top,
             "payload_typ": r["payload_typ"],
+            "ocr_ratio_salat": r["ocr_ratio_salat"],
+            "ocr_quote_woerter": r["ocr_quote_woerter"],
             "zustellung_id": r["zustellung_id"],
             "parent_zustellung_id": r["parent_zustellung_id"],
             "absender": r["absender"],
@@ -244,6 +247,8 @@ def hole_detail(intake_id: int):
         "konfidenz": dok.get("konfidenz"),
         "queue_status": dok.get("queue_status"),
         "textquelle": dok.get("textquelle"),
+        "ocr_ratio_salat": dok.get("ocr_ratio_salat"),
+        "ocr_quote_woerter": dok.get("ocr_quote_woerter"),
         "registry_version": dok.get("registry_version"),
         "llm_stack": dok.get("llm_stack"),
         "prioritaet_frist": dok.get("prioritaet_frist"),

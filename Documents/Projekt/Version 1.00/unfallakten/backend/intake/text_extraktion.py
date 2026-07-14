@@ -200,6 +200,25 @@ def waehle_extraktions_text(seiten: List[SeitenText],
                        if seiten[i].text)
 
 
+def dokument_ocr_qualitaet(seiten: List[SeitenText]):
+    """Dokument-Level OCR-Qualitaet als Schlechteste-Seite-Aggregat (N-02).
+
+    Liefert ``(ratio_salat, quote_woerter)`` -- den groessten (schlechtesten)
+    Zeichensalat-Anteil und die kleinste (schlechteste) Woerterbuch-Quote
+    ueber alle texttragenden Seiten. Gerechnet auf dem FINALEN Seitentext
+    (nach OCR), nicht auf den ggf. veralteten Vor-OCR-Stempeln -- ein sauber
+    OCR'tes Scan-Dokument soll nicht als schlecht gelten. Seiten ohne Text
+    (leerer OCR-Ausfall) bleiben unberuecksichtigt. Ohne texttragende Seite:
+    ``(None, None)``.
+    """
+    texte = [s.text for s in seiten if s.text and s.text.strip()]
+    if not texte:
+        return (None, None)
+    ratio = max(zeichensalat_ratio(t) for t in texte)
+    quote = min(woerterbuch_quote(t) for t in texte)
+    return (round(ratio, 3), round(quote, 3))
+
+
 def aggregierte_textquelle(seiten: List[SeitenText]) -> str:
     """Aggregiert die Seiten-textquelle zu einem Dokument-Level-Stempel.
 

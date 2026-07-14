@@ -100,6 +100,49 @@ function StatusBadge({ status, fristPrio }) {
   );
 }
 
+// N-02: OCR-Qualitaets-Signal. ratio_salat hoch = schlecht, quote_woerter
+// niedrig = schlecht. Schwellen spiegeln text_extraktion (0.30 / 0.10). Nur
+// bei fragwuerdiger Qualitaet ein Badge -- gute Dokumente bleiben unmarkiert.
+export function ocrQualitaet(item) {
+  const ratio = item?.ocr_ratio_salat;
+  const quote = item?.ocr_quote_woerter;
+  if (ratio == null && quote == null) return null;
+
+  const schlecht = (ratio != null && ratio > 0.30) ||
+                   (quote != null && quote < 0.10);
+  const mittel = (ratio != null && ratio > 0.15) ||
+                 (quote != null && quote < 0.30);
+  if (schlecht) {
+    return {
+      stufe: "schlecht",
+      titel: "Schlechte OCR-Qualitaet — Text pruefen: viel Zeichensalat " +
+             "oder kaum erkennbare Woerter.",
+    };
+  }
+  if (mittel) {
+    return {
+      stufe: "mittel",
+      titel: "Mittlere OCR-Qualitaet — Text stichprobenartig pruefen.",
+    };
+  }
+  return null;
+}
+
+function OcrBadge({ item }) {
+  const q = ocrQualitaet(item);
+  if (!q) return null;
+  const farbe = q.stufe === "schlecht" ? T.red : T.amber;
+  return (
+    <span title={q.titel} style={{
+      background: farbe + "22", color: farbe, padding: "1px 7px",
+      borderRadius: 8, fontSize: T.textXs, fontFamily: T.fontMono,
+      whiteSpace: "nowrap",
+    }}>
+      OCR {q.stufe === "schlecht" ? "⚠" : "~"}
+    </span>
+  );
+}
+
 function KonfidenzChip({ wert }) {
   if (wert == null) return null;
   const prozent = Math.round(wert * 100);
@@ -130,6 +173,7 @@ function QueueEintrag({ item, aktiv, onClick, onVerwerfen, eingerueckt }) {
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
         <StatusBadge status={item.queue_status} fristPrio={item.prioritaet_frist} />
         <KonfidenzChip wert={item.konfidenz} />
+        <OcrBadge item={item} />
         {item.klasse_quelle === "manuell" && (
           <span style={{ fontSize: T.textXs, color: T.textMuted }}>manuell</span>
         )}
