@@ -484,8 +484,11 @@ def _schreibe_beteiligte(conn, akte_az: str, rolle: str,
     row = conn.execute("SELECT id FROM beteiligte WHERE akte_id=? AND rolle=?",
                        (akte_az, rolle)).fetchone()
     if row is None:
-        cols = ["akte_id", "rolle"] + list(aenderungen)
-        werte = [akte_az, rolle] + list(aenderungen.values())
+        # beteiligte.name ist NOT NULL -> beim Neuanlegen ohne Namen leer setzen.
+        spalten = dict(aenderungen)
+        spalten.setdefault("name", "")
+        cols = ["akte_id", "rolle"] + list(spalten)
+        werte = [akte_az, rolle] + list(spalten.values())
         platz = ", ".join(["?"] * len(cols))
         conn.execute(f"INSERT INTO beteiligte ({', '.join(cols)}) VALUES ({platz})",
                      werte)
@@ -821,36 +824,43 @@ def uebernehme(akte_az: str, werte: dict,
     geschrieben: List[dict] = []
     uebersprungen: List[dict] = []
     fehler: List[dict] = []
-    with get_connection() as conn:
-        for sec in ABSCHNITTE:
-            if sec not in aktiv:
-                continue
-            eingaben = werte.get(sec) or {}
-            if not eingaben:
-                continue
-            try:
+    for sec in ABSCHNITTE:
+        if sec not in aktiv:
+            continue
+        eingaben = werte.get(sec) or {}
+        if not eingaben:
+            continue
+        sec_geschrieben: List[dict] = []
+        sec_uebersprungen: List[dict] = []
+        try:
+            # Eigene Transaktion je Abschnitt: schlaegt ein Abschnitt fehl,
+            # rollt get_connection ihn komplett zurueck (kein Teil-Write),
+            # andere Abschnitte bleiben committet (Best-Effort).
+            with get_connection() as conn:
                 akte = _AKTE[sec](conn, akte_az)
                 aenderungen: Dict[str, Any] = {}
                 for feld, neu in eingaben.items():
                     neu_n = _norm(neu)
                     if not neu_n:
-                        uebersprungen.append({"abschnitt": sec, "feld": feld,
-                                              "grund": "leer"})
+                        sec_uebersprungen.append({"abschnitt": sec, "feld": feld,
+                                                  "grund": "leer"})
                         continue
                     akt = _norm(akte.get(feld))
                     if akt == "" or akt.casefold() != neu_n.casefold():
                         aenderungen[feld] = neu
-                        geschrieben.append({"abschnitt": sec, "feld": feld,
-                                            "wert": neu})
+                        sec_geschrieben.append({"abschnitt": sec, "feld": feld,
+                                                "wert": neu})
                     else:
-                        uebersprungen.append({"abschnitt": sec, "feld": feld,
-                                              "grund": "unveraendert"})
+                        sec_uebersprungen.append({"abschnitt": sec, "feld": feld,
+                                                  "grund": "unveraendert"})
                 if aenderungen:
                     _SCHREIBE[sec](conn, akte_az, aenderungen)
-            except Exception as exc:  # pragma: no cover -- Best-Effort je Abschnitt
-                logger.error("Fragebogen-Uebernahme Abschnitt %s (Akte %s): %s",
-                             sec, akte_az, exc, exc_info=True)
-                fehler.append({"abschnitt": sec, "fehler": str(exc)})
+            geschrieben.extend(sec_geschrieben)
+            uebersprungen.extend(sec_uebersprungen)
+        except Exception as exc:
+            logger.error("Fragebogen-Uebernahme Abschnitt %s (Akte %s): %s",
+                         sec, akte_az, exc, exc_info=True)
+            fehler.append({"abschnitt": sec, "fehler": str(exc)})
     return {"geschrieben": geschrieben, "uebersprungen": uebersprungen,
             "fehler": fehler}
 ```

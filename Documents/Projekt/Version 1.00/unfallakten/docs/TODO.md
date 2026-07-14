@@ -49,12 +49,14 @@
 
 ## 🔄 In Arbeit
 
-### 🎯 AKTIV — NÄCHSTE SESSION (frisch starten): Fragebogen-Feld-Übernahme bei Freigabe
-**Vom Nutzer als nächste Aufgabe gesetzt (2026-07-14), Umsetzung in frischer Session.** Direkter Alltagsnutzen (Folge aus BUG-01): Wird ein **Unfallbogen/Fragebogen** in der Review-Queue **freigegeben**, sollen die geparsten Felder (Mandant/Gegner/Unfalldetails/Personenschaden) in die Akte übernommen werden — heute muss der SB sie manuell nacherfassen.
-- **Startprompt/Handover (zuerst lesen):** `handover/naechste_session_fragebogen_feld_uebernahme_prompt.md` (Aufgabe, Leitplanken, grounded Andockpunkte, offene Fragen, SDD-Lehren aus N-04).
-- **Vorgehen:** mit `superpowers:brainstorming` starten (UX-Kernfrage: Auto-Übernahme vs. editierbare Vorschau im Freigabe-Dialog), dann Spec → Plan → TDD (Subagent-Driven).
-- **Kern-Andockpunkte:** `post_freigabe` (`backend/routers/intake_routes.py`); `_ergaenze_mandant/_gegner/_unfalldetails/_personenschaden` + `_fragebogen_in_intake_queue` (`backend/email_import/import_service.py`, unter `INTAKE_REVIEW_PFLICHT` heute stillgelegt — Logik wiederverwenden, jetzt bei Freigabe auslösen); `fragebogen_parser.py` + Tabelle `fragebogen_erstkontakt`. Guard `test_s19_intake_write_guard.py` mitpflegen.
-- **Leitplanke:** Menschliche Freigabe = einzige Schreiboperation Richtung Akte (passt); RA-MICRO read-only.
+### ✅ ERLEDIGT (2026-07-14): Fragebogen-Feld-Übernahme bei Freigabe (Folge aus BUG-01)
+**Branch `intake-stufe1`, Commits `362a0895`…`367f44de` (10 Feature-Commits, nicht gepusht). Subagent-Driven (7 Tasks, TDD), Abschluss-Review Opus: READY WITH FOLLOW-UPS (keine Critical/Important).** Spec: `docs/superpowers/specs/2026-07-14-fragebogen-feld-uebernahme-design.md` · Plan: `docs/superpowers/plans/2026-07-14-fragebogen-feld-uebernahme.md` · UX-Mockup (freigegeben): https://claude.ai/code/artifact/6e3de215-25d2-4ada-88eb-5f9e13353e91
+- **Was:** Wird ein Unfallbogen in der Review-Queue freigegeben, zeigt der Freigabe-Dialog die geparsten Felder als **editierbare Vorschau**; übernommen werden nur leere Aktenfelder, **abweichende Felder sind überschreibbar** (Default = Akten-Wert, „Bogen übernehmen"), gefüllt-gleiche als gesperrte Zeile. Abschnitts-Checkboxen (Mandant/Gegner/Unfall/Personenschaden) + Auto-Collapse.
+- **Neu:** Service `backend/services/fragebogen_uebernahme.py` (`parse_fragebogen_payload`, `baue_vorschau`/`vorschau_liste`, `uebernehme` — **eigene Transaktion je Abschnitt**, kein Teil-Write bei Fehler). `GET /intake/dokument/<id>/fragebogen-vorschau?akte_az=`, `ist_fragebogen` in `hole_detail`, Übernahme-Aufruf in `post_freigabe` (Best-Effort). Frontend `FragebogenUebernahme` in `ReviewQueueView.jsx`.
+- **Voraussetzung mitgefixt:** Text-Dokument-Freigabe (Fragebogen/E-Mail-Body ohne Arbeitskopie) schlug mit HTTP 500 fehl → `_sichere_text_arbeitskopie` materialisiert `structured_payload` als Datei → Fragebogen wird auch als `dokumente`-Zeile archiviert. **Keine Migration.**
+- **Guards:** `test_s19_intake_write_guard.py` (AST) + `test_s19d_e2e_no_intake_writes.py` bleiben grün — neuer Schreibweg nur via `POST /freigabe` (menschliche Freigabe = einzige Schreib-Op); alte `_ergaenze_*` eingefroren.
+- **Tests:** `test_fragebogen_uebernahme.py` + `test_fragebogen_freigabe_e2e.py` + Vitest `ReviewQueueView.fragebogen.test.jsx`. Feature+Guard+Intake-Fläche 108 grün; volle Frontend-Suite 67. Full-Backend-Baseline 204F (null neue Failures).
+- **Offene Follow-ups (defer, aus Abschluss-Review):** (1) optionale Guard-Härtung, damit ein künftiger Auto-Pfad `uebernehme()` nicht am S1.9-AST-Guard vorbei aufrufen kann; (2) `fragebogen_uebernahme.fehler`-Shape (str bei äußerer Exception vs. list normal) angleichen, falls je frontend-konsumiert.
 
 ### ✅ ERLEDIGT (2026-07-10): Text-Pfad für Intake-Pipeline (Ursache 1)
 **Vollständig umgesetzt (Branch `intake-stufe1`, 6 Commits `e73ab003`…`e2b5815a`).**
