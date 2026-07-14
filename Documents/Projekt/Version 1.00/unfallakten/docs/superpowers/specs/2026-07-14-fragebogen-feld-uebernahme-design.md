@@ -22,17 +22,29 @@ Aufgabe fügt die Feld-Übernahme genau an der Freigabe an.
 
 1. **UX: editierbare Vorschau im Freigabe-Dialog** (nicht vollautomatisch). Der
    Anwalt sieht die geparsten Felder, kann sie korrigieren und bestätigt dann.
-2. **Bestehende Akten-Daten: nur Leerfelder füllen, nie überschreiben.** Weicht ein
-   geparster Wert von einem bereits gesetzten Akten-Wert ab, wird das als Hinweis
-   angezeigt (⚠ „Akte: X / Bogen: Y"), aber nicht geschrieben. Entspricht der
-   heutigen `_ergaenze_*`-Semantik.
+   UX-Mockup (vom Nutzer freigegeben):
+   https://claude.ai/code/artifact/6e3de215-25d2-4ada-88eb-5f9e13353e91
+2. **Bestehende Akten-Daten: Leerfelder füllen; abweichende Felder überschreibbar.**
+   - Leeres Aktenfeld → wird mit dem (editierbaren) Bogen-Wert gefüllt.
+   - Aktenfeld gefüllt **und** weicht vom Bogen-Wert ab → als abweichend markiert
+     (⚠ „Akte: X · Bogen: Y"). **Standard bleibt der Akten-Wert** (kein stilles
+     Überschreiben); der Sachbearbeiter kann per „Bogen übernehmen" oder freies
+     Tippen den Wert **bewusst überschreiben**.
+   - Aktenfeld gefüllt und deckungsgleich → gesperrt, nichts zu tun.
+   - **Konsequenz für den Service:** die frühere „nur-Leerfelder, nie
+     überschreiben"-Garantie entfällt; der Service schreibt genau die vom SB
+     bestätigten Werte je aktivem Abschnitt (leer → füllen, abweichend → überschreiben).
+     Die menschliche Freigabe ist der Kontrollpunkt.
 3. **Architektur A: neues Service-Modul.** Die Schreib-Logik lebt in einem eigenen,
    fokussierten Modul. Die alten `_ergaenze_*` in `import_service.py` bleiben
    eingefroren (Rollback-Anker, nur unter `INTAKE_REVIEW_PFLICHT=false` aktiv).
 4. **Übernahme-Fehler brechen die Freigabe NICHT ab** — sie werden geloggt und im
    Response gemeldet; das Dokument bleibt freigegeben.
 5. **Abschnitts-Checkboxen** (Mandant/Gegner/Unfall/Personenschaden) steuern, welche
-   Bereiche übernommen werden.
+   Bereiche übernommen werden. Kein Master-Schalter (bei Nicht-Fragebögen erscheint der
+   Block gar nicht). **Auto-Collapse-Default:** Abschnitte ohne offene Aufgabe (alle
+   Felder gefüllt und deckungsgleich) starten eingeklappt; Abschnitte mit leeren oder
+   abweichenden Feldern starten offen.
 
 ## Architektur
 
@@ -72,15 +84,16 @@ Enthält das JSON→Spalten-Mapping (aus `_ergaenze_*` übernommen).
 - `baue_vorschau(akte_az, parsed) -> dict` — reine Lesefunktion. Pro Abschnitt eine
   Feldliste `{feld, label, geparst, akte_wert, ist_leer, konflikt}`.
   `ist_leer` = Akten-Feld leer/NULL (→ wird gefüllt).
-  `konflikt` = Akte gefüllt **und** weicht (normalisiert) vom Bogen-Wert ab.
+  `konflikt` = Akte gefüllt **und** weicht (normalisiert) vom Bogen-Wert ab
+  (überschreibbar, Standard = Akten-Wert).
   Fehlt die beteiligte/unfalldetails/personenschaden-Zeile noch, gelten alle Felder
   als leer. Keine Schreibzugriffe.
-- `uebernehme(akte_az, werte, aktive_abschnitte) -> dict` — schreibt **fill-empty**:
-  nur Felder, deren Abschnitt in `aktive_abschnitte` steht **und** die in der Akte
-  leer sind. Die Leerheit wird am Schreibzeitpunkt erneut geprüft (Sicherheitsnetz:
-  auch wenn das Frontend einen Wert für ein gefülltes Feld schickt, wird nie
-  überschrieben). INSERT-or-UPDATE analog `_ergaenze_*`. Rückgabe
-  `{geschrieben:[…], uebersprungen:[…]}`.
+- `uebernehme(akte_az, werte, aktive_abschnitte) -> dict` — schreibt genau die vom SB
+  bestätigten Werte je **aktivem** Abschnitt: leeres Aktenfeld → füllen; abweichendes
+  Aktenfeld → überschreiben, **wenn** der bestätigte Wert vom aktuellen Akten-Wert
+  abweicht (unveränderte/deckungsgleiche Felder werden nicht angefasst → kein Audit-
+  Rauschen). Inaktive Abschnitte werden komplett übersprungen. INSERT-or-UPDATE analog
+  `_ergaenze_*`. Rückgabe `{geschrieben:[…], uebersprungen:[…]}`.
 
 ### 3. Endpoints (`backend/routers/intake_routes.py`)
 
@@ -102,8 +115,10 @@ Bei `ist_fragebogen`:
 - Im Freigabe-Dialog: Abschnitts-Checkboxen (Mandant/Gegner/Unfall/Personenschaden),
   pro Feld:
   - leer → editierbares Input (vorbelegt mit `geparst`),
-  - Konflikt → gesperrte Anzeige + ⚠-Badge „Akte: X / Bogen: Y",
-  - gefüllt ohne Konflikt → ausgegraut/gesperrt.
+  - abweichend → editierbares Input (vorbelegt mit dem **Akten-Wert**) + ⚠-Zeile
+    „Akte: X · Bogen: Y" + Button „Bogen übernehmen",
+  - gefüllt und deckungsgleich → ausgegraut/gesperrt.
+- Auto-Collapse: Abschnitte ohne offene Aufgabe starten eingeklappt.
 - Akten-Wechsel im Dropdown → Vorschau neu laden.
 - Beim Freigeben: bestätigte Werte + aktive Abschnitte in `fragebogen_uebernahme`
   mitsenden.
@@ -118,13 +133,15 @@ Bei `ist_fragebogen`:
   `_ergaenze_*`) direkt in `beteiligte`/`unfalldetails`/`personenschaden` und liegt in
   `backend/services/`, außerhalb der Intake-Pfade.
 - Neue Tests (TDD):
-  - `baue_vorschau`: leer / konflikt / gefüllt-ohne-konflikt, fehlende Zeilen.
-  - `uebernehme`: fill-empty schreibt Leerfelder; überschreibt nie gefüllte;
-    inaktive Abschnitte werden übersprungen.
+  - `baue_vorschau`: leer / abweichend / gefüllt-deckungsgleich, fehlende Zeilen.
+  - `uebernehme`: füllt Leerfelder; überschreibt ein abweichendes Feld nur mit einem
+    bestätigten, tatsächlich abweichenden Wert; lässt deckungsgleiche/unveränderte
+    Felder unangetastet; inaktive Abschnitte werden komplett übersprungen.
   - Vorschau-Endpoint: 422 bei Nicht-Fragebogen / fehlendem `akte_az`; korrekte
-    Sektionen.
-  - Freigabe-E2E: Fragebogen freigegeben → `beteiligte` gefüllt; vorbefüllte Akte →
-    unangetastet + Konflikt gemeldet; Übernahme-Fehler bricht Freigabe nicht ab.
+    Sektionen inkl. `konflikt`-Flag.
+  - Freigabe-E2E: Fragebogen freigegeben → `beteiligte` gefüllt; abweichendes Feld
+    ohne Bestätigung → Akten-Wert bleibt; abweichendes Feld mit „Bogen übernehmen" →
+    überschrieben; Übernahme-Fehler bricht Freigabe nicht ab.
   - Erkennung `ist_fragebogen` in `hole_detail`.
   - Frontend-Vitest: Vorschau-Render (leer/konflikt), Checkbox-Steuerung,
     Freigabe-Payload enthält `fragebogen_uebernahme`.
