@@ -154,12 +154,14 @@ def markiere_bereit(intake_dokument_id: int) -> None:
 
 
 def markiere_fehler(intake_dokument_id: int, fehler_meldung: str) -> None:
-    """Fehler-Abschluss mit Backoff-Berechnung.
+    """Fehler-Abschluss mit kategorieabhaengigem Verhalten (N-03).
 
-    * versuch_zaehler += 1
-    * Wenn zaehler < MAX_VERSUCHE: Status 'neu' + naechster_versuch = jetzt + BACKOFF_S[zaehler-1]
-    * Sonst: Status 'pipeline_fehler'
+    * ressourcendruck -> zurueckstellen: bleibt 'neu', naechster_versuch=+15min,
+      versuch_zaehler UNVERAENDERT (transienter Backend-Ausfall vergiftet nicht).
+    * reproduzierbar  -> KEIN Retry: sofort 'pipeline_fehler'.
+    * timeout/unbekannt -> Backoff 1/5/30, nach MAX_VERSUCHE 'pipeline_fehler'.
     """
+    kategorie = klassifiziere_fehler(fehler_meldung)
     with get_connection() as conn:
         row = conn.execute(
             "SELECT versuch_zaehler FROM intake_dokumente WHERE id=?",
@@ -168,8 +170,37 @@ def markiere_fehler(intake_dokument_id: int, fehler_meldung: str) -> None:
         if not row:
             logger.error("markiere_fehler: ID %s nicht gefunden", intake_dokument_id)
             return
-        neuer_zaehler = int(row["versuch_zaehler"] or 0) + 1
+        zaehler = int(row["versuch_zaehler"] or 0)
 
+        if kategorie == "ressourcendruck":
+            naechster = _iso(datetime.now() + timedelta(seconds=RUECKSTELL_S))
+            conn.execute(
+                "UPDATE intake_dokumente SET queue_status='neu', "
+                "worker_lease=NULL, fehler_detail=?, naechster_versuch=? "
+                "WHERE id=?",
+                (fehler_meldung, naechster, intake_dokument_id),
+            )
+            logger.warning(
+                "Dokument %s: Ressourcendruck -> zurueckgestellt +%ds "
+                "(Zaehler unveraendert %d): %s",
+                intake_dokument_id, RUECKSTELL_S, zaehler, fehler_meldung,
+            )
+            return
+
+        if kategorie == "reproduzierbar":
+            conn.execute(
+                "UPDATE intake_dokumente SET queue_status='pipeline_fehler', "
+                "worker_lease=NULL, fehler_detail=? WHERE id=?",
+                (fehler_meldung, intake_dokument_id),
+            )
+            logger.warning(
+                "Dokument %s: reproduzierbarer Fehler -> pipeline_fehler "
+                "(kein Retry): %s",
+                intake_dokument_id, fehler_meldung,
+            )
+            return
+
+        neuer_zaehler = zaehler + 1
         if neuer_zaehler >= MAX_VERSUCHE:
             conn.execute(
                 "UPDATE intake_dokumente SET "

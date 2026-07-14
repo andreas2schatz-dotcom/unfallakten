@@ -269,5 +269,61 @@ class TestFehlerKlassifikation(unittest.TestCase):
             klassifiziere_fehler("connection timed out"), "timeout")
 
 
+class TestMarkiereFehlerKategorien(_BaseQueueTest):
+    def _status(self, did):
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            return dict(conn.execute(
+                "SELECT queue_status, versuch_zaehler, naechster_versuch, "
+                "fehler_detail FROM intake_dokumente WHERE id=?", (did,)
+            ).fetchone())
+
+    def test_ressourcendruck_stellt_zurueck_ohne_zaehler(self):
+        from backend.intake.queue import markiere_fehler
+        did = self._lege_dokument_an()
+        markiere_fehler(did, "Connection refused")
+        r = self._status(did)
+        self.assertEqual(r["queue_status"], "neu")
+        self.assertEqual(r["versuch_zaehler"], 0)          # NICHT erhoeht
+        self.assertIsNotNone(r["naechster_versuch"])       # verschoben
+        self.assertEqual(r["fehler_detail"], "Connection refused")
+
+    def test_ressourcendruck_vergiftet_nie(self):
+        from backend.intake.queue import markiere_fehler
+        did = self._lege_dokument_an()
+        for _ in range(5):
+            markiere_fehler(did, "HTTP 503 Service Unavailable")
+        r = self._status(did)
+        self.assertEqual(r["queue_status"], "neu")         # nie pipeline_fehler
+        self.assertEqual(r["versuch_zaehler"], 0)
+
+    def test_reproduzierbar_kein_retry(self):
+        from backend.intake.queue import markiere_fehler
+        did = self._lege_dokument_an()
+        markiere_fehler(did, "Keine Seiten extrahierbar")
+        r = self._status(did)
+        self.assertEqual(r["queue_status"], "pipeline_fehler")  # sofort
+        self.assertEqual(r["versuch_zaehler"], 0)               # kein Backoff
+        self.assertEqual(r["fehler_detail"], "Keine Seiten extrahierbar")
+
+    def test_timeout_backoff_wie_bisher(self):
+        from backend.intake.queue import markiere_fehler
+        did = self._lege_dokument_an()
+        markiere_fehler(did, "LLM Timeout nach 60s")
+        r = self._status(did)
+        self.assertEqual(r["queue_status"], "neu")
+        self.assertEqual(r["versuch_zaehler"], 1)          # erhoeht
+        self.assertIsNotNone(r["naechster_versuch"])
+
+    def test_unbekannt_poison_pill_nach_max(self):
+        from backend.intake.queue import markiere_fehler
+        did = self._lege_dokument_an()
+        for _ in range(3):
+            markiere_fehler(did, "voellig anderer fehler")
+        r = self._status(did)
+        self.assertEqual(r["queue_status"], "pipeline_fehler")
+        self.assertEqual(r["versuch_zaehler"], 3)
+
+
 if __name__ == "__main__":
     unittest.main()
