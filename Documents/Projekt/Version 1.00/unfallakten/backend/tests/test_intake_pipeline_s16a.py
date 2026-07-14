@@ -211,7 +211,9 @@ class TestTick(_BasePipelineTest):
 
 
 class TestFehlerpfad(_BasePipelineTest):
-    def test_ohne_arbeitskopie_landet_in_pipeline_fehler_nach_3(self):
+    def test_ohne_arbeitskopie_sofort_pipeline_fehler_kein_retry(self):
+        """Fehlende Arbeitskopie ist reproduzierbar (N-03) -> sofort
+        pipeline_fehler beim ersten Versuch, ohne Backoff-Retries."""
         from backend.intake.pipeline import verarbeite_dokument
         from backend.db.database import get_connection
 
@@ -223,16 +225,6 @@ class TestFehlerpfad(_BasePipelineTest):
             )
             did = cur.lastrowid
 
-        # 1. Fehler
-        self.assertFalse(verarbeite_dokument(did))
-        # Fuer den 2./3. Versuch Status auf laeuft zuruecksetzen (wie Worker)
-        with get_connection() as conn:
-            conn.execute("UPDATE intake_dokumente SET queue_status='laeuft', "
-                         "naechster_versuch=NULL WHERE id=?", (did,))
-        self.assertFalse(verarbeite_dokument(did))
-        with get_connection() as conn:
-            conn.execute("UPDATE intake_dokumente SET queue_status='laeuft', "
-                         "naechster_versuch=NULL WHERE id=?", (did,))
         self.assertFalse(verarbeite_dokument(did))
 
         with get_connection() as conn:
@@ -241,8 +233,9 @@ class TestFehlerpfad(_BasePipelineTest):
                 "FROM intake_dokumente WHERE id=?", (did,)
             ).fetchone()
         self.assertEqual(row["queue_status"], "pipeline_fehler")
-        self.assertEqual(row["versuch_zaehler"], 3)
+        self.assertEqual(row["versuch_zaehler"], 0)
         self.assertTrue(row["fehler_detail"])
+        self.assertIn("Arbeitskopie fehlt", row["fehler_detail"])
 
 
 if __name__ == "__main__":
