@@ -42,6 +42,7 @@ from ..db.database import get_connection
 from ..intake.queue import enqueue
 from ..intake import split_service
 from ..ramicro.output_adapter import schreibe_dokument
+from ..services.dokument_bezeichnung import baue_bezeichnung
 from ..services.fragebogen_uebernahme import (
     parse_fragebogen_payload, vorschau_liste, uebernehme,
 )
@@ -253,6 +254,8 @@ def hole_detail(intake_id: int):
         "arbeitskopie_pfad": dok.get("arbeitskopie_pfad"),
         "eltern_email": eltern_email,
         "klasse": dok.get("klasse"),
+        "bezeichnung": dok.get("bezeichnung"),
+        "bezeichnung_vorschlag": _bezeichnung_vorschlag(dok),
         "default_ereignistyp": _default_ereignistyp(dok.get("klasse")),
         "klasse_quelle": dok.get("klasse_quelle"),
         "konfidenz": dok.get("konfidenz"),
@@ -764,6 +767,40 @@ def _default_ereignistyp(klasse: Optional[str]) -> Optional[str]:
         return lade_positionsmodell().klasse_ereignistyp.get(klasse)
     except Exception:  # pragma: no cover -- Best-Effort
         return None
+
+
+def _ist_email(dok: Dict[str, Any]) -> bool:
+    return (dok.get("payload_typ") == "text"
+            or dok.get("textquelle") == "email_text")
+
+
+def _eingangsdatum(intake_id: int) -> Optional[str]:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT empfangen_am FROM zustellungen "
+            "WHERE intake_dokument_id=? ORDER BY id ASC LIMIT 1",
+            (intake_id,),
+        ).fetchone()
+    return row["empfangen_am"] if row else None
+
+
+def _bezeichnung_vorschlag(dok: Dict[str, Any]) -> str:
+    from ..intake.registry_loader import lade_registry, standard_pfad
+    felder = _parse(dok.get("parse_json")).get("felder") or {}
+    kontext = {
+        "ist_email": _ist_email(dok),
+        "eingangsdatum": _eingangsdatum(dok["id"]),
+    }
+    try:
+        reg = lade_registry(standard_pfad())
+    except Exception:  # pragma: no cover -- Best-Effort
+        reg = None
+    return baue_bezeichnung(dok.get("klasse"), felder, kontext, reg)
+
+
+def _bezeichnung_effektiv(dok: Dict[str, Any]) -> str:
+    gespeichert = (dok.get("bezeichnung") or "").strip()
+    return gespeichert or _bezeichnung_vorschlag(dok)
 
 
 def _anker_dokument_id(intake_id: Optional[int], dokument_id: int,

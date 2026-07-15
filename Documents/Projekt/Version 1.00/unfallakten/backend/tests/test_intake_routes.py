@@ -741,5 +741,23 @@ class TestEreignistypen(unittest.TestCase):
         self.assertEqual(len(eingehend), 5)
 
 
+def test_detail_liefert_bezeichnung_vorschlag():
+    client = _setup("bez_detail")
+    h = _auth_header(client)
+    parse_json = json.dumps({
+        "text_gesamt": "x", "seiten": [], "klassifikation": {"kandidaten": [], "hinweise": []},
+        "felder": {"aussteller": "Autohaus Müller", "rechnungsdatum": "12.03.2026",
+                   "bruttobetrag": "1.234,56"},
+        "akten_kandidaten": [],
+    }, ensure_ascii=False)
+    did = _lege_intake_pdf_an(sha_suffix="b", klasse="rechnung",
+                              parse_json=parse_json)
+    r = client.get(f"/intake/dokument/{did}", headers=h)
+    assert r.status_code == 200, r.get_json()
+    d = r.get_json()
+    assert d["bezeichnung"] is None
+    assert d["bezeichnung_vorschlag"] == "Rechnung Autohaus Müller vom 12.03.2026 (1.234,56 €)"
+
+
 if __name__ == "__main__":
     unittest.main()
