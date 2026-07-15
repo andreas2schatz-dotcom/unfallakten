@@ -58,6 +58,18 @@ class TestBezeichnungFelder(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             lade_registry(d, reload=True)
 
+    def test_unbekannte_rolle_faellt_auf(self):
+        d = tempfile.mkdtemp(prefix="reg_bez5_")
+        _schreibe(d, "rechnung", "bezeichnung_felder:\n  empfaenger: foo\n")
+        with self.assertRaises(RuntimeError):
+            lade_registry(d, reload=True)
+
+    def test_leerer_rollen_wert_faellt_auf(self):
+        d = tempfile.mkdtemp(prefix="reg_bez6_")
+        _schreibe(d, "rechnung", "bezeichnung_felder:\n  aussteller: ''\n")
+        with self.assertRaises(RuntimeError):
+            lade_registry(d, reload=True)
+
 
 if __name__ == "__main__":
     unittest.main()
