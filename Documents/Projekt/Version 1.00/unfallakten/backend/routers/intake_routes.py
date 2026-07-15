@@ -679,7 +679,8 @@ def post_freigabe(intake_id: int):
         dok = {**dok, "arbeitskopie_pfad": text_pfad}
     try:
         dokument_id = schreibe_dokument(dok, akte_az,
-                                         freigegeben_von=benutzer_id)
+                                         freigegeben_von=benutzer_id,
+                                         bezeichnung=_bezeichnung_effektiv(dok))
     except FileNotFoundError as exc:
         return _err(f"Arbeitskopie fehlt: {exc}", 500)
     except Exception as exc:

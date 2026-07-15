@@ -47,7 +47,8 @@ def _relativer_pfad(absolut: Path, base: Path) -> str:
 
 
 def schreibe_dokument(intake_dok: Dict[str, Any], akte_az: str,
-                      freigegeben_von: Optional[int]) -> int:
+                      freigegeben_von: Optional[int],
+                      bezeichnung: Optional[str] = None) -> int:
     """Legt eine dokumente-Zeile fuer die Akte an. Liefert die dokument_id.
 
     Args:
@@ -55,6 +56,8 @@ def schreibe_dokument(intake_dok: Dict[str, Any], akte_az: str,
             arbeitskopie_pfad; original_pfad optional).
         akte_az: Ziel-Akte (unfallakte.az).
         freigegeben_von: benutzer_id des Freigebenden (fuer aktivitaeten).
+        bezeichnung: effektive Dokumentenbezeichnung (PRD-37), falls gesetzt
+            wird sie nach ``dokumente.bezeichnung`` uebernommen.
 
     Raises:
         FileNotFoundError: Arbeitskopie liegt nicht (mehr) im Dateisystem.
@@ -94,4 +97,11 @@ def schreibe_dokument(intake_dok: Dict[str, Any], akte_az: str,
         dateityp=dateityp,
         dateigroesse=ziel_pfad.stat().st_size if ziel_pfad.exists() else None,
     )
+    if bezeichnung:
+        from ..db.database import get_connection
+        with get_connection() as conn:
+            conn.execute(
+                "UPDATE dokumente SET bezeichnung=? WHERE id=?",
+                (bezeichnung, dokument.id),
+            )
     return int(dokument.id)

@@ -779,5 +779,53 @@ def test_patch_bezeichnung_speichert_und_leert():
     assert d2["bezeichnung"] is None
 
 
+def test_freigabe_schreibt_bezeichnung_in_dokumente():
+    client = _setup("bez_frei")
+    h = _auth_header(client)
+    _seed_akte("77/26")  # Ziel-Akte fuer die Freigabe (Helfer im Modul)
+    parse_json = json.dumps({
+        "text_gesamt": "x", "seiten": [], "klassifikation": {"kandidaten": [], "hinweise": []},
+        "felder": {"aussteller": "Autohaus Müller", "rechnungsdatum": "12.03.2026",
+                   "bruttobetrag": "1.234,56"},
+        "akten_kandidaten": [],
+    }, ensure_ascii=False)
+    did = _lege_intake_pdf_an(sha_suffix="d", klasse="rechnung",
+                              parse_json=parse_json)
+    # manuelle Bezeichnung gewinnt vor Vorschlag
+    client.patch(f"/intake/dokument/{did}/bezeichnung", headers=h,
+                 json={"bezeichnung": "Werkstattrechnung Müller"})
+    r = client.post(f"/intake/dokument/{did}/freigabe", headers=h,
+                    json={"akte_az": "77/26"})
+    assert r.status_code == 200, r.get_json()
+    dokument_id = r.get_json()["dokument_id"]
+    from backend.db.database import get_connection
+    with get_connection() as conn:
+        row = conn.execute("SELECT bezeichnung FROM dokumente WHERE id=?",
+                           (dokument_id,)).fetchone()
+    assert row["bezeichnung"] == "Werkstattrechnung Müller"
+
+
+def test_freigabe_ohne_manuelle_bezeichnung_nutzt_vorschlag():
+    client = _setup("bez_frei2")
+    h = _auth_header(client)
+    _seed_akte("78/26")
+    parse_json = json.dumps({
+        "text_gesamt": "x", "seiten": [], "klassifikation": {"kandidaten": [], "hinweise": []},
+        "felder": {"aussteller": "Autohaus Müller", "rechnungsdatum": "12.03.2026",
+                   "bruttobetrag": "1.234,56"},
+        "akten_kandidaten": [],
+    }, ensure_ascii=False)
+    did = _lege_intake_pdf_an(sha_suffix="e", klasse="rechnung",
+                              parse_json=parse_json)
+    r = client.post(f"/intake/dokument/{did}/freigabe", headers=h,
+                    json={"akte_az": "78/26"})
+    assert r.status_code == 200, r.get_json()
+    from backend.db.database import get_connection
+    with get_connection() as conn:
+        row = conn.execute("SELECT bezeichnung FROM dokumente WHERE id=?",
+                           (r.get_json()["dokument_id"],)).fetchone()
+    assert row["bezeichnung"] == "Rechnung Autohaus Müller vom 12.03.2026 (1.234,56 €)"
+
+
 if __name__ == "__main__":
     unittest.main()
