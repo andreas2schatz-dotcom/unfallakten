@@ -35,11 +35,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from flask import Blueprint, g, jsonify, request, send_file
+from flask import Blueprint, g, jsonify, request, send_file, Response
 
 from ..auth.middleware import login_erforderlich
 from ..db.database import get_connection
 from ..intake.queue import enqueue
+from ..intake import split_service
 from ..ramicro.output_adapter import schreibe_dokument
 from ..services.fragebogen_uebernahme import (
     parse_fragebogen_payload, vorschau_liste, uebernehme,
@@ -381,7 +382,7 @@ def post_reparse(intake_id: int):
 # ─── POST /intake/dokument/<id>/verwerfen ─────────────────────────────────────
 
 _VERWERFEN_GRUENDE = {"spam", "duplikat", "nicht_relevant",
-                       "falsche_kanzlei", "sonstiges"}
+                       "falsche_kanzlei", "sonstiges", "aufgeteilt"}
 
 
 @intake_bp.route("/dokument/<int:intake_id>/verwerfen", methods=["POST"])
@@ -837,3 +838,64 @@ def _schreibe_freigabe_ereignisse(*, dok, akte_az, dokument_id, payload,
             "Freigabe-Ereignisphase fehlgeschlagen (intake=%s, akte=%s): %s",
             dok.get("id"), akte_az, exc,
         )
+
+
+# ─── PDF-Splitting (Aufteilen mehrseitiger Sammel-PDFs) ────────────────────
+
+@intake_bp.route("/dokument/<int:intake_id>/split", methods=["POST"])
+@login_erforderlich
+def post_split(intake_id: int):
+    """Teilt ein Sammel-PDF entlang Seitengrenzen in mehrere Intake-Dokumente.
+
+    Payload: { "gruppen": [[1,2,3],[4,5]] }  (1-basierte, zusammenhaengende
+    Seitenlisten, die 1..N lueckenlos abdecken).
+    """
+    payload = request.get_json(silent=True) or {}
+    gruppen = payload.get("gruppen")
+    if (not isinstance(gruppen, list) or not gruppen or not all(
+            isinstance(g_, list) and g_ and all(isinstance(p, int) for p in g_)
+            for g_ in gruppen)):
+        return _err("Feld 'gruppen' muss eine Liste nicht-leerer Seitenlisten "
+                    "(Ganzzahlen) sein.", 422)
+    try:
+        teile = split_service.teile_dokument(
+            intake_id, gruppen, getattr(g, "benutzer_id", None))
+    except split_service.SplitFehler as e:
+        return _err(str(e), e.status)
+    logger.info("Intake %s aufgeteilt in %s", intake_id, teile)
+    return _j({"ok": True, "teile": teile})
+
+
+@intake_bp.route("/dokument/<int:intake_id>/seiten", methods=["GET"])
+@login_erforderlich
+def hole_seitenzahl(intake_id: int):
+    """Echte PDF-Seitenzahl (fuer den Aufteilen-Dialog, nicht die 30er-Kappung)."""
+    dok = _lade_intake(intake_id)
+    if not dok:
+        return _err("Intake-Dokument nicht gefunden", 404)
+    if dok.get("payload_typ") != "datei":
+        return _err("Nur Datei-Dokumente haben Seiten", 422)
+    pfad = dok.get("arbeitskopie_pfad")
+    if not pfad or not os.path.isfile(pfad):
+        return _err("Arbeitskopie fehlt", 404)
+    with open(pfad, "rb") as f:
+        return _j({"seiten": split_service.pdf_seiten_zahl(f.read())})
+
+
+@intake_bp.route("/dokument/<int:intake_id>/seite/<int:seite_nr>/thumbnail",
+                 methods=["GET"])
+@login_erforderlich
+def hole_thumbnail(intake_id: int, seite_nr: int):
+    """PNG-Miniatur einer Seite fuer den Aufteilen-Dialog (Auth per ?token=)."""
+    dok = _lade_intake(intake_id)
+    if not dok:
+        return _err("Intake-Dokument nicht gefunden", 404)
+    pfad = dok.get("arbeitskopie_pfad")
+    if not pfad or not os.path.isfile(pfad):
+        return _err("Arbeitskopie fehlt", 404)
+    with open(pfad, "rb") as f:
+        pdf_bytes = f.read()
+    if seite_nr < 1 or seite_nr > split_service.pdf_seiten_zahl(pdf_bytes):
+        return _err("Seite ausserhalb des Bereichs", 404)
+    return Response(split_service.rendere_thumbnail(pdf_bytes, seite_nr),
+                    mimetype="image/png")

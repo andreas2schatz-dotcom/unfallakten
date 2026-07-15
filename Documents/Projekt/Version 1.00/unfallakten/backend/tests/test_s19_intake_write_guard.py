@@ -25,6 +25,7 @@ INTAKE_PFADE = (
     os.path.join(BACKEND_ROOT, "pdf", "upload_service.py"),
     os.path.join(BACKEND_ROOT, "routers", "dokumente_routes.py"),
     os.path.join(BACKEND_ROOT, "routers", "eakte_routes.py"),
+    os.path.join(BACKEND_ROOT, "intake", "split_service.py"),
 )
 
 # Whitelist der aktuell BEKANNTEN Alt-Aufrufer. Format: (rel_pfad, funktion,
