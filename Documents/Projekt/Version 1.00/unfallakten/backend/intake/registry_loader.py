@@ -193,3 +193,25 @@ def _validiere_eintrag(dateiname: str,
         raise RuntimeError(
             f"'loeschfrist_jahre' muss eine nichtnegative Ganzzahl sein in {dateiname}"
         )
+
+    if "label" in data and not isinstance(data["label"], str):
+        raise RuntimeError(
+            f"'label' muss ein String sein in {dateiname}"
+        )
+    if "bezeichnung_felder" in data:
+        bf = data["bezeichnung_felder"]
+        if not isinstance(bf, dict):
+            raise RuntimeError(
+                f"'bezeichnung_felder' muss ein Mapping sein in {dateiname}"
+            )
+        for rolle, feld in bf.items():
+            if rolle not in ("aussteller", "datum", "betrag"):
+                raise RuntimeError(
+                    f"'bezeichnung_felder' Rolle {rolle!r} unbekannt in "
+                    f"{dateiname} (erlaubt: aussteller, datum, betrag)"
+                )
+            if not isinstance(feld, str) or not feld:
+                raise RuntimeError(
+                    f"'bezeichnung_felder.{rolle}' muss ein nichtleerer "
+                    f"String sein in {dateiname}"
+                )
