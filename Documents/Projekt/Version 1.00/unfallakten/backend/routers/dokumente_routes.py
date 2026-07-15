@@ -474,6 +474,29 @@ def klassifikation_korrigieren(akte_id: str, dokument_id: int):
     return _j(ergebnis)
 
 
+# ── Bezeichnung setzen ──────────────────────────────────────────────────────
+
+@dokumente_bp.route("/<int:dokument_id>/bezeichnung", methods=["PATCH"])
+@login_erforderlich
+def bezeichnung_setzen(akte_id: str, dokument_id: int):
+    """PATCH /akten/<id>/dokumente/<did>/bezeichnung  (PRD-37).
+
+    Body: {"bezeichnung": str}. Leerer String -> NULL.
+    """
+    if not _pruefe_akte(akte_id):
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    row = _hole_dok_row(dokument_id)
+    if not row or row["akte_id"] != akte_id:
+        return _err(f"Dokument {dokument_id} nicht gefunden.", 404)
+
+    body = request.get_json(silent=True) or {}
+    wert = (body.get("bezeichnung") or "").strip() or None
+    with get_connection() as conn:
+        conn.execute("UPDATE dokumente SET bezeichnung=? WHERE id=?",
+                     (wert, dokument_id))
+    return _j({"ok": True, "bezeichnung": wert})
+
+
 # ── Vorhandenes PDF parsen (PRD-22) ──────────────────────────────────────────
 
 @dokumente_bp.route("/<int:dokument_id>/parsen", methods=["POST"])

@@ -166,6 +166,7 @@ def _dokument_dict(d) -> dict:
         "parse_status": d.parse_status,
         "parse_konfidenz": d.parse_konfidenz,
         "dokumentenklasse": getattr(d, "dokumentenklasse", None),
+        "bezeichnung":      getattr(d, "bezeichnung", None),
         "eakte_nr":         getattr(d, "eakte_nr", None),
         "eakte_pfad":       getattr(d, "eakte_pfad", None),
         "quelle":           getattr(d, "quelle", "upload"),

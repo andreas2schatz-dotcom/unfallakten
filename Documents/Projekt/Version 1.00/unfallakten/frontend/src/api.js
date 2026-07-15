@@ -191,6 +191,9 @@ export const dokumente = {
   klassifikation: (aId, id, klasse) => request(`/akten/${aId}/dokumente/${id}/klassifikation`, {
     method: 'POST', body: JSON.stringify({ dokumentenklasse: klasse })
   }),
+  setBezeichnung: (aId, id, bezeichnung) => request(`/akten/${aId}/dokumente/${id}/bezeichnung`, {
+    method: 'PATCH', body: JSON.stringify({ bezeichnung })
+  }),
 
   hochladen: async (aId, file, typ, onProgress) => {
     const token = tokenStore.getAccess();
