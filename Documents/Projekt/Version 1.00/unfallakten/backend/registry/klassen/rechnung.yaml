@@ -43,3 +43,8 @@ validierungsregeln:
 
 fristrelevanz: false
 loeschfrist_jahre: 10
+label: Rechnung
+bezeichnung_felder:
+  aussteller: aussteller
+  datum: rechnungsdatum
+  betrag: bruttobetrag

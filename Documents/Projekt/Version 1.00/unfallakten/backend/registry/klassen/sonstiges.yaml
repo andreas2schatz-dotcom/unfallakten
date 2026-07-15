@@ -21,3 +21,6 @@ validierungsregeln: []
 
 fristrelevanz: false
 loeschfrist_jahre: 6
+label: Sonstiges
+bezeichnung_felder:
+  datum: datum

@@ -107,3 +107,7 @@ validierungsregeln:
 
 fristrelevanz: false
 loeschfrist_jahre: 6
+label: Gutachten
+bezeichnung_felder:
+  aussteller: sv_buero
+  datum: besichtigungsdatum

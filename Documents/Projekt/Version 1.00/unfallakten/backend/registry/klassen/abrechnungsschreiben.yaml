@@ -47,3 +47,8 @@ validierungsregeln:
 
 fristrelevanz: true
 loeschfrist_jahre: 6
+label: Abrechnungsschreiben
+bezeichnung_felder:
+  aussteller: versicherer
+  datum: schreibdatum
+  betrag: gesamtbetrag

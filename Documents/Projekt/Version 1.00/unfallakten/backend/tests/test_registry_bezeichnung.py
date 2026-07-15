@@ -71,5 +71,22 @@ class TestBezeichnungFelder(unittest.TestCase):
             lade_registry(d, reload=True)
 
 
+class TestEchteRegistryHatLabels(unittest.TestCase):
+    def test_jede_klasse_hat_label(self):
+        from backend.intake.registry_loader import lade_registry, standard_pfad
+        reg = lade_registry(standard_pfad(), reload=True)
+        for name, spec in reg.klassen.items():
+            self.assertIn("label", spec, f"{name} ohne label")
+            self.assertTrue(spec["label"], f"{name} label leer")
+
+    def test_kern_rechnungsklassen_haben_betrag_rolle(self):
+        from backend.intake.registry_loader import lade_registry, standard_pfad
+        reg = lade_registry(standard_pfad(), reload=True)
+        for name in ("rechnung", "sv_rechnung", "abschlepprechnung",
+                     "standkostenrechnung", "abrechnungsschreiben"):
+            bf = reg.klassen[name].get("bezeichnung_felder") or {}
+            self.assertIn("betrag", bf, f"{name} ohne Betrag-Rolle")
+
+
 if __name__ == "__main__":
     unittest.main()

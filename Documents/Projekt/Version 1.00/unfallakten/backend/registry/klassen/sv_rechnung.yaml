@@ -46,3 +46,8 @@ validierungsregeln:
 
 fristrelevanz: false
 loeschfrist_jahre: 10
+label: SV-Rechnung
+bezeichnung_felder:
+  aussteller: sv_buero
+  datum: rechnungsdatum
+  betrag: bruttobetrag
