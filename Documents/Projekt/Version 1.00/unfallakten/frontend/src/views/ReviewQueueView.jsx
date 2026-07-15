@@ -434,6 +434,14 @@ export function effektiveBezeichnung(detail) {
   return detail?.bezeichnung ?? detail?.bezeichnung_vorschlag ?? "";
 }
 
+// True, wenn der eingegebene Titel vom aktuell angezeigten (gespeicherten oder
+// vorgeschlagenen) Wert abweicht — nur dann wird gespeichert. Verhindert, dass
+// ein bloßes Fokussieren+Verlassen den lebendigen Vorschlag als manuellen Wert
+// einfriert.
+export function bezeichnungGeaendert(detail, wert) {
+  return (wert || "").trim() !== (effektiveBezeichnung(detail) || "").trim();
+}
+
 // Form-Defaults aus dem geladenen Detail. `skipFormReset` (Hintergrund-Poll
 // waehrend `wartAufWorker`) liefert null: dann bleiben offene Dialog-Eingaben
 // (Akte/Ereignisse/Feld-Korrekturen) erhalten statt vom Poll-Tick ueberschrieben.
@@ -881,8 +889,8 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
   };
 
   const speichereBezeichnung = async () => {
+    if (!bezeichnungGeaendert(detail, bezeichnung)) return;
     const wert = (bezeichnung || "").trim();
-    if (wert === (detail.bezeichnung ?? "")) return;
     try {
       await apiIntake.setBezeichnung(id, wert);
       await laden({ skipFormReset: true });
