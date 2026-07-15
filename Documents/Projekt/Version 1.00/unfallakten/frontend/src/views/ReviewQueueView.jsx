@@ -15,6 +15,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import T from "../config/theme.js";
 import { apiIntake, API_BASE, tokenStore } from "../api.js";
 import AktenLiveSuche from "../components/AktenLiveSuche.jsx";
+import SplitDialog from "./SplitDialog.jsx";
+import { istAufteilbar } from "./splitLogik.js";
 
 // Fallback nur fuer den Fehlerfall des Klassen-Endpoints (BUG-26): im
 // Normalbetrieb laedt die View die Klassen dynamisch aus der Registry.
@@ -735,6 +737,7 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
   const [pollAktiv, setPollAktiv] = useState(false);
   const [fbVorschau, setFbVorschau] = useState(null);
   const [fbState, setFbState] = useState(null);
+  const [splitOffen, setSplitOffen] = useState(false);
 
   const laden = useCallback(async ({ skipFormReset = false } = {}) => {
     try {
@@ -823,6 +826,11 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
     if (!token) return "about:blank";
     return `${API_BASE}/intake/dokument/${id}/pdf?token=${encodeURIComponent(token)}`;
   })();
+
+  const thumbUrl = (n) => {
+    const token = tokenStore.getAccess();
+    return `${API_BASE}/intake/dokument/${id}/seite/${n}/thumbnail?token=${encodeURIComponent(token)}`;
+  };
 
   const speichereKlasse = async (neueKlasse) => {
     if (!neueKlasse || neueKlasse === detail.klasse) return;
@@ -931,6 +939,21 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
               Dokument #{detail.id}
             </h3>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={() => setSplitOffen(true)}
+                disabled={!istAufteilbar(detail)}
+                title={istAufteilbar(detail)
+                  ? "Dokument aufteilen"
+                  : "Nur PDF-Dokumente koennen aufgeteilt werden"}
+                style={{
+                  padding: "4px 10px", fontSize: T.textXs, fontWeight: 600,
+                  background: T.offWhite, color: T.navy,
+                  border: `1px solid ${T.border}`, borderRadius: 4,
+                  cursor: istAufteilbar(detail) ? "pointer" : "not-allowed",
+                  whiteSpace: "nowrap",
+                  opacity: istAufteilbar(detail) ? 1 : 0.5,
+                }}>
+                ✂ Aufteilen
+              </button>
               <button onClick={handleDrucken}
                 title="Dokument drucken"
                 style={{
@@ -1154,6 +1177,15 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
             onConfirm={doFreigabe}
             onCancel={() => setZeigeFreigabe(false)}
             laeuft={aktion}
+          />
+        )}
+
+        {splitOffen && (
+          <SplitDialog
+            docId={id}
+            thumbUrl={thumbUrl}
+            onClose={() => setSplitOffen(false)}
+            onDone={() => { setSplitOffen(false); onFreigegeben && onFreigegeben(); }}
           />
         )}
       </div>

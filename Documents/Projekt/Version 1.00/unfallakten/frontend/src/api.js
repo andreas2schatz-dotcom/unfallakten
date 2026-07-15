@@ -1071,6 +1071,10 @@ export const apiIntake = {
   }),
   ereignistypen: ()          => request('/intake/ereignistypen'),
   klassen: ()                => request('/intake/klassen'),
+  seiten: (id)               => request(`/intake/dokument/${id}/seiten`),
+  split:  (id, gruppen)      => request(`/intake/dokument/${id}/split`, {
+    method: 'POST', body: JSON.stringify({ gruppen }),
+  }),
 };
 
 // ─────────────────────────────────────────────────────────────
