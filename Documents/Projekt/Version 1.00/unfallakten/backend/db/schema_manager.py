@@ -309,6 +309,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     55: "-- migration_55_intake_review_geoeffnet",  # Handled by _run_migration_55 (N-08 Baseline Sekunden pro Freigabe)
     56: "-- migration_56_intake_ocr_qualitaet",  # Handled by _run_migration_56 (N-02 OCR-Qualitaetsmetriken)
     57: "-- migration_57_intake_llm_degradiert",  # Handled by _run_migration_57 (N-03 Degradations-Signal)
+    58: "-- migration_58_intake_aufgeteilt_aus_id",  # Handled by _run_migration_58 (PDF-Splitting Review-UI)
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -927,6 +928,38 @@ def _run_migration_57(conn: sqlite3.Connection) -> None:
     logger.info("Migration 57 abgeschlossen (intake_dokumente.llm_degradiert).")
 
 
+def _run_migration_58(conn: sqlite3.Connection) -> None:
+    """
+    Migration 58 - intake_dokumente.aufgeteilt_aus_id (PDF-Splitting Review-UI).
+
+    Verweist ein durch Aufteilen entstandenes Teil-Dokument auf sein
+    Ursprungs-Dokument. "Original -> seine Teile" per Rueckwaerts-Abfrage
+    (WHERE aufgeteilt_aus_id = <id>), keine Doppelspeicherung.
+
+    Additives ALTER TABLE, nullable INTEGER, kein Datenverlust. Idempotent per
+    PRAGMA table_info. Explizites conn.commit() (feedback_migration_executescript).
+    """
+    vorhandene_spalten = {
+        r[1] for r in conn.execute(
+            "PRAGMA table_info(intake_dokumente)"
+        ).fetchall()
+    }
+    if "aufgeteilt_aus_id" not in vorhandene_spalten:
+        conn.commit()
+        conn.execute(
+            "ALTER TABLE intake_dokumente ADD COLUMN aufgeteilt_aus_id INTEGER"
+        )
+        conn.commit()
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (?, ?)",
+        (58, "Migration 58 - intake_dokumente.aufgeteilt_aus_id "
+             "(PDF-Splitting Review-UI)"),
+    )
+    logger.info("Migration 58 abgeschlossen (intake_dokumente.aufgeteilt_aus_id).")
+
+
 def _run_migration_54(conn: sqlite3.Connection) -> None:
     """
     Migration 54 - intake_dokumente.textquelle erlaubt 'email_text'.
@@ -1334,6 +1367,8 @@ def run_migrations() -> None:
                 _run_migration_56(conn)
             elif version == 57:
                 _run_migration_57(conn)
+            elif version == 58:
+                _run_migration_58(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
