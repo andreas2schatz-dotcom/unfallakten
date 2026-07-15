@@ -556,6 +556,39 @@ def patch_felder(intake_id: int):
     return _j({"ok": True, "felder": felder})
 
 
+# ─── PATCH /intake/dokument/<id>/bezeichnung ──────────────────────────────────
+
+@intake_bp.route("/dokument/<int:intake_id>/bezeichnung", methods=["PATCH"])
+@login_erforderlich
+def patch_bezeichnung(intake_id: int):
+    """Manuelle Dokumentenbezeichnung speichern (PRD-37).
+
+    Body: {"bezeichnung": str}. Leerer String -> NULL (zurueck zum
+    lebendigen Vorschlag). Schreibt nur intake_dokumente -- kein Akten-Write
+    (INTAKE_REVIEW_PFLICHT gewahrt).
+    """
+    payload = request.get_json(silent=True) or {}
+    wert = (payload.get("bezeichnung") or "").strip() or None
+
+    dok = _lade_intake(intake_id)
+    if not dok:
+        return _err("Intake-Dokument nicht gefunden", 404)
+
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE intake_dokumente SET bezeichnung=? WHERE id=?",
+            (wert, intake_id),
+        )
+        _log_korrektur(
+            conn, intake_id, feld="bezeichnung",
+            wert_alt=dok.get("bezeichnung"), wert_neu=wert,
+            klasse=dok.get("klasse"),
+            registry_version=dok.get("registry_version"),
+            benutzer_id=getattr(g, "benutzer_id", None),
+        )
+    return _j({"ok": True, "bezeichnung": wert})
+
+
 # ─── POST /intake/dokument/<id>/freigabe ──────────────────────────────────────
 
 def _upload_basis() -> Path:

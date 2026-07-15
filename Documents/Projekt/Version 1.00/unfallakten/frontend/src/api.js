@@ -1060,6 +1060,9 @@ export const apiIntake = {
   setFelder:  (id, felder)   => request(`/intake/dokument/${id}/felder`, {
     method: 'PATCH', body: JSON.stringify({ felder }),
   }),
+  setBezeichnung: (id, bezeichnung) => request(`/intake/dokument/${id}/bezeichnung`, {
+    method: 'PATCH', body: JSON.stringify({ bezeichnung }),
+  }),
   freigabe:   (id, payload)  => request(`/intake/dokument/${id}/freigabe`, {
     method: 'POST', body: JSON.stringify(payload),
   }),

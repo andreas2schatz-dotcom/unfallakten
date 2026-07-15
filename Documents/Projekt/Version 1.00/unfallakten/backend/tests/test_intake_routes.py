@@ -759,5 +759,25 @@ def test_detail_liefert_bezeichnung_vorschlag():
     assert d["bezeichnung_vorschlag"] == "Rechnung Autohaus Müller vom 12.03.2026 (1.234,56 €)"
 
 
+def test_patch_bezeichnung_speichert_und_leert():
+    client = _setup("bez_patch")
+    h = _auth_header(client)
+    did = _lege_intake_pdf_an(sha_suffix="c", klasse="rechnung")
+    # setzen
+    r = client.patch(f"/intake/dokument/{did}/bezeichnung",
+                     headers=h, json={"bezeichnung": "Mein Titel"})
+    assert r.status_code == 200, r.get_json()
+    assert r.get_json()["bezeichnung"] == "Mein Titel"
+    d = client.get(f"/intake/dokument/{did}", headers=h).get_json()
+    assert d["bezeichnung"] == "Mein Titel"
+    # leeren -> NULL, Vorschlag lebt wieder
+    r2 = client.patch(f"/intake/dokument/{did}/bezeichnung",
+                      headers=h, json={"bezeichnung": "  "})
+    assert r2.status_code == 200
+    assert r2.get_json()["bezeichnung"] is None
+    d2 = client.get(f"/intake/dokument/{did}", headers=h).get_json()
+    assert d2["bezeichnung"] is None
+
+
 if __name__ == "__main__":
     unittest.main()
