@@ -428,6 +428,12 @@ export function druckZiel(detail, pdfSrc) {
   return { typ: "pdf", url: pdfSrc };
 }
 
+// Effektive Dokumentenbezeichnung: gespeicherter Wert hat Vorrang vor dem
+// automatisch generierten Vorschlag (PRD-37).
+export function effektiveBezeichnung(detail) {
+  return detail?.bezeichnung ?? detail?.bezeichnung_vorschlag ?? "";
+}
+
 // Form-Defaults aus dem geladenen Detail. `skipFormReset` (Hintergrund-Poll
 // waehrend `wartAufWorker`) liefert null: dann bleiben offene Dialog-Eingaben
 // (Akte/Ereignisse/Feld-Korrekturen) erhalten statt vom Poll-Tick ueberschrieben.
@@ -436,6 +442,7 @@ export function naechsterFormState(detail, { skipFormReset = false } = {}) {
   return {
     gewaehlteAkte: detail?.parse?.akten_kandidaten?.[0]?.akte_az || "",
     ereignisse: initialeEreignisse(detail?.default_ereignistyp),
+    bezeichnung: effektiveBezeichnung(detail),
     dirty: {},
   };
 }
@@ -738,6 +745,7 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
   const [fbVorschau, setFbVorschau] = useState(null);
   const [fbState, setFbState] = useState(null);
   const [splitOffen, setSplitOffen] = useState(false);
+  const [bezeichnung, setBezeichnung] = useState("");
 
   const laden = useCallback(async ({ skipFormReset = false } = {}) => {
     try {
@@ -749,6 +757,7 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
         setDirty(form.dirty);
         setGewaehlteAkte(form.gewaehlteAkte);
         setEreignisse(form.ereignisse);
+        setBezeichnung(form.bezeichnung);
       }
       return d;
     } catch (e) { setError(e.message); return null; }
@@ -871,6 +880,15 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
     finally { setAktion(false); }
   };
 
+  const speichereBezeichnung = async () => {
+    const wert = (bezeichnung || "").trim();
+    if (wert === (detail.bezeichnung ?? "")) return;
+    try {
+      await apiIntake.setBezeichnung(id, wert);
+      await laden({ skipFormReset: true });
+    } catch (e) { setError(e.message); }
+  };
+
   const doFreigabe = async () => {
     const ids = ersetztIds
       .split(",").map(s => s.trim()).filter(Boolean)
@@ -974,6 +992,27 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
             {detail.registry_version && <> · reg {detail.registry_version.slice(0, 8)}</>}
           </div>
         </div>
+
+        <section style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontSize: T.textSm, fontWeight: 600, marginBottom: 4 }}>
+            Dokumentenbezeichnung
+          </label>
+          <input
+            type="text"
+            value={bezeichnung}
+            onChange={e => setBezeichnung(e.target.value)}
+            onBlur={speichereBezeichnung}
+            placeholder={detail.bezeichnung_vorschlag || ""}
+            disabled={aktion}
+            style={{
+              width: "100%", padding: "6px 8px", boxSizing: "border-box",
+              border: `1px solid ${T.border}`, borderRadius: 4,
+              fontSize: T.textSm, background: T.white,
+            }} />
+          <div style={{ fontSize: T.textXs, color: T.textFaint, marginTop: 4 }}>
+            Vorschlag automatisch aus Klasse/Aussteller/Datum/Betrag. Editierbar; wird bei Freigabe übernommen.
+          </div>
+        </section>
 
         {(meldung || pollAktiv) && (
           <div style={{

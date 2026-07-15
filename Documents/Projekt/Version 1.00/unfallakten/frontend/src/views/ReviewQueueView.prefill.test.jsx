@@ -23,6 +23,7 @@ describe("naechsterFormState", () => {
     expect(naechsterFormState(detail)).toEqual({
       gewaehlteAkte: "44/22",
       ereignisse: [{ typ: "rechnung_eingegangen" }],
+      bezeichnung: "",
       dirty: {},
     });
   });
@@ -35,6 +36,7 @@ describe("naechsterFormState", () => {
     expect(naechsterFormState({ parse: {} })).toEqual({
       gewaehlteAkte: "",
       ereignisse: [],
+      bezeichnung: "",
       dirty: {},
     });
   });
