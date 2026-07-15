@@ -25,6 +25,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
   const [bezEdit, setBezEdit] = useState(null); // dok_id dessen Bezeichnung gerade editiert wird
   const [bezText, setBezText] = useState("");
   const inputRef              = useRef(null);
+  const bezAbbrechenRef       = useRef(false);
 
   // ── E-Akte (RA-Micro) ──────────────────────────────────────────────────
   const [eakteDoks, setEakteDoks]       = useState([]);
@@ -632,6 +633,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
   };
 
   const speichereBez = async (dokId) => {
+    if (bezAbbrechenRef.current) { bezAbbrechenRef.current = false; setBezEdit(null); return; }
     try {
       await apiDokumente.setBezeichnung(akteId, dokId, bezText.trim());
     } catch (e) {
@@ -973,7 +975,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                       onChange={e => setBezText(e.target.value)}
                       onBlur={() => speichereBez(d.id)}
                       onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur();
-                                        if (e.key === "Escape") setBezEdit(null); }}
+                                        if (e.key === "Escape") { bezAbbrechenRef.current = true; setBezEdit(null); } }}
                       placeholder={d.dateiname}
                       style={{ width:"100%", boxSizing:"border-box", marginTop:4,
                         fontSize:"0.9rem", padding:"3px 6px",
