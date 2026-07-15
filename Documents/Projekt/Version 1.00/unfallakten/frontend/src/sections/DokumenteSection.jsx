@@ -22,6 +22,8 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
   const [uploadTyp, setTyp]   = useState("gutachten");
   const [toast, setToast]     = useState("");
   const [korrekturLading, setKorrekturLading] = useState(null); // dok_id die gerade korrigiert wird
+  const [bezEdit, setBezEdit] = useState(null); // dok_id dessen Bezeichnung gerade editiert wird
+  const [bezText, setBezText] = useState("");
   const inputRef              = useRef(null);
 
   // ── E-Akte (RA-Micro) ──────────────────────────────────────────────────
@@ -629,6 +631,17 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
     }
   };
 
+  const speichereBez = async (dokId) => {
+    try {
+      await apiDokumente.setBezeichnung(akteId, dokId, bezText.trim());
+    } catch (e) {
+      setToast(`Umbenennen fehlgeschlagen: ${e.message}`);
+    } finally {
+      setBezEdit(null);
+      ladeDokumenteListe();
+    }
+  };
+
   const fakeUpload = async files => {
     if (!files.length) return;
     const f   = files[0];
@@ -947,7 +960,25 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                   {isPdf ? Ic.pdf : Ic.word}
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", fontWeight:600, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{d.dateiname}</div>
+                  <div
+                    onClick={() => { setBezEdit(d.id); setBezText(d.bezeichnung || ""); }}
+                    title="Klicken zum Umbenennen"
+                    style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", fontWeight:600, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"text" }}>
+                    {d.bezeichnung || d.dateiname}
+                  </div>
+                  {bezEdit === d.id && (
+                    <input
+                      autoFocus
+                      value={bezText}
+                      onChange={e => setBezText(e.target.value)}
+                      onBlur={() => speichereBez(d.id)}
+                      onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur();
+                                        if (e.key === "Escape") setBezEdit(null); }}
+                      placeholder={d.dateiname}
+                      style={{ width:"100%", boxSizing:"border-box", marginTop:4,
+                        fontSize:"0.9rem", padding:"3px 6px",
+                        border:`1px solid ${T.border}`, borderRadius:6 }} />
+                  )}
                   <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:3, flexWrap:"wrap" }}>
                     <select
                       value={d.dokumentenklasse||d.typ||"sonstiges"}
