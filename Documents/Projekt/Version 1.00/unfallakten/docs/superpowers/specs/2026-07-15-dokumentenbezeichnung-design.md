@@ -39,9 +39,11 @@ Für die Klasse `sonstiges` ist „Sonstiges" als Titel unbrauchbar. Stattdessen
 «Schreiben|E-Mail» vom «Schriftdatum ODER Eingangsdatum»
 ```
 
-- **Label typ-abhängig:** „**E-Mail**", wenn das Dokument eine E-Mail ist
-  (`payload_typ='text'` / E-Mail-Body / `textquelle='email_text'` / vorhandene `eltern_email`),
-  sonst „**Schreiben**".
+- **Label typ-abhängig:** „**E-Mail**", wenn das Dokument **selbst** eine E-Mail ist
+  (E-Mail-Body — `payload_typ='text'` bzw. `textquelle='email_text'`), sonst „**Schreiben**".
+  Ein **Anhang** einer E-Mail (eigenständiges Dokument mit `eltern_email`) ist bewusst ein
+  „Schreiben", keine „E-Mail" — nur der Body selbst zählt als E-Mail (entspricht der
+  Nutzerentscheidung: „E-Mail, wenn das Dokument eine E-Mail ist").
 - **Datum mit Rückfall — nur hier:** Schriftdatum, wenn geparst; sonst **ausnahmsweise das
   Eingangsdatum** (`zustellungen.empfangen_am`). Diese Eingangsdatum-Ausnahme gilt **nur** für
   `sonstiges`; bei allen anderen Klassen bleibt Regel 4 (kein Eingangsdatum).
