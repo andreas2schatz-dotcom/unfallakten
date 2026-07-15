@@ -310,6 +310,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     56: "-- migration_56_intake_ocr_qualitaet",  # Handled by _run_migration_56 (N-02 OCR-Qualitaetsmetriken)
     57: "-- migration_57_intake_llm_degradiert",  # Handled by _run_migration_57 (N-03 Degradations-Signal)
     58: "-- migration_58_intake_aufgeteilt_aus_id",  # Handled by _run_migration_58 (PDF-Splitting Review-UI)
+    59: "-- migration_59_dokument_bezeichnung",  # Handled by _run_migration_59 (PRD-37 Dokumentenbezeichnung)
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -960,6 +961,51 @@ def _run_migration_58(conn: sqlite3.Connection) -> None:
     logger.info("Migration 58 abgeschlossen (intake_dokumente.aufgeteilt_aus_id).")
 
 
+def _run_migration_59(conn: sqlite3.Connection) -> None:
+    """
+    Migration 59 (PRD-37) - bezeichnung-Spalten fuer Intake + Akte.
+
+    Sprechende Dokumentenbezeichnung: intake_dokumente.bezeichnung haelt den
+    im Review bestaetigten/editierten Titel (NULL = lebendiger Vorschlag);
+    dokumente.bezeichnung ist der bei Freigabe uebernommene Titel in der Akte
+    (dort nachtraeglich editierbar).
+
+    Zwei additive ALTER TABLE, nullable TEXT, kein Datenverlust. Idempotent per
+    PRAGMA table_info. Explizites conn.commit() (feedback_migration_executescript).
+    """
+    intake_spalten = {
+        r[1] for r in conn.execute(
+            "PRAGMA table_info(intake_dokumente)"
+        ).fetchall()
+    }
+    if "bezeichnung" not in intake_spalten:
+        conn.commit()
+        conn.execute(
+            "ALTER TABLE intake_dokumente ADD COLUMN bezeichnung TEXT"
+        )
+        conn.commit()
+
+    dok_spalten = {
+        r[1] for r in conn.execute(
+            "PRAGMA table_info(dokumente)"
+        ).fetchall()
+    }
+    if "bezeichnung" not in dok_spalten:
+        conn.commit()
+        conn.execute(
+            "ALTER TABLE dokumente ADD COLUMN bezeichnung TEXT"
+        )
+        conn.commit()
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (?, ?)",
+        (59, "Migration 59 - intake_dokumente.bezeichnung + dokumente.bezeichnung "
+             "(PRD-37 Dokumentenbezeichnung)"),
+    )
+    logger.info("Migration 59 abgeschlossen (bezeichnung-Spalten).")
+
+
 def _run_migration_54(conn: sqlite3.Connection) -> None:
     """
     Migration 54 - intake_dokumente.textquelle erlaubt 'email_text'.
@@ -1369,6 +1415,8 @@ def run_migrations() -> None:
                 _run_migration_57(conn)
             elif version == 58:
                 _run_migration_58(conn)
+            elif version == 59:
+                _run_migration_59(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(

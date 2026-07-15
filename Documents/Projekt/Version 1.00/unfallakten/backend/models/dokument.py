@@ -103,6 +103,7 @@ class Dokument:
     notizen: Optional[str] = None
     dokumentenklasse: Optional[str] = None
     pdf_hash: Optional[str] = None
+    bezeichnung: Optional[str] = None
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> "Dokument":
