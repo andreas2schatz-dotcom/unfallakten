@@ -890,6 +890,8 @@ def hole_thumbnail(intake_id: int, seite_nr: int):
     dok = _lade_intake(intake_id)
     if not dok:
         return _err("Intake-Dokument nicht gefunden", 404)
+    if dok.get("payload_typ") != "datei":
+        return _err("Nur Datei-Dokumente haben Seiten", 422)
     pfad = dok.get("arbeitskopie_pfad")
     if not pfad or not os.path.isfile(pfad):
         return _err("Arbeitskopie fehlt", 404)

@@ -37,9 +37,11 @@ def extrahiere_seiten_pdf(pdf_bytes: bytes, von: int, bis: int) -> bytes:
     """Neues PDF mit den Seiten von..bis (1-basiert, inklusive)."""
     with fitz.open(stream=pdf_bytes, filetype="pdf") as src:
         neu = fitz.open()
-        neu.insert_pdf(src, from_page=von - 1, to_page=bis - 1)
-        out = neu.tobytes()
-        neu.close()
+        try:
+            neu.insert_pdf(src, from_page=von - 1, to_page=bis - 1)
+            out = neu.tobytes()
+        finally:
+            neu.close()
     return out
 
 

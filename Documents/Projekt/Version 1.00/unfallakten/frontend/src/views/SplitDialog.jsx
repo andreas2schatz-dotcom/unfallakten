@@ -1,5 +1,5 @@
 // frontend/src/views/SplitDialog.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { apiIntake } from "../api.js";
 import { gruppenAusSchnitten, schnittUmschalten } from "./splitLogik.js";
 
@@ -8,6 +8,12 @@ export default function SplitDialog({ docId, thumbUrl, onDone, onClose }) {
   const [schnitte, setSchnitte] = useState([]);
   const [fehler, setFehler] = useState(null);
   const [busy, setBusy] = useState(false);
+
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   useEffect(() => {
     let aktiv = true;
@@ -26,6 +32,7 @@ export default function SplitDialog({ docId, thumbUrl, onDone, onClose }) {
       await apiIntake.split(docId, gruppen);
       onDone();
     } catch (e) {
+      if (!mounted.current) return;
       setFehler(e?.message || "Aufteilen fehlgeschlagen.");
       setBusy(false);
     }
@@ -41,7 +48,8 @@ export default function SplitDialog({ docId, thumbUrl, onDone, onClose }) {
   };
 
   return (
-    <div style={overlay} onClick={onClose}>
+    <div style={{ ...overlay, cursor: busy ? "wait" : "default" }}
+      onClick={busy ? undefined : onClose}>
       <div style={box} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ marginTop: 0 }}>✂ Dokument aufteilen</h3>
         {seiten === null && !fehler && <p>Lade Seiten …</p>}

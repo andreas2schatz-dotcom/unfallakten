@@ -112,6 +112,12 @@ class TestSplitRoutes(unittest.TestCase):
                             headers=self.headers)
         self.assertEqual(r.status_code, 404)
 
+    def test_thumbnail_422_text(self):
+        oid = _original(_pdf(3), payload_typ="text")
+        r = self.client.get(f"/intake/dokument/{oid}/seite/1/thumbnail",
+                            headers=self.headers)
+        self.assertEqual(r.status_code, 422)
+
 
 if __name__ == "__main__":
     unittest.main()

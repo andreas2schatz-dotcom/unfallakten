@@ -829,6 +829,7 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
 
   const thumbUrl = (n) => {
     const token = tokenStore.getAccess();
+    if (!token) return "about:blank";
     return `${API_BASE}/intake/dokument/${id}/seite/${n}/thumbnail?token=${encodeURIComponent(token)}`;
   };
 
