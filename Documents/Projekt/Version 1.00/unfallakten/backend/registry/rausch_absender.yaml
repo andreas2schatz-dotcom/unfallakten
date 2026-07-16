@@ -1,0 +1,7 @@
+# Rausch-Absender: E-Mails, die beim Eingang automatisch aussortiert werden.
+# policy nur_body   -> Body verwerfen, Anhaenge (z.B. Faxe) behalten
+# policy komplett   -> Body + alle Anhaenge verwerfen
+- domain: placetel.de
+  policy: nur_body
+- domain: bea-brak.de
+  policy: komplett
