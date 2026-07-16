@@ -36,6 +36,8 @@ from ._persistenz import (
     oder_intake_dokument_fuer_datei,
     oder_intake_dokument_fuer_text,
 )
+from .rausch_regel import policy_fuer_domain
+from .verwerfen import auto_verwerfen
 
 logger = logging.getLogger(__name__)
 
@@ -301,9 +303,8 @@ def verarbeite_email(
         "message_id": (msg.get("Message-ID") or "").strip("<>").strip() or None,
     }
     # S1.4: Absender-Registry-Signale in die Body-Zustellung anreichern.
-    absender_signale = _absender_signale_fuer_domain(
-        _domain_aus_from_header(absender)
-    )
+    domain = _domain_aus_from_header(absender)
+    absender_signale = _absender_signale_fuer_domain(domain)
     body_signale.update(absender_signale)
 
     # BUG-14/15: Absender-Signale, die auch die Anhang-Zustellungen brauchen
@@ -350,6 +351,19 @@ def verarbeite_email(
             "zustellung_id": zust_id,
             "sha256": sha,
         })
+
+    policy = policy_fuer_domain(domain)
+    if policy:
+        auto_verwerfen(
+            body_intake_id, grund="rauschen",
+            kommentar=f"Auto: Rausch-Absender ({domain}, {policy})",
+        )
+        if policy == "komplett":
+            for a in anhang_ergebnisse:
+                auto_verwerfen(
+                    a["intake_dokument_id"], grund="rauschen",
+                    kommentar=f"Auto: Rausch-Absender ({domain}, {policy})",
+                )
 
     return {
         "body": {
