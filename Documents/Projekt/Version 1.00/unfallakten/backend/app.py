@@ -149,6 +149,13 @@ def erstelle_app(test_config: dict = None) -> Flask:
         len(_pmreg.aktionen), _pmreg.version,
     )
 
+    # ── Rausch-Absender-Registry: Fail-Loud vor DB-Init ───────────────────────
+    # Defektes YAML bricht den App-Start ab, statt spaeter jede Intake-Mail
+    # scheitern zu lassen (sonst stiller Intake-Stillstand).
+    from .intake.rausch_regel import lade_regeln as _lade_rausch
+    _rausch = _lade_rausch(reload=True)
+    logger.info("Rausch-Absender-Registry geladen: %d Absender", len(_rausch))
+
     # ── Datenbank initialisieren ───────────────────────────────────────────────
     with app.app_context():
         init_db()

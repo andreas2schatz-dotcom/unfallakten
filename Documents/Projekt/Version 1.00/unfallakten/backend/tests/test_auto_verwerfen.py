@@ -81,6 +81,19 @@ class TestAutoVerwerfen(unittest.TestCase):
         from backend.intake.verwerfen import auto_verwerfen
         self.assertIsNone(auto_verwerfen(999999, grund="rauschen"))
 
+    def test_laufendes_dokument_ist_verwerfbar(self):
+        # Race: Worker least den Body-Doc auf 'laeuft', waehrend
+        # auto_verwerfen fuer denselben Intake laeuft (Fix 1).
+        from backend.intake.verwerfen import auto_verwerfen
+        did = self._lege_dok_an("s4", status="laeuft")
+        ts = auto_verwerfen(did, grund="rauschen")
+        self.assertIsNotNone(ts)
+        with self.db.get_connection() as conn:
+            row = conn.execute(
+                "SELECT verworfen_am FROM intake_dokumente WHERE id=?", (did,),
+            ).fetchone()
+        self.assertIsNotNone(row["verworfen_am"])
+
 
 if __name__ == "__main__":
     unittest.main()

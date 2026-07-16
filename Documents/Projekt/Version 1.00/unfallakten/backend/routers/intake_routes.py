@@ -456,8 +456,6 @@ def post_verwerfen(intake_id: int):
     if verworfen_am is None:
         return _err("Dokument konnte nicht verworfen werden.", 409)
 
-    logger.info("Intake %s verworfen: grund=%s benutzer=%s",
-                 intake_id, grund, benutzer_id)
     return _j({"ok": True, "verworfen": True,
                 "verworfen_grund": grund, "verworfen_am": verworfen_am})
 

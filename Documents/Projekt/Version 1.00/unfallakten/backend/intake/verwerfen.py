@@ -18,7 +18,7 @@ from ..db.database import get_connection
 
 logger = logging.getLogger(__name__)
 
-_VERWERFBARE_STATUS = ("neu", "bereit_zur_review", "pipeline_fehler")
+_VERWERFBARE_STATUS = ("neu", "bereit_zur_review", "pipeline_fehler", "laeuft")
 
 
 def auto_verwerfen(
@@ -39,6 +39,10 @@ def auto_verwerfen(
         if row["verworfen_am"] is not None:
             return None
         if row["queue_status"] not in _VERWERFBARE_STATUS:
+            logger.warning(
+                "auto_verwerfen: Intake %s im Status %r nicht verwerfbar",
+                intake_id, row["queue_status"],
+            )
             return None
 
         jetzt = datetime.now(timezone.utc).isoformat(timespec="seconds")

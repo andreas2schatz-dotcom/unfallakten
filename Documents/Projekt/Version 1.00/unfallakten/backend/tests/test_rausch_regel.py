@@ -77,5 +77,26 @@ class TestLadeRegeln(unittest.TestCase):
         self.assertEqual(regeln.get("bea-brak.de"), "komplett")
 
 
+class TestAppStartFailLoud(unittest.TestCase):
+    """Fix 2: Rausch-Registry muss beim App-Start fail-loud sein, nicht erst
+    bei der ersten E-Mail (siehe backend/app.py, erstelle_app)."""
+
+    def setUp(self):
+        fd, self._pfad = tempfile.mkstemp(suffix=".yaml")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write("- domain: a.de\n  policy: quatsch\n")
+        os.environ["INTAKE_RAUSCH_REGISTRY_PFAD"] = self._pfad
+        os.environ["FLASK_SECRET_KEY"] = "test-app-start-rausch"
+        self.addCleanup(os.remove, self._pfad)
+        self.addCleanup(os.environ.pop, "INTAKE_RAUSCH_REGISTRY_PFAD", None)
+        self.addCleanup(os.environ.pop, "FLASK_SECRET_KEY", None)
+
+    def test_defekte_rausch_registry_bricht_app_start_ab(self):
+        from backend.app import erstelle_app
+        with self.assertRaises(RuntimeError) as ctx:
+            erstelle_app(test_config={"TESTING": True})
+        self.assertIn("quatsch", str(ctx.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

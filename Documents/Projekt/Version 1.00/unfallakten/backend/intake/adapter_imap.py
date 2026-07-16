@@ -354,16 +354,27 @@ def verarbeite_email(
 
     policy = policy_fuer_domain(domain)
     if policy:
-        auto_verwerfen(
-            body_intake_id, grund="rauschen",
-            kommentar=f"Auto: Rausch-Absender ({domain}, {policy})",
-        )
-        if policy == "komplett":
-            for a in anhang_ergebnisse:
-                auto_verwerfen(
-                    a["intake_dokument_id"], grund="rauschen",
-                    kommentar=f"Auto: Rausch-Absender ({domain}, {policy})",
-                )
+        # Best-effort: eine fehlschlagende Auto-Aussortierung darf den Import
+        # der restlichen Dokumente dieser E-Mail nicht abbrechen (Spec
+        # Fehlerbehandlung) -- nur loggen und weitermachen.
+        try:
+            kommentar = f"Auto: Rausch-Absender ({domain}, {policy})"
+            auto_verwerfen(body_intake_id, grund="rauschen", kommentar=kommentar)
+            if policy == "komplett":
+                # Anhaenge sind sha256-dedupliziert (oder_intake_dokument_fuer_datei
+                # liefert bei bekannten Bytes ein bestehendes intake_dokument
+                # zurueck). Im seltenen Fall, dass ein komplett-Anhang (beA)
+                # bytegleich mit einem legitimen Bestandsdokument ist, wird
+                # dieses mitverworfen -- unkritisch, da Papierkorb-reversibel
+                # und nur_body Anhaenge ohnehin nie beruehrt.
+                for a in anhang_ergebnisse:
+                    auto_verwerfen(a["intake_dokument_id"], grund="rauschen",
+                                   kommentar=kommentar)
+        except Exception as e:
+            logger.warning(
+                "Auto-Aussortierung (Rausch-Absender %s, %s) fehlgeschlagen "
+                "fuer Body-Intake %s: %s", domain, policy, body_intake_id, e,
+            )
 
     return {
         "body": {
