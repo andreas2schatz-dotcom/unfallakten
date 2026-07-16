@@ -42,6 +42,7 @@ from ..auth.middleware import login_erforderlich
 from ..db.database import get_connection
 from ..intake.queue import enqueue
 from ..intake import split_service
+from ..intake.verwerfen import auto_verwerfen
 from ..ramicro.output_adapter import schreibe_dokument
 from ..services.dokument_bezeichnung import baue_bezeichnung
 from ..services.fragebogen_uebernahme import (
@@ -448,29 +449,17 @@ def post_verwerfen(intake_id: int):
         )
 
     benutzer_id = getattr(g, "benutzer_id", None)
-    from datetime import datetime, timezone
-    jetzt = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
-    with get_connection() as conn:
-        conn.execute(
-            "UPDATE intake_dokumente "
-            "SET verworfen_grund=?, verworfen_am=?, verworfen_von=? "
-            "WHERE id=?",
-            (grund, jetzt, benutzer_id, intake_id),
-        )
-        _log_korrektur(
-            conn, intake_id, feld="verworfen",
-            wert_alt=status,
-            wert_neu={"grund": grund, "kommentar": kommentar},
-            klasse=dok.get("klasse"),
-            registry_version=dok.get("registry_version"),
-            benutzer_id=benutzer_id,
-        )
+    verworfen_am = auto_verwerfen(
+        intake_id, grund=grund, kommentar=kommentar, benutzer_id=benutzer_id,
+    )
+    if verworfen_am is None:
+        return _err("Dokument konnte nicht verworfen werden.", 409)
 
     logger.info("Intake %s verworfen: grund=%s benutzer=%s",
                  intake_id, grund, benutzer_id)
     return _j({"ok": True, "verworfen": True,
-                "verworfen_grund": grund, "verworfen_am": jetzt})
+                "verworfen_grund": grund, "verworfen_am": verworfen_am})
 
 
 # ─── GET /intake/ereignistypen ────────────────────────────────────────────────
