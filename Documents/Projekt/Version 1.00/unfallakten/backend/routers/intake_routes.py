@@ -462,6 +462,75 @@ def post_verwerfen(intake_id: int):
                 "verworfen_grund": grund, "verworfen_am": verworfen_am})
 
 
+# ─── GET /intake/papierkorb ───────────────────────────────────────────────────
+
+@intake_bp.route("/papierkorb", methods=["GET"])
+@login_erforderlich
+def hole_papierkorb():
+    """Verworfene Intake-Dokumente, neueste zuerst (Soft-Delete-Papierkorb)."""
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT i.id, i.klasse, i.konfidenz, i.queue_status, "
+            "       i.erstellt_am, i.payload_typ, "
+            "       i.verworfen_grund, i.verworfen_am, i.verworfen_von, "
+            "       z.absender AS absender, z.betreff AS betreff "
+            "FROM intake_dokumente i "
+            "LEFT JOIN (SELECT intake_dokument_id, MIN(id) AS min_id "
+            "           FROM zustellungen GROUP BY intake_dokument_id) ze "
+            "  ON ze.intake_dokument_id = i.id "
+            "LEFT JOIN zustellungen z ON z.id = ze.min_id "
+            "WHERE i.verworfen_am IS NOT NULL "
+            "ORDER BY i.verworfen_am DESC "
+            "LIMIT 200"
+        ).fetchall()
+
+    eintraege = [{
+        "id": r["id"],
+        "klasse": r["klasse"],
+        "konfidenz": r["konfidenz"],
+        "queue_status": r["queue_status"],
+        "erstellt_am": r["erstellt_am"],
+        "payload_typ": r["payload_typ"],
+        "verworfen_grund": r["verworfen_grund"],
+        "verworfen_am": r["verworfen_am"],
+        "verworfen_von": r["verworfen_von"],
+        "absender": r["absender"],
+        "betreff": r["betreff"],
+    } for r in rows]
+    return _j({"eintraege": eintraege})
+
+
+# ─── POST /intake/dokument/<id>/wiederherstellen ──────────────────────────────
+
+@intake_bp.route("/dokument/<int:intake_id>/wiederherstellen", methods=["POST"])
+@login_erforderlich
+def post_wiederherstellen(intake_id: int):
+    """Macht den Soft-Delete rueckgaengig -- Dokument kehrt in die Queue zurueck."""
+    dok = _lade_intake(intake_id)
+    if not dok:
+        return _err("Intake-Dokument nicht gefunden", 404)
+    if not dok.get("verworfen_am"):
+        return _err("Dokument ist nicht verworfen.", 409)
+
+    benutzer_id = getattr(g, "benutzer_id", None)
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE intake_dokumente "
+            "SET verworfen_grund=NULL, verworfen_am=NULL, verworfen_von=NULL "
+            "WHERE id=?", (intake_id,),
+        )
+        _log_korrektur(
+            conn, intake_id, feld="wiederhergestellt",
+            wert_alt=dok.get("verworfen_grund"), wert_neu=None,
+            klasse=dok.get("klasse"),
+            registry_version=dok.get("registry_version"),
+            benutzer_id=benutzer_id,
+        )
+
+    logger.info("Intake %s wiederhergestellt: benutzer=%s", intake_id, benutzer_id)
+    return _j({"ok": True, "wiederhergestellt": True})
+
+
 # ─── GET /intake/ereignistypen ────────────────────────────────────────────────
 
 @intake_bp.route("/ereignistypen", methods=["GET"])
