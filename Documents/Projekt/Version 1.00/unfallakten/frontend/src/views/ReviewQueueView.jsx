@@ -31,6 +31,21 @@ const KLASSEN_FALLBACK = [
   "sonstiges",
 ];
 
+const GRUND_LABELS = {
+  rauschen: "Rauschen",
+  spam: "Spam",
+  duplikat: "Duplikat",
+  nicht_relevant: "Nicht relevant",
+  falsche_kanzlei: "Falsche Kanzlei",
+  aufgeteilt: "Aufgeteilt",
+  sonstiges: "Sonstiges",
+};
+
+export function grundLabel(grund) {
+  if (!grund) return "";
+  return GRUND_LABELS[grund] || grund;
+}
+
 export function gruppiereQueue(eintraege) {
   const nachZust = new Map();
   eintraege.forEach(e => {
@@ -1249,6 +1264,8 @@ export default function ReviewQueueView({ onOpenAkte }) {
   const [verwerfenLaeuft, setVerwerfenLaeuft] = useState(false);
   const [ereignistypen, setEreignistypen] = useState([]);
   const [klassen, setKlassen] = useState([]);
+  const [ansicht, setAnsicht] = useState("queue");  // "queue" | "papierkorb"
+  const [papierkorb, setPapierkorb] = useState([]);
 
   // Ereignistypen aus der Registry einmalig laden (fuer Freigabe-Dropdown).
   useEffect(() => {
@@ -1277,6 +1294,25 @@ export default function ReviewQueueView({ onOpenAkte }) {
     const t = setInterval(laden, 30000);
     return () => clearInterval(t);
   }, [laden]);
+
+  const ladePapierkorb = useCallback(async () => {
+    try {
+      const d = await apiIntake.papierkorb();
+      setPapierkorb(d.eintraege || []);
+    } catch (e) { setLadeError(e.message); }
+  }, []);
+
+  useEffect(() => {
+    if (ansicht === "papierkorb") ladePapierkorb();
+  }, [ansicht, ladePapierkorb]);
+
+  const doWiederherstellen = useCallback(async (id) => {
+    try {
+      await apiIntake.wiederherstellen(id);
+      ladePapierkorb();
+      laden();
+    } catch (e) { setLadeError(e.message); }
+  }, [ladePapierkorb, laden]);
 
   const doVerwerfen = useCallback(async ({ grund, kommentar }) => {
     if (!verwerfenDok) return;
@@ -1328,6 +1364,20 @@ export default function ReviewQueueView({ onOpenAkte }) {
           <div style={{ fontSize: T.textLg, fontFamily: T.fontDisplay }}>
             {bereit.length} bereit · {fehler.length} fehlerhaft
           </div>
+          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+            {["queue", "papierkorb"].map(a => (
+              <button key={a} onClick={() => setAnsicht(a)}
+                style={{
+                  flex: 1, padding: "4px 8px", fontSize: T.textXs,
+                  fontWeight: 600, cursor: "pointer", borderRadius: 4,
+                  border: `1px solid ${T.white}40`,
+                  background: ansicht === a ? T.white : "transparent",
+                  color: ansicht === a ? T.navy : T.white,
+                }}>
+                {a === "queue" ? "Queue" : "Papierkorb"}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div style={{ flex: 1, overflow: "auto" }}>
@@ -1336,23 +1386,63 @@ export default function ReviewQueueView({ onOpenAkte }) {
               {ladeError}
             </div>
           )}
-          {!queue.length && !ladeError && (
+          {ansicht === "queue" && (
+            <>
+              {!queue.length && !ladeError && (
+                <div style={{ padding: 20, color: T.textMuted, fontSize: T.textSm, textAlign: "center" }}>
+                  Queue leer — alles freigegeben.
+                </div>
+              )}
+              {gruppiereQueue(queue).map(gruppe => (
+                <React.Fragment key={gruppe.eintrag.id}>
+                  <QueueEintrag item={gruppe.eintrag}
+                    aktiv={aktivId === gruppe.eintrag.id}
+                    onClick={() => setAktivId(gruppe.eintrag.id)}
+                    onVerwerfen={setVerwerfenDok} />
+                  {gruppe.kinder.map(k => (
+                    <QueueEintrag key={k.id} item={k} aktiv={aktivId === k.id}
+                      onClick={() => setAktivId(k.id)}
+                      onVerwerfen={setVerwerfenDok} eingerueckt />
+                  ))}
+                </React.Fragment>
+              ))}
+            </>
+          )}
+          {ansicht === "papierkorb" && !papierkorb.length && (
             <div style={{ padding: 20, color: T.textMuted, fontSize: T.textSm, textAlign: "center" }}>
-              Queue leer — alles freigegeben.
+              Papierkorb leer.
             </div>
           )}
-          {gruppiereQueue(queue).map(gruppe => (
-            <React.Fragment key={gruppe.eintrag.id}>
-              <QueueEintrag item={gruppe.eintrag}
-                aktiv={aktivId === gruppe.eintrag.id}
-                onClick={() => setAktivId(gruppe.eintrag.id)}
-                onVerwerfen={setVerwerfenDok} />
-              {gruppe.kinder.map(k => (
-                <QueueEintrag key={k.id} item={k} aktiv={aktivId === k.id}
-                  onClick={() => setAktivId(k.id)}
-                  onVerwerfen={setVerwerfenDok} eingerueckt />
-              ))}
-            </React.Fragment>
+          {ansicht === "papierkorb" && papierkorb.map(item => (
+            <div key={item.id} style={{
+              padding: "10px 12px", borderBottom: `1px solid ${T.border}`,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <span style={{
+                  fontSize: T.textXs, fontWeight: 600, color: T.textMuted,
+                  border: `1px solid ${T.border}`, borderRadius: 4, padding: "1px 6px",
+                }}>{grundLabel(item.verworfen_grund)}</span>
+                <div style={{ flex: 1 }} />
+                <button onClick={() => doWiederherstellen(item.id)}
+                  style={{
+                    border: `1px solid ${T.accent}`, background: T.accentPale,
+                    color: T.accent, cursor: "pointer", padding: "3px 8px",
+                    fontSize: T.textXs, fontWeight: 600, borderRadius: 4,
+                  }}>Wiederherstellen</button>
+              </div>
+              <div style={{ fontSize: T.textSm, color: T.text }}>
+                {item.payload_typ === "text" && <span title="E-Mail">📧 </span>}
+                <strong>{item.klasse || "unbekannt"}</strong>
+              </div>
+              {(item.absender || item.betreff) && (
+                <div style={{ fontSize: T.textXs, color: T.textMuted, marginTop: 2 }}>
+                  {item.absender || ""}{item.betreff ? ` · ${item.betreff}` : ""}
+                </div>
+              )}
+              <div style={{ fontSize: T.textXs, color: T.textFaint, marginTop: 2 }}>
+                #{item.id} · verworfen {item.verworfen_am}
+              </div>
+            </div>
           ))}
         </div>
       </div>

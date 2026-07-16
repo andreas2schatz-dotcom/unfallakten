@@ -1081,6 +1081,10 @@ export const apiIntake = {
   split:  (id, gruppen)      => request(`/intake/dokument/${id}/split`, {
     method: 'POST', body: JSON.stringify({ gruppen }),
   }),
+  papierkorb:       ()   => request('/intake/papierkorb'),
+  wiederherstellen: (id) => request(`/intake/dokument/${id}/wiederherstellen`, {
+    method: 'POST',
+  }),
 };
 
 // ─────────────────────────────────────────────────────────────
