@@ -31,6 +31,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -58,6 +59,19 @@ def _j(daten: Any, status: int = 200):
 
 def _err(msg: str, status: int, **extra):
     return jsonify({"fehler": msg, "status": status, **extra}), status
+
+
+def _basis_az(az: str) -> str:
+    """Streift ein optionales SB-Kuerzel ab ('670/26AS' -> '670/26').
+
+    Analog zu akten_matching._az_basis / email_matching._az_basis: der Basis-AZ
+    (= RA-MICRO sAktenNummer) ist der einzige Schluessel, unter dem der Rest des
+    Systems Akten speichert und liest. Nur AZ mit '/' werden angefasst.
+    """
+    az = (az or "").strip()
+    if "/" in az:
+        az = re.sub(r"[A-Za-z]{2,3}$", "", az).strip()
+    return az
 
 
 def _parse(text: Optional[str]) -> Dict[str, Any]:
@@ -633,7 +647,11 @@ def post_freigabe(intake_id: int):
     (Persistierung ins Positionsmodell = P1.5).
     """
     payload = request.get_json(silent=True) or {}
-    akte_az = (payload.get("akte_az") or "").strip()
+    # Basis-AZ erzwingen: die RA-MICRO-Anzeigeform haengt das SB-Kuerzel an
+    # ('670/26' -> '670/26AS'). Der Rest des Systems speichert/liest aber
+    # ausschliesslich den Basis-AZ. Ohne diese Normalisierung entstuenden
+    # Phantom-Akten ('670/26AS'), deren Daten in der UI unsichtbar sind.
+    akte_az = _basis_az(payload.get("akte_az") or "")
     if not akte_az:
         return _err("Feld 'akte_az' fehlt -- Freigabe ohne Akte nicht erlaubt",
                     422)

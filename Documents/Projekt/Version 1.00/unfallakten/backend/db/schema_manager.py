@@ -311,6 +311,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     57: "-- migration_57_intake_llm_degradiert",  # Handled by _run_migration_57 (N-03 Degradations-Signal)
     58: "-- migration_58_intake_aufgeteilt_aus_id",  # Handled by _run_migration_58 (PDF-Splitting Review-UI)
     59: "-- migration_59_dokument_bezeichnung",  # Handled by _run_migration_59 (PRD-37 Dokumentenbezeichnung)
+    60: "-- migration_60_personenschaden_krankenhaus_aufenthalt",  # Handled by _run_migration_60 (Schema-Drift-Fix)
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -1006,6 +1007,44 @@ def _run_migration_59(conn: sqlite3.Connection) -> None:
     logger.info("Migration 59 abgeschlossen (bezeichnung-Spalten).")
 
 
+def _run_migration_60(conn: sqlite3.Connection) -> None:
+    """
+    Migration 60 - personenschaden.krankenhaus_aufenthalt nachziehen (Schema-Drift).
+
+    Die Spalte steht seit laengerem im CREATE TABLE (frische DBs haben sie), wurde
+    aber nie per Migration in Bestands-DBs ergaenzt. Folge: jeder Schreibvorgang mit
+    Krankenhausdaten (Fragebogen-Uebernahme, Personenschaden-Formular, E-Mail-Import)
+    warf 'no such column' -> die Best-Effort-Klammer verschluckte den Fehler ->
+    stiller Datenverlust. Reiner WDM-Anzeigepfad (RA-MICRO, read-only) ist nicht
+    betroffen und bleibt unangetastet.
+
+    Additiv, INTEGER NOT NULL DEFAULT 0 (Muster wie beteiligte.ist_halter /
+    email_import_log.ausgeblendet). Idempotent per PRAGMA table_info. Explizites
+    conn.commit() vor/nach ALTER (feedback_migration_executescript).
+    """
+    spalten = {
+        r[1] for r in conn.execute(
+            "PRAGMA table_info(personenschaden)"
+        ).fetchall()
+    }
+    if "krankenhaus_aufenthalt" not in spalten:
+        conn.commit()
+        conn.execute(
+            "ALTER TABLE personenschaden "
+            "ADD COLUMN krankenhaus_aufenthalt INTEGER NOT NULL DEFAULT 0"
+        )
+        conn.commit()
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (?, ?)",
+        (60, "Migration 60 - personenschaden.krankenhaus_aufenthalt "
+             "(Schema-Drift-Fix)"),
+    )
+    logger.info(
+        "Migration 60 abgeschlossen (personenschaden.krankenhaus_aufenthalt).")
+
+
 def _run_migration_54(conn: sqlite3.Connection) -> None:
     """
     Migration 54 - intake_dokumente.textquelle erlaubt 'email_text'.
@@ -1417,6 +1456,8 @@ def run_migrations() -> None:
                 _run_migration_58(conn)
             elif version == 59:
                 _run_migration_59(conn)
+            elif version == 60:
+                _run_migration_60(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(

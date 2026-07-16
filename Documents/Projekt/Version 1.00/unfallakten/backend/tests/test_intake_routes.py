@@ -425,6 +425,38 @@ class TestFreigabe(unittest.TestCase):
         self.assertEqual(frg["dokument_id"], data["dokument_id"])
         self.assertEqual(intake["queue_status"], "freigegeben")
 
+    def test_freigabe_normalisiert_sb_kuerzel_az(self):
+        """AZ mit SB-Kuerzel (RA-MICRO-Anzeigeform '670/26AS') darf keine
+        Phantom-Akte erzeugen: alle Schreibziele nutzen den Basis-AZ '670/26'."""
+        from backend.db.database import get_connection
+        _seed_akte("670/26")
+        did = _lege_intake_pdf_an("a")
+
+        r = self.client.post(
+            f"/intake/dokument/{did}/freigabe",
+            json={"akte_az": "670/26AS"},
+            headers=self.headers,
+        )
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        data = r.get_json()
+        self.assertEqual(data["akte_az"], "670/26")
+
+        with get_connection() as conn:
+            dok = conn.execute(
+                "SELECT akte_id FROM dokumente WHERE id=?",
+                (data["dokument_id"],)).fetchone()
+            frg = conn.execute(
+                "SELECT akte_az FROM freigaben WHERE id=?",
+                (data["freigabe_id"],)).fetchone()
+            phantom = conn.execute(
+                "SELECT COUNT(*) AS c FROM unfallakte WHERE az=?",
+                ("670/26AS",)).fetchone()
+
+        self.assertEqual(dok["akte_id"], "670/26")
+        self.assertEqual(frg["akte_az"], "670/26")
+        self.assertEqual(phantom["c"], 0,
+                         "Phantom-Akte 670/26AS darf nicht angelegt werden")
+
     def test_freigabe_akzeptiert_kandidaten_ereignisse_und_ersetzt_ids(self):
         """K-2 (Ereignis-Vorschlaege) + K-M2b (ersetzt_ids): S1.8 nimmt die
         Payload entgegen und legt sie fuer P1.5 als Kontext ab -- Struktur,

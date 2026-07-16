@@ -2,10 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import AktenLiveSuche from './AktenLiveSuche.jsx';
 
+// az = Anzeigeform mit SB-Kuerzel (RA-MICRO), az_roh = Basis-AZ (sAktenNummer).
+// Ausgewaehlt werden muss der Basis-AZ, sonst entstehen Phantom-Akten.
 const antwort = {
   treffer: [
-    { az: '31/21AS', az_roh: '3121AS04', mandant: 'Riccio, Marco', kurzbezeichnung: 'Riccio ./. HUK', kennzeichen: 'OF-MU 1234' },
-    { az: '31/22AS', az_roh: '3122AS04', mandant: 'Ricciotti, Anna', kurzbezeichnung: 'Ricciotti ./. Allianz', kennzeichen: null },
+    { az: '31/21AS', az_roh: '31/21', mandant: 'Riccio, Marco', kurzbezeichnung: 'Riccio ./. HUK', kennzeichen: 'OF-MU 1234' },
+    { az: '31/22AS', az_roh: '31/22', mandant: 'Ricciotti, Anna', kurzbezeichnung: 'Ricciotti ./. Allianz', kennzeichen: null },
   ],
   anzahl: 2, suchmodus: 'name', ramicro_aktiv: true,
 };
@@ -57,13 +59,13 @@ describe('AktenLiveSuche', () => {
     expect(screen.getByText(/Ricciotti, Anna/)).toBeInTheDocument();
   });
 
-  it('Klick auf Treffer ruft onWaehle mit az auf', async () => {
+  it('Klick auf Treffer ruft onWaehle mit Basis-AZ (az_roh) auf', async () => {
     const onWaehle = vi.fn();
     render(<AktenLiveSuche onWaehle={onWaehle} />);
     fireEvent.change(screen.getByPlaceholderText(/mandant|akte|suchen/i), { target: { value: 'Riccio' } });
     const treffer = await screen.findByText(/Riccio, Marco/);
     fireEvent.click(treffer.closest('[data-treffer]'));
-    expect(onWaehle).toHaveBeenCalledWith('31/21AS');
+    expect(onWaehle).toHaveBeenCalledWith('31/21');
   });
 
   it('leere Trefferliste → Hinweis-Meldung', async () => {

@@ -96,7 +96,7 @@ export default function AktenLiveSuche({ onWaehle, autoFocus = false, placeholde
             <button
               key={t.az_roh || t.az || i}
               data-treffer
-              onClick={() => onWaehle && onWaehle(t.az)}
+              onClick={() => onWaehle && onWaehle(t.az_roh || t.az)}
               style={{
                 display: 'block', width: '100%', textAlign: 'left',
                 padding: '8px 10px', border: 'none',
