@@ -958,9 +958,17 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         kl_einf = "Kläger"; kl_gesch = "Geschädigter"
         nicht_vst = "nicht vorsteuerabzugsberechtigter" if not vorsteuer else "vorsteuerabzugsberechtigter"
 
+    # ── Schmerzensgeld ───────────────────────────────────────────────────────
+    mit_sg  = bool(cfg.get("mit_schmerzensgeld"))
+    sg_mind = float(cfg.get("schmerzensgeld_mindest") or 0)
+
     # ── Positionen / Gegenstandswert ─────────────────────────────────────────
+    # KW-07: bei aktivem unbezifferten SG-Antrag (mit_sg) die bezifferte
+    # SG-Position ausschliessen, sonst wird Schmerzensgeld doppelt geltend
+    # gemacht (beziffert in Antrag 1/Tabelle/Gegenstandswert UND unbeziffert).
     positionen = [p for p in (cfg.get("positionen") or [])
-                  if isinstance(p, dict) and p.get("checked")]
+                  if isinstance(p, dict) and p.get("checked")
+                  and not (mit_sg and p.get("key") == "schmerzensgeld")]
     klagebetrag = sum(float(p.get("betrag") or 0) for p in positionen)
 
     # ── RVG ──────────────────────────────────────────────────────────────────
@@ -994,10 +1002,6 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     # Bereits gezahlten Anteil abziehen → nur offener Rest wird eingeklagt
     if rvg_bereits_gezahlt > 0:
         rvg_antrag_betrag = round(max(0.0, rvg_antrag_betrag - rvg_bereits_gezahlt), 2)
-
-    # ── Schmerzensgeld ───────────────────────────────────────────────────────
-    mit_sg  = bool(cfg.get("mit_schmerzensgeld"))
-    sg_mind = float(cfg.get("schmerzensgeld_mindest") or 0)
 
     # ── Gegner-Kennzeichen ───────────────────────────────────────────────────
     gegner_kz = (

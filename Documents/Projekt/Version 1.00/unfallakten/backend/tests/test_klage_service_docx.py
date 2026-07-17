@@ -32,7 +32,8 @@ def _position(key, label, betrag, betrag_original=None, checked=True):
     }
 
 
-def _akte_daten(positionen, schaden=None, reg_agg=None, abrechnungen=None, vorsteuer="N"):
+def _akte_daten(positionen, schaden=None, reg_agg=None, abrechnungen=None, vorsteuer="N",
+                 mit_schmerzensgeld=False, schmerzensgeld_mindest=0.0):
     return {
         "akte": {"aktenzeichen": "55/26", "erstellt_am": "2026-01-01"},
         "mandant": {
@@ -49,6 +50,8 @@ def _akte_daten(positionen, schaden=None, reg_agg=None, abrechnungen=None, vorst
                 "anschrift": "Teststr. 2", "plz": "12345", "ort": "Teststadt",
             }],
             "positionen": positionen,
+            "mit_schmerzensgeld": mit_schmerzensgeld,
+            "schmerzensgeld_mindest": schmerzensgeld_mindest,
         },
         "schaden": schaden or {},
         "reg_agg": reg_agg or {},
@@ -222,6 +225,68 @@ class TestKW39VorsteuerNebenkostenDocx(unittest.TestCase):
             "Der Gesamtbetrag in Höhe von 200,00 € wird mit dem Klageantrag zu 1 geltend gemacht.",
             xml,
         )
+
+
+class TestKW07SchmerzensgeldNichtDoppelt(unittest.TestCase):
+    def test_mit_sg_toggle_aktiv_position_fliegt_aus_antrag1_tabelle_und_gegenstandswert(self):
+        positionen = [
+            _position("wertminderung", "Wertminderung", betrag=400.0, betrag_original=400.0, checked=True),
+            _position("schmerzensgeld", "Schmerzensgeld", betrag=2000.0, betrag_original=2000.0, checked=True),
+        ]
+        schaden = {"wertminderung": 400.0, "schmerzensgeld": 2000.0}
+        akte_daten = _akte_daten(
+            positionen, schaden, reg_agg={}, abrechnungen=[],
+            mit_schmerzensgeld=True, schmerzensgeld_mindest=2000.0,
+        )
+
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+
+        # Gegenstandswert = klagebetrag_ohne_SG (400) + schmerzensgeld_mindest (2000)
+        self.assertIn("2.400,00", xml)
+        # Antrag 1 nur mit dem Sachschaden, ohne die bezifferte SG-Position
+        self.assertIn(
+            "Die Beklagte wird verurteilt, an den Kläger 400,00 € "
+            "nebst Zinsen in Höhe von 5 Prozentpunkten über dem jeweiligen Basiszinssatz "
+            "seit Rechtshängigkeit zu zahlen.",
+            xml,
+        )
+        # Tabelle/Differenz-Satz: schaden_gesamt == klagebetrag == 400 (SG raus)
+        self.assertIn(
+            "Der Gesamtbetrag in Höhe von 400,00 € wird mit dem Klageantrag zu 1 geltend gemacht.",
+            xml,
+        )
+        # unbezifferter SG-Antrag bleibt vorhanden
+        self.assertIn(
+            "wobei die Höhe nicht weniger als 2.000,00 € betragen sollte",
+            xml,
+        )
+
+    def test_ohne_sg_toggle_position_bleibt_beziffert_kein_unbezifferter_antrag(self):
+        positionen = [
+            _position("wertminderung", "Wertminderung", betrag=400.0, betrag_original=400.0, checked=True),
+            _position("schmerzensgeld", "Schmerzensgeld", betrag=2000.0, betrag_original=2000.0, checked=True),
+        ]
+        schaden = {"wertminderung": 400.0, "schmerzensgeld": 2000.0}
+        akte_daten = _akte_daten(
+            positionen, schaden, reg_agg={}, abrechnungen=[],
+            mit_schmerzensgeld=False, schmerzensgeld_mindest=0.0,
+        )
+
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+
+        self.assertIn("2.400,00", xml)
+        self.assertIn(
+            "Die Beklagte wird verurteilt, an den Kläger 2.400,00 € "
+            "nebst Zinsen in Höhe von 5 Prozentpunkten über dem jeweiligen Basiszinssatz "
+            "seit Rechtshängigkeit zu zahlen.",
+            xml,
+        )
+        self.assertIn(
+            "Der Gesamtbetrag in Höhe von 2.400,00 € wird mit dem Klageantrag zu 1 geltend gemacht.",
+            xml,
+        )
+        self.assertIn("Schmerzensgeld", xml)
+        self.assertNotIn("nicht weniger als", xml)
 
 
 if __name__ == "__main__":
