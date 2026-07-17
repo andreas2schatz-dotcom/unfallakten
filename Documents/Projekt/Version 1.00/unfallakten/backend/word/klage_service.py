@@ -792,10 +792,12 @@ _REGULIERUNG_LABEL_MAP = {
 }
 
 
-def _baue_regulierungs_tbl_xml(reg_agg: dict, body_width: int = 9163) -> tuple:
+def _baue_regulierungs_tbl_xml(reg_agg: dict, ungebunden: float = 0.0, body_width: int = 9163) -> tuple:
     """
     Baut eine Zahlungs-Tabelle aus reg_agg (position_key → {gesamt_reguliert}).
-    Gibt (xml, gesamt_reguliert) zurück. xml ist leer wenn reg_agg leer ist.
+    Gibt (xml, gesamt_reguliert) zurück. xml ist leer wenn keine Zahlungen vorliegen.
+    KW-04: `ungebunden` (Zahlungen ohne Positionszuordnung, z.B. Vorschüsse)
+    fließt als eigene Zeile ein, damit die Tabelle alle geleisteten Zahlungen abbildet.
     """
     positionen = []
     for key, daten in reg_agg.items():
@@ -807,6 +809,9 @@ def _baue_regulierungs_tbl_xml(reg_agg: dict, body_width: int = 9163) -> tuple:
         else:
             label = _REGULIERUNG_LABEL_MAP.get(key, key.replace("_", " ").title())
         positionen.append((label, betrag))
+
+    if ungebunden > 0:
+        positionen.append(("Zahlung ohne Positionszuordnung", round(ungebunden, 2)))
 
     if not positionen:
         return "", 0.0
@@ -1322,19 +1327,60 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         unfall_xml += _p(f"Beiziehung der Ermittlungsakte {ea_az}", einzug=True)
 
     # ── {{SCHADEN}} ───────────────────────────────────────────────────────
-    # Schadentabelle: exakt dieselbe Funktion wie Forderungsschreiben
+    # KW-04: eine Rechenquelle - Tabelle wird auf die checked cfg-Positionen
+    # gefiltert (100 %-Werte aus betragOriginal), damit Antrag 1, Tabelle und
+    # Differenz-Satz nicht mehr auseinanderlaufen können.
     schaden_raw = dict(akte_daten.get("schaden") or {})
-    # Nebenkosten aus positionen ergänzen falls nicht in schaden_raw
-    _pos_key_map = {
-        "sv_kosten": "sv_kosten", "wertminderung": "wertminderung",
-        "nutzungsausfall": "nutzungsausfall", "mietwagenkosten": "mietwagenkosten",
-        "abschleppkosten": "abschleppkosten", "standkosten": "standkosten",
-        "anabmeldekosten": "anabmeldekosten", "unkostenpauschale": "unkostenpauschale",
+    checked_keys = {p.get("key") for p in positionen}
+
+    _FAHRZEUG_DB_KEYS = (
+        "rep_gutachten_netto", "reparaturkosten", "rep_rechnung_netto",
+        "rep_rechnung_brutto", "wiederbeschaffung", "restwert",
+    )
+    if "fahrzeugschaden" not in checked_keys:
+        for _k in _FAHRZEUG_DB_KEYS:
+            schaden_raw.pop(_k, None)
+
+    # Nebenkosten mit Netto/USt/Brutto-Varianten: nur Filterung (keine
+    # 100%-Überschreibung, da _netto_oder_brutto() die Werte je nach
+    # Vorsteuerstatus unterschiedlich zusammensetzt).
+    _NEBENKOSTEN_GRUPPEN = {
+        "mietwagenkosten": ("mietwagenkosten", "mietwagenkosten_netto", "mietwagenkosten_ust"),
+        "sv_kosten":       ("sv_kosten", "sv_kosten_netto", "sv_kosten_ust"),
+        "kostennb":        ("kostennb", "kostennb_ust"),
+        "abschleppkosten": ("abschleppkosten", "abschleppkosten_netto", "abschleppkosten_ust"),
+        "standkosten":     ("standkosten", "standkosten_netto", "standkosten_ust"),
+        "anabmeldekosten": ("anabmeldekosten", "anabmeldekosten_netto", "anabmeldekosten_ust"),
     }
+    for _pos_key, _db_keys in _NEBENKOSTEN_GRUPPEN.items():
+        if _pos_key not in checked_keys:
+            for _k in _db_keys:
+                schaden_raw.pop(_k, None)
+
+    # Einfache 1:1-Keys: nicht checked → raus; checked → betragOriginal
+    # (Fallback: vorhandener DB-Wert, dann betrag) statt des rohen DB-Werts.
+    _EINFACHE_POS_KEYS = (
+        "wertminderung", "nutzungsausfall", "haushalt",
+        "verdienstausfall", "schmerzensgeld", "sonstiges",
+    )
+    for _pos_key in _EINFACHE_POS_KEYS:
+        if _pos_key not in checked_keys:
+            schaden_raw.pop(_pos_key, None)
+    if "unkostenpauschale" not in checked_keys:
+        # explizit 0.0 (nicht entfernen!) - sonst greift der 30-€-Default (KW-11)
+        schaden_raw["unkostenpauschale"] = 0.0
+
     for p in positionen:
-        k = _pos_key_map.get(p.get("key",""))
-        if k and p.get("betrag"):
-            schaden_raw.setdefault(k, p["betrag"])
+        _key = p.get("key")
+        if _key not in _EINFACHE_POS_KEYS and _key != "unkostenpauschale":
+            continue
+        _wert = p.get("betragOriginal")
+        if _wert is None:
+            _wert = schaden_raw.get(_key)
+        if _wert is None:
+            _wert = p.get("betrag")
+        schaden_raw[_key] = float(_wert or 0)
+
     schaden_gesamt = klagebetrag
     try:
         from .forderungsschreiben_wv import _baue_tabelle as _bt
@@ -1351,7 +1397,21 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         )
         tabelle_xml += _p(f"Gesamt: {_eur_str(klagebetrag)}", fett=True)
 
-    reg_tbl_xml, gesamt_reguliert_tbl = _baue_regulierungs_tbl_xml(reg_agg)
+    # KW-04: Regulierungstabelle inkl. ungebundener Vorschüsse - der Betrag,
+    # den die Abrechnungen insgesamt ausweisen (gesamt_reguliert), abzüglich
+    # dessen, was bereits positionsgebunden erfasst ist (reg_agg).
+    gesamt_reguliert_abrechnungen = round(
+        sum(float(a.get("gesamt_reguliert") or 0) for a in abrechnungen), 2
+    )
+    gesamt_reguliert_positionsgebunden = round(
+        sum(float(d.get("gesamt_reguliert") or 0) for d in reg_agg.values()), 2
+    )
+    ungebundener_vorschuss = round(
+        max(0.0, gesamt_reguliert_abrechnungen - gesamt_reguliert_positionsgebunden), 2
+    )
+    reg_tbl_xml, gesamt_reguliert_tbl = _baue_regulierungs_tbl_xml(
+        reg_agg, ungebunden=ungebundener_vorschuss
+    )
 
     schaden_xml  = _lz() + _p("3.) Unfallschaden", fett=True)
     schaden_xml += _p("Durch den Unfall ist ein Schaden entstanden, der sich wie folgt zusammensetzt:")
@@ -1361,16 +1421,27 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     schaden_xml += _lz()
     schaden_xml += _p("Einholung eines gerichtlichen Sachverständigengutachtens.", fett=True)
 
-    if reg_tbl_xml:
+    # KW-04: Differenz-Satz aus einer Quelle - Zahlungen ergeben sich aus
+    # schaden_gesamt (Tabelle, 100 %) und klagebetrag (Antrag 1), nicht mehr
+    # unabhängig aus gesamt_reguliert_tbl. Der Satz endet damit immer exakt
+    # beim Antrag-1-Betrag.
+    _zahlungen = round(schaden_gesamt - klagebetrag, 2)
+    if _zahlungen > 0:
         schaden_xml += _lz()
         schaden_xml += _p("Die Beklagte hat folgende Zahlungen auf den Schaden geleistet:")
-        schaden_xml += reg_tbl_xml
+        if reg_tbl_xml:
+            schaden_xml += reg_tbl_xml
         schaden_xml += _lz()
-        _differenz = round(schaden_gesamt - gesamt_reguliert_tbl, 2)
         schaden_xml += _p(
             f"Die Differenz des geforderten Gesamtbetrages in Höhe von {_eur_str(schaden_gesamt)} "
-            f"abzgl. der oben gezeigten geleisteten Zahlungen in Höhe von {_eur_str(gesamt_reguliert_tbl)} "
-            f"beträgt {_eur_str(_differenz)} und wird mit dem Klageantrag zu 1 geltend gemacht."
+            f"abzgl. der oben gezeigten geleisteten Zahlungen in Höhe von {_eur_str(_zahlungen)} "
+            f"beträgt {_eur_str(klagebetrag)} und wird mit dem Klageantrag zu 1 geltend gemacht."
+        )
+    else:
+        schaden_xml += _lz()
+        schaden_xml += _p(
+            f"Der Gesamtbetrag in Höhe von {_eur_str(schaden_gesamt)} wird mit dem "
+            f"Klageantrag zu 1 geltend gemacht."
         )
 
     # ── {{RECHTLICHE_WUERDIGUNG}} ─────────────────────────────────────────
