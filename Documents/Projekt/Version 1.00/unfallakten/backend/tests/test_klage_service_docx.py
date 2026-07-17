@@ -289,5 +289,52 @@ class TestKW07SchmerzensgeldNichtDoppelt(unittest.TestCase):
         self.assertNotIn("nicht weniger als", xml)
 
 
+class TestKW05EinleitungEigentumTyp(unittest.TestCase):
+    def test_a_geleast_maennlich_halter_und_besitzer_kein_eigentuemer_satz_leasing_block_vorhanden(self):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 400.0)])
+        akte_daten["mandant"]["anrede"] = "1"
+        akte_daten["unfalldetails"]["aktivlegitimation_typ"] = "geleast"
+        akte_daten["unfalldetails"]["_wdm_mandant_kz"] = "OF-XY 123"
+
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+
+        self.assertIn("Halter und unmittelbarer Besitzer", xml)
+        self.assertNotIn("ist Eigentümer des", xml)
+        self.assertIn("Leasinggeberin", xml)
+
+    def test_b_eigentum_genau_ein_eigentumssatz(self):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 400.0)])
+        akte_daten["mandant"]["anrede"] = "1"
+        akte_daten["unfalldetails"]["aktivlegitimation_typ"] = "eigentum"
+        akte_daten["unfalldetails"]["_wdm_mandant_kz"] = "OF-XY 123"
+
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+
+        self.assertEqual(xml.count("ist Eigentümer des"), 1)
+
+    def test_c_finanziert_maennlich_halter_und_besitzer_bank_block_vorhanden(self):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 400.0)])
+        akte_daten["mandant"]["anrede"] = "1"
+        akte_daten["unfalldetails"]["aktivlegitimation_typ"] = "finanziert"
+        akte_daten["unfalldetails"]["_wdm_mandant_kz"] = "OF-XY 123"
+
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+
+        self.assertIn("Halter und unmittelbarer Besitzer", xml)
+        self.assertNotIn("ist Eigentümer des", xml)
+        self.assertIn("finanzierenden Bank", xml)
+
+    def test_d_geleast_weiblich_halterin_und_besitzerin(self):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 400.0)])
+        akte_daten["mandant"]["anrede"] = "2"
+        akte_daten["unfalldetails"]["aktivlegitimation_typ"] = "geleast"
+        akte_daten["unfalldetails"]["_wdm_mandant_kz"] = "OF-XY 123"
+
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+
+        self.assertIn("Halterin und unmittelbare Besitzerin", xml)
+        self.assertNotIn("ist Eigentümerin des", xml)
+
+
 if __name__ == "__main__":
     unittest.main()

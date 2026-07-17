@@ -1295,15 +1295,30 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
 
         mandant_kz = (details.get("_wdm_mandant_kz") or
                       mandant.get("kfz_kennzeichen") or "").strip()
-        eigentuemer = "Eigentümerin" if anrede_m == "frau" else "Eigentümer"
-        eigentuemer_satz = (
-            f"{kl_nom} ist {eigentuemer} des bei dem Unfall beschädigten "
-            f"Fahrzeugs mit dem amtlichen Kennzeichen {mandant_kz}."
-            if mandant_kz else
-            f"{kl_nom} ist {eigentuemer} des bei dem Unfall beschädigten Fahrzeugs."
-        )
+        aktivlegitimation_typ = (details.get("aktivlegitimation_typ") or "eigentum").strip()
+        weiblich = anrede_m == "frau"
+        if aktivlegitimation_typ in ("finanziert", "geleast"):
+            halter_besitzer = ("Halterin und unmittelbare Besitzerin" if weiblich
+                                else "Halter und unmittelbarer Besitzer")
+            eigentuemer_satz = (
+                f"{kl_nom} ist {halter_besitzer} des bei dem Unfall beschädigten "
+                f"Fahrzeugs mit dem amtlichen Kennzeichen {mandant_kz}."
+                if mandant_kz else
+                f"{kl_nom} ist {halter_besitzer} des bei dem Unfall beschädigten Fahrzeugs."
+            )
+        else:
+            eigentuemer = "Eigentümerin" if weiblich else "Eigentümer"
+            eigentuemer_satz = (
+                f"{kl_nom} ist {eigentuemer} des bei dem Unfall beschädigten "
+                f"Fahrzeugs mit dem amtlichen Kennzeichen {mandant_kz}."
+                if mandant_kz else
+                f"{kl_nom} ist {eigentuemer} des bei dem Unfall beschädigten Fahrzeugs."
+            )
         einleitung_xml += _p(f"{intro_satz} {beklagte_satz} {eigentuemer_satz}")
-        aktivleg_xml = _build_aktivlegitimation_xml(details, kl_nom, anrede_m)
+        if aktivlegitimation_typ == "eigentum" and not details.get("aktivlegitimation_text_override"):
+            aktivleg_xml = ""
+        else:
+            aktivleg_xml = _build_aktivlegitimation_xml(details, kl_nom, anrede_m)
 
     # ── {{UNFALLHERGANG}} ─────────────────────────────────────────────────
     schilderung = details.get("schilderung") or ""
