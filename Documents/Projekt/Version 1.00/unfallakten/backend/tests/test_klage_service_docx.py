@@ -402,7 +402,7 @@ class TestKW03HaftungsquoteFallAB(unittest.TestCase):
         self.assertIn("7.000,00 €", xml)
         self.assertNotIn("entsprechend gekürzt", xml)
         self.assertIn(
-            "Die Beklagtenseite geht von einer Mithaftungsquote des den Kläger von 25 % aus. "
+            "Die Beklagtenseite geht von einer Mithaftungsquote von 25 % auf Klägerseite aus. "
             "Dies wird bestritten; die Beklagtenseite haftet in vollem Umfang. "
             "Die Klageforderung ist ungekürzt geltend gemacht.",
             xml,
@@ -452,6 +452,47 @@ class TestKW03HaftungsquoteFallAB(unittest.TestCase):
             "verbleiben 0,00 €, die mit dem Klageantrag zu 1 geltend gemacht werden.",
             xml,
         )
+
+    def test_h_ersatzfaehig_basis_ist_schaden_gesamt_nicht_fallb_gesamt_voll(self):
+        # sv_kosten: cfg-betragOriginal (595, "brutto" vom Wizard erfasst) weicht
+        # von der Tabelle ab, die bei vorsteuerabzugsberechtigtem Mandanten nur
+        # den Nettobetrag (sv_kosten_netto=500) zeigt (_netto_oder_brutto, KW-39).
+        # schaden_gesamt (Tabelle) != fallb_gesamt_voll (cfg-Summe): 10.500 != 10.595.
+        positionen = [
+            _position("wertminderung", "Wertminderung", betrag=7000.0, betrag_original=10000.0, checked=True),
+            _position("sv_kosten", "Sachverständigenkosten", betrag=595.0, betrag_original=595.0, checked=True),
+        ]
+        schaden = {"wertminderung": 10000.0, "sv_kosten_netto": 500.0, "sv_kosten_ust": 0.0}
+        akte_daten = _akte_daten(positionen, schaden, vorsteuer="J")
+        akte_daten["klage_config"]["haftungsquote"] = 75
+        akte_daten["klage_config"]["haftungsquote_typ"] = "eigen"
+
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+
+        # schaden_gesamt (Tabelle) = 10.500,00; fallb_gesamt_voll (cfg) = 10.595,00
+        self.assertIn("10.500,00", xml)
+        self.assertIn(
+            "Von dem Gesamtschaden in Höhe von 10.500,00 € sind unter Berücksichtigung "
+            "der Mithaftungsquote von 25 % 75 %, mithin 7.875,00 €, ersatzfähig. "
+            "Abzüglich der geleisteten Zahlungen in Höhe von 2.928,75 € "
+            "verbleiben 4.946,25 €, die mit dem Klageantrag zu 1 geltend gemacht werden.",
+            xml,
+        )
+
+    def test_i_hq_cfg_nicht_numerisch_faellt_auf_details_akte_zurueck(self):
+        positionen = [
+            _position("wertminderung", "Wertminderung", betrag=7000.0, betrag_original=10000.0, checked=True),
+        ]
+        schaden = {"wertminderung": 10000.0}
+        akte_daten = _akte_daten(positionen, schaden)
+        akte_daten["klage_config"]["haftungsquote"] = ""
+        akte_daten["klage_config"]["haftungsquote_typ"] = "eigen"
+        akte_daten["unfalldetails"]["haftungsquote"] = 100
+
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+
+        self.assertIn("7.000,00 €", xml)
+        self.assertNotIn("Mithaftungsquote", xml)
 
 
 if __name__ == "__main__":

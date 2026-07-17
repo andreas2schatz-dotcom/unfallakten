@@ -972,9 +972,12 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
 
     # ── Haftungsquote (KW-03) ────────────────────────────────────────────────
     hq_cfg = cfg.get("haftungsquote")
-    hq = float(hq_cfg) if hq_cfg is not None else float(
-        details.get("haftungsquote") or akte.get("haftungsquote") or 100
-    )
+    try:
+        hq = float(hq_cfg) if hq_cfg is not None else float(
+            details.get("haftungsquote") or akte.get("haftungsquote") or 100
+        )
+    except (ValueError, TypeError):
+        hq = float(details.get("haftungsquote") or akte.get("haftungsquote") or 100)
     hq_typ = cfg.get("haftungsquote_typ") or "gegnerisch"
 
     # ── Positionen / Gegenstandswert ─────────────────────────────────────────
@@ -1501,11 +1504,12 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     schaden_xml += _p("Einholung eines gerichtlichen Sachverständigengutachtens.", fett=True)
 
     if fallb_aktiv:
-        # KW-03 Fall B: eigene Quote - schaden_gesamt (Tabelle, 100 %) entspricht
-        # per Konstruktion fallb_gesamt_voll (gleiche checked Positionen,
-        # gleiche betragOriginal-Werte, KW-04). Differenz-Satz weist die
-        # Quotenkürzung separat von den geleisteten Zahlungen aus.
-        _ersatzfaehig = round(fallb_gesamt_voll * hq / 100, 2)
+        # KW-03 Fall B: eigene Quote - der Satz zeigt schaden_gesamt (Tabelle) als
+        # Basis, daher muss auch die Quote auf schaden_gesamt gerechnet werden.
+        # fallb_gesamt_voll (cfg-betragOriginal-Summe) kann bei Nebenkosten
+        # (netto/brutto via _netto_oder_brutto) von schaden_gesamt abweichen -
+        # nur klagebetrag (Antrag 1) darf auf fallb_gesamt_voll basieren.
+        _ersatzfaehig = round(schaden_gesamt * hq / 100, 2)
         _zahlungen_anzeige = round(_ersatzfaehig - klagebetrag, 2)
         schaden_xml += _lz()
         if _zahlungen_anzeige > 0:
@@ -1594,9 +1598,10 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
                 )
             else:
                 rw_xml += _p(
-                    f"Die Beklagtenseite geht von einer Mithaftungsquote des {kl_dat} von "
-                    f"{_pct_str(100 - hq)} % aus. Dies wird bestritten; die Beklagtenseite haftet "
-                    f"in vollem Umfang. Die Klageforderung ist ungekürzt geltend gemacht."
+                    f"Die Beklagtenseite geht von einer Mithaftungsquote von "
+                    f"{_pct_str(100 - hq)} % auf Klägerseite aus. Dies wird bestritten; die "
+                    f"Beklagtenseite haftet in vollem Umfang. Die Klageforderung ist ungekürzt "
+                    f"geltend gemacht."
                 )
 
     # ── {{SCHMERZENSGELD}} ────────────────────────────────────────────────
