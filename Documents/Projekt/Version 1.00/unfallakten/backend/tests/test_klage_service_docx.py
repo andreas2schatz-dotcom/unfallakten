@@ -661,5 +661,29 @@ class TestKW17MehrereKlaeger(unittest.TestCase):
         self.assertIn("den Klägern sämtliche", xml)
 
 
+class TestKW18KlaegerFallback(unittest.TestCase):
+    """KW-18: Rubrum ohne Klaeger -> Mandant-Fallback bzw. harte Sperre."""
+
+    def test_fallback_auf_mandant(self):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 400.0)])
+        akte_daten["klage_config"]["beklagte"] = [{
+            "rolle_klage": "beklagter", "versicherung": "Test-Versicherung AG",
+            "anschrift": "Teststr. 2", "plz": "12345", "ort": "Teststadt",
+        }]
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+        self.assertIn("Max Mustermann", xml)
+        self.assertIn("– Kläger –", xml)
+
+    def test_harte_sperre_ohne_mandant(self):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 400.0)])
+        akte_daten["mandant"] = {}
+        akte_daten["klage_config"]["beklagte"] = [{
+            "rolle_klage": "beklagter", "versicherung": "Test-Versicherung AG",
+            "anschrift": "Teststr. 2", "plz": "12345", "ort": "Teststadt",
+        }]
+        with self.assertRaises(ValueError):
+            generiere_klageschrift(akte_daten)
+
+
 if __name__ == "__main__":
     unittest.main()

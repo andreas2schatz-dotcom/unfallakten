@@ -1015,6 +1015,24 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
             if bid not in _kl_seen:
                 _kl_seen.add(bid)
                 klaeger_liste.append(b)
+
+    # KW-18: kein Klaeger-Beteiligter im Rubrum -> auf Mandantendaten
+    # zurueckfallen; ist auch das leer, harte Sperre statt leerem Rubrum.
+    if not klaeger_liste:
+        _fb = {
+            "rolle_klage": "klaeger",
+            "name":      mandant.get("name") or "",
+            "vorname":   mandant.get("vorname") or "",
+            "firma":     mandant.get("firma") or "",
+            "anschrift": mandant.get("anschrift") or "",
+            "plz":       mandant.get("plz") or "",
+            "ort":       mandant.get("ort") or "",
+            "anrede":    mandant.get("anrede") or "",
+        }
+        if not (_fb["name"] or _fb["firma"]):
+            raise ValueError("Kein Kläger ermittelbar – bitte Mandanten-/Parteidaten prüfen.")
+        klaeger_liste = [_fb]
+
     mehrere_klaeger  = len(klaeger_liste) > 1
 
     if mehrere_klaeger:

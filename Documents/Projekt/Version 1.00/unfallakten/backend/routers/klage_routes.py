@@ -1380,6 +1380,8 @@ def generiere_klage(akte_id: str):
         doc_bytes = generiere_klageschrift(akte_daten)
     except FileNotFoundError as e:
         return _err(str(e), 501)
+    except ValueError as e:
+        return _err(str(e), 422)
     except Exception as e:
         logger.error("Klage-Generierung fehlgeschlagen: %s", e, exc_info=True)
         return _err(f"Fehler beim Erstellen der Klageschrift: {e}", 500)
