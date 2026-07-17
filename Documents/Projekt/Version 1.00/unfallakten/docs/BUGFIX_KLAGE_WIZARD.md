@@ -18,15 +18,15 @@
 |---|---|---|---|---|
 | KW-01 | P0 | `backend/routers/klage_routes.py:1170` | Anträge-Override + Feststellungsanträge gehen komplett verloren | ✅ behoben `e668f50f` |
 | KW-02 | P0 | `frontend/src/sections/KlageWizard.jsx:1954` | RVG-Faktor landet im Euro-Override → „weitere 1,50 €" | ✅ behoben `b1c1fbfb` |
-| KW-03 | P0 | `backend/word/klage_service.py:1409` | Haftungsquote wird nie angewendet, Text behauptet Kürzung | offen |
-| KW-04 | P0 | `backend/word/klage_service.py:1338` | Antrag 1 ≠ Schadentabelle ≠ Differenz-Satz (3 Rechenwege) | offen |
-| KW-05 | P0 | `backend/word/klage_service.py:1289` | Einleitung behauptet Eigentum trotz Leasing/Finanzierung | offen |
+| KW-03 | P0 | `backend/word/klage_service.py:1409` | Haftungsquote wird nie angewendet, Text behauptet Kürzung | ✅ behoben S2 (BE `ebbf7c1b`+`3947fc21`, FE `ff859255`+`db9dcfe7`+`ce18d869`) |
+| KW-04 | P0 | `backend/word/klage_service.py:1338` | Antrag 1 ≠ Schadentabelle ≠ Differenz-Satz (3 Rechenwege) | ✅ behoben `974cecdd`+`f5a29ad7` |
+| KW-05 | P0 | `backend/word/klage_service.py:1289` | Einleitung behauptet Eigentum trotz Leasing/Finanzierung | ✅ behoben `322fb9a1`+`633b6c95` |
 | KW-06 | P1 | `backend/word/klage_service.py:1208` | Mehrere Beklagte: Singular-Anträge, kein Gesamtschuldner | offen |
-| KW-07 | P1 | `backend/routers/klage_routes.py:802` | Schmerzensgeld doppelt einklagbar (Position + mitSG) | offen |
+| KW-07 | P1 | `backend/routers/klage_routes.py:802` | Schmerzensgeld doppelt einklagbar (Position + mitSG) | ✅ behoben `5639c72e`+`bb64829b` |
 | KW-08 | P1 | `frontend/src/sections/KlageSection.jsx:380` | Legacy-Button klagt vollen statt offenen Betrag ein | offen |
 | KW-09 | P1 | `backend/word/klage_service.py:972` | Zins-/Verzugsdatum erscheint im ISO-Format | offen |
 | KW-10 | P1 | `frontend/src/sections/KlageSection.jsx:581` | Verzugsdatum-State-Split (3 Stellen, 3 Werte) + Schreibdatum als Verzugseintritt | offen |
-| KW-11 | P1 | `backend/word/forderungsschreiben_wv.py:807` | Unkostenpauschale nicht abwählbar (`or 30.0` + tote Weiche) | offen |
+| KW-11 | P1 | `backend/word/forderungsschreiben_wv.py:807` | Unkostenpauschale nicht abwählbar (`or 30.0` + tote Weiche) | ✅ behoben `5cb2acc5`+`fb695b6b` |
 | KW-12 | P1 | `backend/word/klage_service.py:478` | Anlagen-Kollision: zwei Dokumente heißen „K1" | offen |
 | KW-13 | P1 | `frontend/src/sections/KlageSection.jsx:317` | „RVG gerichtlich" ist außergerichtliche Gebühr; `rvg_override` wirkungslos | offen |
 | KW-14 | P1 | `backend/routers/klage_routes.py:1399` | `klage_generiert`-Ereignis immer ohne Positionen (geschluckter AttributeError) | ✅ behoben `d42f09eb` |
@@ -54,7 +54,7 @@
 | KW-36 | P4 | `backend/word/klage_service.py:1394` | Haftungsquote int-Truncation: 66,67 % → „66 % + 33 % = 99" | offen |
 | KW-37 | P4 | `backend/word/klage_service.py:1478` | RVG-Faktor „(1.3)" mit Punkt statt Komma | offen |
 | KW-38 | P4 | `frontend/src/sections/KlageSection.jsx:275` | Positions-Key-Vertrag ungesichert (`_KEY_MAP` nur Fahrzeugschaden) | offen |
-| KW-39 | P4 | `backend/routers/klage_routes.py:783` | Vorsteuer-Inkonsistenz Nebenkosten (Antrag brutto, Tabelle netto) | offen |
+| KW-39 | P4 | `backend/routers/klage_routes.py:783` | Vorsteuer-Inkonsistenz Nebenkosten (Antrag brutto, Tabelle netto) | ✅ behoben `e19edc64` (S2 vorgezogen) |
 | KW-40 | P4 | diverse | Sammelposten Kleinkram/toter Code (Details unten) | offen |
 
 ---
@@ -72,7 +72,8 @@
 - **Auswirkung:** Nutzer führt in Step 9 die Gebühren-Analyse aus (Faktor z.B. 1,5) → Betrags-Override-Feld zeigt „1.5", Step 10 zeigt „RVG außergerichtlich: 1,50 €", DOCX-Tabelle „Gesamtbetrag: 1,50 €" und Klageantrag „weitere 1,50 €" statt ~1.300 €.
 - **Fix-Richtung:** Faktor und Euro-Betrag als getrennte Felder/States führen; die Analyse darf nur den Faktor setzen und daraus neu berechnen, nie das Betrags-Override befüllen.
 
-### - [ ] KW-03 — Haftungsquote wird nie angewendet, Text behauptet das Gegenteil
+### - [x] KW-03 — Haftungsquote wird nie angewendet, Text behauptet das Gegenteil — behoben Session 2 2026-07-17 (BE `ebbf7c1b`+`3947fc21`, FE `ff859255`+`db9dcfe7`+`ce18d869`)
+> **Umsetzung:** Neuer cfg-Vertrag `haftungsquote` + `haftungsquote_typ` („gegnerisch" Default | „eigen"); Quote wirkt nur bei eigen && 0<hq<100. Fall B: `klagebetrag = max(0, round(Σ betragOriginal(checked)×hq/100 − Zahlungen, 2))` — erst quotieren, dann Zahlungen abziehen; sgMind unquotiert; Fall-B-Differenz-Satz auf Tabellenbasis (`ersatzfaehig = round(schaden_gesamt×hq/100, 2)`), endet exakt beim Antrag-1-Betrag. Fall A/Auto-RW: „entsprechend gekürzt" ersatzlos raus, Bestreiten-Baustein (deklinationsfrei formuliert). Frontend: Step-7-Radio, exportierte `berechneKlagebetrag`/`berechneSwAussergEffektiv`/`pctStr` (backend-identisch), Nr.-2300-Basis bei eigen quotiert, `oeffneWizard`-Initialtext nutzt jetzt `buildRwVorschau` (Falsch-Satz auch aus dem Default-Pfad eliminiert; alleinige-Haftung-Satz hq=100 dorthin zurückportiert, erscheint jetzt auch bei Step-7-Regeneration).
 - **Datei:** `frontend/src/sections/KlageWizard.jsx:1150–1210` (hq nur im RW-Text), `KlageSection.jsx:503–504, 560–585` (hq nicht in cfg), `backend/word/klage_service.py:1409–1411` (Auto-Text „Die Klageforderung wurde entsprechend gekürzt")
 - **Auswirkung:** Bei Quote 50 % sagt der Schriftsatz „Mithaftungsquote 50 %, Forderung entsprechend gekürzt" — der Klagebetrag bleibt aber 100 %. Widersprüchliche Tatsachenbehauptung; bei Teilhaftungsfällen materiell falscher Antrag.
 - **Fix-Richtung — ENTSCHIEDEN (RA Schatz, 2026-07-17), zwei getrennte Fälle:**
@@ -80,12 +81,14 @@
   - **Fall B — eigene Quote** (wir akzeptieren selbst eine Mithaftung): Schadentabelle bleibt auf 100 %, aber der Klagebetrag wird quotiert. **Rechenweg: erst quotieren, dann Zahlungen abziehen** (Anspruch = Gesamtschaden × Quote; davon reguliert abziehen → Klagebetrag). **Schmerzensgeld wird NICHT automatisch quotiert** (Mitverschulden ist dort Bemessungsfaktor, Mindestbetrag wird bereits quotenbewusst eingegeben). **Die eigene Quote gilt auch für den vorgerichtlichen Streitwert** (Basis der Geschäftsgebühr Nr. 2300 = quotierter Betrag).
   - **UI:** Step 7 braucht eine Auswahl, wessen Quote gemeint ist: „gegnerisch angenommen (nur Darstellung)" vs. „von uns akzeptiert (kürzt Forderung + Gebührenbasis)". Beide Fälle bekommen eigene RW-Textbausteine.
 
-### - [ ] KW-04 — Antrag 1 ≠ Schadentabelle ≠ Differenz-Satz (drei parallele Rechenwege)
+### - [x] KW-04 — Antrag 1 ≠ Schadentabelle ≠ Differenz-Satz (drei parallele Rechenwege) — behoben `974cecdd`+`f5a29ad7`, Session 2 2026-07-17
+> **Umsetzung:** Schadentabelle nur noch aus checked cfg-Positionen (100 % = `betragOriginal`; Fahrzeugschaden-Multi-Key-Gruppe; Extras via wortgleicher `extra_…`-Key-Ableitung gefiltert; Unkostenpauschale nicht-checked → explizit 0.0). Regulierungs-Tabelle + Zeile „Zahlung ohne Positionszuordnung" (ungebundene Vorschüsse). Differenz-Satz per Konstruktion exakt: `Zahlungen = schaden_gesamt − klagebetrag`, endet beim Antrag-1-Betrag; vereinfachter Satz wenn nichts reguliert. Neues Testmuster: `test_klage_service_docx.py` (echtes DOCX-Rendering + zipfile).
 - **Datei:** `backend/word/klage_service.py:957–959` (Antrag 1 = Σ checked cfg-Positionen, im Wizard genettet), `:1334–1374` (Tabelle aus vollen DB-Werten, ignoriert Checkboxen/Wizard-Beträge; Differenz-Satz „…wird mit dem Klageantrag zu 1 geltend gemacht"), `backend/routers/klage_routes.py:1249–1260` (Zahlungen nur positionsgebunden, ohne ungebundene Vorschüsse)
 - **Auswirkung:** (a) Position im Wizard abgewählt → Differenz-Satz nennt Betrag inkl. der Position, Antrag 1 ohne — bezifferter Selbstwiderspruch im Schriftsatz. (b) Ungebundener Vorschuss (nur `gesamt_reguliert`, keine `regulierung_positionen`) → Antrag 1 niedriger als behauptete Differenz.
 - **Fix-Richtung:** Eine Rechenquelle: Tabelle und Differenz-Satz aus denselben (genetteten, checked) cfg-Positionen speisen wie Antrag 1 — oder „offen je Position" ins Backend verlagern (Verbesserung V2) und überall konsumieren.
 
-### - [ ] KW-05 — Einleitung behauptet Eigentum trotz Leasing/Finanzierung
+### - [x] KW-05 — Einleitung behauptet Eigentum trotz Leasing/Finanzierung — behoben `322fb9a1`+`633b6c95`, Session 2 2026-07-17
+> **Umsetzung:** Einleitungssatz typabhängig (finanziert/geleast: „Halter und unmittelbarer Besitzer", flektiert). Bei eigentum ohne Override: Eigentumsbehauptung genau 1× — ohne Fahrer trägt sie der Einleitungssatz (AktLeg-Block leer), mit `mandant_ist_fahrer` trägt sie der AktLeg-Block (inkl. § 1006 BGB) und der Einleitungssatz entfällt. Override-/sachverhalt_override-Pfade unverändert; `get_aktivlegitimation_text` (Forderungsschreiben) unangetastet.
 - **Datei:** `backend/word/klage_service.py:1289–1296` (bedingungsloser Satz „{kl_nom} ist Eigentümer des … Fahrzeugs") vs. `:468` (AktLeg-Block „Eigentum der Leasinggeberin")
 - **Auswirkung:** Bei `aktivlegitimation_typ="geleast"` ohne `sachverhalt_override` stehen zwei sich widersprechende Tatsachenbehauptungen direkt hintereinander. Bei `typ="eigentum"` steht der Eigentumssatz doppelt (Einleitung + AktLeg-Block).
 - **Fix-Richtung:** Eigentumssatz vom `aktivlegitimation_typ` abhängig machen (Eigentum: einmal; finanziert/geleast: Formulierung „Halter und unmittelbarer Besitzer" o.ä.); Dublette entfernen.
@@ -99,7 +102,8 @@
 - **Auswirkung:** Fahrer + Versicherung als 2 Beklagte (vom System via synthetischem GHPV-Eintrag aktiv angeboten, `klage_routes.py:948–980`) → Zahlungsantrag benennt nicht, wer verurteilt werden soll; „als Gesamtschuldner" fehlt vollständig.
 - **Fix-Richtung:** Numerus-bewusste Antragsbausteine („Die Beklagten werden als Gesamtschuldner verurteilt, an …"); siehe Verbesserung V3 (Partei-Objekt). Frontend-Pendant: `baueAntraegeText()` in KlageWizard.jsx hat dasselbe Problem (`(zu 1)` hart, `EinwandePanel:981`, `StepGebuehren:1928`).
 
-### - [ ] KW-07 — Schmerzensgeld doppelt einklagbar
+### - [x] KW-07 — Schmerzensgeld doppelt einklagbar — behoben `5639c72e` (BE) + `bb64829b` (FE), Session 2 2026-07-17
+> **Umsetzung:** Backend schließt bei `mit_schmerzensgeld=true` die SG-Position vor der checked-Filterung aus (wirkt auf Antrag 1, Gegenstandswert, Tabelle, Differenz-Satz). Frontend StepSchaden: SG-Zeile bei aktivem Toggle enthakt (echter Setter) + disabled + Hinweis; Toggle aus → wieder bedienbar.
 - **Datei:** `backend/routers/klage_routes.py:802–803` (SG als bezifferte, checked Position), `backend/word/klage_service.py:957–959, 1026, 1213 ff.` (kein Ausschluss zu `mit_schmerzensgeld`), `forderungsschreiben_wv.py:804` (SG-Zeile in Tabelle)
 - **Auswirkung:** SG-Position 2.000 € angehakt + „Schmerzensgeld geltend machen" mit Mindestbetrag 2.000 € → Gegenstandswert 4.000 € zu hoch, SG beziffert in Antrag 1 UND unbeziffert als eigener Antrag.
 - **Fix-Richtung:** Gegenseitiger Ausschluss: bei `mit_schmerzensgeld=true` die SG-Position aus Antrag 1/Tabelle/Streitwert nehmen (oder Checkbox in Step 5 deaktivieren mit Hinweis).
@@ -119,7 +123,8 @@
 - **Auswirkung:** Verzugsdatum in Step 8 korrigiert → cfg und Step 9 nutzen weiter den alten Wert; Hauptantrag, Gebühren-Antrag und Verzugs-Abschnitt können drei verschiedene Daten nennen. Zudem juristisch schief: „Der Verzug ist am {Schreibdatum} eingetreten" + „BEWEIS: Schreiben vom {selbes Datum}".
 - **Fix-Richtung:** Ein einziger Verzugsdatum-State; `wizardGenerieren` sendet `wizardVerzugDatum || verzug`; Schreibdatum und Verzugseintritt als getrennte Felder (Eintritt = Fristablauf, editierbar).
 
-### - [ ] KW-11 — Unkostenpauschale nicht abwählbar
+### - [x] KW-11 — Unkostenpauschale nicht abwählbar — behoben `5cb2acc5`+`fb695b6b`, Session 2 2026-07-17
+> **Wichtige Erkenntnis:** Die DB kann „nie angefasst" nicht von „explizit 0" unterscheiden (`schadenpositionen.unkostenpauschale` ist `NOT NULL DEFAULT 0.0`). Deshalb: `_baue_tabelle` hat jetzt None-Semantik (Key fehlt/None → 30-€-Default; expliziter Wert, auch 0.0 → Wert); DB-seitig bleibt das Bestandsverhalten byte-gleich (falsy → None → 30 €) an beiden Aufbau-Stellen (Klage-Router + `word_service`/Forderungsschreiben); die Abwahl-Wirkung kommt aus den Wizard-cfg-Positionen (KW-04-Filter setzt nicht-checked → explizit 0.0).
 - **Datei:** `backend/word/forderungsschreiben_wv.py:807` (`_f("unkostenpauschale") or 30.0` macht aus 0.0 → 30 €), `backend/routers/klage_routes.py:1221–1222` (Abwahl-Weiche tot: `s()` gibt nie `None`)
 - **Auswirkung:** Im Wizard abgewählte/genullte Unkostenpauschale steht trotzdem mit 30 € in der Schadentabelle → verstärkt KW-04.
 - **Fix-Richtung:** `None`-Semantik sauber trennen (nicht gesetzt vs. explizit 0); Default-30 nur bei „nicht gesetzt".
@@ -248,6 +253,7 @@
 ### - [ ] KW-34 — RVG-Antrag über „0,00 €" möglich
 - **Datei:** `backend/word/klage_service.py:989–991 + 1248` (`max(0.0, …)` → Antrag „…weitere 0,00 € … zu zahlen" samt VK-Abschnitt)
 - **Fix-Richtung:** Bei 0 € Antrag + VK-Abschnitt weglassen.
+- **Neu aus S2 (KW-03, hier mitzubehandeln):** Klammer-Randfall Fall B — wenn Zahlungen den quotierten Anspruch übersteigen (`klagebetrag` klemmt auf 0), nennt der Fall-B-Differenz-Satz eine geringere Zahlungssumme als real geleistet (`zahlungen_anzeige = ersatzfaehig − klagebetrag`, arithmetisch konsistent, aber juristisch schief). Zusammen mit der 0-€-Antrags-Frage lösen.
 
 ### - [ ] KW-35 — RVG-Fallback nutzt SQLite-Importdatum
 - **Datei:** `backend/word/klage_service.py:963–965` (`erstellt_am` statt `_rvg_anlagedatum` aus `klage_routes.py:48–85`)
@@ -267,7 +273,8 @@
 - **Auswirkung:** Offener Betrag/Klagebetrag zu hoch. Verwandter Bug-Typ war schon einmal da (`sonstiges_wdm_X ≠ extra_wdm_ssX`, siehe [[unfallakten-key-mismatch-bug]]).
 - **Fix-Richtung:** Vollständiges Key-Mapping + Test, der alle `regulierung_positionen.position_key`-Werte gegen die Wizard-Keys prüft; langfristig V2 (offen-je-Position im Backend).
 
-### - [ ] KW-39 — Vorsteuer-Inkonsistenz Nebenkosten
+### - [x] KW-39 — Vorsteuer-Inkonsistenz Nebenkosten — behoben `e19edc64`, Session 2 2026-07-17 (vorgezogen aus S6, weil das KW-04-Review die Divergenz als aktiven Widerspruch Tabelle↔Antrag nachwies)
+> **Umsetzung:** `pos_definitionen` berechnet die fünf Nebenkosten-Keys (Mietwagen/SV/Abschlepp/Stand/An-Abmeldung) jetzt via importierter `_netto_oder_brutto`-Logik (echte Wiederverwendung, keine Kopie); `kostennb` behielt seine äquivalente eigene Weiche.
 - **Datei:** `backend/routers/klage_routes.py:783–794` (SV-Kosten/Mietwagen/Abschlepp/Stand/An-Abmeldung immer brutto, nur `fahrzeugschaden`/`kostennb` vorsteuer-bewusst) vs. `forderungsschreiben_wv.py:715–737, 798–803` (Tabelle rechnet netto)
 - **Auswirkung:** Beim Vorsteuer-Mandanten: Antrag brutto, Tabelle netto → Widerspruch.
 - **Fix-Richtung:** `pos_definitionen` vorsteuer-bewusst machen (dieselbe `_netto_oder_brutto`-Logik).
@@ -310,7 +317,7 @@
 | Session | Inhalt | Begründung |
 |---|---|---|
 | **1** | KW-01 + KW-23 (zusammen!), KW-02, KW-14 | Verlorene Eingaben + falsche Beträge + Ereignis-Fix; kleinster Eingriff, größte Wirkung |
-| **2** | KW-03 (Quote-Fälle A/B, entschieden), KW-04, KW-05, KW-07, KW-11 | Konsistente Beträge & Tatsachenbehauptungen im DOCX |
+| **2** ✅ | KW-03, KW-04, KW-05, KW-07, KW-11 + KW-39 (vorgezogen) — erledigt 2026-07-17, Branch `klage-wizard-fixes-s2` | Konsistente Beträge & Tatsachenbehauptungen im DOCX. Baseline: Backend 204f/1000p (null neue), Frontend 122 + Build. Neues DOCX-Direkttest-Muster `test_klage_service_docx.py`. |
 | **3** | KW-06, KW-15–KW-21 (Rubrum/Grammatik-Cluster) | Am besten als V3-Refactoring (Partei-Objekt) in einem Zug |
 | **4** | KW-09, KW-10, KW-12, KW-13, KW-08 | Datum/RVG/Anlagen; V5+V6 |
 | **5** | KW-22, KW-24–KW-29 (Wizard-State/UX) | V7 Dirty-Tracking als gemeinsames Muster |
