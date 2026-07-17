@@ -1164,10 +1164,13 @@ def generiere_klage(akte_id: str):
     # Wert = Override → Wizard-Wert hat Vorrang
     overrides = body.get("overrides") or {}
 
-    # rvg_ausserg + rvg_ausserg_override + rvg_bereits_gezahlt kommen aus overrides
-    # (Wizard Step 9), müssen explizit in klage_cfg eingemergt werden damit
-    # klage_service.py sie via cfg.get() findet.
-    for _key in ("rvg_ausserg", "rvg_ausserg_override", "rvg_bereits_gezahlt"):
+    # rvg_ausserg + rvg_ausserg_override + rvg_bereits_gezahlt (Wizard Step 9)
+    # sowie antraege_override + mit_feststellung_sg + mit_feststellung_sach
+    # (Wizard Step 6/9) kommen aus overrides und müssen explizit in klage_cfg
+    # eingemergt werden, damit klage_service.py sie via cfg.get() findet.
+    for _key in ("rvg_ausserg", "rvg_ausserg_override", "rvg_bereits_gezahlt",
+                 "antraege_override", "mit_feststellung_sg",
+                 "mit_feststellung_sach"):
         if overrides.get(_key) is not None:
             klage_cfg[_key] = overrides[_key]
 
