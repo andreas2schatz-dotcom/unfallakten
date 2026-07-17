@@ -1314,11 +1314,18 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
                 if mandant_kz else
                 f"{kl_nom} ist {eigentuemer} des bei dem Unfall beschädigten Fahrzeugs."
             )
-        einleitung_xml += _p(f"{intro_satz} {beklagte_satz} {eigentuemer_satz}")
-        if aktivlegitimation_typ == "eigentum" and not details.get("aktivlegitimation_text_override"):
-            aktivleg_xml = ""
-        else:
+        hat_override = bool(details.get("aktivlegitimation_text_override"))
+        # § 1006-Argument hängt am AktLeg-Block: bei Eigentum+Fahrer wandert die
+        # Eigentumsbehauptung dorthin, damit sie nicht doppelt im Dokument steht.
+        if aktivlegitimation_typ == "eigentum" and not hat_override and bool(details.get("mandant_ist_fahrer")):
+            einleitung_xml += _p(f"{intro_satz} {beklagte_satz}")
             aktivleg_xml = _build_aktivlegitimation_xml(details, kl_nom, anrede_m)
+        else:
+            einleitung_xml += _p(f"{intro_satz} {beklagte_satz} {eigentuemer_satz}")
+            if aktivlegitimation_typ == "eigentum" and not hat_override:
+                aktivleg_xml = ""
+            else:
+                aktivleg_xml = _build_aktivlegitimation_xml(details, kl_nom, anrede_m)
 
     # ── {{UNFALLHERGANG}} ─────────────────────────────────────────────────
     schilderung = details.get("schilderung") or ""

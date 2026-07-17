@@ -311,6 +311,32 @@ class TestKW05EinleitungEigentumTyp(unittest.TestCase):
         xml = _document_xml(generiere_klageschrift(akte_daten))
 
         self.assertEqual(xml.count("ist Eigentümer des"), 1)
+        self.assertNotIn("§ 1006", xml)
+
+    def test_e_eigentum_mandant_ist_fahrer_paragraph1006_erhalten_kein_doppelter_satz(self):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 400.0)])
+        akte_daten["mandant"]["anrede"] = "1"
+        akte_daten["unfalldetails"]["aktivlegitimation_typ"] = "eigentum"
+        akte_daten["unfalldetails"]["_wdm_mandant_kz"] = "OF-XY 123"
+        akte_daten["unfalldetails"]["mandant_ist_fahrer"] = True
+
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+
+        self.assertIn("§ 1006", xml)
+        self.assertEqual(xml.count("ist Eigentümer des"), 1)
+
+    def test_f_eigentum_mit_override_zeigt_override_text(self):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 400.0)])
+        akte_daten["mandant"]["anrede"] = "1"
+        akte_daten["unfalldetails"]["aktivlegitimation_typ"] = "eigentum"
+        akte_daten["unfalldetails"]["_wdm_mandant_kz"] = "OF-XY 123"
+        akte_daten["unfalldetails"]["aktivlegitimation_text_override"] = (
+            "Individueller Aktivlegitimations-Override-Text."
+        )
+
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+
+        self.assertIn("Individueller Aktivlegitimations-Override-Text.", xml)
 
     def test_c_finanziert_maennlich_halter_und_besitzer_bank_block_vorhanden(self):
         akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 400.0)])
