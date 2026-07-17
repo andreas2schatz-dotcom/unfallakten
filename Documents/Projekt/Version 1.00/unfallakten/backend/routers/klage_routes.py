@@ -1221,9 +1221,8 @@ def generiere_klage(akte_id: str):
         "haushalt":            s("haushalt"),
         "sonstiges":           s("sonstiges"),
         "sonstiges_beschr":    sv("sonstiges_beschr") or "",
-        # Unkostenpauschale: 0 wenn nicht gesetzt → _baue_tabelle fügt keinen 30€-Default ein
-        "unkostenpauschale":   s("unkostenpauschale") if s("unkostenpauschale") > 0
-                               else (30.0 if s("unkostenpauschale") is None else 0.0),
+        # None → _baue_tabelle setzt 30€-Default; 0.0 → kein Default
+        "unkostenpauschale":   sv("unkostenpauschale"),
         # Wichtig für korrekte Abrechnungsart
         "abrechnungsart":      sv("abrechnungsart") or "",
         # WDM-Extras

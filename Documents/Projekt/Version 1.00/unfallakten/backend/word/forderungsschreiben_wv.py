@@ -793,6 +793,14 @@ def _baue_tabelle(schaden: dict, body_width: int = 9163, einleitung: str = "", v
         ("Merkantile Wertminderung", _f("wertminderung"), ""),
     ]
 
+    # Unkostenpauschale: Key fehlt/None → Default 30,00 €; explizit gesetzter
+    # Wert (auch 0) wird unverändert übernommen (fällt bei 0 durch den
+    # 0-Zeilen-Filter unten aus der Tabelle).
+    unkostenpauschale_wert = (
+        30.0 if schaden.get("unkostenpauschale") is None
+        else float(schaden.get("unkostenpauschale"))
+    )
+
     positionen = fahrzeug + wertminderung_pos + [
         ("Nutzungsausfallschaden",            _f("nutzungsausfall"),                            ""),
         ("Mietwagenkosten" + suf,            _nb("mietwagenkosten_netto","mietwagenkosten_ust","mietwagenkosten"), ""),
@@ -804,7 +812,7 @@ def _baue_tabelle(schaden: dict, body_width: int = 9163, einleitung: str = "", v
         ("Schmerzensgeld",              _f("schmerzensgeld"),             ""),
         ("Verdienstausfall",            _f("verdienstausfall"),           ""),
         ("Haushaltsführungsschaden",    _f("haushalt"),                   ""),
-        ("Unkostenpauschale",           _f("unkostenpauschale") or 30.0,  ""),  # Default 30,00 €
+        ("Unkostenpauschale",           unkostenpauschale_wert,           ""),
     ]
 
     # SQLite-Feld "sonstiges" → als Position wenn > 0
