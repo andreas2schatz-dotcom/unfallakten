@@ -11,6 +11,7 @@ REST-Endpunkte für das Klage-Modul.
   POST /akten/<az>/klage/generieren      Klageschrift generieren + speichern
 """
 
+import dataclasses
 import io
 import json
 import logging
@@ -1399,17 +1400,25 @@ def generiere_klage(akte_id: str):
                 try:
                     _p14_schaden = hole_schadenpositionen(az)
                     if _p14_schaden:
-                        _p14_pos = {k: v for k, v in _p14_schaden.items()
-                                     if v is not None and isinstance(v, (int, float))}
-                except Exception:
+                        _p14_pos = {
+                            k: v for k, v in dataclasses.asdict(_p14_schaden).items()
+                            if k not in ("id", "akte_id")
+                            and v is not None
+                            and isinstance(v, (int, float))
+                            and not isinstance(v, bool)
+                        }
+                except Exception as _pos_e:
                     _p14_pos = None
+                    logger.error("P1.4 Ereignis-Erzeugung Klage: %s",
+                                 _pos_e, exc_info=True)
                 _p14_erzeuge(
                     akte_az=az, ereignistyp="klage_generiert",
                     dokument_id=dok_eintrag["id"], positionen=_p14_pos,
                     benutzer_id=g.benutzer_id, herkunft="klage_routes",
                 )
             except Exception as _e:
-                logger.debug("P1.4 Ereignis-Erzeugung Klage: %s", _e)
+                logger.error("P1.4 Ereignis-Erzeugung Klage: %s",
+                             _e, exc_info=True)
 
     return send_file(
         io.BytesIO(doc_bytes),
