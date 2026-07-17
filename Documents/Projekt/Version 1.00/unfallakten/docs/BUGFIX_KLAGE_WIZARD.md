@@ -263,6 +263,7 @@
 ### - [ ] KW-36 — Haftungsquote int-Truncation
 - **Datei:** `backend/word/klage_service.py:1394/1410` (`int(hq)`/`int(100-hq)`: 66,67 % → „66 %" + „33 %" = 99)
 - **Fix-Richtung:** Runden statt truncaten; Summe = 100 sicherstellen.
+- **Stand nach S2:** In allen von S2 berührten/neuen Texten bereits via `_pct_str`/`pctStr` gelöst; Rest-Scope = verbliebene Alt-Stellen. **Empfehlung Abschluss-Review S2:** gemeinsamen Rundungs-Helper BE/FE einführen (JS `Math.round` = half-up vs. Python `round` = banker's — theoretische 1-Cent-Divergenz Antragstext↔Backend-Werte im selben Dokument) und in Session 6 zusammen mit KW-34 lösen. Optional: Ein-Zeilen-Guard gegen `hq=0` + `typ=eigen` (RW-Text behauptet dann „100 % anrechnen", Betrag bleibt voll — sinnfreie Eingabe, Slider erlaubt 0).
 
 ### - [ ] KW-37 — RVG-Faktor „(1.3)" mit Punkt statt Komma
 - **Datei:** `backend/word/klage_service.py:1478` (die tote Alt-Funktion `:386` machte den Komma-Replace korrekt)
