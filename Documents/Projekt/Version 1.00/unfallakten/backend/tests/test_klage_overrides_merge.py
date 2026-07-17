@@ -11,6 +11,7 @@ gepatcht und akte_daten["klage_config"] eingefangen.
 """
 import importlib
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -77,8 +78,41 @@ _OVERRIDES = {
 
 class TestKlageOverridesMerge(unittest.TestCase):
     def setUp(self):
+        global _tmp_dir
+
+        # Sichere alte Werte vor _setup
+        import backend.db.database as _db
+        self._alt_db_path = _db.DB_PATH
+        self._old_db_path_env = os.environ.get("DB_PATH")
+        self._old_upload_dir_env = os.environ.get("UPLOAD_DIR")
+
+        # Erstelle neues tmp_dir für diesen Test
+        self._tmp_dir = tempfile.mkdtemp(prefix="klage_overrides_")
+        _tmp_dir = self._tmp_dir
+
+        # Rufe _setup auf (nutzt jetzt das neue _tmp_dir)
         self.client = _setup(self._testMethodName)
         self.headers = _auth_header(self.client)
+
+    def tearDown(self):
+        import backend.db.database as _db
+
+        # Stelle _db.DB_PATH zurück
+        _db.DB_PATH = self._alt_db_path
+
+        # Stelle Env-Werte zurück
+        if self._old_db_path_env is not None:
+            os.environ["DB_PATH"] = self._old_db_path_env
+        else:
+            os.environ.pop("DB_PATH", None)
+
+        if self._old_upload_dir_env is not None:
+            os.environ["UPLOAD_DIR"] = self._old_upload_dir_env
+        else:
+            os.environ.pop("UPLOAD_DIR", None)
+
+        # Lösche temp-dir
+        shutil.rmtree(self._tmp_dir, ignore_errors=True)
 
     def _post_generieren(self, overrides):
         import backend.routers.klage_routes as kr
