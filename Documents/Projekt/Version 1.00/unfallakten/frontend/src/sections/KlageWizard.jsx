@@ -683,9 +683,17 @@ function StepUnfall({ schilderungOriginal, klaeger, unfalltextEdit, onUnfalltext
 
 // ── Step 4: Schadenpositionen ──────────────────────────────────────────────────
 
-function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind, abrechnungen, az, kl_nom }) {
+export function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind, abrechnungen, az, kl_nom }) {
   const [showSgDialog, setShowSgDialog] = useState(false);
   const klagebetrag = positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag || 0), 0);
+
+  // KW-07: unbezifferter SG-Antrag (mitSG) und bezifferte SG-Position schliessen
+  // sich aus - sonst wird Schmerzensgeld doppelt geltend gemacht.
+  useEffect(() => {
+    if (!mitSG) return;
+    const sgPos = positionen.find(p => p.key === "schmerzensgeld");
+    if (sgPos?.checked) onTogglePos("schmerzensgeld");
+  }, [mitSG, positionen, onTogglePos]);
 
   // Provenance-Map: position_key → { gesamt, quellen[] }
   // DB-Rohdaten verwenden die echten Schaden-Feldnamen; alles, was zum Fahrzeugschaden gehört,
@@ -757,16 +765,19 @@ function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind
               const reg      = prov?.gesamt || 0;
               const vollReg  = reg > 0 && (p.betrag || 0) <= 0.005;
               const gefordert = p.betragOriginal ?? ((p.betrag || 0) + reg);
+              const sgGesperrt = mitSG && p.key === "schmerzensgeld";
               return (
                 <tr key={p.key}
                   style={{ borderBottom: `1px solid ${T.borderSoft}`,
-                    opacity: p.checked ? 1 : 0.55, cursor: "pointer" }}
-                  onClick={() => onTogglePos(p.key)}>
+                    opacity: p.checked ? 1 : 0.55, cursor: sgGesperrt ? "not-allowed" : "pointer" }}
+                  onClick={() => { if (!sgGesperrt) onTogglePos(p.key); }}>
                   <td style={{ padding: "8px", textAlign: "center" }}>
                     <input type="checkbox" checked={!!p.checked}
-                      onChange={() => onTogglePos(p.key)}
+                      disabled={sgGesperrt}
+                      onChange={() => { if (!sgGesperrt) onTogglePos(p.key); }}
                       onClick={e => e.stopPropagation()}
-                      style={{ accentColor: T.navy, cursor: "pointer", width: 15, height: 15 }} />
+                      style={{ accentColor: T.navy,
+                        cursor: sgGesperrt ? "not-allowed" : "pointer", width: 15, height: 15 }} />
                   </td>
                   <td style={{ padding: "8px", fontFamily: PLEX, fontSize: "0.9rem",
                     color: p.checked ? T.navy : T.text, fontWeight: p.checked ? 600 : 400 }}>
@@ -774,6 +785,11 @@ function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind
                     {vollReg && (
                       <span style={{ marginLeft: 8, fontSize: "0.72rem",
                         color: T.green, fontWeight: 600 }}>✓ vollst. reguliert</span>
+                    )}
+                    {sgGesperrt && (
+                      <div style={{ fontSize: "0.72rem", color: T.textMuted, fontStyle: "italic", marginTop: 2 }}>
+                        Wird als unbezifferter Antrag geltend gemacht (Schmerzensgeld-Toggle aktiv)
+                      </div>
                     )}
                   </td>
                   <td style={{ padding: "8px", textAlign: "right",
