@@ -547,5 +547,61 @@ class TestKW15KW16RubrumGenus(unittest.TestCase):
         self.assertNotIn("Herrn Erika Musterfrau", xml)
 
 
+class TestKW06Gesamtschuldner(unittest.TestCase):
+    """KW-06: Mehrere Beklagte -> Gesamtschuldner-Anträge + Einleitung je Beklagtem."""
+
+    VERS = {"rolle_klage": "beklagter", "versicherung": "Test-Versicherung AG",
+            "anschrift": "Teststr. 2", "plz": "12345", "ort": "Teststadt"}
+    MANN = {"rolle_klage": "beklagter", "vorname": "Hans", "name": "Huber",
+            "anrede": "1", "anschrift": "Weg 3", "plz": "63065", "ort": "Offenbach"}
+
+    def _xml(self, beklagte, **kwargs):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 400.0)], **kwargs)
+        akte_daten["klage_config"]["beklagte"] = beklagte
+        akte_daten["klage_config"]["mit_feststellung_sach"] = True
+        return _document_xml(generiere_klageschrift(akte_daten))
+
+    def test_zwei_beklagte_gesamtschuldner_antrag1(self):
+        xml = self._xml([self.VERS, self.MANN])
+        self.assertIn(
+            "Die Beklagten werden als Gesamtschuldner verurteilt, an den Kläger 400,00 € "
+            "nebst Zinsen in Höhe von 5 Prozentpunkten über dem jeweiligen Basiszinssatz "
+            "seit Rechtshängigkeit zu zahlen.", xml)
+        self.assertNotIn("Die Beklagte wird verurteilt", xml)
+
+    def test_zwei_beklagte_feststellung_plural(self):
+        xml = self._xml([self.VERS, self.MANN])
+        self.assertIn("dass die Beklagten als Gesamtschuldner verpflichtet sind", xml)
+
+    def test_zwei_beklagte_kosten_und_vk(self):
+        xml = self._xml([self.VERS, self.MANN])
+        self.assertIn("Die Beklagten tragen die Kosten des Rechtsstreits.", xml)
+        self.assertIn("die Beklagten ebenfalls haften", xml)
+
+    def test_zwei_beklagte_einleitung_je_beklagtem(self):
+        xml = self._xml([self.VERS, self.MANN])
+        self.assertIn("Die Beklagte zu 1) ist die Haftpflichtversicherung des "
+                      "unfallverursachenden Fahrzeugs", xml)
+        self.assertIn("Der Beklagte zu 2) war zum Unfallzeitpunkt der Fahrer des "
+                      "unfallverursachenden Fahrzeugs.", xml)
+
+    def test_ein_maennlicher_beklagter_singular_maskulin(self):
+        xml = self._xml([self.MANN])
+        self.assertIn("Der Beklagte wird verurteilt, an den Kläger 400,00 €", xml)
+        self.assertIn("Der Beklagte trägt die Kosten des Rechtsstreits.", xml)
+
+    def test_halter_beklagter_einleitung(self):
+        halter = dict(self.MANN, ist_halter=1)
+        xml = self._xml([self.VERS, halter])
+        self.assertIn("Der Beklagte zu 2) ist der Halter des unfallverursachenden "
+                      "Fahrzeugs.", xml)
+
+    def test_regression_eine_versicherung_unveraendert(self):
+        xml = self._xml([self.VERS])
+        self.assertIn("Die Beklagte wird verurteilt, an den Kläger 400,00 €", xml)
+        self.assertIn("Die Beklagte ist die Haftpflichtversicherung des "
+                      "unfallverursachenden Fahrzeugs.", xml)
+
+
 if __name__ == "__main__":
     unittest.main()

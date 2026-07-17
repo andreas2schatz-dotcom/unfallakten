@@ -1207,6 +1207,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     beklagte_gef = [b for b in beklagte_liste
                     if (b.get("rolle_klage") or b.get("rolle") or "") not in ("klaeger", "mandant")
                     and b.get("checked", True)]
+    bek_gram = _beklagten_grammatik(beklagte_gef)
     for i, bek in enumerate(beklagte_gef):
         # Personen haben Vorrang: vorname+name zuerst, dann Firmen-/Versicherungsname
         _bek_person = " ".join(filter(None, [bek.get("vorname"), bek.get("name")])).strip()
@@ -1302,7 +1303,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
                            "und werden beantragen:")
         antraege_xml += _lz()
         antraege_xml += antrag(
-            f"Die Beklagte wird verurteilt, an {kl_dat} {_eur_str(klagebetrag)} "
+            f"{bek_gram['verurteilt']}, an {kl_dat} {_eur_str(klagebetrag)} "
             f"nebst Zinsen in Höhe von 5 Prozentpunkten über dem jeweiligen Basiszinssatz "
             f"seit {zins_sachsch} zu zahlen."
         )
@@ -1310,14 +1311,14 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         if mit_sg:
             if sg_mind > 0:
                 antraege_xml += antrag(
-                    f"Die Beklagte wird verurteilt, an {kl_dat} ein angemessenes, "
+                    f"{bek_gram['verurteilt']}, an {kl_dat} ein angemessenes, "
                     f"vom Gericht festzulegendes Schmerzensgeld zu zahlen, "
                     f"wobei die Höhe nicht weniger als {_eur_str(sg_mind)} betragen sollte, "
                     f"nebst Zinsen von 5 Prozentpunkten über dem Basiszinssatz seit Rechtshängigkeit."
                 )
             else:
                 antraege_xml += antrag(
-                    f"Die Beklagte wird verurteilt, an {kl_dat} ein angemessenes, "
+                    f"{bek_gram['verurteilt']}, an {kl_dat} ein angemessenes, "
                     f"vom Gericht nach billigem Ermessen festzulegendes Schmerzensgeld zu zahlen, "
                     f"nebst Zinsen von 5 Prozentpunkten über dem Basiszinssatz seit Rechtshängigkeit."
                 )
@@ -1325,7 +1326,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         # BE-2: Feststellungsanträge (Personenschaden)
         if mit_feststellung_sg:
             antraege_xml += antrag(
-                f"Es wird festgestellt, dass die Beklagte verpflichtet ist, {kl_dat3} "
+                f"Es wird festgestellt, dass {bek_gram['verpflichtet']}, {kl_dat3} "
                 f"sämtliche künftigen materiellen und immateriellen Schäden zu ersetzen, "
                 f"die aus dem Unfallereignis vom {unfalltag} noch entstehen werden, "
                 f"soweit Ansprüche nicht auf Sozialversicherungsträger oder sonstige Dritte "
@@ -1335,7 +1336,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         # BE-2: Feststellungsantrag (Sachschaden)
         if mit_feststellung_sach:
             antraege_xml += antrag(
-                f"Es wird festgestellt, dass die Beklagte verpflichtet ist, {kl_dat3} "
+                f"Es wird festgestellt, dass {bek_gram['verpflichtet']}, {kl_dat3} "
                 f"sämtliche weiteren materiellen Schäden zu ersetzen, die aus dem "
                 f"Unfallereignis vom {unfalltag} noch entstehen werden."
             )
@@ -1343,15 +1344,12 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         # BE-3: RVG-Antrag auf außergerichtlichem Streitwert (wenn rvg_ausserg vorhanden)
         rvg_antrag_nr = antrag_nr[0]   # Nummer vor dem Aufruf merken
         antraege_xml += antrag(
-            f"Die Beklagte wird verurteilt, an {kl_dat} weitere {_eur_str(rvg_antrag_betrag)} "
+            f"{bek_gram['verurteilt']}, an {kl_dat} weitere {_eur_str(rvg_antrag_betrag)} "
             f"nebst Zinsen von 5 Prozentpunkten über dem Basiszinssatz "
             f"seit {zins_rvg} zu zahlen."
         )
         antraege_xml += _lz()
-        kosten_text = ("Die Beklagten tragen die Kosten des Rechtsstreits."
-                       if len(beklagte_gef) > 1
-                       else "Die Beklagte trägt die Kosten des Rechtsstreits.")
-        antraege_xml += antrag(kosten_text, fett=False)
+        antraege_xml += antrag(bek_gram["kosten"], fett=False)
         antraege_xml += _versaeumnis_block
 
     # ── {{EINLEITUNG}} ────────────────────────────────────────────────────
@@ -1372,14 +1370,34 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
             f"{kl_nom} macht Schadensersatzforderungen aus einem Verkehrsunfall "
             f"in {unfallort} geltend."
         )
-        beklagte_satz = (
-            f"Die Beklagte ist die Haftpflichtversicherung des unfallverursachenden "
-            f"Fahrzeugs mit dem amtlichen Kennzeichen {gegner_kz}."
-            if gegner_kz else
-            "Die Beklagte ist die Haftpflichtversicherung des unfallverursachenden Fahrzeugs."
-        )
-        if schadennummer:
-            beklagte_satz += f" Sie führt den Vorgang unter der Schadennummer {schadennummer}."
+        bek_saetze = []
+        mehrere_bek = len(beklagte_gef) > 1
+        schadennr_gesetzt = False
+        for i, bek in enumerate(beklagte_gef):
+            nr_str = f" zu {i+1})" if mehrere_bek else ""
+            if bek.get("firma") or bek.get("versicherung"):
+                satz = (
+                    f"Die Beklagte{nr_str} ist die Haftpflichtversicherung des "
+                    f"unfallverursachenden Fahrzeugs mit dem amtlichen Kennzeichen {gegner_kz}."
+                    if gegner_kz else
+                    f"Die Beklagte{nr_str} ist die Haftpflichtversicherung des "
+                    f"unfallverursachenden Fahrzeugs."
+                )
+                if schadennummer and not schadennr_gesetzt:
+                    satz += f" Sie führt den Vorgang unter der Schadennummer {schadennummer}."
+                    schadennr_gesetzt = True
+            else:
+                weiblich_b = _anrede_norm(bek.get("anrede")) == "frau"
+                art = "Die" if weiblich_b else "Der"
+                if bek.get("ist_halter"):
+                    bez = "die Halterin" if weiblich_b else "der Halter"
+                    satz = f"{art} Beklagte{nr_str} ist {bez} des unfallverursachenden Fahrzeugs."
+                else:
+                    bez = "die Fahrerin" if weiblich_b else "der Fahrer"
+                    satz = (f"{art} Beklagte{nr_str} war zum Unfallzeitpunkt {bez} "
+                            f"des unfallverursachenden Fahrzeugs.")
+            bek_saetze.append(satz)
+        beklagte_satz = " ".join(bek_saetze)
 
         mandant_kz = (details.get("_wdm_mandant_kz") or
                       mandant.get("kfz_kennzeichen") or "").strip()
@@ -1742,8 +1760,8 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         + '</w:tbl>'
     )
 
-    bek_haften = "haften" if len(beklagte_gef) > 1 else "haftet"
-    bek_nom    = "die Beklagten" if len(beklagte_gef) > 1 else "die Beklagte"
+    bek_haften = bek_gram["haftet"]
+    bek_nom    = bek_gram["nom_klein"]
 
     vk_nr   = 5 + int(mit_sg)  # 5 ohne SG, 6 mit SG
     vk_xml  = _lz() + _p(f"{vk_nr}.) Vorgerichtliche Rechtsanwaltsgebühren", fett=True)
