@@ -236,13 +236,15 @@ export function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguli
   const lines  = [];
 
   if (hq >= 100) {
-    const beklagteGef = kanonischeBeklagte(beklagte);
-    const nrSuffix    = versichererSuffix(beklagte) || (beklagteGef.length > 1 ? " zu 1)" : "");
-    const bek1        = beklagteGef[0];
-    const bek1Maenl   = bek1 && !bek1.versicherung && !bek1.firma
-                        && anredeNorm(bek1.anrede) === "herr";
-    const bek_gen_art = bek1Maenl ? "des" : "der";      // Genitiv: des/der Beklagten
-    const bek_dat_pp  = bek1Maenl ? "bei dem" : "bei der"; // Dativ: bei dem/bei der Beklagten
+    const gef = kanonischeBeklagte(beklagte);
+    const insurerIdx = gef.findIndex(b => b.versicherung || b.firma);
+    const refIdx = insurerIdx >= 0 ? insurerIdx : 0;
+    const ref = gef[refIdx];
+    const nrSuffix = gef.length > 1 ? ` zu ${refIdx + 1})` : "";
+    const refMaennl = !!ref && !ref.versicherung && !ref.firma
+                      && anredeNorm(ref.anrede) === "herr";
+    const bek_gen_art = refMaennl ? "des" : "der";
+    const bek_dat_pp  = refMaennl ? "bei dem" : "bei der";
     lines.push(
       `Die alleinige Haftung ${bek_gen_art} Beklagten${nrSuffix} steht außer Frage.` +
       ` Der Unfall wurde allein schuldhaft von dem ${bek_dat_pp} Beklagten${nrSuffix} versicherten Fahrzeug verursacht.`

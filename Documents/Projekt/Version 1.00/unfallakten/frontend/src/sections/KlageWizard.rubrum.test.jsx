@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   anredeNorm, kanonischeBeklagte, beklagtenGrammatik, versichererSuffix,
-  buildSachverhaltText,
+  buildSachverhaltText, buildRwVorschau,
 } from "./KlageWizard.jsx";
 
 const VERS = { rolle_klage: "beklagter", versicherung: "Test-Versicherung AG", checked: true };
@@ -75,5 +75,20 @@ describe("buildSachverhaltText (KW-20)", () => {
   it("Halterin mit korrektem Genus", () => {
     const text = buildSachverhaltText({ ...basis, beklagte: [VERS, FRAU_HALTER] });
     expect(text).toContain("Die Beklagte zu 2) ist die Halterin des unfallverursachenden Fahrzeugs.");
+  });
+});
+
+describe("buildRwVorschau hq=100 Referenzpartei (Fix-Wave)", () => {
+  it("Nummer UND Genus zeigen auf die Versicherung, auch wenn sie nicht erste ist", () => {
+    const text = buildRwVorschau("", 100, 0, false, "gegnerisch", [MANN, VERS]);
+    expect(text).toContain("Die alleinige Haftung der Beklagten zu 2) steht außer Frage.");
+    expect(text).toContain("bei der Beklagten zu 2) versicherten Fahrzeug");
+    expect(text).not.toContain("des Beklagten zu 2)");
+  });
+});
+
+describe("beklagtenGrammatik leere Liste", () => {
+  it("wirft nicht und fällt auf feminine Singular-Form zurück", () => {
+    expect(beklagtenGrammatik([]).verurteilt).toBe("Die Beklagte wird verurteilt");
   });
 });
