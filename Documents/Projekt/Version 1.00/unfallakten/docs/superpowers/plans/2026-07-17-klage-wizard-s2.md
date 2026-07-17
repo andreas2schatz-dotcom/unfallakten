@@ -49,7 +49,7 @@
 1. `_baue_tabelle`: Unkostenpauschale-Zeile bekommt echte None-Semantik statt `_f("unkostenpauschale") or 30.0`:
    - `schaden.get("unkostenpauschale") is None` (Key fehlt oder None) → Default `30.0` (Bestandsverhalten Forderungsschreiben bleibt).
    - Key vorhanden mit Wert (auch `0`/`0.0`) → Wert verwenden; `0` fällt durch den bestehenden 0-Zeilen-Filter (:828) aus der Tabelle.
-2. Router-Weiche :1224–1226 ersetzen: nicht mehr über `s()` (liefert nie None). Stattdessen den rohen DB-Wert unterscheiden: `getattr(schaden, "unkostenpauschale", None)` — `None` → Key mit `None` in `schaden_dict` (Default-30-Fall), sonst `float`-Wert durchreichen (explizite 0 bleibt 0). Toten `is None`-Zweig entfernen.
+2. Router-Weiche :1224–1226 ersetzen. **KORREKTUR nach Task-1-Review:** Die DB kann „nicht gesetzt" vs. „explizit 0" NICHT unterscheiden (`schadenpositionen.unkostenpauschale` ist `NOT NULL DEFAULT 0.0`; `from_row` koerziert NULL→0.0). Deshalb: DB-seitig bleibt das Bestandsverhalten exakt erhalten — falsy DB-Wert → `None` ins `schaden_dict` (→ `_baue_tabelle`-Default 30), positiver Wert wird durchgereicht. Die „explizit 0"-Semantik kommt ausschließlich aus dem Wizard (cfg-Positionen): Task 2 setzt beim Tabellenfilter `0.0` für nicht-checked Unkostenpauschale. Gleiches Bestandsverhalten auch beim Forderungsschreiben-Aufrufer (`word_service.py:341`): falsy → `None` durchreichen. Toten `is None`-Zweig entfernen.
 
 **Tests (TDD, neue Datei `backend/tests/test_klage_s2_unkostenpauschale.py` oder passend):**
 - Unit `_baue_tabelle`: (a) Key fehlt → Tabelle enthält „Unkostenpauschale" mit 30,00 €; (b) Key = `None` → 30,00 €; (c) Key = `0.0` → KEINE Unkostenpauschale-Zeile, Gesamt ohne 30 €; (d) Key = `25.0` → 25,00 €.
