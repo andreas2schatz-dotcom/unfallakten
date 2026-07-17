@@ -1381,6 +1381,32 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
             _wert = p.get("betrag")
         schaden_raw[_key] = float(_wert or 0)
 
+    # WDM-Extras (wdm_extras_json) ebenfalls auf checked cfg-Positionen filtern -
+    # der Wizard erzeugt dafür Keys "extra_<key-oder-label>" (gleiche Ableitung
+    # wie in klage_routes.py bei pos_definitionen), sonst umgehen Extras den
+    # Checked-Filter und verfälschen Tabelle/Differenz-Satz (Finding 1, KW-04).
+    _extras_raw = schaden_raw.get("wdm_extras_json") or "[]"
+    try:
+        _extras = json.loads(_extras_raw) if isinstance(_extras_raw, str) else (_extras_raw or [])
+        if not isinstance(_extras, list):
+            _extras = []
+    except Exception:
+        _extras = []
+
+    _extras_gefiltert = []
+    for _ex in _extras:
+        _ex_key = f"extra_{_ex.get('key', _ex.get('label', '?'))}"
+        if _ex_key not in checked_keys:
+            continue
+        _ex_pos = next((p for p in positionen if p.get("key") == _ex_key), None)
+        _ex_wert = (_ex_pos or {}).get("betragOriginal")
+        if _ex_wert is None:
+            _ex_wert = _ex.get("betrag") or _ex.get("netto")
+        _ex_neu = dict(_ex)
+        _ex_neu["betrag"] = float(_ex_wert or 0)
+        _extras_gefiltert.append(_ex_neu)
+    schaden_raw["wdm_extras_json"] = json.dumps(_extras_gefiltert, ensure_ascii=False)
+
     schaden_gesamt = klagebetrag
     try:
         from .forderungsschreiben_wv import _baue_tabelle as _bt
@@ -1409,7 +1435,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     ungebundener_vorschuss = round(
         max(0.0, gesamt_reguliert_abrechnungen - gesamt_reguliert_positionsgebunden), 2
     )
-    reg_tbl_xml, gesamt_reguliert_tbl = _baue_regulierungs_tbl_xml(
+    reg_tbl_xml, _ = _baue_regulierungs_tbl_xml(
         reg_agg, ungebunden=ungebundener_vorschuss
     )
 

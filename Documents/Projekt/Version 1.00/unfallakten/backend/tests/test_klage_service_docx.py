@@ -11,6 +11,7 @@ Testmuster: generiere_klageschrift() wird echt aufgerufen (kein Mock), das
 DOCX-Ergebnis per zipfile entpackt und word/document.xml als Text geprueft.
 """
 import io
+import json
 import os
 import sys
 import unittest
@@ -150,6 +151,56 @@ class TestKW04EineRechenquelle(unittest.TestCase):
         )
         self.assertNotIn("Die Beklagte hat folgende Zahlungen auf den Schaden geleistet", xml)
         self.assertNotIn("Die Differenz des geforderten Gesamtbetrages", xml)
+
+
+class TestKW04Finding1ExtrasCheckedFilter(unittest.TestCase):
+    def test_e_extra_position_abgewaehlt_erscheint_nicht_und_keine_phantom_zahlungen(self):
+        positionen = [
+            _position("wertminderung", "Wertminderung", betrag=400.0, betrag_original=400.0, checked=True),
+            _position("extra_Bergungskosten", "Bergungskosten", betrag=150.0, betrag_original=150.0, checked=False),
+        ]
+        schaden = {
+            "wertminderung": 400.0,
+            "wdm_extras_json": json.dumps([
+                {"label": "Bergungskosten", "betrag": 150.0, "netto": 126.05},
+            ]),
+        }
+        akte_daten = _akte_daten(positionen, schaden, reg_agg={}, abrechnungen=[])
+
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+
+        self.assertNotIn("Bergungskosten", xml)
+        self.assertIn(
+            "Der Gesamtbetrag in Höhe von 400,00 € wird mit dem Klageantrag zu 1 geltend gemacht.",
+            xml,
+        )
+        self.assertNotIn("Die Beklagte hat folgende Zahlungen auf den Schaden geleistet", xml)
+        self.assertNotIn("Die Differenz des geforderten Gesamtbetrages", xml)
+
+    def test_f_extra_position_checked_erscheint_mit_betragoriginal(self):
+        positionen = [
+            _position("extra_Bergungskosten", "Bergungskosten", betrag=126.05, betrag_original=150.0, checked=True),
+        ]
+        schaden = {
+            "wdm_extras_json": json.dumps([
+                {"label": "Bergungskosten", "betrag": 126.05, "netto": 126.05},
+            ]),
+        }
+        reg_agg = {}
+        abrechnungen = [{"gesamt_reguliert": 23.95}]
+        akte_daten = _akte_daten(positionen, schaden, reg_agg, abrechnungen)
+
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+
+        self.assertIn("Bergungskosten", xml)
+        self.assertIn("150,00", xml)
+        self.assertIn("126,05 €", xml)
+        self.assertIn(
+            "Die Differenz des geforderten Gesamtbetrages in Höhe von 150,00 € "
+            "abzgl. der oben gezeigten geleisteten Zahlungen in Höhe von 23,95 € "
+            "beträgt 126,05 € und wird mit dem Klageantrag zu 1 geltend gemacht.",
+            xml,
+        )
 
 
 if __name__ == "__main__":
