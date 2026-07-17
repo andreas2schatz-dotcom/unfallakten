@@ -19,8 +19,6 @@ from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-_tmp_dir = tempfile.mkdtemp(prefix="klage_overrides_")
-
 
 def _setup(test_id: str):
     db_path = os.path.join(_tmp_dir, f"kov_{test_id}.db")
