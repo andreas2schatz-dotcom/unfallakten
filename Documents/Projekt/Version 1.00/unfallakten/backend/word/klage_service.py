@@ -1020,19 +1020,23 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     if mehrere_klaeger:
         kl_art  = "der"; kl_bez = "Kläger"; kl_nom = "Die Kläger"; kl_dat = "die Kläger"
         kl_einf = "Kläger"; kl_gesch = "Geschädigte"
-        nicht_vst = "nicht vorsteuerabzugsberechtigten"
+        nicht_vst = "vorsteuerabzugsberechtigte" if vorsteuer else "nicht vorsteuerabzugsberechtigte"
+        kl_macht = "machen"; kl_ist = "sind"; kl_laesst = "lassen"
     elif anrede_m in ("herr", "herrn"):
         kl_art  = "des"; kl_bez = "Klägers"; kl_nom = "Der Kläger"; kl_dat = "den Kläger"
         kl_einf = "Kläger"; kl_gesch = "Geschädigter"
         nicht_vst = "nicht vorsteuerabzugsberechtigter" if not vorsteuer else "vorsteuerabzugsberechtigter"
+        kl_macht = "macht"; kl_ist = "ist"; kl_laesst = "lässt"
     elif anrede_m == "frau":
         kl_art  = "der"; kl_bez = "Klägerin"; kl_nom = "Die Klägerin"; kl_dat = "die Klägerin"
         kl_einf = "Klägerin"; kl_gesch = "Geschädigte"
         nicht_vst = "nicht vorsteuerabzugsberechtigte" if not vorsteuer else "vorsteuerabzugsberechtigte"
+        kl_macht = "macht"; kl_ist = "ist"; kl_laesst = "lässt"
     else:
         kl_art  = "des"; kl_bez = "Klägers"; kl_nom = "Der Kläger"; kl_dat = "den Kläger"
         kl_einf = "Kläger"; kl_gesch = "Geschädigter"
         nicht_vst = "nicht vorsteuerabzugsberechtigter" if not vorsteuer else "vorsteuerabzugsberechtigter"
+        kl_macht = "macht"; kl_ist = "ist"; kl_laesst = "lässt"
 
     # ── Schmerzensgeld ───────────────────────────────────────────────────────
     mit_sg  = bool(cfg.get("mit_schmerzensgeld"))
@@ -1364,11 +1368,11 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
 
         # Alle Einleitungssätze zu einem Fließtext-Absatz zusammenführen
         intro_satz = (
-            f"{kl_nom} macht als {nicht_vst} {kl_gesch} Schadensersatzforderungen "
+            f"{kl_nom} {kl_macht} als {nicht_vst} {kl_gesch} Schadensersatzforderungen "
             f"aus einem Verkehrsunfall vom {unfalltag} in {unfallort} geltend."
             if unfalltag else
-            f"{kl_nom} macht Schadensersatzforderungen aus einem Verkehrsunfall "
-            f"in {unfallort} geltend."
+            f"{kl_nom} {kl_macht} als {nicht_vst} {kl_gesch} Schadensersatzforderungen "
+            f"aus einem Verkehrsunfall in {unfallort} geltend."
         )
         bek_saetze = []
         mehrere_bek = len(beklagte_gef) > 1
@@ -1404,21 +1408,25 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         aktivlegitimation_typ = (details.get("aktivlegitimation_typ") or "eigentum").strip()
         weiblich = anrede_m == "frau"
         if aktivlegitimation_typ in ("finanziert", "geleast"):
-            halter_besitzer = ("Halterin und unmittelbare Besitzerin" if weiblich
-                                else "Halter und unmittelbarer Besitzer")
+            if mehrere_klaeger:
+                halter_besitzer = "Halter und unmittelbare Besitzer"
+            elif weiblich:
+                halter_besitzer = "Halterin und unmittelbare Besitzerin"
+            else:
+                halter_besitzer = "Halter und unmittelbarer Besitzer"
             eigentuemer_satz = (
-                f"{kl_nom} ist {halter_besitzer} des bei dem Unfall beschädigten "
+                f"{kl_nom} {kl_ist} {halter_besitzer} des bei dem Unfall beschädigten "
                 f"Fahrzeugs mit dem amtlichen Kennzeichen {mandant_kz}."
                 if mandant_kz else
-                f"{kl_nom} ist {halter_besitzer} des bei dem Unfall beschädigten Fahrzeugs."
+                f"{kl_nom} {kl_ist} {halter_besitzer} des bei dem Unfall beschädigten Fahrzeugs."
             )
         else:
-            eigentuemer = "Eigentümerin" if weiblich else "Eigentümer"
+            eigentuemer = "Eigentümer" if mehrere_klaeger else ("Eigentümerin" if weiblich else "Eigentümer")
             eigentuemer_satz = (
-                f"{kl_nom} ist {eigentuemer} des bei dem Unfall beschädigten "
+                f"{kl_nom} {kl_ist} {eigentuemer} des bei dem Unfall beschädigten "
                 f"Fahrzeugs mit dem amtlichen Kennzeichen {mandant_kz}."
                 if mandant_kz else
-                f"{kl_nom} ist {eigentuemer} des bei dem Unfall beschädigten Fahrzeugs."
+                f"{kl_nom} {kl_ist} {eigentuemer} des bei dem Unfall beschädigten Fahrzeugs."
             )
         hat_override = bool(details.get("aktivlegitimation_text_override"))
         # § 1006-Argument hängt am AktLeg-Block: bei Eigentum+Fahrer wandert die
@@ -1669,7 +1677,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         if hq < 100:
             if hq_typ == "eigen":
                 rw_xml += _p(
-                    f"{kl_nom} lässt sich eine Mithaftungsquote von {_pct_str(100 - hq)} % anrechnen. "
+                    f"{kl_nom} {kl_laesst} sich eine Mithaftungsquote von {_pct_str(100 - hq)} % anrechnen. "
                     f"Die Klageforderung ist entsprechend gekürzt."
                 )
             else:
@@ -1683,7 +1691,9 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     # ── {{SCHMERZENSGELD}} ────────────────────────────────────────────────
     if mit_sg:
         sg_xml = _lz() + _p("5.) Schmerzensgeld", fett=True)
-        sg_absaetze, sg_beweis, sg_vgl = baue_sg_abschnitt(ps_data, kl_nom, sg_mind)
+        sg_absaetze, sg_beweis, sg_vgl = baue_sg_abschnitt(
+            ps_data, kl_nom, sg_mind,
+            verb_hat="haben" if mehrere_klaeger else "hat")
         for absatz in sg_absaetze:
             sg_xml += _p(absatz)
         if sg_vgl:

@@ -39,7 +39,7 @@ def _fmt_datum(s: str) -> str:
 
 
 
-def baue_sg_abschnitt(ps_data: dict, kl_nom: str, sg_mind: float):
+def baue_sg_abschnitt(ps_data: dict, kl_nom: str, sg_mind: float, verb_hat: str = "hat"):
     """
     Baut den Schmerzensgeld-Abschnitt aus den personenschaden-Daten.
 
@@ -47,6 +47,7 @@ def baue_sg_abschnitt(ps_data: dict, kl_nom: str, sg_mind: float):
         ps_data   – dict aus der personenschaden-Tabelle (oder None)
         kl_nom    – Nominativ des Klägers/der Klägerin, z.B. "Die Klägerin"
         sg_mind   – Mindestbetrag in Euro (0 = kein Mindestbetrag)
+        verb_hat  – Verbform „hat"/„haben" je nach Numerus (Default „hat")
 
     Rückgabe: (absaetze: list[str], beweis: str, vgl: str|None)
     """
@@ -55,10 +56,10 @@ def baue_sg_abschnitt(ps_data: dict, kl_nom: str, sg_mind: float):
     if not ps_data:
         # Fallback ohne Daten
         if sg_mind > 0:
-            text = (f"{kl_nom} hat durch den Unfall Verletzungen erlitten, "
+            text = (f"{kl_nom} {verb_hat} durch den Unfall Verletzungen erlitten, "
                     f"die ein Schmerzensgeld von mindestens {_eur_str(sg_mind)} rechtfertigen.")
         else:
-            text = (f"{kl_nom} hat durch den Unfall Verletzungen erlitten, "
+            text = (f"{kl_nom} {verb_hat} durch den Unfall Verletzungen erlitten, "
                     f"die ein angemessenes Schmerzensgeld rechtfertigen.")
         return [text], beweis, None
 
@@ -91,11 +92,11 @@ def baue_sg_abschnitt(ps_data: dict, kl_nom: str, sg_mind: float):
     # Absatz 1: Verletzungen
     if verletzungen:
         absaetze.append(
-            f"{kl_nom} hat durch den Unfall folgende Verletzungen erlitten: {verletzungen}."
+            f"{kl_nom} {verb_hat} durch den Unfall folgende Verletzungen erlitten: {verletzungen}."
         )
     else:
         absaetze.append(
-            f"{kl_nom} hat durch den Unfall Verletzungen erlitten."
+            f"{kl_nom} {verb_hat} durch den Unfall Verletzungen erlitten."
         )
 
     # Absatz 2: Behandlung (Krankenhaus + AU)

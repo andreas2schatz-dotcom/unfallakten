@@ -13,6 +13,7 @@ from backend.word.klage_service import (
     _beklagten_rolle,
     _vertreter_suffix,
 )
+from backend.word.sg_text_builder import baue_sg_abschnitt
 
 
 class TestAnredeNorm(unittest.TestCase):
@@ -142,6 +143,22 @@ class TestVertreterSuffix(unittest.TestCase):
     def test_ohne_name(self):
         self.assertEqual(_vertreter_suffix("", "", "Muster AG"),
                          ", vertreten durch den Vorstand")
+
+
+class TestSgTextBuilderNumerus(unittest.TestCase):
+    def test_default_singular(self):
+        absaetze, _, _ = baue_sg_abschnitt({}, "Der Kläger", 0.0)
+        self.assertTrue(absaetze[0].startswith("Der Kläger hat durch den Unfall"))
+
+    def test_plural_verb(self):
+        absaetze, _, _ = baue_sg_abschnitt({}, "Die Kläger", 0.0, verb_hat="haben")
+        self.assertTrue(absaetze[0].startswith("Die Kläger haben durch den Unfall"))
+
+    def test_plural_mit_verletzungen(self):
+        absaetze, _, _ = baue_sg_abschnitt(
+            {"verletzungen_text": "HWS-Distorsion"}, "Die Kläger", 0.0, verb_hat="haben")
+        self.assertIn("Die Kläger haben durch den Unfall folgende Verletzungen "
+                      "erlitten: HWS-Distorsion.", absaetze[0])
 
 
 if __name__ == "__main__":

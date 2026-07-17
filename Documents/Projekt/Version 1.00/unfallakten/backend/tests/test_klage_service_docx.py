@@ -603,5 +603,57 @@ class TestKW06Gesamtschuldner(unittest.TestCase):
                       "unfallverursachenden Fahrzeugs.", xml)
 
 
+class TestKW17MehrereKlaeger(unittest.TestCase):
+    """KW-17: Numerus bei mehreren Klaegern + Vorsteuer."""
+
+    K1 = {"id": 1, "rolle_klage": "klaeger", "vorname": "Max", "name": "Mustermann",
+          "anrede": "1", "anschrift": "Musterstr. 1", "plz": "63067", "ort": "Offenbach"}
+    K2 = {"id": 2, "rolle_klage": "klaeger", "vorname": "Eva", "name": "Mustermann",
+          "anrede": "2", "anschrift": "Musterstr. 1", "plz": "63067", "ort": "Offenbach"}
+
+    def _xml(self, vorsteuer="N", mit_sg=False, sg_mind=0.0):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 400.0)],
+                                 vorsteuer=vorsteuer,
+                                 mit_schmerzensgeld=mit_sg,
+                                 schmerzensgeld_mindest=sg_mind)
+        akte_daten["klage_config"]["beklagte"] = [
+            self.K1, self.K2,
+            {"rolle_klage": "beklagter", "versicherung": "Test-Versicherung AG",
+             "anschrift": "Teststr. 2", "plz": "12345", "ort": "Teststadt"},
+        ]
+        return _document_xml(generiere_klageschrift(akte_daten))
+
+    def test_einleitung_plural_verb(self):
+        xml = self._xml()
+        self.assertIn("Die Kläger machen als nicht vorsteuerabzugsberechtigte "
+                      "Geschädigte Schadensersatzforderungen", xml)
+        self.assertNotIn("Die Kläger macht", xml)
+
+    def test_eigentuemer_plural(self):
+        xml = self._xml()
+        self.assertIn("Die Kläger sind Eigentümer", xml)
+        self.assertNotIn("Die Kläger ist", xml)
+
+    def test_vorsteuer_bei_mehreren_klaegern_beruecksichtigt(self):
+        xml = self._xml(vorsteuer="J")
+        self.assertIn("als vorsteuerabzugsberechtigte Geschädigte", xml)
+        self.assertNotIn("als nicht vorsteuerabzugsberechtigte Geschädigte", xml)
+
+    def test_sg_plural_verb(self):
+        xml = self._xml(mit_sg=True, sg_mind=1000.0)
+        self.assertIn("Die Kläger haben durch den Unfall Verletzungen erlitten", xml)
+
+    def test_feststellung_dativ_plural(self):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 400.0)])
+        akte_daten["klage_config"]["beklagte"] = [
+            self.K1, self.K2,
+            {"rolle_klage": "beklagter", "versicherung": "Test-Versicherung AG",
+             "anschrift": "Teststr. 2", "plz": "12345", "ort": "Teststadt"},
+        ]
+        akte_daten["klage_config"]["mit_feststellung_sach"] = True
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+        self.assertIn("den Klägern sämtliche", xml)
+
+
 if __name__ == "__main__":
     unittest.main()
