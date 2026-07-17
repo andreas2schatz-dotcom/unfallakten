@@ -208,16 +208,30 @@ export function berechneSwAussergEffektiv(swAusserg, hq, hqTyp) {
 /**
  * Erstellt den Vorschautext für die Rechtliche Würdigung.
  */
-export function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguliert, weiblich, hqTyp = "gegnerisch") {
+export function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguliert, weiblich, hqTyp = "gegnerisch", beklagte = []) {
   const hq     = parseFloat(haftungsquote) || 100;
   const kl_nom = weiblich ? "Die Klägerin" : "Der Kläger";
   const lines  = [];
 
-  lines.push(
-    `Der bei der Beklagten versicherte Unfallgegner verursachte den Unfall durch ` +
-    `${(haftungsbegruendung || "").trim() || "sein schuldhaftes Verhalten"}. ` +
-    `Die Haftungsquote beträgt ${pctStr(hq)} %.`
-  );
+  if (hq >= 100) {
+    const beklagteGef = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked);
+    const nrSuffix    = beklagteGef.length > 1 ? " (zu 1)" : "";
+    const bek1        = beklagteGef[0];
+    const bek1Maenl   = bek1 && !bek1.versicherung && !bek1.firma
+                        && (bek1.anrede || "").toLowerCase() === "herr";
+    const bek_gen_art = bek1Maenl ? "des" : "der";      // Genitiv: des/der Beklagten
+    const bek_dat_pp  = bek1Maenl ? "bei dem" : "bei der"; // Dativ: bei dem/bei der Beklagten
+    lines.push(
+      `Die alleinige Haftung ${bek_gen_art} Beklagten${nrSuffix} steht außer Frage.` +
+      ` Der Unfall wurde allein schuldhaft von dem ${bek_dat_pp} Beklagten${nrSuffix} versicherten Fahrzeug verursacht.`
+    );
+  } else {
+    lines.push(
+      `Der bei der Beklagten versicherte Unfallgegner verursachte den Unfall durch ` +
+      `${(haftungsbegruendung || "").trim() || "sein schuldhaftes Verhalten"}. ` +
+      `Die Haftungsquote beträgt ${pctStr(hq)} %.`
+    );
+  }
 
   if (gesamtReguliert > 0) {
     lines.push(
@@ -1226,12 +1240,12 @@ export function StepRw({ hq, onHq, hqTyp = "gegnerisch", onHqTyp, hb, onHb, abre
   const [einwandeOffen, setEinwandeOffen] = useState(false);
 
   function neuGenerieren() {
-    onRwText(buildRwVorschau(hb, hq, gesamtReg, weiblich, hqTyp));
+    onRwText(buildRwVorschau(hb, hq, gesamtReg, weiblich, hqTyp, beklagte));
   }
 
   function fallauswaehlen(neuerTyp) {
     onHqTyp(neuerTyp);
-    onRwText(buildRwVorschau(hb, hq, gesamtReg, weiblich, neuerTyp));
+    onRwText(buildRwVorschau(hb, hq, gesamtReg, weiblich, neuerTyp, beklagte));
   }
 
   function einwandeUebernehmen(generierterText) {

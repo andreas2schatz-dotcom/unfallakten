@@ -473,7 +473,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setWizardHq(hq);
     setWizardHqTyp("gegnerisch");
     setWizardHb(hb);
-    setWizardRwText(buildRwVorschau(hb, hq, gesReg, weiblich, "gegnerisch"));
+    setWizardRwText(buildRwVorschau(hb, hq, gesReg, weiblich, "gegnerisch", beklagte));
 
     // Verzug-States nur initialisieren wenn noch leer (Kachel 5 könnte sie bereits befüllt haben)
     const verzugDatum = wizardVerzugDatum || wizardVerzugDokDatum || verzug || "";
