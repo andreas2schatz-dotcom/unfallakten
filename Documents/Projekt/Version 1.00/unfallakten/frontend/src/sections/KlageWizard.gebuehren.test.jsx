@@ -15,7 +15,9 @@ const ANTRAEGE_MIT_PLATZHALTER =
   "1. Die Beklagte wird verurteilt, an den Kläger 1.000,00 € zu zahlen.\n\n" +
   "2. [Außergerichtliche Anwaltsgebühren – wird in Schritt 9 ergänzt]";
 
-function Wrapper({ spies = {} }) {
+const BEKLAGTE_EINZEL = [{ id: 1, name: "Muster", rolle_klage: "beklagter", checked: true }];
+
+function Wrapper({ spies = {}, beklagte = BEKLAGTE_EINZEL }) {
   const [rvgAussergData, setRvgAussergData] = useState(null);
   const [rvgAussergOv, setRvgAussergOv] = useState("");
   const [rvgBereitsGezahlt, setRvgBereitsGezahlt] = useState("");
@@ -35,7 +37,7 @@ function Wrapper({ spies = {} }) {
       onRvgBereitsGezahlt={(v) => setRvgBereitsGezahlt(v)}
       gebuehrenText={gebuehrenText}
       onGebuehrenText={(t) => { spies.onGebuehrenText?.(t); setGebuehrenText(t); }}
-      beklagte={[{ id: 1, name: "Muster", rolle_klage: "beklagter", checked: true }]}
+      beklagte={beklagte}
       weiblich={false}
       zinsenAb="rechtshaengigkeit"
       verzug=""
@@ -108,5 +110,24 @@ describe("StepGebuehren – KW-02 RVG-Faktor nicht ins Euro-Override-Feld", () =
     expect(spies.onGebuehrenText).toHaveBeenCalled();
     const letzterText = spies.onGebuehrenText.mock.calls.at(-1)[0];
     expect(letzterText).toContain("500,00 €");
+  });
+});
+
+describe("StepGebuehren – KW-06 Gesamtschuldner-Grammatik", () => {
+  it("2 Beklagte -> Gebühren-Antragstext nutzt Gesamtschuldner-Formel", () => {
+    const spies = { onGebuehrenText: vi.fn() };
+    const beklagte = [
+      { id: 1, name: "Muster", rolle_klage: "beklagter", checked: true },
+      { id: 2, versicherung: "Test-Versicherung AG", rolle_klage: "beklagter", checked: true },
+    ];
+    render(<Wrapper spies={spies} beklagte={beklagte} />);
+
+    const overrideInput = screen.getAllByRole("spinbutton")[0];
+    fireEvent.change(overrideInput, { target: { value: "500" } });
+
+    expect(spies.onGebuehrenText).toHaveBeenCalled();
+    const letzterText = spies.onGebuehrenText.mock.calls.at(-1)[0];
+    expect(letzterText).toContain("Die Beklagten werden als Gesamtschuldner verurteilt");
+    expect(letzterText).not.toContain("(zu 1)");
   });
 });

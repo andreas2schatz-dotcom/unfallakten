@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   anredeNorm, kanonischeBeklagte, beklagtenGrammatik, versichererSuffix,
-  buildSachverhaltText, buildRwVorschau,
+  buildSachverhaltText, buildRwVorschau, baueAntraegeText, ANTRAEGE_PLACEHOLDER,
 } from "./KlageWizard.jsx";
 
 const VERS = { rolle_klage: "beklagter", versicherung: "Test-Versicherung AG", checked: true };
@@ -90,5 +90,37 @@ describe("buildRwVorschau hq=100 Referenzpartei (Fix-Wave)", () => {
 describe("beklagtenGrammatik leere Liste", () => {
   it("wirft nicht und fällt auf feminine Singular-Form zurück", () => {
     expect(beklagtenGrammatik([]).verurteilt).toBe("Die Beklagte wird verurteilt");
+  });
+});
+
+describe("baueAntraegeText (KW-06 FE)", () => {
+  const POS = [{ key: "wertminderung", label: "WM", betrag: 400, betragOriginal: 400, checked: true }];
+  const basis = { positionen: POS, mitSG: false, sgMind: 0, weiblich: false,
+                  zinsenAb: "rechtshaengigkeit", verzug: "", unfalldatum: "01.02.2026",
+                  mitFestSg: false, mitFestSach: false };
+
+  it("mehrere Beklagte -> Gesamtschuldner, kein (zu 1)", () => {
+    const text = baueAntraegeText({ ...basis, beklagte: [VERS, MANN] });
+    expect(text).toContain("Die Beklagten werden als Gesamtschuldner verurteilt, an den Kläger 400,00 €");
+    expect(text).toContain("Die Beklagten tragen die Kosten des Rechtsstreits.");
+    expect(text).not.toContain("(zu 1)");
+    expect(text).toContain(ANTRAEGE_PLACEHOLDER);
+  });
+
+  it("Feststellungsantrag plural", () => {
+    const text = baueAntraegeText({ ...basis, beklagte: [VERS, MANN], mitFestSach: true });
+    expect(text).toContain("dass die Beklagten als Gesamtschuldner verpflichtet sind,");
+  });
+
+  it("einzelner maennlicher Beklagter -> maskulin", () => {
+    const text = baueAntraegeText({ ...basis, beklagte: [MANN] });
+    expect(text).toContain("Der Beklagte wird verurteilt, an den Kläger 400,00 €");
+    expect(text).toContain("Der Beklagte trägt die Kosten des Rechtsstreits.");
+  });
+
+  it("einzelne Versicherung -> unveraendert wie bisher", () => {
+    const text = baueAntraegeText({ ...basis, beklagte: [VERS] });
+    expect(text).toContain("Die Beklagte wird verurteilt, an den Kläger 400,00 €");
+    expect(text).toContain("Die Beklagte trägt die Kosten des Rechtsstreits.");
   });
 });

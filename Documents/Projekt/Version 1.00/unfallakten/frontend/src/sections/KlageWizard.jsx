@@ -1088,9 +1088,7 @@ function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, 
     const selected = (kuerzungsarten || []).filter(ka => checked.has(ka.id));
     if (selected.length === 0) { onUebernehmen(""); return; }
 
-    // "(zu 1)" nur wenn mehrere Beklagte in der Klageschrift
-    const beklagteGef = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked);
-    const zuSuffix = beklagteGef.length > 1 ? " (zu 1)" : "";
+    const zuSuffix = versichererSuffix(beklagte);
 
     // Kürzungsbetrag je kuerzungsart_id aus Abrechnungspositionen
     const kuerzungMap = {};
@@ -1125,7 +1123,7 @@ function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, 
       : "";
 
     const lines = [
-      "Die Beklagte hat folgende Positionen zu Unrecht nicht oder nicht vollständig reguliert:",
+      `Die Beklagte${zuSuffix} hat folgende Positionen zu Unrecht nicht oder nicht vollständig reguliert:`,
       "",
       ...bloecke,
       ...(schlusssatz ? ["", schlusssatz] : []),
@@ -1894,8 +1892,7 @@ export function baueAntraegeText(opts) {
           unfalldatum, mitFestSg, mitFestSach, hq = 100, hqTyp = "gegnerisch" } = opts;
 
   const klagebetrag = berechneKlagebetrag(positionen, hq, hqTyp);
-  const beklagteGef = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked);
-  const nrSuffix    = beklagteGef.length > 1 ? " (zu 1)" : "";
+  const g           = beklagtenGrammatik(beklagte);
   const kl_akk      = weiblich ? "die Klägerin"  : "den Kläger";  // Akkusativ: zahlen an…
   const kl_dat      = weiblich ? "der Klägerin"  : "dem Kläger";  // Dativ: verpflichtet…zu ersetzen
   const zinsDat     = zinsenAb === "verzug" && verzug ? `seit dem ${verzug}` : "seit Rechtshängigkeit";
@@ -1906,7 +1903,7 @@ export function baueAntraegeText(opts) {
 
   // 1. Hauptantrag
   antraege.push(
-    `Die Beklagte${nrSuffix} wird verurteilt, an ${kl_akk} ${fNr(klagebetrag)} ` +
+    `${g.verurteilt}, an ${kl_akk} ${fNr(klagebetrag)} ` +
     `nebst Zinsen in Höhe von 5 Prozentpunkten über dem jeweiligen Basiszinssatz ` +
     `${zinsDat} zu zahlen.`
   );
@@ -1915,14 +1912,14 @@ export function baueAntraegeText(opts) {
   if (mitSG) {
     if (sgMind > 0) {
       antraege.push(
-        `Die Beklagte${nrSuffix} wird verurteilt, an ${kl_akk} ein angemessenes, ` +
+        `${g.verurteilt}, an ${kl_akk} ein angemessenes, ` +
         `vom Gericht festzulegendes Schmerzensgeld zu zahlen, wobei die Höhe nicht ` +
         `weniger als ${fNr(sgMind)} betragen sollte, nebst Zinsen von 5 Prozentpunkten ` +
         `über dem Basiszinssatz ${zinsDat}.`
       );
     } else {
       antraege.push(
-        `Die Beklagte${nrSuffix} wird verurteilt, an ${kl_akk} ein angemessenes, ` +
+        `${g.verurteilt}, an ${kl_akk} ein angemessenes, ` +
         `vom Gericht nach billigem Ermessen festzulegendes Schmerzensgeld zu zahlen, ` +
         `nebst Zinsen von 5 Prozentpunkten über dem Basiszinssatz ${zinsDat}.`
       );
@@ -1932,7 +1929,7 @@ export function baueAntraegeText(opts) {
   // 3. Feststellungsantrag Personenschaden
   if (mitSG && mitFestSg) {
     antraege.push(
-      `Es wird festgestellt, dass die Beklagte${nrSuffix} verpflichtet ist, ` +
+      `Es wird festgestellt, dass ${g.verpflichtet}, ` +
       `${kl_dat} sämtliche künftigen materiellen und immateriellen Schäden zu ersetzen, ` +
       `die aus dem Unfallereignis vom ${udStr} noch entstehen werden, soweit Ansprüche ` +
       `nicht auf Sozialversicherungsträger oder sonstige Dritte übergegangen sind oder ` +
@@ -1943,7 +1940,7 @@ export function baueAntraegeText(opts) {
   // 4. Feststellungsantrag Sachschaden
   if (mitFestSach) {
     antraege.push(
-      `Es wird festgestellt, dass die Beklagte${nrSuffix} verpflichtet ist, ` +
+      `Es wird festgestellt, dass ${g.verpflichtet}, ` +
       `${kl_dat} sämtliche weiteren materiellen Schäden zu ersetzen, die aus dem ` +
       `Unfallereignis vom ${udStr} noch entstehen werden.`
     );
@@ -1953,7 +1950,7 @@ export function baueAntraegeText(opts) {
   antraege.push(ANTRAEGE_PLACEHOLDER);
 
   // Kostentragung
-  antraege.push(`Die Beklagte${nrSuffix} trägt die Kosten des Rechtsstreits.`);
+  antraege.push(g.kosten);
 
   return antraege.map((t, i) => `${i + 1}.\t${t}`).join("\n\n");
 }
@@ -2071,8 +2068,7 @@ export function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
                          zinsenAb, verzug,
                          antraegeText, onAntraegeText,
                          gespeichertGb, onGespeichertGb, akteId }) {
-  const beklagteGef  = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked);
-  const nrSuffix     = beklagteGef.length > 1 ? " (zu 1)" : "";
+  const g            = beklagtenGrammatik(beklagte);
   const kl_akk       = weiblich ? "die Klägerin" : "den Kläger";
   const zinsDat      = zinsenAb === "verzug" && verzug ? `seit dem ${verzug}` : "seit Rechtshängigkeit";
   const rvgGesamt    = rvgAussergOv ? parseFloat(rvgAussergOv) : (rvgAussergData?.gesamt || 0);
@@ -2133,7 +2129,7 @@ export function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
   function baueGebuehrenAntrag(betrag) {
     const b = betrag !== undefined ? betrag : rvgNetto;
     return (
-      `Die Beklagte${nrSuffix} wird verurteilt, an ${kl_akk} weitere ` +
+      `${g.verurteilt}, an ${kl_akk} weitere ` +
       `${b.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € ` +
       `nebst Zinsen in Höhe von 5 Prozentpunkten über dem jeweiligen Basiszinssatz ` +
       `${zinsDat} zu zahlen.`
