@@ -55,3 +55,20 @@ describe("StepZusammenfassung – KW-23 Platzhalter-Guard", () => {
     expect(button).toBeDisabled();
   });
 });
+
+describe("StepZusammenfassung – KW-19 Generieren-Sperre bei 0 Beklagten", () => {
+  it("sperrt Generieren-Button und zeigt Warnblock, wenn keine Beklagten angehakt sind", () => {
+    const props = {
+      ...BASIS_PROPS,
+      beklagte: [
+        { id: 1, name: "Mustermann", rolle_klage: "klaeger", checked: true },
+        { id: 2, name: "Huber", rolle_klage: "beklagter", checked: false }
+      ],
+      antraegeText: ANTRAEGE_OHNE_PLATZHALTER
+    };
+    render(<StepZusammenfassung {...props} />);
+
+    expect(screen.getByText(/Keine Beklagten ausgewählt/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Als Word generieren/i })).toBeDisabled();
+  });
+});

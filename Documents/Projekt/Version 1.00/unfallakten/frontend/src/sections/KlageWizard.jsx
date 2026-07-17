@@ -1656,15 +1656,16 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
   const istAmtsgericht = gericht && /amtsgericht/i.test(gericht.name || "");
   const lgWarnung = lgGrenzwert > 0 && swGerichtlich > lgGrenzwert && istAmtsgericht;
   const klaeger     = beklagte?.filter(b => b.rolle_klage === "klaeger") || [];
-  const beklagteG   = beklagte?.filter(b => b.rolle_klage !== "klaeger" && b.checked) || [];
+  const beklagteG   = kanonischeBeklagte(beklagte);
 
   const firmenOhneVertreter = beklagteG.filter(b =>
     (b.versicherung || b.firma) && !b.vertreter_name
   );
   const keinPositionen = positionen.filter(p => p.checked).length === 0;
   const keinGericht    = !gericht;
+  const keineBeklagten = beklagteG.length === 0;
   const hatPlatzhalter = !!antraegeText && antraegeText.includes(ANTRAEGE_PLACEHOLDER);
-  const gesperrt       = laedt || keinGericht || keinPositionen || firmenOhneVertreter.length > 0 || hatPlatzhalter;
+  const gesperrt       = laedt || keinGericht || keinPositionen || keineBeklagten || firmenOhneVertreter.length > 0 || hatPlatzhalter;
 
   const aktLegLabel = { eigentum: "Eigentum", finanziert: "Finanziert", geleast: "Geleast" }[aktLegTyp] || aktLegTyp;
   const freigabeLabel = { freigabe: "Freigabeerklärung", bedingungen: "Aus Bedingungen", ungeklaert: "⚠ Ungeklärt" }[aktLegFreigabe] || "";
@@ -1697,7 +1698,8 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
         <ZeileZusammenfassung icon="👤" label="Kläger"
           wert={klaeger.map(b => b.vorname ? `${b.vorname} ${b.name}` : b.name || b.firma || "–").join(", ") || "–"} />
         <ZeileZusammenfassung icon="⚔" label="Beklagte"
-          wert={beklagteG.map(b => b.versicherung || b.firma || b.name || "–").join(", ") || "–"} />
+          wert={beklagteG.length > 0 ? beklagteG.map(b => b.versicherung || b.firma || b.name || "–").join(", ") : "— keine —"}
+          warn={keineBeklagten} />
         <ZeileZusammenfassung icon="⚖" label="Klagebetrag"
           wert={fmtEuro(klagebetrag + (mitSG && sgMind > 0 ? sgMind : 0))} warn={keinPositionen} />
         <ZeileZusammenfassung icon="⏱" label="Zinsen ab"
@@ -1712,7 +1714,7 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
           wert={rvgAussGes > 0 ? fmtEuro(rvgAussGes) : "–"} warn={rvgAussGes === 0} />
       </div>
 
-      {(keinGericht || keinPositionen || firmenOhneVertreter.length > 0 || aktLegFreigabe === "ungeklaert" || lgWarnung || hatPlatzhalter) && (
+      {(keinGericht || keinPositionen || keineBeklagten || firmenOhneVertreter.length > 0 || aktLegFreigabe === "ungeklaert" || lgWarnung || hatPlatzhalter) && (
         <div style={{ marginBottom: "1rem" }}>
           {hatPlatzhalter && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: T.red,
             padding: "7px 12px", background: `${T.red}10`, borderRadius: 7, marginBottom: 6 }}>
@@ -1726,6 +1728,10 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
           {keinPositionen && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: T.red,
             padding: "7px 12px", background: `${T.red}10`, borderRadius: 7, marginBottom: 6 }}>
             ⚠ Keine Schadenpositionen ausgewählt.
+          </div>}
+          {keineBeklagten && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: T.red,
+            padding: "7px 12px", background: `${T.red}10`, borderRadius: 7, marginBottom: 6 }}>
+            ⚠ Keine Beklagten ausgewählt – bitte im Parteien-Bereich mindestens einen Beklagten anhaken.
           </div>}
           {firmenOhneVertreter.length > 0 && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: T.red,
             padding: "7px 12px", background: `${T.red}10`, borderRadius: 7, marginBottom: 6 }}>
