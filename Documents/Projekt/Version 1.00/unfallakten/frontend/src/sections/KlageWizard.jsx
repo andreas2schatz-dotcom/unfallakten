@@ -1504,13 +1504,13 @@ function StepVerzug({ zinsenAb, rvgData, rvgOverride, weiblich,
 
 // ── Step 10: Zusammenfassung + Generieren ──────────────────────────────────────
 
-function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMind,
+export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMind,
                                rvgData, rvgOverride,
                                rvgAussergData, rvgAussergOv,
                                aktLegTyp, aktLegFreigabe,
                                zinsenAb, wizardVerzugDatum,
                                laedt, onGenerieren, fehler,
-                               lgGrenzwert, swAusserg }) {
+                               lgGrenzwert, swAusserg, antraegeText }) {
   const klagebetrag  = positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag || 0), 0);
   const rvgGesamt    = rvgOverride    ? parseFloat(rvgOverride)    : (rvgData?.gesamt        || 0);
   const rvgAussGes   = rvgAussergOv   ? parseFloat(rvgAussergOv)   : (rvgAussergData?.gesamt || 0);
@@ -1525,7 +1525,8 @@ function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMind,
   );
   const keinPositionen = positionen.filter(p => p.checked).length === 0;
   const keinGericht    = !gericht;
-  const gesperrt       = laedt || keinGericht || keinPositionen || firmenOhneVertreter.length > 0;
+  const hatPlatzhalter = !!antraegeText && antraegeText.includes(ANTRAEGE_PLACEHOLDER);
+  const gesperrt       = laedt || keinGericht || keinPositionen || firmenOhneVertreter.length > 0 || hatPlatzhalter;
 
   const aktLegLabel = { eigentum: "Eigentum", finanziert: "Finanziert", geleast: "Geleast" }[aktLegTyp] || aktLegTyp;
   const freigabeLabel = { freigabe: "Freigabeerklärung", bedingungen: "Aus Bedingungen", ungeklaert: "⚠ Ungeklärt" }[aktLegFreigabe] || "";
@@ -1573,8 +1574,13 @@ function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMind,
           wert={rvgAussGes > 0 ? fmtEuro(rvgAussGes) : "–"} warn={rvgAussGes === 0} />
       </div>
 
-      {(keinGericht || keinPositionen || firmenOhneVertreter.length > 0 || aktLegFreigabe === "ungeklaert" || lgWarnung) && (
+      {(keinGericht || keinPositionen || firmenOhneVertreter.length > 0 || aktLegFreigabe === "ungeklaert" || lgWarnung || hatPlatzhalter) && (
         <div style={{ marginBottom: "1rem" }}>
+          {hatPlatzhalter && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: T.red,
+            padding: "7px 12px", background: `${T.red}10`, borderRadius: 7, marginBottom: 6 }}>
+            ⚠ Der Antragstext enthält noch den Platzhalter für die außergerichtlichen Anwaltsgebühren.
+            Bitte Schritt 9 (Gebühren) aufrufen, damit der RVG-Antrag eingesetzt wird.
+          </div>}
           {keinGericht && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: T.red,
             padding: "7px 12px", background: `${T.red}10`, borderRadius: 7, marginBottom: 6 }}>
             ⚠ Kein Gericht gewählt.
@@ -1741,7 +1747,7 @@ function StepGericht({ gericht, setGericht, gerichtSuche, setGSuche,
 // ── Step 6: Klageanträge ───────────────────────────────────────────────────────
 
 const ALPHABET = "abcdefghijklmnopqrstuvwxyz";
-const ANTRAEGE_PLACEHOLDER = "[Außergerichtliche Anwaltsgebühren – wird in Schritt 9 ergänzt]";
+export const ANTRAEGE_PLACEHOLDER = "[Außergerichtliche Anwaltsgebühren – wird in Schritt 9 ergänzt]";
 
 function baueAntraegeText(opts) {
   const { positionen, mitSG, sgMind, beklagte, weiblich, zinsenAb, verzug,
@@ -2456,6 +2462,7 @@ export default function KlageWizard({
                 laedt={laedt}               onGenerieren={onGenerieren}
                 fehler={fehler}
                 lgGrenzwert={lgGrenzwert}   swAusserg={swAusserg}
+                antraegeText={wizardAntraegeText}
               />
             )}
           </div>
