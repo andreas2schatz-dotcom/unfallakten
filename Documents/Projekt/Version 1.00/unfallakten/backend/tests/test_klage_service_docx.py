@@ -602,6 +602,14 @@ class TestKW06Gesamtschuldner(unittest.TestCase):
         self.assertIn("Die Beklagte ist die Haftpflichtversicherung des "
                       "unfallverursachenden Fahrzeugs.", xml)
 
+    def test_firmen_halter_wird_nicht_als_versicherung_bezeichnet(self):
+        halter_gmbh = {"rolle_klage": "beklagter", "firma": "Spedition Krause GmbH",
+                       "ist_halter": 1, "anschrift": "Weg 9", "plz": "63065", "ort": "Offenbach"}
+        xml = self._xml([self.VERS, halter_gmbh])
+        self.assertIn("Die Beklagte zu 2) ist die Halterin des unfallverursachenden "
+                      "Fahrzeugs.", xml)
+        self.assertNotIn("Die Beklagte zu 2) ist die Haftpflichtversicherung", xml)
+
 
 class TestKW17MehrereKlaeger(unittest.TestCase):
     """KW-17: Numerus bei mehreren Klaegern + Vorsteuer."""

@@ -77,7 +77,7 @@ export function beklagtenGrammatik(beklagte) {
 export function versichererSuffix(beklagte) {
   const gef = kanonischeBeklagte(beklagte);
   if (gef.length <= 1) return "";
-  const idx = gef.findIndex(b => b.versicherung || b.firma);
+  const idx = gef.findIndex(b => b.versicherung || (b.firma && !b.ist_halter));
   return idx >= 0 ? ` zu ${idx + 1})` : "";
 }
 
@@ -148,13 +148,14 @@ export function buildSachverhaltText({
   const mehrere = gegner.length > 1;
   const bekSaetze = gegner.map((b, i) => {
     const nrStr = mehrere ? ` zu ${i + 1})` : "";
-    if (b.versicherung || b.firma) {
+    if (b.versicherung || (b.firma && !b.ist_halter)) {
       const kz = b.kfz_kennzeichen || "";
       let satz = `Die Beklagte${nrStr} ist die gegnerische Haftpflichtversicherung des unfallverursachenden Fahrzeugs`;
       if (kz) satz += ` mit dem amtlichen Kennzeichen ${kz}`;
       return satz + ".";
     }
-    const weiblichB = anredeNorm(b.anrede) === "frau";
+    const istFirmaB = !!(b.versicherung || b.firma);
+    const weiblichB = istFirmaB || anredeNorm(b.anrede) === "frau";
     const art = weiblichB ? "Die" : "Der";
     if (b.ist_halter) {
       return `${art} Beklagte${nrStr} ist ${weiblichB ? "die Halterin" : "der Halter"} des unfallverursachenden Fahrzeugs.`;
@@ -237,7 +238,7 @@ export function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguli
 
   if (hq >= 100) {
     const gef = kanonischeBeklagte(beklagte);
-    const insurerIdx = gef.findIndex(b => b.versicherung || b.firma);
+    const insurerIdx = gef.findIndex(b => b.versicherung || (b.firma && !b.ist_halter));
     const refIdx = insurerIdx >= 0 ? insurerIdx : 0;
     const ref = gef[refIdx];
     const nrSuffix = gef.length > 1 ? ` zu ${refIdx + 1})` : "";

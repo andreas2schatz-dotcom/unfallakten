@@ -1405,7 +1405,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         schadennr_gesetzt = False
         for i, bek in enumerate(beklagte_gef):
             nr_str = f" zu {i+1})" if mehrere_bek else ""
-            if bek.get("firma") or bek.get("versicherung"):
+            if bek.get("versicherung") or (bek.get("firma") and not bek.get("ist_halter")):
                 satz = (
                     f"Die Beklagte{nr_str} ist die Haftpflichtversicherung des "
                     f"unfallverursachenden Fahrzeugs mit dem amtlichen Kennzeichen {gegner_kz}."
@@ -1417,7 +1417,8 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
                     satz += f" Sie führt den Vorgang unter der Schadennummer {schadennummer}."
                     schadennr_gesetzt = True
             else:
-                weiblich_b = _anrede_norm(bek.get("anrede")) == "frau"
+                ist_firma_b = bool(bek.get("firma") or bek.get("versicherung"))
+                weiblich_b = ist_firma_b or _anrede_norm(bek.get("anrede")) == "frau"
                 art = "Die" if weiblich_b else "Der"
                 if bek.get("ist_halter"):
                     bez = "die Halterin" if weiblich_b else "der Halter"

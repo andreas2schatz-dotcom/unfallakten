@@ -78,6 +78,24 @@ describe("buildSachverhaltText (KW-20)", () => {
   });
 });
 
+describe("Firmen-Halter-Klassifikation (Abschluss-Review-Fix)", () => {
+  const FIRMA_HALTER = { rolle_klage: "beklagter", firma: "Spedition Krause GmbH", ist_halter: 1, checked: true };
+  const basisFuerSachverhalt = {
+    klaeger: "Der Kläger", vorsteuer: false,
+    unfalldatum: "01.02.2026", unfallort: "Offenbach",
+    aktLegTyp: "eigentum", aktLegFreigabe: "freigabe", aktLegDatum: "",
+    mandantKz: "OF-AB 1", mandantIstFahrer: false, auslandsunfall: false,
+  };
+  it("buildSachverhaltText: Halter-GmbH bekommt Halter-Satz, nicht Versicherungssatz", () => {
+    const text = buildSachverhaltText({ ...basisFuerSachverhalt, beklagte: [VERS, FIRMA_HALTER] });
+    expect(text).toContain("Die Beklagte zu 2) ist die Halterin des unfallverursachenden Fahrzeugs.");
+    expect(text).not.toContain("zu 2) ist die gegnerische Haftpflichtversicherung");
+  });
+  it("versichererSuffix überspringt den Firmen-Halter", () => {
+    expect(versichererSuffix([FIRMA_HALTER, VERS])).toBe(" zu 2)");
+  });
+});
+
 describe("buildRwVorschau hq=100 Referenzpartei (Fix-Wave)", () => {
   it("Nummer UND Genus zeigen auf die Versicherung, auch wenn sie nicht erste ist", () => {
     const text = buildRwVorschau("", 100, 0, false, "gegnerisch", [MANN, VERS]);
