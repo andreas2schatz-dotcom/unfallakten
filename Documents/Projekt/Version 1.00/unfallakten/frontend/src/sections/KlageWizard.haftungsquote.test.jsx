@@ -5,6 +5,7 @@ import {
   berechneKlagebetrag,
   berechneSwAussergEffektiv,
   baueAntraegeText,
+  buildRwVorschau,
   StepRw,
   StepSchaden,
   StepZusammenfassung,
@@ -91,6 +92,15 @@ describe("baueAntraegeText – KW-03 quotierter Klagebetrag im Antragstext", () 
       hq: 75, hqTyp: "gegnerisch",
     });
     expect(text).toContain("1.000,00 €");
+  });
+});
+
+describe("buildRwVorschau – KW-03 oeffneWizard-Initialtext (Review-Fix)", () => {
+  it("hq=75 gegnerisch: enthält 'bestritten', NICHT 'wurde entsprechend gekürzt', Prozent '25' via pctStr", () => {
+    const text = buildRwVorschau("sein schuldhaftes Verhalten", 75, 0, false, "gegnerisch");
+    expect(text).toContain("bestritten");
+    expect(text).not.toContain("wurde entsprechend gekürzt");
+    expect(text).toContain("25 %");
   });
 });
 

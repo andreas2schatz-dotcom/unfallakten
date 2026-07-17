@@ -208,7 +208,7 @@ export function berechneSwAussergEffektiv(swAusserg, hq, hqTyp) {
 /**
  * Erstellt den Vorschautext für die Rechtliche Würdigung.
  */
-function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguliert, weiblich, hqTyp = "gegnerisch") {
+export function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguliert, weiblich, hqTyp = "gegnerisch") {
   const hq     = parseFloat(haftungsquote) || 100;
   const kl_nom = weiblich ? "Die Klägerin" : "Der Kläger";
   const lines  = [];
