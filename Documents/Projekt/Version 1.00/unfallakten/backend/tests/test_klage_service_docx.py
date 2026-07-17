@@ -362,5 +362,97 @@ class TestKW05EinleitungEigentumTyp(unittest.TestCase):
         self.assertNotIn("ist Eigentümerin des", xml)
 
 
+class TestKW03HaftungsquoteFallAB(unittest.TestCase):
+    def _akte_daten_hq(self, hq, hq_typ, mit_sg=False, sg_mind=0.0):
+        positionen = [
+            _position("wertminderung", "Wertminderung", betrag=7000.0, betrag_original=10000.0, checked=True),
+        ]
+        schaden = {"wertminderung": 10000.0}
+        akte_daten = _akte_daten(
+            positionen, schaden,
+            mit_schmerzensgeld=mit_sg, schmerzensgeld_mindest=sg_mind,
+        )
+        akte_daten["klage_config"]["haftungsquote"] = hq
+        akte_daten["klage_config"]["haftungsquote_typ"] = hq_typ
+        return akte_daten
+
+    def test_a_fall_b_eigene_quote_antrag1_4500_tabelle_bleibt_10000(self):
+        xml = _document_xml(generiere_klageschrift(self._akte_daten_hq(75, "eigen")))
+
+        self.assertIn("4.500,00 €", xml)
+        self.assertIn("10.000,00", xml)
+        self.assertIn(
+            "Von dem Gesamtschaden in Höhe von 10.000,00 € sind unter Berücksichtigung "
+            "der Mithaftungsquote von 25 % 75 %, mithin 7.500,00 €, ersatzfähig. "
+            "Abzüglich der geleisteten Zahlungen in Höhe von 3.000,00 € "
+            "verbleiben 4.500,00 €, die mit dem Klageantrag zu 1 geltend gemacht werden.",
+            xml,
+        )
+
+    def test_b_fall_b_mit_sg_gegenstandswert_5500_sgmind_unquotiert(self):
+        xml = _document_xml(generiere_klageschrift(
+            self._akte_daten_hq(75, "eigen", mit_sg=True, sg_mind=1000.0)
+        ))
+
+        self.assertIn("5.500,00", xml)
+
+    def test_c_fall_a_gegnerische_quote_antrag1_7000_kein_gekuerzt_bestreiten_satz(self):
+        xml = _document_xml(generiere_klageschrift(self._akte_daten_hq(75, "gegnerisch")))
+
+        self.assertIn("7.000,00 €", xml)
+        self.assertNotIn("entsprechend gekürzt", xml)
+        self.assertIn(
+            "Die Beklagtenseite geht von einer Mithaftungsquote des den Kläger von 25 % aus. "
+            "Dies wird bestritten; die Beklagtenseite haftet in vollem Umfang. "
+            "Die Klageforderung ist ungekürzt geltend gemacht.",
+            xml,
+        )
+
+    def test_d_fall_b_auto_rw_text_enthaelt_wahren_gekuerzt_satz(self):
+        xml = _document_xml(generiere_klageschrift(self._akte_daten_hq(75, "eigen")))
+
+        self.assertIn(
+            "Der Kläger lässt sich eine Mithaftungsquote von 25 % anrechnen. "
+            "Die Klageforderung ist entsprechend gekürzt.",
+            xml,
+        )
+
+    def test_e_hq_100_keinerlei_quote_text(self):
+        xml = _document_xml(generiere_klageschrift(self._akte_daten_hq(100, "eigen")))
+
+        self.assertIn("10.000,00", xml)
+        self.assertIn("7.000,00 €", xml)
+        self.assertNotIn("entsprechend gekürzt", xml)
+        self.assertNotIn("Mithaftungsquote", xml)
+        self.assertNotIn("Von dem Gesamtschaden", xml)
+
+    def test_f_prozent_dezimal_formatierung_ohne_int_truncation(self):
+        akte_daten = self._akte_daten_hq(66.67, "eigen")
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+
+        self.assertIn("33,33 % 66,67 %", xml)
+
+    def test_g_klagebetrag_max_0_klammer_bei_uebersteigenden_zahlungen(self):
+        # gesamt_voll=10000, betrag=100 -> zahlungen=9900; hq=20 -> ersatzfaehig=2000.
+        # Ohne max(0, ...)-Klammer waere klagebetrag 2000-9900 = -7900.
+        positionen = [
+            _position("wertminderung", "Wertminderung", betrag=100.0, betrag_original=10000.0, checked=True),
+        ]
+        schaden = {"wertminderung": 10000.0}
+        akte_daten = _akte_daten(positionen, schaden)
+        akte_daten["klage_config"]["haftungsquote"] = 20
+        akte_daten["klage_config"]["haftungsquote_typ"] = "eigen"
+
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+
+        self.assertIn(
+            "Von dem Gesamtschaden in Höhe von 10.000,00 € sind unter Berücksichtigung "
+            "der Mithaftungsquote von 80 % 20 %, mithin 2.000,00 €, ersatzfähig. "
+            "Abzüglich der geleisteten Zahlungen in Höhe von 2.000,00 € "
+            "verbleiben 0,00 €, die mit dem Klageantrag zu 1 geltend gemacht werden.",
+            xml,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

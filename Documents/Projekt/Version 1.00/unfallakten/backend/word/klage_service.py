@@ -262,6 +262,14 @@ def _eur_str(betrag: float) -> str:
     return f"{_eur(betrag)} €"
 
 
+def _pct_str(wert: float) -> str:
+    """Prozentanzeige ohne int-Truncation: 66.67 -> '66,67', 50.0 -> '50'."""
+    gerundet = round(wert, 2)
+    if gerundet == int(gerundet):
+        return str(int(gerundet))
+    return f"{gerundet:.2f}".rstrip("0").rstrip(".").replace(".", ",")
+
+
 # ── OOXML-Bausteine ──────────────────────────────────────────────────────────
 
 def _xml_absatz(text: str, fett: bool = False, einzug: bool = False,
@@ -962,6 +970,13 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     mit_sg  = bool(cfg.get("mit_schmerzensgeld"))
     sg_mind = float(cfg.get("schmerzensgeld_mindest") or 0)
 
+    # ── Haftungsquote (KW-03) ────────────────────────────────────────────────
+    hq_cfg = cfg.get("haftungsquote")
+    hq = float(hq_cfg) if hq_cfg is not None else float(
+        details.get("haftungsquote") or akte.get("haftungsquote") or 100
+    )
+    hq_typ = cfg.get("haftungsquote_typ") or "gegnerisch"
+
     # ── Positionen / Gegenstandswert ─────────────────────────────────────────
     # KW-07: bei aktivem unbezifferten SG-Antrag (mit_sg) die bezifferte
     # SG-Position ausschliessen, sonst wird Schmerzensgeld doppelt geltend
@@ -969,7 +984,22 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     positionen = [p for p in (cfg.get("positionen") or [])
                   if isinstance(p, dict) and p.get("checked")
                   and not (mit_sg and p.get("key") == "schmerzensgeld")]
-    klagebetrag = sum(float(p.get("betrag") or 0) for p in positionen)
+
+    # KW-03 Fall B: eigene Mithaftungsquote - erst quotieren, dann die bereits
+    # geleisteten Zahlungen abziehen. gesamt_voll/fallb_zahlungen werden auch
+    # fuer den Differenz-Satz an der Schadentabelle benoetigt (Fall-B-Variante).
+    fallb_aktiv = hq_typ == "eigen" and 0 < hq < 100
+    if fallb_aktiv:
+        fallb_gesamt_voll = sum(
+            float(p.get("betragOriginal") if p.get("betragOriginal") is not None else p.get("betrag") or 0)
+            for p in positionen
+        )
+        fallb_zahlungen = round(
+            fallb_gesamt_voll - sum(float(p.get("betrag") or 0) for p in positionen), 2
+        )
+        klagebetrag = max(0.0, round(fallb_gesamt_voll * hq / 100 - fallb_zahlungen, 2))
+    else:
+        klagebetrag = sum(float(p.get("betrag") or 0) for p in positionen)
 
     # ── RVG ──────────────────────────────────────────────────────────────────
     rvg_override     = cfg.get("rvg_override")
@@ -1008,9 +1038,6 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         next((b["kfz_kennzeichen"] for b in beklagte_liste if b.get("kfz_kennzeichen")), "")
         or details.get("_wdm_gegner_kz") or ""
     )
-
-    # ── Haftungsquote ────────────────────────────────────────────────────────
-    hq = float(details.get("haftungsquote") or akte.get("haftungsquote") or 100)
 
     # ════════════════════════════════════════════════════════════════════════
     # EINFACHE PLATZHALTER
@@ -1473,28 +1500,56 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     schaden_xml += _lz()
     schaden_xml += _p("Einholung eines gerichtlichen Sachverständigengutachtens.", fett=True)
 
-    # KW-04: Differenz-Satz aus einer Quelle - Zahlungen ergeben sich aus
-    # schaden_gesamt (Tabelle, 100 %) und klagebetrag (Antrag 1), nicht mehr
-    # unabhängig aus gesamt_reguliert_tbl. Der Satz endet damit immer exakt
-    # beim Antrag-1-Betrag.
-    _zahlungen = round(schaden_gesamt - klagebetrag, 2)
-    if _zahlungen > 0:
+    if fallb_aktiv:
+        # KW-03 Fall B: eigene Quote - schaden_gesamt (Tabelle, 100 %) entspricht
+        # per Konstruktion fallb_gesamt_voll (gleiche checked Positionen,
+        # gleiche betragOriginal-Werte, KW-04). Differenz-Satz weist die
+        # Quotenkürzung separat von den geleisteten Zahlungen aus.
+        _ersatzfaehig = round(fallb_gesamt_voll * hq / 100, 2)
+        _zahlungen_anzeige = round(_ersatzfaehig - klagebetrag, 2)
         schaden_xml += _lz()
-        schaden_xml += _p("Die Beklagte hat folgende Zahlungen auf den Schaden geleistet:")
-        if reg_tbl_xml:
-            schaden_xml += reg_tbl_xml
-        schaden_xml += _lz()
-        schaden_xml += _p(
-            f"Die Differenz des geforderten Gesamtbetrages in Höhe von {_eur_str(schaden_gesamt)} "
-            f"abzgl. der oben gezeigten geleisteten Zahlungen in Höhe von {_eur_str(_zahlungen)} "
-            f"beträgt {_eur_str(klagebetrag)} und wird mit dem Klageantrag zu 1 geltend gemacht."
-        )
+        if _zahlungen_anzeige > 0:
+            schaden_xml += _p("Die Beklagte hat folgende Zahlungen auf den Schaden geleistet:")
+            if reg_tbl_xml:
+                schaden_xml += reg_tbl_xml
+            schaden_xml += _lz()
+            schaden_xml += _p(
+                f"Von dem Gesamtschaden in Höhe von {_eur_str(schaden_gesamt)} sind unter "
+                f"Berücksichtigung der Mithaftungsquote von {_pct_str(100 - hq)} % {_pct_str(hq)} %, "
+                f"mithin {_eur_str(_ersatzfaehig)}, ersatzfähig. Abzüglich der geleisteten Zahlungen "
+                f"in Höhe von {_eur_str(_zahlungen_anzeige)} verbleiben {_eur_str(klagebetrag)}, "
+                f"die mit dem Klageantrag zu 1 geltend gemacht werden."
+            )
+        else:
+            schaden_xml += _p(
+                f"Von dem Gesamtschaden in Höhe von {_eur_str(schaden_gesamt)} sind unter "
+                f"Berücksichtigung der Mithaftungsquote von {_pct_str(100 - hq)} % {_pct_str(hq)} %, "
+                f"mithin {_eur_str(_ersatzfaehig)}, ersatzfähig. Dieser Betrag wird mit dem "
+                f"Klageantrag zu 1 geltend gemacht."
+            )
     else:
-        schaden_xml += _lz()
-        schaden_xml += _p(
-            f"Der Gesamtbetrag in Höhe von {_eur_str(schaden_gesamt)} wird mit dem "
-            f"Klageantrag zu 1 geltend gemacht."
-        )
+        # KW-04: Differenz-Satz aus einer Quelle - Zahlungen ergeben sich aus
+        # schaden_gesamt (Tabelle, 100 %) und klagebetrag (Antrag 1), nicht mehr
+        # unabhängig aus gesamt_reguliert_tbl. Der Satz endet damit immer exakt
+        # beim Antrag-1-Betrag.
+        _zahlungen = round(schaden_gesamt - klagebetrag, 2)
+        if _zahlungen > 0:
+            schaden_xml += _lz()
+            schaden_xml += _p("Die Beklagte hat folgende Zahlungen auf den Schaden geleistet:")
+            if reg_tbl_xml:
+                schaden_xml += reg_tbl_xml
+            schaden_xml += _lz()
+            schaden_xml += _p(
+                f"Die Differenz des geforderten Gesamtbetrages in Höhe von {_eur_str(schaden_gesamt)} "
+                f"abzgl. der oben gezeigten geleisteten Zahlungen in Höhe von {_eur_str(_zahlungen)} "
+                f"beträgt {_eur_str(klagebetrag)} und wird mit dem Klageantrag zu 1 geltend gemacht."
+            )
+        else:
+            schaden_xml += _lz()
+            schaden_xml += _p(
+                f"Der Gesamtbetrag in Höhe von {_eur_str(schaden_gesamt)} wird mit dem "
+                f"Klageantrag zu 1 geltend gemacht."
+            )
 
     # ── {{RECHTLICHE_WUERDIGUNG}} ─────────────────────────────────────────
     rw_text_override = (details.get("rw_text_override") or "").strip()
@@ -1514,7 +1569,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         rw_xml  = _lz() + _p("4.) Rechtliche Würdigung", fett=True)
         rw_xml += _p(f"Der bei der Beklagten versicherte Unfallgegner verursachte den Unfall "
                      f"durch {haftungsbegruendung or 'sein schuldhaftes Verhalten'}. "
-                     f"Die Haftungsquote beträgt {int(hq)} %.")
+                     f"Die Haftungsquote beträgt {_pct_str(hq)} %.")
         # Regulierungshinweis nur wenn keine positions-genaue Tabelle vorhanden
         if not reg_tbl_xml:
             gesamt_reguliert = sum(float(a.get("gesamt_reguliert") or 0) for a in abrechnungen)
@@ -1529,9 +1584,20 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
                     "Die Beklagte hat bislang keine Regulierung vorgenommen. "
                     "Da trotz mehrfacher Fristsetzung keine Zahlung erfolgte, war die Klage notwendig."
                 )
+        # KW-03: "entsprechend gekürzt" nur im Fall B (eigene Quote) wahr -
+        # im Fall gegnerisch wird die Mithaftungsquote bestritten.
         if hq < 100:
-            rw_xml += _p(f"Die Mithaftungsquote des {kl_dat} beträgt {int(100-hq)} %. "
-                         f"Die Klageforderung wurde entsprechend gekürzt.")
+            if hq_typ == "eigen":
+                rw_xml += _p(
+                    f"{kl_nom} lässt sich eine Mithaftungsquote von {_pct_str(100 - hq)} % anrechnen. "
+                    f"Die Klageforderung ist entsprechend gekürzt."
+                )
+            else:
+                rw_xml += _p(
+                    f"Die Beklagtenseite geht von einer Mithaftungsquote des {kl_dat} von "
+                    f"{_pct_str(100 - hq)} % aus. Dies wird bestritten; die Beklagtenseite haftet "
+                    f"in vollem Umfang. Die Klageforderung ist ungekürzt geltend gemacht."
+                )
 
     # ── {{SCHMERZENSGELD}} ────────────────────────────────────────────────
     if mit_sg:
