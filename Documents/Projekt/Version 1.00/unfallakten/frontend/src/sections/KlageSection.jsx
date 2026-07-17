@@ -232,10 +232,6 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           const gb = await apiGebuehren.laden(akteId);
           if (gb.gespeichert) {
             setGespeichertGb(gb.gespeichert);
-            // Faktor aus Gebühren-Tab vorbelegen
-            if (gb.gespeichert.faktor_final) {
-              setWizardRvgAussergOv(String(gb.gespeichert.faktor_final));
-            }
           }
         } catch { /* Gebühren-Tab optional */ }
       } catch (e) {

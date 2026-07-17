@@ -1922,7 +1922,7 @@ const VG_OPTIONEN = [
   { value: "schwerst", label: "Schwerst / Dauerschaden" },
 ];
 
-function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
+export function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
                          rvgAussergOv, onRvgAussergOv,
                          rvgBereitsGezahlt, onRvgBereitsGezahlt,
                          gebuehrenText, onGebuehrenText,
@@ -1957,7 +1957,6 @@ function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
       const neuerFaktor = res.vorschlag?.faktor ?? 1.3;
       // RVG mit neuem Faktor vom Backend neu berechnen
       onRvgAussergData({ ...res.rvg, faktor: neuerFaktor });
-      onRvgAussergOv(String(neuerFaktor));
       setGbAnalysiert(true);
     } catch (e) {
       // Stille Fehlerbehandlung – Anwalt sieht leere Tabelle
@@ -1970,7 +1969,7 @@ function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
     if (!akteId || !gbVorschlag) return;
     setGbSpeichertLaedt(true);
     try {
-      const faktorFinal = parseFloat(rvgAussergOv) || gbVorschlag.faktor;
+      const faktorFinal = rvgAussergData?.faktor ?? gbVorschlag.faktor;
       await apiGebuehren.speichern(akteId, {
         kriterien:       gbAntworten,
         vuregel_id:      gbVorschlag.vuregel_id,
