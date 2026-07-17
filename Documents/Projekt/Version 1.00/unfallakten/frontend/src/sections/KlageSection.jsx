@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import KlageWizard from "./KlageWizard.jsx";
+import KlageWizard, { berechneSwAussergEffektiv } from "./KlageWizard.jsx";
 import { RegulierungsTabelle, TodoSection } from './UebersichtSection.jsx';
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
@@ -187,6 +187,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [lgGrenzwert, setLgGrenzwert]             = useState(10000);
   // PRD-26: neue Wizard-States
   const [wizardHq, setWizardHq]                     = useState(100);
+  const [wizardHqTyp, setWizardHqTyp]               = useState("gegnerisch");
   const [wizardHb, setWizardHb]                     = useState("");
   const [wizardMaxStep, setWizardMaxStep]           = useState(1);
   const [wizardGerichtBest, setWizardGerichtBest]   = useState(false);
@@ -266,6 +267,9 @@ function KlageSection({ akteId, akte, st, dispatch }) {
 
   // Außergerichtlicher Streitwert = Summe aller Schadenpositionen (Brutto-Forderung)
   const swAusserg = positionen.reduce((s, p) => s + (p.betrag || 0), 0);
+  // KW-03: Nr.-2300-Basis quotieren bei eigener Mithaftungsquote - einzige Ableitungsstelle,
+  // verwendet für beide rvgBerechnen-Aufrufe, die StepGebuehren-Prop und die Anzeige.
+  const swAussergEffektiv = berechneSwAussergEffektiv(swAusserg, wizardHq, wizardHqTyp);
 
   // Per-Position offene Beträge — selbe _KEY_MAP-Logik wie oeffneWizard()
   const _KLAGEN_KEY_MAP = {
@@ -314,18 +318,18 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     if (!daten) return;
     (async () => {
       try {
-        const res = await apiKlage.rvgBerechnen(akteId, { streitwert: swAusserg });
+        const res = await apiKlage.rvgBerechnen(akteId, { streitwert: swAussergEffektiv });
         setRvgData(res.rvg);
       } catch {}
     })();
-  }, [swAusserg]);
+  }, [swAussergEffektiv]);
 
   // Step 9: RVG auf außergerichtl. Streitwert berechnen wenn Step 9 erreicht
   useEffect(() => {
     if (!wizardOffen || wizardStep !== 9 || wizardRvgAussergData) return;
     (async () => {
       try {
-        const res = await apiKlage.rvgBerechnen(akteId, { streitwert: swAusserg });
+        const res = await apiKlage.rvgBerechnen(akteId, { streitwert: swAussergEffektiv });
         setWizardRvgAussergData(res.rvg);
       } catch {}
     })();
@@ -467,6 +471,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     const gesReg  = (daten?.abrechnungen || []).reduce((s, a) => s + (parseFloat(a.gesamt_reguliert) || 0), 0);
     const hb      = daten?.unfalldetails?.haftungsbegruendung || "";
     setWizardHq(hq);
+    setWizardHqTyp("gegnerisch");
     setWizardHb(hb);
     const kl_dat      = weiblich ? "der Klägerin" : "des Klägers";
     const beklagteGef = beklagte.filter(b => b.rolle_klage !== "klaeger" && b.checked);
@@ -578,6 +583,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         zinsen_ab:              zinsenAb,
         rvg:                    rvgData,
         rvg_override:           rvgOverride ? parseFloat(rvgOverride) : null,
+        haftungsquote:          wizardHq,
+        haftungsquote_typ:      wizardHqTyp,
       }, overrides);
       setToast("Klageschrift heruntergeladen.");
       setWizardOffen(false);
@@ -646,6 +653,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           wizardAntraegeText={wizardAntraegeText} onAntraegeText={setWizardAntraegeText}
           // Step 7: Rechtliche Würdigung
           wizardHq={wizardHq}           onWizardHq={setWizardHq}
+          wizardHqTyp={wizardHqTyp}     onWizardHqTyp={setWizardHqTyp}
           wizardHb={wizardHb}           onWizardHb={setWizardHb}
           wizardRwText={wizardRwText}   onWizardRwText={setWizardRwText}
           kuerzungsarten={daten?.kuerzungsarten || []}
@@ -658,7 +666,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           verzugDokListe={verzugDokListe}
           verzugDokId={verzugDokId}                   onVerzugDokId={setVerzugDokId}
           // Step 9: Außergerichtl. Gebühren
-          swAusserg={swAusserg}
+          swAusserg={swAussergEffektiv}
           wizardRvgAussergData={wizardRvgAussergData}       onRvgAussergData={setWizardRvgAussergData}
           wizardRvgAussergOv={wizardRvgAussergOv}           onRvgAussergOv={setWizardRvgAussergOv}
           wizardRvgBereitsGezahlt={wizardRvgBereitsGezahlt} onRvgBereitsGezahlt={setWizardRvgBereitsGezahlt}
@@ -1349,7 +1357,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
               <div style={{ background:T.surface, borderRadius:8, padding:"0.75rem 1rem",
                 marginBottom:"0.75rem", fontFamily:"ui-monospace,monospace", fontSize:"0.875rem" }}>
                 {[
-                  { label:"Gegenstandswert",                                          val: swAusserg,                    bold: false },
+                  { label:"Gegenstandswert",                                          val: swAussergEffektiv,            bold: false },
                   { label:`Geschäftsgebühr §§ 13, 14 Nr. 2300 VV RVG (${rvgData.faktor})`, val: rvgData.gebuehr_netto,   bold: false },
                   { label:"Post u. Telekommunikation Nr. 7002 VV RVG",               val: rvgData.post_pauschale,       bold: false },
                   { label:"Zwischensumme netto",                                      val: rvgData.zwischen_netto,       bold: false, faint: true },

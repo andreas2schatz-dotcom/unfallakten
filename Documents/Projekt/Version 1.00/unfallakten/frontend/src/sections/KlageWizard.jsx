@@ -159,17 +159,64 @@ function buildSachverhaltText({
 }
 
 /**
+ * Prozentanzeige ohne int-Truncation: 66.666… -> "66,67", 50.0 -> "50".
+ * Spiegelt backend/word/klage_service.py::_pct_str().
+ */
+function pctStr(wert) {
+  const gerundet = Math.round(wert * 100) / 100;
+  if (gerundet === Math.trunc(gerundet)) return String(Math.trunc(gerundet));
+  return gerundet.toFixed(2).replace(/0+$/, "").replace(/\.$/, "").replace(".", ",");
+}
+
+/**
+ * Rundet auf 2 Nachkommastellen (spiegelt backend round(x, 2)).
+ */
+function round2(x) {
+  return Math.round(x * 100) / 100;
+}
+
+/**
+ * Zentrale Klagebetrag-Berechnung (KW-03 Fall A/B) – spiegelt
+ * backend/word/klage_service.py::generiere_klageschrift().
+ * Fall B (hqTyp="eigen", 0<hq<100): erst die Positionssumme mit hq quotieren,
+ * dann die bereits geleisteten Zahlungen abziehen (max(0, …)-Klammer).
+ * Sonst: Summe der angehakten Beträge (100 %).
+ */
+export function berechneKlagebetrag(positionen, hq, hqTyp) {
+  const checked = (positionen || []).filter(p => p.checked);
+  const summeBetrag = checked.reduce((s, p) => s + (p.betrag || 0), 0);
+  if (hqTyp === "eigen" && hq > 0 && hq < 100) {
+    const gesamtVoll = checked.reduce((s, p) => s + (p.betragOriginal ?? p.betrag ?? 0), 0);
+    const zahlungen  = round2(gesamtVoll - summeBetrag);
+    return Math.max(0, round2(gesamtVoll * hq / 100 - zahlungen));
+  }
+  return summeBetrag;
+}
+
+/**
+ * Zentrale Ableitung des effektiven außergerichtl. Streitwerts (Nr. 2300 VV RVG-Basis).
+ * Fall B (hqTyp="eigen", 0<hq<100): der Streitwert wird mit hq quotiert.
+ * Sonst: unverändert.
+ */
+export function berechneSwAussergEffektiv(swAusserg, hq, hqTyp) {
+  if (hqTyp === "eigen" && hq > 0 && hq < 100) {
+    return round2(swAusserg * hq / 100);
+  }
+  return swAusserg;
+}
+
+/**
  * Erstellt den Vorschautext für die Rechtliche Würdigung.
  */
-function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguliert, weiblich) {
+function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguliert, weiblich, hqTyp = "gegnerisch") {
   const hq     = parseFloat(haftungsquote) || 100;
-  const kl_dat = weiblich ? "der Klägerin" : "des Klägers";
+  const kl_nom = weiblich ? "Die Klägerin" : "Der Kläger";
   const lines  = [];
 
   lines.push(
     `Der bei der Beklagten versicherte Unfallgegner verursachte den Unfall durch ` +
     `${(haftungsbegruendung || "").trim() || "sein schuldhaftes Verhalten"}. ` +
-    `Die Haftungsquote beträgt ${Math.round(hq)} %.`
+    `Die Haftungsquote beträgt ${pctStr(hq)} %.`
   );
 
   if (gesamtReguliert > 0) {
@@ -185,10 +232,18 @@ function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguliert, we
   }
 
   if (hq < 100) {
-    lines.push(
-      `Die Mithaftungsquote ${kl_dat} beträgt ${Math.round(100 - hq)} %. ` +
-      `Die Klageforderung wurde entsprechend gekürzt.`
-    );
+    if (hqTyp === "eigen") {
+      lines.push(
+        `${kl_nom} lässt sich eine Mithaftungsquote von ${pctStr(100 - hq)} % anrechnen. ` +
+        `Die Klageforderung ist entsprechend gekürzt.`
+      );
+    } else {
+      lines.push(
+        `Die Beklagtenseite geht von einer Mithaftungsquote von ${pctStr(100 - hq)} % auf Klägerseite aus. ` +
+        `Dies wird bestritten; die Beklagtenseite haftet in vollem Umfang. ` +
+        `Die Klageforderung ist ungekürzt geltend gemacht.`
+      );
+    }
   }
 
   return lines.join("\n\n");
@@ -683,9 +738,10 @@ function StepUnfall({ schilderungOriginal, klaeger, unfalltextEdit, onUnfalltext
 
 // ── Step 4: Schadenpositionen ──────────────────────────────────────────────────
 
-export function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind, abrechnungen, az, kl_nom }) {
+export function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, onSGMind, abrechnungen, az, kl_nom,
+                               hq = 100, hqTyp = "gegnerisch" }) {
   const [showSgDialog, setShowSgDialog] = useState(false);
-  const klagebetrag = positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag || 0), 0);
+  const klagebetrag = berechneKlagebetrag(positionen, hq, hqTyp);
 
   // KW-07: unbezifferter SG-Antrag (mitSG) und bezifferte SG-Position schliessen
   // sich aus - sonst wird Schmerzensgeld doppelt geltend gemacht.
@@ -1163,14 +1219,19 @@ function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, 
 
 // ── Step 5: Rechtliche Würdigung ───────────────────────────────────────────────
 
-function StepRw({ hq, onHq, hb, onHb, abrechnungen, weiblich,
+export function StepRw({ hq, onHq, hqTyp = "gegnerisch", onHqTyp, hb, onHb, abrechnungen, weiblich,
                   rwText, onRwText, kuerzungsarten, beklagte,
                   onKiHaftung, kiLaedt }) {
   const gesamtReg = (abrechnungen || []).reduce((s, ab) => s + (parseFloat(ab.gesamt_reguliert) || 0), 0);
   const [einwandeOffen, setEinwandeOffen] = useState(false);
 
   function neuGenerieren() {
-    onRwText(buildRwVorschau(hb, hq, gesamtReg, weiblich));
+    onRwText(buildRwVorschau(hb, hq, gesamtReg, weiblich, hqTyp));
+  }
+
+  function fallauswaehlen(neuerTyp) {
+    onHqTyp(neuerTyp);
+    onRwText(buildRwVorschau(hb, hq, gesamtReg, weiblich, neuerTyp));
   }
 
   function einwandeUebernehmen(generierterText) {
@@ -1229,6 +1290,28 @@ function StepRw({ hq, onHq, hb, onHb, abrechnungen, weiblich,
             <span>0 %</span><span>50 %</span><span>100 %</span>
           </div>
         </div>
+
+        {hq < 100 && (
+          <div>
+            <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.textMuted, marginBottom: 6 }}>
+              Fallauswahl
+            </div>
+            {[
+              { value: "gegnerisch", label: "Gegnerische Quote (nur Darstellung — Beträge bleiben 100 %)" },
+              { value: "eigen",      label: "Eigene Quote (kürzt Klagebetrag und Gebührenbasis)" },
+            ].map(opt => (
+              <label key={opt.value} style={{ display: "flex", alignItems: "flex-start", gap: 8,
+                cursor: "pointer", fontFamily: PLEX, fontSize: "0.82rem",
+                color: hqTyp === opt.value ? T.navy : T.text, fontWeight: hqTyp === opt.value ? 600 : 400,
+                marginBottom: 6 }}>
+                <input type="radio" checked={hqTyp === opt.value}
+                  onChange={() => fallauswaehlen(opt.value)}
+                  style={{ accentColor: T.navy, cursor: "pointer", marginTop: 2 }} />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+        )}
 
         <div>
           <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.textMuted, marginBottom: 4 }}>
@@ -1526,8 +1609,9 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
                                aktLegTyp, aktLegFreigabe,
                                zinsenAb, wizardVerzugDatum,
                                laedt, onGenerieren, fehler,
-                               lgGrenzwert, swAusserg, antraegeText }) {
-  const klagebetrag  = positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag || 0), 0);
+                               lgGrenzwert, swAusserg, antraegeText,
+                               hq = 100, hqTyp = "gegnerisch" }) {
+  const klagebetrag  = berechneKlagebetrag(positionen, hq, hqTyp);
   const rvgGesamt    = rvgOverride    ? parseFloat(rvgOverride)    : (rvgData?.gesamt        || 0);
   const rvgAussGes   = rvgAussergOv   ? parseFloat(rvgAussergOv)   : (rvgAussergData?.gesamt || 0);
   const swGerichtlich = klagebetrag + (mitSG && sgMind > 0 ? sgMind : 0);
@@ -1765,11 +1849,11 @@ function StepGericht({ gericht, setGericht, gerichtSuche, setGSuche,
 const ALPHABET = "abcdefghijklmnopqrstuvwxyz";
 export const ANTRAEGE_PLACEHOLDER = "[Außergerichtliche Anwaltsgebühren – wird in Schritt 9 ergänzt]";
 
-function baueAntraegeText(opts) {
+export function baueAntraegeText(opts) {
   const { positionen, mitSG, sgMind, beklagte, weiblich, zinsenAb, verzug,
-          unfalldatum, mitFestSg, mitFestSach } = opts;
+          unfalldatum, mitFestSg, mitFestSach, hq = 100, hqTyp = "gegnerisch" } = opts;
 
-  const klagebetrag = positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag || 0), 0);
+  const klagebetrag = berechneKlagebetrag(positionen, hq, hqTyp);
   const beklagteGef = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked);
   const nrSuffix    = beklagteGef.length > 1 ? " (zu 1)" : "";
   const kl_akk      = weiblich ? "die Klägerin"  : "den Kläger";  // Akkusativ: zahlen an…
@@ -1837,8 +1921,9 @@ function baueAntraegeText(opts) {
 function StepAntraege({ positionen, mitSG, sgMind, beklagte, weiblich,
                         zinsenAb, verzug, unfalldatum,
                         mitFestSg, onMitFestSg, mitFestSach, onMitFestSach,
-                        antraegeText, onAntraegeText }) {
-  const klagebetrag   = positionen.filter(p => p.checked).reduce((s, p) => s + (p.betrag || 0), 0);
+                        antraegeText, onAntraegeText,
+                        hq = 100, hqTyp = "gegnerisch" }) {
+  const klagebetrag   = berechneKlagebetrag(positionen, hq, hqTyp);
   const sgGesamt      = mitSG && sgMind > 0 ? klagebetrag + sgMind : klagebetrag;
   const zinsDat       = zinsenAb === "verzug" && verzug ? `seit dem ${verzug}` : "seit Rechtshängigkeit";
   const hatPlatzhalter = antraegeText?.includes(ANTRAEGE_PLACEHOLDER);
@@ -1846,7 +1931,7 @@ function StepAntraege({ positionen, mitSG, sgMind, beklagte, weiblich,
   function regenerieren() {
     onAntraegeText(baueAntraegeText({
       positionen, mitSG, sgMind, beklagte, weiblich,
-      zinsenAb, verzug, unfalldatum, mitFestSg, mitFestSach,
+      zinsenAb, verzug, unfalldatum, mitFestSg, mitFestSach, hq, hqTyp,
     }));
   }
 
@@ -2254,7 +2339,7 @@ export default function KlageWizard({
   wizardMitFestSach, onMitFestSach,
   wizardAntraegeText, onAntraegeText,
   // Step 7 (Rechtliche Würdigung)
-  wizardHq, onWizardHq, wizardHb, onWizardHb,
+  wizardHq, onWizardHq, wizardHqTyp, onWizardHqTyp, wizardHb, onWizardHb,
   wizardRwText, onWizardRwText, kuerzungsarten,
   onKiHaftung, kiLaedt,
   // Step 8 (Verzug)
@@ -2405,6 +2490,7 @@ export default function KlageWizard({
                 sgMind={sgMind}           onSGMind={onSGMind}
                 az={wizardAkteId}
                 kl_nom={klaeger}
+                hq={wizardHq}             hqTyp={wizardHqTyp}
               />
             )}
 
@@ -2417,12 +2503,14 @@ export default function KlageWizard({
                 mitFestSg={wizardMitFestSg}   onMitFestSg={onMitFestSg}
                 mitFestSach={wizardMitFestSach} onMitFestSach={onMitFestSach}
                 antraegeText={wizardAntraegeText} onAntraegeText={onAntraegeText}
+                hq={wizardHq}             hqTyp={wizardHqTyp}
               />
             )}
 
             {step === 7 && (
               <StepRw
                 hq={wizardHq}             onHq={onWizardHq}
+                hqTyp={wizardHqTyp}       onHqTyp={onWizardHqTyp}
                 hb={wizardHb}             onHb={onWizardHb}
                 abrechnungen={abrechnungen}
                 weiblich={weiblich}
@@ -2478,6 +2566,7 @@ export default function KlageWizard({
                 fehler={fehler}
                 lgGrenzwert={lgGrenzwert}   swAusserg={swAusserg}
                 antraegeText={wizardAntraegeText}
+                hq={wizardHq}               hqTyp={wizardHqTyp}
               />
             )}
           </div>
