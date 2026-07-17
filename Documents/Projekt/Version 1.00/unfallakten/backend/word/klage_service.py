@@ -1217,20 +1217,10 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         # (kein _bek_person-Check: Organisationen wie "DBGK e. V." haben name, kein vorname)
         ist_firma   = bool(bek.get("firma") or bek.get("versicherung"))
         nr_suffix   = f" zu {i+1})" if len(beklagte_gef) > 1 else ""
-        # Vertreter aus DB (gespeichert via Klage-Tab Lookup)
         vertreter_name = (bek.get("vertreter_name") or "").strip()
         vertreter_funk = (bek.get("vertreter_funktion") or "").strip()
-
-        # Vertreter-Suffix: ", vertreten durch Geschäftsführer Herrn Max Mustermann"
-        if ist_firma and vertreter_name:
-            funk_label = vertreter_funk or _funktion_aus_rechtsform_str(bek_name)
-            # Anrede bestimmen (Herr/Frau aus Funktion-Label oder Vornamen heuristisch)
-            anrede_v = "Frau" if any(x in vertreter_funk.lower() for x in ("in ", "rin", "frau")) else "Herrn"
-            vertreter_suffix = f", vertreten durch den {funk_label} {anrede_v} {vertreter_name}"
-        elif ist_firma:
-            # Generischer Hinweis ohne konkreten Namen
-            funk_label = _funktion_aus_rechtsform_str(bek_name)
-            vertreter_suffix = f", vertreten durch den {funk_label}"
+        if ist_firma:
+            vertreter_suffix = _vertreter_suffix(vertreter_funk, vertreter_name, bek_name)
         else:
             vertreter_suffix = ""
 
@@ -1242,7 +1232,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         adress_teile = [t for t in [bek_name, bek_anschr, bek_plz_ort] if t]
         full_line = ", ".join(adress_teile) + vertreter_suffix + schaden_suffix
         hpv_xml += _p(full_line)
-        hpv_xml += _rolle_rechts(f"– Beklagte{nr_suffix} –")
+        hpv_xml += _rolle_rechts(f"– {_beklagten_rolle(bek)}{nr_suffix} –")
         if i < len(beklagte_gef) - 1:
             hpv_xml += _lz()
 

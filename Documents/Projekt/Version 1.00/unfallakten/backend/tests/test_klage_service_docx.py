@@ -495,5 +495,57 @@ class TestKW03HaftungsquoteFallAB(unittest.TestCase):
         self.assertNotIn("Mithaftungsquote", xml)
 
 
+class TestKW15KW16RubrumGenus(unittest.TestCase):
+    """KW-15: Rubrum-Rolle genus-korrekt; KW-16: Vertreter-Grammatik."""
+
+    def _mit_beklagten(self, beklagte):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 400.0)])
+        akte_daten["klage_config"]["beklagte"] = beklagte
+        return _document_xml(generiere_klageschrift(akte_daten))
+
+    def test_kw15_maennlicher_beklagter_rubrum(self):
+        xml = self._mit_beklagten([{
+            "rolle_klage": "beklagter", "vorname": "Hans", "name": "Huber",
+            "anrede": "1", "anschrift": "Weg 3", "plz": "63065", "ort": "Offenbach",
+        }])
+        self.assertIn("– Beklagter –", xml)
+        self.assertNotIn("– Beklagte –", xml)
+
+    def test_kw15_versicherung_bleibt_beklagte(self):
+        xml = self._mit_beklagten([{
+            "rolle_klage": "beklagter", "versicherung": "Test-Versicherung AG",
+            "anschrift": "Teststr. 2", "plz": "12345", "ort": "Teststadt",
+        }])
+        self.assertIn("– Beklagte –", xml)
+
+    def test_kw15_gemischt_nummeriert(self):
+        xml = self._mit_beklagten([
+            {"rolle_klage": "beklagter", "versicherung": "Test-Versicherung AG",
+             "anschrift": "Teststr. 2", "plz": "12345", "ort": "Teststadt"},
+            {"rolle_klage": "beklagter", "vorname": "Hans", "name": "Huber",
+             "anrede": "1", "anschrift": "Weg 3", "plz": "63065", "ort": "Offenbach"},
+        ])
+        self.assertIn("– Beklagte zu 1) –", xml)
+        self.assertIn("– Beklagter zu 2) –", xml)
+
+    def test_kw16_geschaeftsfuehrerin_artikel_und_anrede(self):
+        xml = self._mit_beklagten([{
+            "rolle_klage": "beklagter", "firma": "Muster GmbH",
+            "anschrift": "Teststr. 2", "plz": "12345", "ort": "Teststadt",
+            "vertreter_name": "Erika Musterfrau", "vertreter_funktion": "Geschäftsführerin",
+        }])
+        self.assertIn("vertreten durch die Geschäftsführerin Frau Erika Musterfrau", xml)
+        self.assertNotIn("den Geschäftsführerin", xml)
+
+    def test_kw16_leere_funktion_keine_geratene_anrede(self):
+        xml = self._mit_beklagten([{
+            "rolle_klage": "beklagter", "firma": "Muster GmbH",
+            "anschrift": "Teststr. 2", "plz": "12345", "ort": "Teststadt",
+            "vertreter_name": "Erika Musterfrau", "vertreter_funktion": "",
+        }])
+        self.assertIn("vertreten durch den Geschäftsführer Erika Musterfrau", xml)
+        self.assertNotIn("Herrn Erika Musterfrau", xml)
+
+
 if __name__ == "__main__":
     unittest.main()
