@@ -32,13 +32,13 @@ def _position(key, label, betrag, betrag_original=None, checked=True):
     }
 
 
-def _akte_daten(positionen, schaden=None, reg_agg=None, abrechnungen=None):
+def _akte_daten(positionen, schaden=None, reg_agg=None, abrechnungen=None, vorsteuer="N"):
     return {
         "akte": {"aktenzeichen": "55/26", "erstellt_am": "2026-01-01"},
         "mandant": {
             "vorname": "Max", "name": "Mustermann",
             "anschrift": "Musterstr. 1", "plz": "63067", "ort": "Offenbach",
-            "anrede": "1", "vorsteuer": "N",
+            "anrede": "1", "vorsteuer": vorsteuer,
         },
         "kanzlei": {},
         "unfalldetails": {"schilderung": "Der Beklagte fuhr auf das Fahrzeug auf."},
@@ -199,6 +199,27 @@ class TestKW04Finding1ExtrasCheckedFilter(unittest.TestCase):
             "Die Differenz des geforderten Gesamtbetrages in Höhe von 150,00 € "
             "abzgl. der oben gezeigten geleisteten Zahlungen in Höhe von 23,95 € "
             "beträgt 126,05 € und wird mit dem Klageantrag zu 1 geltend gemacht.",
+            xml,
+        )
+
+
+class TestKW39VorsteuerNebenkostenDocx(unittest.TestCase):
+    def test_vorsteuer_mandant_sv_kosten_netto_konsistent_mit_antrag1(self):
+        positionen = [
+            _position("sv_kosten", "Kosten des Sachverständigen (brutto)",
+                       betrag=200.0, betrag_original=200.0, checked=True),
+        ]
+        schaden = {
+            "sv_kosten_netto": 200.0, "sv_kosten_ust": 38.0, "sv_kosten": 999.0,
+        }
+        akte_daten = _akte_daten(positionen, schaden, reg_agg={}, abrechnungen=[], vorsteuer="J")
+
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+
+        self.assertIn("200,00", xml)
+        self.assertNotIn("999,00", xml)
+        self.assertIn(
+            "Der Gesamtbetrag in Höhe von 200,00 € wird mit dem Klageantrag zu 1 geltend gemacht.",
             xml,
         )
 

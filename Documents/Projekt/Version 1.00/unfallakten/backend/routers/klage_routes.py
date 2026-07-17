@@ -27,7 +27,7 @@ from ..models.schaden import hole_schadenpositionen, hole_regulierungen_by_akte
 from ..models.dokument import registriere_dokument
 from ..word.klage_service import berechne_rvg, generiere_klageschrift, berechne_fahrzeugschaden
 from ..word.word_service import KANZLEI_INFO, _lade_beteiligte_aus_ramicro
-from ..word.forderungsschreiben_wv import _grammatik_vars
+from ..word.forderungsschreiben_wv import _grammatik_vars, _netto_oder_brutto
 from ..word.stellungnahme_service import ersetze_platzhalter
 from ..models.schaden import (
     hole_schadenpositionen, hole_beteiligte_by_akte
@@ -775,6 +775,21 @@ def hole_klage_daten(akte_id: str):
     except Exception as _e:
         logger.debug("Textbaustein-Aufbereitung: %s", _e)
 
+    # KW-39: Nebenkosten-Gruppen vorsteuer-bewusst berechnen (dieselbe
+    # _netto_oder_brutto-Logik wie _baue_tabelle in forderungsschreiben_wv.py),
+    # sonst weicht betragOriginal/Antrag 1 (bisher immer brutto) von der
+    # Schadentabelle (netto bei vorsteuerabzugsberechtigtem Mandanten) ab.
+    _sv_kosten_betrag = _netto_oder_brutto(
+        schaden_dict, "sv_kosten_netto", "sv_kosten_ust", "sv_kosten", _vorsteuer)
+    _mietwagenkosten_betrag = _netto_oder_brutto(
+        schaden_dict, "mietwagenkosten_netto", "mietwagenkosten_ust", "mietwagenkosten", _vorsteuer)
+    _abschleppkosten_betrag = _netto_oder_brutto(
+        schaden_dict, "abschleppkosten_netto", "abschleppkosten_ust", "abschleppkosten", _vorsteuer)
+    _standkosten_betrag = _netto_oder_brutto(
+        schaden_dict, "standkosten_netto", "standkosten_ust", "standkosten", _vorsteuer)
+    _anabmeldekosten_betrag = _netto_oder_brutto(
+        schaden_dict, "anabmeldekosten_netto", "anabmeldekosten_ust", "anabmeldekosten", _vorsteuer)
+
     # Alle möglichen Positionen
     pos_definitionen = [
         {"key": "fahrzeugschaden",  "label": fzg["label"] or "Fahrzeugschaden",
@@ -782,17 +797,17 @@ def hole_klage_daten(akte_id: str):
         {"key": "wertminderung",    "label": "Wertminderung",
          "betrag": s("wertminderung"), "vorschlag": s("wertminderung") > 0},
         {"key": "sv_kosten",        "label": "Kosten des Sachverständigen (brutto)",
-         "betrag": s("sv_kosten"),  "vorschlag": s("sv_kosten") > 0},
+         "betrag": _sv_kosten_betrag,  "vorschlag": _sv_kosten_betrag > 0},
         {"key": "nutzungsausfall",  "label": "Nutzungsausfallschaden",
          "betrag": s("nutzungsausfall"), "vorschlag": s("nutzungsausfall") > 0},
         {"key": "mietwagenkosten",  "label": "Mietwagenkosten",
-         "betrag": s("mietwagenkosten"), "vorschlag": s("mietwagenkosten") > 0},
+         "betrag": _mietwagenkosten_betrag, "vorschlag": _mietwagenkosten_betrag > 0},
         {"key": "abschleppkosten",  "label": "Abschleppkosten",
-         "betrag": s("abschleppkosten"), "vorschlag": s("abschleppkosten") > 0},
+         "betrag": _abschleppkosten_betrag, "vorschlag": _abschleppkosten_betrag > 0},
         {"key": "standkosten",      "label": "Standkosten",
-         "betrag": s("standkosten"), "vorschlag": s("standkosten") > 0},
+         "betrag": _standkosten_betrag, "vorschlag": _standkosten_betrag > 0},
         {"key": "anabmeldekosten",  "label": "An- und Abmeldekosten",
-         "betrag": s("anabmeldekosten"), "vorschlag": s("anabmeldekosten") > 0},
+         "betrag": _anabmeldekosten_betrag, "vorschlag": _anabmeldekosten_betrag > 0},
         {"key": "unkostenpauschale","label": "Unkostenpauschale",
          "betrag": s("unkostenpauschale") or 30.0,
          "vorschlag": True},  # immer 30 €, immer vorschlagen
