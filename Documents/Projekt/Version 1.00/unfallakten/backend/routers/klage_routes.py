@@ -1221,8 +1221,9 @@ def generiere_klage(akte_id: str):
         "haushalt":            s("haushalt"),
         "sonstiges":           s("sonstiges"),
         "sonstiges_beschr":    sv("sonstiges_beschr") or "",
-        # None → _baue_tabelle setzt 30€-Default; 0.0 → kein Default
-        "unkostenpauschale":   sv("unkostenpauschale"),
+        # DB kann nicht-gesetzt/0 nicht unterscheiden (Spalte NOT NULL DEFAULT 0.0)
+        # → falsy DB-Wert als "nicht gesetzt" behandeln, Bestandsverhalten Default-30 erhalten
+        "unkostenpauschale":   sv("unkostenpauschale") or None,
         # Wichtig für korrekte Abrechnungsart
         "abrechnungsart":      sv("abrechnungsart") or "",
         # WDM-Extras

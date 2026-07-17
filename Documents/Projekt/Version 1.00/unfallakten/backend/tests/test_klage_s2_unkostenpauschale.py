@@ -142,6 +142,9 @@ class TestRouterUnkostenpauschale(unittest.TestCase):
         return resp, mck
 
     def test_db_wert_0_bleibt_0_im_schaden_dict(self):
+        # Bestandsverhalten: DB unterscheidet "nie angefasst" nicht von "0"
+        # (Spalte NOT NULL DEFAULT 0.0) → falsy DB-Wert wird als "nicht gesetzt"
+        # behandelt, damit _baue_tabelle weiterhin den 30€-Default zieht.
         from backend.db.database import get_connection
         with get_connection() as conn:
             conn.execute(
@@ -152,13 +155,85 @@ class TestRouterUnkostenpauschale(unittest.TestCase):
         resp, mck = self._post_generieren()
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
         akte_daten = mck.call_args.args[0]
-        self.assertEqual(akte_daten["schaden"]["unkostenpauschale"], 0.0)
+        self.assertIsNone(akte_daten["schaden"]["unkostenpauschale"])
+
+    def test_db_wert_25_wird_uebernommen_im_schaden_dict(self):
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            conn.execute(
+                "INSERT INTO schadenpositionen (akte_id, unkostenpauschale) "
+                "VALUES ('55/26', 25.0)"
+            )
+
+        resp, mck = self._post_generieren()
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+        akte_daten = mck.call_args.args[0]
+        self.assertEqual(akte_daten["schaden"]["unkostenpauschale"], 25.0)
 
     def test_keine_schadenposition_ergibt_none_im_schaden_dict(self):
         resp, mck = self._post_generieren()
         self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
         akte_daten = mck.call_args.args[0]
         self.assertIsNone(akte_daten["schaden"]["unkostenpauschale"])
+
+
+class TestWordServiceUnkostenpauschale(unittest.TestCase):
+    """
+    Regressionstest Forderungsschreiben-Pfad (word_service._lade_akte_daten /
+    s_dict): eine nie angefasste Schadenzeile (unkostenpauschale=0.0, DB-Default)
+    darf im schaden-Dict NICHT als explizite 0 ankommen, sonst entfällt die
+    30€-Pauschale im Forderungsschreiben (Bestandsverhalten).
+    """
+
+    def setUp(self):
+        global _tmp_dir
+
+        import backend.db.database as _db
+        self._alt_db_path = _db.DB_PATH
+        self._old_db_path_env = os.environ.get("DB_PATH")
+        self._old_upload_dir_env = os.environ.get("UPLOAD_DIR")
+
+        self._tmp_dir = tempfile.mkdtemp(prefix="klage_unkosten_ws_")
+        _tmp_dir = self._tmp_dir
+
+        self.client = _setup(self._testMethodName)
+
+    def tearDown(self):
+        import backend.db.database as _db
+
+        _db.DB_PATH = self._alt_db_path
+
+        if self._old_db_path_env is not None:
+            os.environ["DB_PATH"] = self._old_db_path_env
+        else:
+            os.environ.pop("DB_PATH", None)
+
+        if self._old_upload_dir_env is not None:
+            os.environ["UPLOAD_DIR"] = self._old_upload_dir_env
+        else:
+            os.environ.pop("UPLOAD_DIR", None)
+
+        shutil.rmtree(self._tmp_dir, ignore_errors=True)
+
+    def test_nie_angefasste_schadenzeile_ergibt_none_und_30_euro_tabelle(self):
+        from backend.db.database import get_connection
+        from backend.models.akte import hole_akte_by_id
+        import backend.word.word_service as ws
+
+        with get_connection() as conn:
+            conn.execute(
+                "INSERT INTO schadenpositionen (akte_id, reparaturkosten) "
+                "VALUES ('55/26', 500.0)"
+            )
+
+        akte = hole_akte_by_id("55/26")
+        akte_daten = ws._lade_akte_daten("55/26", akte, dok_typ="")
+
+        self.assertIsNone(akte_daten["schaden"]["unkostenpauschale"])
+
+        xml, gesamt = _baue_tabelle(akte_daten["schaden"])
+        self.assertIn("Unkostenpauschale", xml)
+        self.assertIn("30,00\xa0€", xml)
 
 
 if __name__ == "__main__":

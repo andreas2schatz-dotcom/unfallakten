@@ -338,7 +338,9 @@ def _lade_akte_daten(akte_id: int, akte, dok_typ: str = "", variante: str = "aut
             "haushalt":            getattr(s, "haushalt",            0.0),
             "rep_gutachten_netto": getattr(s, "rep_gutachten_netto", 0.0),
             "rep_gutachten_mwst":  getattr(s, "rep_gutachten_mwst",  0.0),
-            "unkostenpauschale":   getattr(s, "unkostenpauschale",   0.0),
+            # DB kann nicht-gesetzt/0 nicht unterscheiden (Spalte NOT NULL DEFAULT 0.0)
+            # → falsy DB-Wert als "nicht gesetzt" behandeln, Bestandsverhalten Default-30 erhalten
+            "unkostenpauschale":   getattr(s, "unkostenpauschale",   0.0) or None,
             "wdm_extras_json":     getattr(s, "wdm_extras_json",    None),
             "wdm_info_json":       getattr(s, "wdm_info_json",     None),
             "kostennb":            getattr(s, "kostennb",            0.0),
