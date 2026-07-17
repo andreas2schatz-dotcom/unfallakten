@@ -21,7 +21,7 @@
 | KW-03 | P0 | `backend/word/klage_service.py:1409` | Haftungsquote wird nie angewendet, Text behauptet Kürzung | ✅ behoben S2 (BE `ebbf7c1b`+`3947fc21`, FE `ff859255`+`db9dcfe7`+`ce18d869`) |
 | KW-04 | P0 | `backend/word/klage_service.py:1338` | Antrag 1 ≠ Schadentabelle ≠ Differenz-Satz (3 Rechenwege) | ✅ behoben `974cecdd`+`f5a29ad7` |
 | KW-05 | P0 | `backend/word/klage_service.py:1289` | Einleitung behauptet Eigentum trotz Leasing/Finanzierung | ✅ behoben `322fb9a1`+`633b6c95` |
-| KW-06 | P1 | `backend/word/klage_service.py:1208` | Mehrere Beklagte: Singular-Anträge, kein Gesamtschuldner | offen |
+| KW-06 | P1 | `backend/word/klage_service.py:1208` | Mehrere Beklagte: Singular-Anträge, kein Gesamtschuldner | ✅ behoben S3 (BE `caab700e`, FE `cab35cb9`) |
 | KW-07 | P1 | `backend/routers/klage_routes.py:802` | Schmerzensgeld doppelt einklagbar (Position + mitSG) | ✅ behoben `5639c72e`+`bb64829b` |
 | KW-08 | P1 | `frontend/src/sections/KlageSection.jsx:380` | Legacy-Button klagt vollen statt offenen Betrag ein | offen |
 | KW-09 | P1 | `backend/word/klage_service.py:972` | Zins-/Verzugsdatum erscheint im ISO-Format | offen |
@@ -30,13 +30,13 @@
 | KW-12 | P1 | `backend/word/klage_service.py:478` | Anlagen-Kollision: zwei Dokumente heißen „K1" | offen |
 | KW-13 | P1 | `frontend/src/sections/KlageSection.jsx:317` | „RVG gerichtlich" ist außergerichtliche Gebühr; `rvg_override` wirkungslos | offen |
 | KW-14 | P1 | `backend/routers/klage_routes.py:1399` | `klage_generiert`-Ereignis immer ohne Positionen (geschluckter AttributeError) | ✅ behoben `d42f09eb` |
-| KW-15 | P2 | `backend/word/klage_service.py:1138` | Rubrum-Rolle immer feminin („– Beklagte –") | offen |
-| KW-16 | P2 | `backend/word/klage_service.py:1121` | Vertreter-Grammatik („den Geschäftsführerin"), Anrede-Heuristik nur auf Funktion | offen |
-| KW-17 | P2 | `backend/word/klage_service.py:940` | Mehrere Kläger: Numerus-Fehler, Vorsteuer ignoriert | offen |
-| KW-18 | P2 | `backend/word/klage_service.py:1061` | Rubrum ohne Kläger möglich (kein Mandant-Fallback) | offen |
-| KW-19 | P2 | `frontend/src/sections/KlageWizard.jsx:1528` | Generieren mit 0 Beklagten möglich | offen |
-| KW-20 | P2 | `frontend/src/sections/KlageWizard.jsx:106` | Beklagten-Nummerierung Sachverhalt ≠ Rubrum; Nicht-Halter-Person fehlt | offen |
-| KW-21 | P2 | `backend/word/klage_service.py:664` | Rechtsform-Heuristik matcht Substrings („UG" in „FAHRZEUGBAU") | offen |
+| KW-15 | P2 | `backend/word/klage_service.py:1138` | Rubrum-Rolle immer feminin („– Beklagte –") | ✅ behoben S3 `2c39550e` |
+| KW-16 | P2 | `backend/word/klage_service.py:1121` | Vertreter-Grammatik („den Geschäftsführerin"), Anrede-Heuristik nur auf Funktion | ✅ behoben S3 `2c39550e` |
+| KW-17 | P2 | `backend/word/klage_service.py:940` | Mehrere Kläger: Numerus-Fehler, Vorsteuer ignoriert | ✅ behoben S3 `9fec1983`+`b16321f0` |
+| KW-18 | P2 | `backend/word/klage_service.py:1061` | Rubrum ohne Kläger möglich (kein Mandant-Fallback) | ✅ behoben S3 `0778af2e` |
+| KW-19 | P2 | `frontend/src/sections/KlageWizard.jsx:1528` | Generieren mit 0 Beklagten möglich | ✅ behoben S3 `7e27f0c5` |
+| KW-20 | P2 | `frontend/src/sections/KlageWizard.jsx:106` | Beklagten-Nummerierung Sachverhalt ≠ Rubrum; Nicht-Halter-Person fehlt | ✅ behoben S3 `8b23efbe`+`8e10749c` |
+| KW-21 | P2 | `backend/word/klage_service.py:664` | Rechtsform-Heuristik matcht Substrings („UG" in „FAHRZEUGBAU") | ✅ behoben S3 `cbc41c13` |
 | KW-22 | P3 | `frontend/src/sections/KlageWizard.jsx:1832` | Anträge-Text stale nach Positions-/SG-Änderung; Feststellungs-Checkboxen ohne Textwirkung | offen |
 | KW-23 | P3 | `frontend/src/sections/KlageWizard.jsx:1744` | Platzhalter „[Außergerichtliche Anwaltsgebühren …]" kann im Antragstext verbleiben | ✅ behoben `a6711c2d` |
 | KW-24 | P3 | `frontend/src/sections/KlageWizard.jsx:2010` | Step-9-Änderungen nach Erst-Ersetzung wirkungslos; `wizardGebuehrenText` nie gesendet | offen |
@@ -97,7 +97,8 @@
 
 ## P1 — Falsche Zahlen / rechtlich relevante Fehler
 
-### - [ ] KW-06 — Mehrere Beklagte: Anträge Singular, keine Gesamtschuldner-Formulierung
+### - [x] KW-06 — Mehrere Beklagte: Anträge Singular, keine Gesamtschuldner-Formulierung — behoben BE `caab700e` + FE `cab35cb9`, Session 3 2026-07-18
+> **Umsetzung:** Backend-Anträge (Zahlung/SG/Feststellung/RVG/Kosten) + VK-Abschnitt über neuen `bek_gram`-Helfer („Die Beklagten werden als Gesamtschuldner verurteilt…"); Einleitung jetzt EIN Satz je Beklagtem (Versicherung/Halter/Fahrer, genus-bewusst, Schadennummer nur bei erster Versicherung), Einzel-Versicherung byte-gleich zum Vorzustand. Bei 0 Beklagten entfällt der Einleitungssatz jetzt bewusst (statt eine nicht existente Partei zu behaupten) — der Zustand wird durch KW-19 im Wizard gesperrt. Frontend `baueAntraegeText`/`StepGebuehren.baueGebuehrenAntrag`/`EinwandePanel` auf `beklagtenGrammatik`/`versichererSuffix` umgestellt; hart kodiertes „(zu 1)" ersatzlos raus.
 - **Datei:** `backend/word/klage_service.py:1208, 1216–1251` (Anträge), `:1279–1283` (Einleitung); nur Kostenantrag `:1254` und VK-Abschnitt `:1493` pluralisieren
 - **Auswirkung:** Fahrer + Versicherung als 2 Beklagte (vom System via synthetischem GHPV-Eintrag aktiv angeboten, `klage_routes.py:948–980`) → Zahlungsantrag benennt nicht, wer verurteilt werden soll; „als Gesamtschuldner" fehlt vollständig.
 - **Fix-Richtung:** Numerus-bewusste Antragsbausteine („Die Beklagten werden als Gesamtschuldner verurteilt, an …"); siehe Verbesserung V3 (Partei-Objekt). Frontend-Pendant: `baueAntraegeText()` in KlageWizard.jsx hat dasselbe Problem (`(zu 1)` hart, `EinwandePanel:981`, `StepGebuehren:1928`).
@@ -151,37 +152,44 @@
 
 ## P2 — Rubrum & Grammatik
 
-### - [ ] KW-15 — Rubrum-Rolle immer feminin
+### - [x] KW-15 — Rubrum-Rolle immer feminin — behoben `2c39550e`, Session 3 2026-07-18
+> **Umsetzung:** Rubrum-Rolle über neuen `_beklagten_rolle`-Helfer genus-korrekt („– Beklagter –" bei männlicher Privatperson, Firmen bleiben „Beklagte"), `zu N)`-Nummerierung unverändert.
 - **Datei:** `backend/word/klage_service.py:1138` (`"– Beklagte{nr_suffix} –"`); Kläger-Seite unterscheidet korrekt (`:1073–1080`)
 - **Auswirkung:** Männlicher Fahrer als Beklagter → „– Beklagte –" statt „– Beklagter –".
 - **Fix-Richtung:** Genus aus `beteiligte.anrede` ableiten (sAnrede-Mapping existiert); Firmen bleiben „Beklagte".
 
-### - [ ] KW-16 — Vertreter-Grammatik im Rubrum
+### - [x] KW-16 — Vertreter-Grammatik im Rubrum — behoben `2c39550e`, Session 3 2026-07-18
+> **Umsetzung:** Neuer `_vertreter_suffix`-Helfer leitet Artikel+Anrede aus dem Funktions-Genus ab (endet die Funktion auf „in"/„ende" → „die …"/„Frau"); bei leerer Funktion wird keine geratene Anrede mehr angehängt (nur Rechtsform-Label + Name).
 - **Datei:** `backend/word/klage_service.py:1121–1126`
 - **Auswirkung:** (a) Artikel hart „den": „vertreten durch **den Geschäftsführerin** Frau …". (b) Anrede-Heuristik prüft nur die Funktion, nicht den Namen — Vertreterin mit leerer Funktion wird „Herrn".
 - **Fix-Richtung:** Artikel aus Funktions-Genus ableiten; Anrede aus dem Vertreter-Datensatz statt Heuristik.
 
-### - [ ] KW-17 — Mehrere Kläger: Numerus-Fehler, Vorsteuer ignoriert
+### - [x] KW-17 — Mehrere Kläger: Numerus-Fehler, Vorsteuer ignoriert — behoben `9fec1983`+`b16321f0`, Session 3 2026-07-18
+> **Umsetzung:** kl_macht/kl_ist/kl_laesst jetzt in allen Genus-Zweigen korrekt; Plural-`nicht_vst` korrigiert (Nominativ ohne -n) und vorsteuer-bewusst; „Halter und unmittelbare Besitzer"/„Eigentümer" pluralisiert; `baue_sg_abschnitt(…, verb_hat=)` neu parametrisiert (Forderungsschreiben-Pfad über Default unverändert); kl_dat3 war bereits plural-korrekt (Fund entfällt). Fix-Wave `b16321f0`: Vorsteuer-Klausel im Ohne-Unfalldatum-Satz nur im Plural-Zweig, Singular bleibt byte-gleich (Pin-Test). **Bewusst offen:** `get_aktivlegitimation_text`/`_build_aktivlegitimation_xml` (Forderungsschreiben-Pfad) NICHT plural-gehärtet — außerhalb S3-Scope, Rest-Lücke bei mehreren Klägern im AktLeg-Block.
 - **Datei:** `backend/word/klage_service.py:940` (`kl_nom="Die Kläger"`), `:1272` („macht"), `:1291` („ist Eigentümer"), `:942` (falsche Flexion + Vorsteuer bei mehreren Klägern immer „nicht vorsteuerabzugsberechtigt"); `sg_text_builder.py:94/98` („hat … erlitten")
 - **Auswirkung:** „Die Kläger macht … geltend", „Die Kläger ist Eigentümer" — Singular-Verben bei Plural-Subjekt; Vorsteuerabzug wird ignoriert.
 - **Fix-Richtung:** Partei-Objekt mit Numerus (Verbesserung V3): Verbformen aus dem Objekt, nicht hart im Text.
 
-### - [ ] KW-18 — Rubrum ohne Kläger möglich
+### - [x] KW-18 — Rubrum ohne Kläger möglich — behoben `0778af2e`, Session 3 2026-07-18
+> **Umsetzung:** Fallback-Kläger aus `akte_daten["mandant"]`, wenn kein Beteiligter mit `rolle_klage=="klaeger"` existiert; sind auch keine brauchbaren Mandantendaten vorhanden, wirft der Service jetzt `ValueError` → die Route antwortet 422 (`_err`, vor dem generischen 500-Handler). Neuer Route-Test `test_klage_kw18_route.py`. **Team-Awareness:** der `except ValueError → 422`-Fang greift für jeden `ValueError` aus `generiere_klageschrift`, ohne `logger.error`.
 - **Datei:** `backend/word/klage_service.py:931–937, 1061–1088` (Klägerblock nur aus `cfg.beklagte` mit `rolle_klage=="klaeger"`; kein Fallback auf `akte_daten["mandant"]`, `mandant_name` `:917` ungenutzt)
 - **Auswirkung:** Fehlt der Kläger-Beteiligten-Eintrag, bleibt das Rubrum bis auf „Prozessbevollmächtigte:" leer.
 - **Fix-Richtung:** Fallback auf Mandant + harte Sperre/Fehlermeldung wenn kein Kläger ermittelbar.
 
-### - [ ] KW-19 — Generieren mit 0 Beklagten möglich
+### - [x] KW-19 — Generieren mit 0 Beklagten möglich — behoben `7e27f0c5`, Session 3 2026-07-18
+> **Umsetzung:** `gesperrt`-Guard in Step 10 um `keineBeklagten` erweitert + roter Warnblock + „— keine —"-Zeile.
 - **Datei:** `frontend/src/sections/KlageWizard.jsx:1528` (`gesperrt` prüft Beklagte nicht)
 - **Auswirkung:** Alle Beklagten abgewählt → Step 2 warnt zwar, blockiert aber nichts; Generieren-Button aktiv, Anträge „Die Beklagte wird verurteilt…" ohne existierende Beklagte.
 - **Fix-Richtung:** `beklagteG.length === 0` in die Sperr-Bedingungen von Step 10 aufnehmen.
 
-### - [ ] KW-20 — Beklagten-Nummerierung Sachverhalt ≠ Rubrum
+### - [x] KW-20 — Beklagten-Nummerierung Sachverhalt ≠ Rubrum — behoben `8b23efbe`+`8e10749c`, Session 3 2026-07-18
+> **Umsetzung:** Neue exportierte kanonische Liste `kanonischeBeklagte` (Array-Reihenfolge = Rubrum = Backend, `checked !== false`); `buildSachverhaltText` iteriert sie (Nicht-Halter-Privatperson fehlt nicht mehr, Versicherung-mit-`ist_halter` nicht mehr doppelt, Phantom-Fahrer aus `fahrGegnerName` vollständig entfernt — Prop-Kette ausgebaut); `StepRubrum` + `buildRwVorschau` angebunden; `anredeNorm` versteht jetzt auch RA-MICRO-numerische Anreden („1"/„2") im Frontend. Fix-Wave `8e10749c`: hq=100-RW-Satz nimmt Nummer UND Genus aus derselben Referenzpartei (erste Versicherung, sonst erster Eintrag).
 - **Datei:** `frontend/src/sections/KlageWizard.jsx:106–141` (`buildSachverhaltText`: eigene Reihenfolge Versicherung→Fahrer→Halter mit eigener Zählung) vs. StepRubrum `:457–469` (Array-Reihenfolge). Zudem: `hatFahrer` aus `fahrGegnerName` unabhängig von Beklagten-Auswahl; angehakte Nicht-Halter-Privatperson fehlt im Sachverhalt; Versicherung mit `ist_halter=1` doppelt gezählt (Filter `:109/110` überschneiden sich)
 - **Auswirkung:** „Beklagte zu 2)" im Rubrum, aber im Sachverhalt nicht erwähnt oder anders nummeriert.
 - **Fix-Richtung:** Eine gemeinsame Funktion liefert die kanonische Beklagten-Liste (Reihenfolge + Nummern) für Rubrum UND Sachverhalt.
 
-### - [ ] KW-21 — Rechtsform-Heuristik matcht Substrings
+### - [x] KW-21 — Rechtsform-Heuristik matcht Substrings — behoben `cbc41c13`, Session 3 2026-07-18
+> **Umsetzung:** Neuer `_rechtsform_klasse`-Helfer mit Token-/Wortgrenzen-Klassifikation statt Substring-Suche („UG" in „FAHRZEUGBAU" matcht nicht mehr; „Versicherungs-AG"/KGaA/e.V. korrekt erkannt); beide Konsumenten (`_funktion_aus_rechtsform_str`, `_vertretungs_hinweis`) umgestellt; ein latenter KGaA-„ KG"-Substring-Bug wurde dabei mitbehoben. Bildet die neue V3-Helfer-Basis: `_anrede_norm`, `_ist_maennliche_privatperson`, `_beklagten_grammatik`, `_beklagten_rolle`, `_vertreter_suffix` + neues `backend/tests/test_klage_partei_grammatik.py`.
 - **Datei:** `backend/word/klage_service.py:664–686` (`"UG" in n` trifft „FAHRZEUGBAU"; `" AG"`/`"SE "` nur mit Leerzeichen → „…Versicherungs-AG" fällt durch)
 - **Auswirkung:** Falsche Vertreter-Bezeichnung („gesetzlichen Vertreter" statt „Vorstand") bzw. falsche Rechtsform-Erkennung.
 - **Fix-Richtung:** Wortgrenzen-Regex (`\b(GmbH|AG|SE|UG|KG|OHG|e\.K\.)\b` + Suffix-Varianten „-AG").
@@ -319,7 +327,7 @@
 |---|---|---|
 | **1** | KW-01 + KW-23 (zusammen!), KW-02, KW-14 | Verlorene Eingaben + falsche Beträge + Ereignis-Fix; kleinster Eingriff, größte Wirkung |
 | **2** ✅ | KW-03, KW-04, KW-05, KW-07, KW-11 + KW-39 (vorgezogen) — erledigt 2026-07-17, Branch `klage-wizard-fixes-s2` | Konsistente Beträge & Tatsachenbehauptungen im DOCX. Baseline: Backend 204f/1000p (null neue), Frontend 122 + Build. Neues DOCX-Direkttest-Muster `test_klage_service_docx.py`. |
-| **3** | KW-06, KW-15–KW-21 (Rubrum/Grammatik-Cluster) | Am besten als V3-Refactoring (Partei-Objekt) in einem Zug |
+| **3** ✅ | KW-06, KW-15–KW-21 (Rubrum/Grammatik-Cluster) — erledigt 2026-07-18, Branch `klage-wizard-fixes-s3` | Als V3-Refactoring (Partei-Objekt) in einem Zug: neue Helfer `_anrede_norm`, `_ist_maennliche_privatperson`, `_beklagten_grammatik`, `_beklagten_rolle`, `_vertreter_suffix`, `_rechtsform_klasse` (Backend) + `kanonischeBeklagte`/`beklagtenGrammatik`/`versichererSuffix` (Frontend). Baseline: Backend 204f/1044p (Alt-Cluster, null neue, +44 Passes), Frontend 141 Vitest (122→141) + Build. FF-Merge nach Freigabe ausstehend. |
 | **4** | KW-09, KW-10, KW-12, KW-13, KW-08 | Datum/RVG/Anlagen; V5+V6 |
 | **5** | KW-22, KW-24–KW-29 (Wizard-State/UX) | V7 Dirty-Tracking als gemeinsames Muster |
 | **6** | KW-30–KW-40 + V10 Golden-File-Matrix | Politur + Regressionsschutz |
