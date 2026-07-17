@@ -668,28 +668,96 @@ def _beweis(inhalt):
     )
 
 
+def _anrede_norm(anrede) -> str:
+    a = str(anrede or "").strip().lower()
+    if a in ("1", "herr", "herrn"):
+        return "herr"
+    if a in ("2", "frau"):
+        return "frau"
+    return ""
+
+
+def _ist_maennliche_privatperson(bek: dict) -> bool:
+    ist_firma = bool(bek.get("firma") or bek.get("versicherung"))
+    return (not ist_firma) and _anrede_norm(bek.get("anrede")) == "herr"
+
+
+def _rechtsform_klasse(firmenname: str) -> str:
+    """Wortgrenzen-Klassifikation statt Substring ("UG" in "FAHRZEUGBAU", KW-21)."""
+    roh = (firmenname or "").upper()
+    if re.search(r"\bE\.\s?V\b", roh):
+        return "vorstand"
+    tokens = set(re.split(r"[^A-ZÄÖÜ0-9]+", roh))
+    if tokens & {"GMBH", "UG", "GBR", "OHG", "KG"}:
+        return "gf"
+    if tokens & {"AG", "SE", "KGAA", "EV"}:
+        return "vorstand"
+    return "sonstige"
+
+
+def _beklagten_grammatik(beklagte_gef: list) -> dict:
+    if len(beklagte_gef) > 1:
+        return {
+            "verurteilt":   "Die Beklagten werden als Gesamtschuldner verurteilt",
+            "verpflichtet": "die Beklagten als Gesamtschuldner verpflichtet sind",
+            "kosten":       "Die Beklagten tragen die Kosten des Rechtsstreits.",
+            "nom_klein":    "die Beklagten",
+            "haftet":       "haften",
+        }
+    if beklagte_gef and _ist_maennliche_privatperson(beklagte_gef[0]):
+        return {
+            "verurteilt":   "Der Beklagte wird verurteilt",
+            "verpflichtet": "der Beklagte verpflichtet ist",
+            "kosten":       "Der Beklagte trägt die Kosten des Rechtsstreits.",
+            "nom_klein":    "der Beklagte",
+            "haftet":       "haftet",
+        }
+    return {
+        "verurteilt":   "Die Beklagte wird verurteilt",
+        "verpflichtet": "die Beklagte verpflichtet ist",
+        "kosten":       "Die Beklagte trägt die Kosten des Rechtsstreits.",
+        "nom_klein":    "die Beklagte",
+        "haftet":       "haftet",
+    }
+
+
+def _beklagten_rolle(bek: dict) -> str:
+    return "Beklagter" if _ist_maennliche_privatperson(bek) else "Beklagte"
+
+
+def _vertreter_suffix(funktion: str, name: str, firmenname: str) -> str:
+    """KW-16: Artikel/Anrede aus dem Genus der Funktion; ohne Funktion keine Anrede raten."""
+    funktion = (funktion or "").strip()
+    name = (name or "").strip()
+    if funktion:
+        weiblich = funktion.endswith("in") or funktion.endswith("ende")
+        artikel = "die" if weiblich else "den"
+        anrede = "Frau" if weiblich else "Herrn"
+        if name:
+            return f", vertreten durch {artikel} {funktion} {anrede} {name}"
+        return f", vertreten durch {artikel} {funktion}"
+    funk_label = _funktion_aus_rechtsform_str(firmenname)
+    if name:
+        return f", vertreten durch den {funk_label} {name}"
+    return f", vertreten durch den {funk_label}"
+
 
 def _funktion_aus_rechtsform_str(firmenname: str) -> str:
     """Gibt die korrekte Funktion (Geschäftsführer/Vorstand) für eine Rechtsform zurück."""
-    n = (firmenname or "").upper()
-    if any(x in n for x in ("GMBH", " KG", "OHG", "GBR", "UG")):
+    k = _rechtsform_klasse(firmenname)
+    if k == "gf":
         return "Geschäftsführer"
-    if any(x in n for x in (" AG", " SE", "KGAA", "E. V.", "E.V.", " EV ", " EV,")):
+    if k == "vorstand":
         return "Vorstand"
     return "gesetzlichen Vertreter"
 
 
 def _vertretungs_hinweis(firmenname: str) -> str:
-    """
-    Bestimmt den Vertretungshinweis je nach Rechtsform.
-    GmbH / GbR / KG / OHG → Geschäftsführer
-    AG / SE / KGaA         → Vorstand
-    Sonstige Firma         → gesetzlichen Vertreter
-    """
-    n = (firmenname or "").upper()
-    if any(x in n for x in ("GMBH", "GBR", " KG", "OHG", "GMBH & CO")):
+    """Vertretungshinweis je Rechtsform (Kläger-Rubrum bei Firmen)."""
+    k = _rechtsform_klasse(firmenname)
+    if k == "gf":
         return "– vertreten durch den/die Geschäftsführer –"
-    if any(x in n for x in (" AG", "SE ", " SE,", " KGA", "KGAA", "E. V.", "E.V.", " EV ", " EV,")):
+    if k == "vorstand":
         return "– vertreten durch den Vorstand –"
     return "– vertreten durch den gesetzlichen Vertreter –"
 
