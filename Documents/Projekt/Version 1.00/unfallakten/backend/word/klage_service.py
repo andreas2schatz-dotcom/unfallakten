@@ -1367,13 +1367,21 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         einleitung_xml  = _lz() + _p("1.) Sachverhalt", fett=True)
 
         # Alle Einleitungssätze zu einem Fließtext-Absatz zusammenführen
-        intro_satz = (
-            f"{kl_nom} {kl_macht} als {nicht_vst} {kl_gesch} Schadensersatzforderungen "
-            f"aus einem Verkehrsunfall vom {unfalltag} in {unfallort} geltend."
-            if unfalltag else
-            f"{kl_nom} {kl_macht} als {nicht_vst} {kl_gesch} Schadensersatzforderungen "
-            f"aus einem Verkehrsunfall in {unfallort} geltend."
-        )
+        if unfalltag:
+            intro_satz = (
+                f"{kl_nom} {kl_macht} als {nicht_vst} {kl_gesch} Schadensersatzforderungen "
+                f"aus einem Verkehrsunfall vom {unfalltag} in {unfallort} geltend."
+            )
+        elif mehrere_klaeger:
+            intro_satz = (
+                f"{kl_nom} {kl_macht} als {nicht_vst} {kl_gesch} Schadensersatzforderungen "
+                f"aus einem Verkehrsunfall in {unfallort} geltend."
+            )
+        else:
+            intro_satz = (
+                f"{kl_nom} macht Schadensersatzforderungen aus einem Verkehrsunfall "
+                f"in {unfallort} geltend."
+            )
         bek_saetze = []
         mehrere_bek = len(beklagte_gef) > 1
         schadennr_gesetzt = False

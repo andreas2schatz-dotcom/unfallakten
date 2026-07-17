@@ -643,6 +643,12 @@ class TestKW17MehrereKlaeger(unittest.TestCase):
         xml = self._xml(mit_sg=True, sg_mind=1000.0)
         self.assertIn("Die Kläger haben durch den Unfall Verletzungen erlitten", xml)
 
+    def test_regression_intro_singular_ohne_unfalldatum_unveraendert(self):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 400.0)])
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+        self.assertIn("Der Kläger macht Schadensersatzforderungen aus einem Verkehrsunfall", xml)
+        self.assertNotIn("Der Kläger macht als", xml)
+
     def test_feststellung_dativ_plural(self):
         akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 400.0)])
         akte_daten["klage_config"]["beklagte"] = [
