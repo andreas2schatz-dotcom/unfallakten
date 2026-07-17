@@ -115,14 +115,14 @@ describe("buildRwVorschau – KW-03 alleinige-Haftung-Satz (hq=100, genus-/anzah
     expect(text).not.toContain("(zu 1)");
   });
 
-  it("hq=100, Firma + 2 Beklagte: 'der Beklagten (zu 1)' / 'bei der ... Beklagten (zu 1)'", () => {
+  it("hq=100, Firma + 2 Beklagte: 'der Beklagten zu 1)' / 'bei der ... Beklagten zu 1)'", () => {
     const beklagte = [
       { rolle_klage: "beklagter", checked: true, anrede: "Herr", firma: "Mustermann GmbH", versicherung: false },
       { rolle_klage: "beklagter", checked: true, anrede: "Herr", firma: false, versicherung: false },
     ];
     const text = buildRwVorschau("", 100, 0, false, "gegnerisch", beklagte);
-    expect(text).toContain("Die alleinige Haftung der Beklagten (zu 1) steht außer Frage.");
-    expect(text).toContain("von dem bei der Beklagten (zu 1) versicherten Fahrzeug verursacht.");
+    expect(text).toContain("Die alleinige Haftung der Beklagten zu 1) steht außer Frage.");
+    expect(text).toContain("von dem bei der Beklagten zu 1) versicherten Fahrzeug verursacht.");
   });
 });
 

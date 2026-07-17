@@ -602,7 +602,6 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           onSachverhaltText={setWizardSachverhaltText}
           auslandsunfall={auslandsunfall}
           onAuslandsunfall={setAuslandsunfall}
-          fahrGegnerName={daten?.unfalldetails?.fahrer_gegner || ""}
           mandantVorsteuer={beklagte.find(b => b.rolle_klage === "klaeger")?.vorsteuer === "J"}
           unfallort={daten?.unfallort || ""}
           // Step 4: Unfallhergang

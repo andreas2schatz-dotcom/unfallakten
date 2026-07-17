@@ -41,6 +41,46 @@ const MONO = "ui-monospace,monospace";
 
 // ── Hilfsfunktionen ────────────────────────────────────────────────────────────
 
+export function anredeNorm(anrede) {
+  const a = String(anrede || "").trim().toLowerCase();
+  if (a === "1" || a === "herr" || a === "herrn") return "herr";
+  if (a === "2" || a === "frau") return "frau";
+  return "";
+}
+
+export function kanonischeBeklagte(beklagte) {
+  return (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked !== false);
+}
+
+export function beklagtenGrammatik(beklagte) {
+  const gef = kanonischeBeklagte(beklagte);
+  if (gef.length > 1) {
+    return { anzahl: gef.length, mehrere: true,
+      verurteilt: "Die Beklagten werden als Gesamtschuldner verurteilt",
+      verpflichtet: "die Beklagten als Gesamtschuldner verpflichtet sind",
+      kosten: "Die Beklagten tragen die Kosten des Rechtsstreits." };
+  }
+  const b = gef[0];
+  const maennlich = !!b && !b.versicherung && !b.firma && anredeNorm(b.anrede) === "herr";
+  if (maennlich) {
+    return { anzahl: gef.length, mehrere: false,
+      verurteilt: "Der Beklagte wird verurteilt",
+      verpflichtet: "der Beklagte verpflichtet ist",
+      kosten: "Der Beklagte trägt die Kosten des Rechtsstreits." };
+  }
+  return { anzahl: gef.length, mehrere: false,
+    verurteilt: "Die Beklagte wird verurteilt",
+    verpflichtet: "die Beklagte verpflichtet ist",
+    kosten: "Die Beklagte trägt die Kosten des Rechtsstreits." };
+}
+
+export function versichererSuffix(beklagte) {
+  const gef = kanonischeBeklagte(beklagte);
+  if (gef.length <= 1) return "";
+  const idx = gef.findIndex(b => b.versicherung || b.firma);
+  return idx >= 0 ? ` zu ${idx + 1})` : "";
+}
+
 /**
  * Aktivlegitimations-Vorschautext (client-seitig, spiegelt klage_service).
  */
@@ -84,9 +124,9 @@ function buildVorschauText(typ, freigabe, datum, mkz, mandantIstFahrer, klaeger)
  * Einleitung + Beklagten-Block + Aktivlegitimation + optional Auslandsunfall.
  * Spiegelt die backend-Logik (klage_service.py §1 Sachverhalt).
  */
-function buildSachverhaltText({
+export function buildSachverhaltText({
   klaeger, vorsteuer, unfalldatum, unfallort,
-  beklagte, fahrGegnerName,
+  beklagte,
   aktLegTyp, aktLegFreigabe, aktLegDatum, mandantKz, mandantIstFahrer,
   auslandsunfall,
 }) {
@@ -104,41 +144,23 @@ function buildSachverhaltText({
   text += "geltend.";
 
   // ── Beklagten-Block ───────────────────────────────────────────────────
-  const gegner = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked);
-
-  const versicherungen = gegner.filter(b => b.versicherung || (b.firma && !b.ist_halter));
-  const halter         = gegner.filter(b => b.ist_halter);
-  const hatFahrer      = !!(fahrGegnerName && fahrGegnerName.trim());
-
-  const gesamtAnzahl = versicherungen.length + (hatFahrer ? 1 : 0) + halter.length;
-  const mehrere      = gesamtAnzahl > 1;
-  let nr = 1;
-  const bekSaetze = [];
-
-  for (const v of versicherungen) {
-    const nrStr = mehrere ? ` zu ${nr})` : "";
-    const kz    = v.kfz_kennzeichen || "";
-    let satz = `Die Beklagte${nrStr} ist die gegnerische Haftpflichtversicherung des unfallverursachenden Fahrzeugs`;
-    if (kz) satz += ` mit dem amtlichen Kennzeichen ${kz}`;
-    satz += ".";
-    bekSaetze.push(satz);
-    nr++;
-  }
-
-  if (hatFahrer) {
-    const nrStr = mehrere ? ` zu ${nr})` : "";
-    bekSaetze.push(`Der Beklagte${nrStr} war zum Unfallzeitpunkt der Fahrer des unfallverursachenden Fahrzeugs.`);
-    nr++;
-  }
-
-  for (const h of halter) {
-    const nrStr     = mehrere ? ` zu ${nr})` : "";
-    const weiblichH = (h.anrede || "").toLowerCase() === "frau";
-    const art       = weiblichH ? "Die" : "Der";
-    const bez       = weiblichH ? "Halterin" : "Halter";
-    bekSaetze.push(`${art} Beklagte${nrStr} ist die ${bez} des unfallverursachenden Fahrzeugs.`);
-    nr++;
-  }
+  const gegner  = kanonischeBeklagte(beklagte);
+  const mehrere = gegner.length > 1;
+  const bekSaetze = gegner.map((b, i) => {
+    const nrStr = mehrere ? ` zu ${i + 1})` : "";
+    if (b.versicherung || b.firma) {
+      const kz = b.kfz_kennzeichen || "";
+      let satz = `Die Beklagte${nrStr} ist die gegnerische Haftpflichtversicherung des unfallverursachenden Fahrzeugs`;
+      if (kz) satz += ` mit dem amtlichen Kennzeichen ${kz}`;
+      return satz + ".";
+    }
+    const weiblichB = anredeNorm(b.anrede) === "frau";
+    const art = weiblichB ? "Die" : "Der";
+    if (b.ist_halter) {
+      return `${art} Beklagte${nrStr} ist ${weiblichB ? "die Halterin" : "der Halter"} des unfallverursachenden Fahrzeugs.`;
+    }
+    return `${art} Beklagte${nrStr} war zum Unfallzeitpunkt ${weiblichB ? "die Fahrerin" : "der Fahrer"} des unfallverursachenden Fahrzeugs.`;
+  });
 
   if (bekSaetze.length > 0) {
     text += "\n\n" + bekSaetze.join("\n");
@@ -214,11 +236,11 @@ export function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguli
   const lines  = [];
 
   if (hq >= 100) {
-    const beklagteGef = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked);
-    const nrSuffix    = beklagteGef.length > 1 ? " (zu 1)" : "";
+    const beklagteGef = kanonischeBeklagte(beklagte);
+    const nrSuffix    = versichererSuffix(beklagte) || (beklagteGef.length > 1 ? " zu 1)" : "");
     const bek1        = beklagteGef[0];
     const bek1Maenl   = bek1 && !bek1.versicherung && !bek1.firma
-                        && (bek1.anrede || "").toLowerCase() === "herr";
+                        && anredeNorm(bek1.anrede) === "herr";
     const bek_gen_art = bek1Maenl ? "des" : "der";      // Genitiv: des/der Beklagten
     const bek_dat_pp  = bek1Maenl ? "bei dem" : "bei der"; // Dativ: bei dem/bei der Beklagten
     lines.push(
@@ -235,12 +257,12 @@ export function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguli
 
   if (gesamtReguliert > 0) {
     lines.push(
-      `Die Beklagte hat eine Teilregulierung in Höhe von ${fmtEuro(gesamtReguliert)} vorgenommen. ` +
+      `Die Beklagte${versichererSuffix(beklagte)} hat eine Teilregulierung in Höhe von ${fmtEuro(gesamtReguliert)} vorgenommen. ` +
       `Die verbleibenden Kürzungen sind nicht gerechtfertigt, sodass die Klage in Höhe des offenen Restbetrages erhoben wird.`
     );
   } else {
     lines.push(
-      `Die Beklagte hat bislang keine Regulierung vorgenommen. ` +
+      `Die Beklagte${versichererSuffix(beklagte)} hat bislang keine Regulierung vorgenommen. ` +
       `Da trotz mehrfacher Fristsetzung keine Zahlung erfolgte, war die Klage notwendig.`
     );
   }
@@ -429,7 +451,7 @@ function _schadenNrBereinigt(raw) {
 function StepRubrum({ beklagte, onClose }) {
   // checked=null → wie checked=true behandeln (Word-Verhalten: default True)
   const klaeger   = (beklagte || []).filter(b => b.rolle_klage === "klaeger");
-  const beklagteG = (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked !== false);
+  const beklagteG = kanonischeBeklagte(beklagte);
   const mehrereK  = klaeger.length > 1;
   const mehrereB  = beklagteG.length > 1;
 
@@ -497,7 +519,7 @@ function StepRubrum({ beklagte, onClose }) {
           const name    = b.vorname ? `${b.vorname} ${b.name}`.trim() : b.name || b.firma || "Mandant";
           const anschr  = [b.anschrift, [b.plz, b.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ");
           const zeile   = [name, anschr].filter(Boolean).join(", ");
-          const anrede  = (b.anrede || "").toLowerCase();
+          const anrede  = anredeNorm(b.anrede);
           const rolleBez = mehrereK
             ? (anrede === "frau" ? `Klägerin zu ${i + 1})` : `Kläger zu ${i + 1})`)
             : (anrede === "frau" ? "Klägerin" : "Kläger");
@@ -535,7 +557,9 @@ function StepRubrum({ beklagte, onClose }) {
           const nr_suffix  = mehrereB ? ` zu ${i + 1})` : "";
           const zeile      = [name, anschr].filter(Boolean).join(", ") + vertr + schadenSfx;
           const warn       = ist_firma && !b.vertreter_name;
-          return <RubrumZeile key={b.id || i} links={zeile} rolle={`Beklagte${nr_suffix}`} warn={warn} />;
+          const maennlich  = !b.versicherung && !b.firma && anredeNorm(b.anrede) === "herr";
+          return <RubrumZeile key={b.id || i} links={zeile}
+            rolle={`Beklagte${maennlich ? "r" : ""}${nr_suffix}`} warn={warn} />;
         })}
       </div>
     </div>
@@ -549,7 +573,7 @@ function StepAktLeg({
   aktLegDatum, onAktLegDatum, mandantIstFahrer, mandantKz,
   klaeger,
   // Neu: kombinierter Sachverhalt
-  vorsteuer, unfalldatum, unfallort, beklagte, fahrGegnerName,
+  vorsteuer, unfalldatum, unfallort, beklagte,
   auslandsunfall, onAuslandsunfall,
   sachverhaltText, onSachverhaltText,
 }) {
@@ -560,7 +584,7 @@ function StepAktLeg({
   useEffect(() => {
     const newAuto = buildSachverhaltText({
       klaeger, vorsteuer, unfalldatum, unfallort,
-      beklagte, fahrGegnerName,
+      beklagte,
       aktLegTyp, aktLegFreigabe, aktLegDatum, mandantKz, mandantIstFahrer,
       auslandsunfall,
     });
@@ -2339,7 +2363,7 @@ export default function KlageWizard({
   aktLegDatum, onAktLegDatum, mandantIstFahrer, mandantKz,
   sachverhaltText, onSachverhaltText,
   auslandsunfall, onAuslandsunfall,
-  fahrGegnerName, mandantVorsteuer,
+  mandantVorsteuer,
   unfallort,
   // Step 4 (Unfallhergang)
   schilderungOriginal,
@@ -2481,7 +2505,6 @@ export default function KlageWizard({
                 unfalldatum={unfalldatum}
                 unfallort={unfallort}
                 beklagte={beklagte}
-                fahrGegnerName={fahrGegnerName}
                 auslandsunfall={auslandsunfall}
                 onAuslandsunfall={onAuslandsunfall}
               />
