@@ -2,7 +2,7 @@ import { useState } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { apiGebuehren } from "../api.js";
-import { StepGebuehren, komponiereAntraege, ANTRAEGE_PLACEHOLDER } from "./KlageWizard.jsx";
+import { StepGebuehren, StepAntraege, komponiereAntraege, ANTRAEGE_PLACEHOLDER } from "./KlageWizard.jsx";
 
 vi.mock("../api.js", () => ({
   apiGebuehren: {
@@ -217,5 +217,40 @@ describe("StepGebuehren – KW-24 Segment-Komposition", () => {
 
     expect(screen.getByRole("textbox").value).not.toBe("");
     expect(screen.getByTestId("antraege-preview").textContent).toContain(ANTRAEGE_PLACEHOLDER);
+  });
+});
+
+const POSITIONEN_STEP6 = [
+  { key: "fahrzeugschaden", label: "Fahrzeugschaden", betrag: 1000, checked: true },
+];
+
+function renderStepAntraege(extraProps = {}) {
+  return render(
+    <StepAntraege
+      positionen={POSITIONEN_STEP6} mitSG={false} sgMind={0}
+      beklagte={BEKLAGTE_EINZEL} weiblich={false}
+      zinsenAb="rechtshaengigkeit" verzug=""
+      unfalldatum=""
+      mitFestSg={false} onMitFestSg={() => {}}
+      mitFestSach={false} onMitFestSach={() => {}}
+      antraegeText={ANTRAEGE_MIT_PLATZHALTER} onAntraegeText={() => {}}
+      hq={100} hqTyp="gegnerisch"
+      {...extraProps}
+    />
+  );
+}
+
+describe("StepAntraege – KW-24 Folgefix: Status-Banner nutzt komponierten Text", () => {
+  it("Platzhalter + vorhandener Gebuehren-Text -> kein Warnbanner, gruener Status", () => {
+    renderStepAntraege({ gebuehrenText: "GEB" });
+
+    expect(screen.queryByText(/Platzhalter aktiv/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/RVG-Antrag eingefügt/i)).toBeInTheDocument();
+  });
+
+  it("Platzhalter ohne Gebuehren-Text -> Warnbanner bleibt", () => {
+    renderStepAntraege({ gebuehrenText: null });
+
+    expect(screen.getByText(/Platzhalter aktiv/i)).toBeInTheDocument();
   });
 });

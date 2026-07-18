@@ -1997,15 +1997,16 @@ export function baueAntraegeText(opts) {
   return antraege.map((t, i) => `${i + 1}.\t${t}`).join("\n\n");
 }
 
-function StepAntraege({ positionen, mitSG, sgMind, beklagte, weiblich,
+export function StepAntraege({ positionen, mitSG, sgMind, beklagte, weiblich,
                         zinsenAb, verzug, unfalldatum,
                         mitFestSg, onMitFestSg, mitFestSach, onMitFestSach,
-                        antraegeText, onAntraegeText,
+                        antraegeText, onAntraegeText, gebuehrenText,
                         hq = 100, hqTyp = "gegnerisch" }) {
   const klagebetrag   = berechneKlagebetrag(positionen, hq, hqTyp);
   const sgGesamt      = mitSG && sgMind > 0 ? klagebetrag + sgMind : klagebetrag;
   const zinsDat       = zinsenAb === "verzug" && verzug ? `seit dem ${fmtDatumDe(verzug)}` : "seit Rechtshängigkeit";
-  const hatPlatzhalter = antraegeText?.includes(ANTRAEGE_PLACEHOLDER);
+  const antraegeFinal  = komponiereAntraege(antraegeText, gebuehrenText);
+  const hatPlatzhalter = !!antraegeFinal && antraegeFinal.includes(ANTRAEGE_PLACEHOLDER);
 
   function regenerieren() {
     onAntraegeText(baueAntraegeText({
@@ -2584,6 +2585,7 @@ export default function KlageWizard({
                 mitFestSg={wizardMitFestSg}   onMitFestSg={onMitFestSg}
                 mitFestSach={wizardMitFestSach} onMitFestSach={onMitFestSach}
                 antraegeText={wizardAntraegeText} onAntraegeText={onAntraegeText}
+                gebuehrenText={wizardGebuehrenText}
                 hq={wizardHq}             hqTyp={wizardHqTyp}
               />
             )}
