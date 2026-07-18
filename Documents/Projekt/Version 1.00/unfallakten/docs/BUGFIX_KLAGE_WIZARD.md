@@ -23,12 +23,12 @@
 | KW-05 | P0 | `backend/word/klage_service.py:1289` | Einleitung behauptet Eigentum trotz Leasing/Finanzierung | ✅ behoben `322fb9a1`+`633b6c95` |
 | KW-06 | P1 | `backend/word/klage_service.py:1208` | Mehrere Beklagte: Singular-Anträge, kein Gesamtschuldner | ✅ behoben S3 (BE `caab700e`, FE `cab35cb9`) |
 | KW-07 | P1 | `backend/routers/klage_routes.py:802` | Schmerzensgeld doppelt einklagbar (Position + mitSG) | ✅ behoben `5639c72e`+`bb64829b` |
-| KW-08 | P1 | `frontend/src/sections/KlageSection.jsx:380` | Legacy-Button klagt vollen statt offenen Betrag ein | offen |
-| KW-09 | P1 | `backend/word/klage_service.py:972` | Zins-/Verzugsdatum erscheint im ISO-Format | offen |
-| KW-10 | P1 | `frontend/src/sections/KlageSection.jsx:581` | Verzugsdatum-State-Split (3 Stellen, 3 Werte) + Schreibdatum als Verzugseintritt | offen |
+| KW-08 | P1 | `frontend/src/sections/KlageSection.jsx:380` | Legacy-Button klagt vollen statt offenen Betrag ein | ✅ behoben S4 (FE `1dddf5ae`, BE `8da95f62`) |
+| KW-09 | P1 | `backend/word/klage_service.py:972` | Zins-/Verzugsdatum erscheint im ISO-Format | ✅ behoben S4 (BE `36ca8ec6`, FE `69863dd3`+`44f26a81`) |
+| KW-10 | P1 | `frontend/src/sections/KlageSection.jsx:581` | Verzugsdatum-State-Split (3 Stellen, 3 Werte) + Schreibdatum als Verzugseintritt | ✅ behoben S4 `0d867274` |
 | KW-11 | P1 | `backend/word/forderungsschreiben_wv.py:807` | Unkostenpauschale nicht abwählbar (`or 30.0` + tote Weiche) | ✅ behoben `5cb2acc5`+`fb695b6b` |
-| KW-12 | P1 | `backend/word/klage_service.py:478` | Anlagen-Kollision: zwei Dokumente heißen „K1" | offen |
-| KW-13 | P1 | `frontend/src/sections/KlageSection.jsx:317` | „RVG gerichtlich" ist außergerichtliche Gebühr; `rvg_override` wirkungslos | offen |
+| KW-12 | P1 | `backend/word/klage_service.py:478` | Anlagen-Kollision: zwei Dokumente heißen „K1" | ✅ behoben S4 `2076e83e` |
+| KW-13 | P1 | `frontend/src/sections/KlageSection.jsx:317` | „RVG gerichtlich" ist außergerichtliche Gebühr; `rvg_override` wirkungslos | ✅ behoben S4 `9cef9655`+`3d0b22c3` |
 | KW-14 | P1 | `backend/routers/klage_routes.py:1399` | `klage_generiert`-Ereignis immer ohne Positionen (geschluckter AttributeError) | ✅ behoben `d42f09eb` |
 | KW-15 | P2 | `backend/word/klage_service.py:1138` | Rubrum-Rolle immer feminin („– Beklagte –") | ✅ behoben S3 `2c39550e` |
 | KW-16 | P2 | `backend/word/klage_service.py:1121` | Vertreter-Grammatik („den Geschäftsführerin"), Anrede-Heuristik nur auf Funktion | ✅ behoben S3 `2c39550e` |
@@ -50,7 +50,7 @@
 | KW-32 | P4 | `backend/word/klage_service.py:1440` | Verzug-Abschnitt ohne Nummer/Überschrift, Nummerierungssprung | offen |
 | KW-33 | P4 | `backend/word/klage_service.py:1421` | SG-Beweisantritt nicht als BEWEIS formatiert | offen |
 | KW-34 | P4 | `backend/word/klage_service.py:989` | RVG-Antrag über „0,00 €" möglich | offen |
-| KW-35 | P4 | `backend/word/klage_service.py:963` | RVG-Fallback nutzt SQLite-Importdatum statt RA-MICRO-Anlagedatum | offen |
+| KW-35 | P4 | `backend/word/klage_service.py:963` | RVG-Fallback nutzt SQLite-Importdatum statt RA-MICRO-Anlagedatum | ✅ behoben S4 `8da95f62` (mit KW-08 vorgezogen) |
 | KW-36 | P4 | `backend/word/klage_service.py:1394` | Haftungsquote int-Truncation: 66,67 % → „66 % + 33 % = 99" | offen |
 | KW-37 | P4 | `backend/word/klage_service.py:1478` | RVG-Faktor „(1.3)" mit Punkt statt Komma | offen |
 | KW-38 | P4 | `frontend/src/sections/KlageSection.jsx:275` | Positions-Key-Vertrag ungesichert (`_KEY_MAP` nur Fahrzeugschaden) | offen |
@@ -109,17 +109,20 @@
 - **Auswirkung:** SG-Position 2.000 € angehakt + „Schmerzensgeld geltend machen" mit Mindestbetrag 2.000 € → Gegenstandswert 4.000 € zu hoch, SG beziffert in Antrag 1 UND unbeziffert als eigener Antrag.
 - **Fix-Richtung:** Gegenseitiger Ausschluss: bei `mit_schmerzensgeld=true` die SG-Position aus Antrag 1/Tabelle/Streitwert nehmen (oder Checkbox in Step 5 deaktivieren mit Hinweis).
 
-### - [ ] KW-08 — Legacy-Button klagt vollen statt offenen Betrag ein
+### - [x] KW-08 — Legacy-Button klagt vollen statt offenen Betrag ein — behoben FE `1dddf5ae` + BE `8da95f62`, Session 4 2026-07-18
+> **Umsetzung:** `generieren()`-Funktion + beide grauen „(veraltet)"-Buttons ersatzlos entfernt (−70 Zeilen); der Wizard ist der einzige Weg, `apiKlage.generieren` wird nur noch von `wizardGenerieren()` gerufen. Backend-Legacy-Pfad bleibt als Toleranz für fehlende cfg-Teile bestehen, aber mit korrektem RVG-Anlagedatum (KW-35). Zusätzlich S3-Follow-up: `except ValueError`→422 im Generier-Endpoint loggt jetzt `logger.warning` (+ assertLogs-Test).
 - **Datei:** `frontend/src/sections/KlageSection.jsx:380` (`generieren()` sendet volle Forderungsbeträge), UI-Kacheln zeigen offenen Betrag (`posOffen`, `:292–315`)
 - **Auswirkung:** Akte mit 5.000 € Forderung, 3.000 € reguliert → Kachel zeigt 2.000 €, Klick auf den alten „Klage generieren"-Button erzeugt Klage über 5.000 €.
 - **Fix-Richtung — ENTSCHIEDEN (RA Schatz, 2026-07-17): Legacy-Button entfernen. Der Klage-Wizard ist der einzige Weg.** Backend-seitig prüfen, ob der Legacy-Codepfad (`generieren()` ohne Wizard-cfg, RVG-Fallback KW-35) mit entfernt werden kann.
 
-### - [ ] KW-09 — Zins-/Verzugsdatum erscheint im ISO-Format
+### - [x] KW-09 — Zins-/Verzugsdatum erscheint im ISO-Format — behoben BE `36ca8ec6` + FE `69863dd3`/`44f26a81`, Session 4 2026-07-18
+> **Umsetzung (V5):** Transportformat bleibt ISO, Formatierung nur im Renderer: Backend leitet `verzugsdatum` an der cfg-Grenze durch `_fmt_datum` (eine Zeile — wirkt auf Antrag 1, Verzugs-Abschnitt, BEWEIS). Frontend: neuer Helfer `fmtDatumDe` in `config/utils.js` als **wörtlicher Port** des echten `_fmt_datum` (Zweig-für-Zweig reviewt, inkl. Randfälle: einstellige ISO-Teile ungepolstert, DD.MM.YY→20YY; Diskriminator-Tests); eingesetzt in `baueAntraegeText`/`StepAntraege`/`StepGebuehren` (zinsDat), `StepZusammenfassung`, `buildVerzugAutoText`, BEWEIS-Hinweis, `oeffneWizard`-Verzugstext.
 - **Datei:** `backend/word/klage_service.py:972` (`f"dem {verzugsdatum}"` roh), `:1440–1444`; Quelle ISO: `forderung_positionen.datum` Default `date('now')` (`models/forderung.py:184`); `_fmt_datum` existiert (`:1581`), wird hier nicht genutzt. Auch Wizard-Auto-Verzugstext übernimmt ISO wörtlich (`KlageSection.jsx:512–513`).
 - **Auswirkung:** „…nebst Zinsen … seit dem 2026-05-04" statt „04.05.2026" im Schriftsatz.
 - **Fix-Richtung:** Jede Datumsausgabe durch `_fmt_datum` leiten (ein Wrapper an der cfg-Grenze); Transportformat ISO beibehalten, Formatierung nur im Renderer (Verbesserung V5).
 
-### - [ ] KW-10 — Verzugsdatum-State-Split + Schreibdatum als Verzugseintritt
+### - [x] KW-10 — Verzugsdatum-State-Split + Schreibdatum als Verzugseintritt — behoben `0d867274`, Session 4 2026-07-18
+> **Umsetzung:** Alt-State `verzug` restlos entfernt; SSOT = `wizardVerzugDatum` (**Verzugseintritt**) + `wizardVerzugDokDatum` (**Schreibdatum**). cfg-Vertrag NEU: `verzugsdatum` = Eintritt, `verzug_schreiben_datum` = Schreibdatum; Backend-BEWEIS nutzt das Schreibdatum (Fallback auf Eintritt nur wenn Schreibdatum fehlt). `buildVerzugAutoText` exportiert mit korrigierter Semantik: **ohne Eintritt → „Verzug ist mit Rechtshängigkeit eingetreten."** (kein Fallback aufs Schreibdatum mehr — das war der juristische Kernfehler), ohne Schreibdatum → kein BEWEIS-Satz. Eintritt-Vorbelegung = `verzugEintrittDefault` (Schreibdatum **+ 14 Tage**, Kanzlei-Standardfrist — Entscheidung dem Nutzer im Abschlussbericht vorgelegt), editierbar in Kachel 5 + Step 8. Step 6/9 speisen sich jetzt beide aus `wizardVerzugDatum`.
 - **Datei:** `frontend/src/sections/KlageSection.jsx:581` (Wizard-Pfad sendet `verzug`, nicht `wizardVerzugDatum` — Legacy-Pfad `:383` wurde gefixt, Wizard-Pfad nicht), `KlageWizard.jsx:2394` (Step 6: `wizardVerzugDatum || verzug`) vs. `:2441` (Step 9: nur `verzug`), `:1345–1348` (Step 8 setzt nur `wizardVerzugDatum`); inhaltlich `:1313–1318` + `klage_service.py:1440–1444`: Schreibdatum des Forderungsschreibens wird als Verzugseintritt behauptet (Verzug tritt erst nach Fristablauf ein)
 - **Auswirkung:** Verzugsdatum in Step 8 korrigiert → cfg und Step 9 nutzen weiter den alten Wert; Hauptantrag, Gebühren-Antrag und Verzugs-Abschnitt können drei verschiedene Daten nennen. Zudem juristisch schief: „Der Verzug ist am {Schreibdatum} eingetreten" + „BEWEIS: Schreiben vom {selbes Datum}".
 - **Fix-Richtung:** Ein einziger Verzugsdatum-State; `wizardGenerieren` sendet `wizardVerzugDatum || verzug`; Schreibdatum und Verzugseintritt als getrennte Felder (Eintritt = Fristablauf, editierbar).
@@ -130,12 +133,14 @@
 - **Auswirkung:** Im Wizard abgewählte/genullte Unkostenpauschale steht trotzdem mit 30 € in der Schadentabelle → verstärkt KW-04.
 - **Fix-Richtung:** `None`-Semantik sauber trennen (nicht gesetzt vs. explizit 0); Default-30 nur bei „nicht gesetzt".
 
-### - [ ] KW-12 — Anlagen-Kollision „K1"
+### - [x] KW-12 — Anlagen-Kollision „K1" — behoben `2076e83e`, Session 4 2026-07-18
+> **Umsetzung (V4):** Neuer `AnlagenZaehler` vergibt fortlaufende K-Nummern in **Dokumentreihenfolge** (AktLeg → Schaden/Gutachten → SG; Vorlagen-Platzhalterreihenfolge per zipfile verifiziert = Code-Baureihenfolge). Startwert = `_max_anlagen_nr` über die vier Override-Texte (Regex matcht „K1" UND „K 1" — Nutzer-Edits und Alt-Vorschautexte kollidieren nicht mehr). Nummern werden nur verbraucht, wenn wirklich ein Anlagen-BEWEIS entsteht (eigentum/Override: keine). `get_aktivlegitimation_text`/`_build_aktivlegitimation_xml` mit optionalem `anlage_nr`-Param; `baue_sg_abschnitt(…, anlage_nr="K 2")` — Default hält den Forderungsschreiben-Pfad byte-gleich. Schreibweise einheitlich „K n" (auch FE-Vorschau `buildVorschauText`). Häufigster Fall (eigentum) bleibt byte-gleich: Gutachten K 1, Atteste K 2 (Pin-Test).
 - **Datei:** `backend/word/klage_service.py:478/486` (Freigabeerklärung/Sicherungsbedingungen = „Anlage K1") vs. `:1360` (Gutachten = „Anlage K 1"); `sg_text_builder.py:53` („K 2"); Schreibweise „K1" vs. „K 1" inkonsistent
 - **Auswirkung:** Bei finanziertem Fahrzeug mit Freigabeerklärung sind zwei verschiedene Dokumente beide als K1 bezeichnet.
 - **Fix-Richtung:** Anlagen-Manager: fortlaufende K-Nummern zentral vergeben, Registrierung beim Erzeugen jedes BEWEIS-/Anlagen-Bausteins (Verbesserung V4).
 
-### - [ ] KW-13 — „RVG gerichtlich" ist die außergerichtliche Gebühr; `rvg_override` wirkungslos
+### - [x] KW-13 — „RVG gerichtlich" ist die außergerichtliche Gebühr; `rvg_override` wirkungslos — behoben `9cef9655`+`3d0b22c3`, Session 4 2026-07-18
+> **Umsetzung (V6, lt. Entscheidung):** Keine gerichtliche Gebührenberechnung. Step 10 zeigt statt „RVG gerichtlich" jetzt „Gerichtlicher Streitwert (Gegenstandswert)" als reine Zahl + kombinierte Zeile „Nr. 2300 VV RVG außergerichtlich (SW: …)"; Step 8 zeigt keine RVG-Zeile mehr. `rvgOverride`-State + Kachel-6-Override-Feld entfernt; cfg sendet `rvg`/`rvg_override` nicht mehr; Backend liest `rvg_override` nicht mehr (`cfg.get("rvg")` bleibt tolerant). `rvgData` bleibt nur für die korrekt beschriftete Nr.-2300-Anzeige in Kachel 6; SW-Hint „Gegenstandswert der Klage (Gebühren folgen im Kostenfestsetzungsverfahren)". Fix-Wave `3d0b22c3`: Regressionstest gegen rvg_override-Reintroduktion wirksam gemacht (rvg_ausserg ohne `gesamt` → Fallback-Zweig; Gegenbeweis geführt: reintroduzierte Zeilen machen den Test rot). `gesperrt`-Logik/Warnblöcke (KW-19/23) byte-gleich.
 - **Datei:** `frontend/src/sections/KlageSection.jsx:317–325` (`rvgData` mit `streitwert: swAusserg` berechnet) + `:328–336` (Duplikat `rvg_ausserg`), `KlageWizard.jsx:1571` (Label „RVG gerichtlich (SW: swGerichtlich)" zeigt aber `rvgData.gesamt`), `backend/word/klage_service.py:983–988` (bevorzugt `rvg_ausserg` → Kachel-6-`rvg_override` wirkungslos sobald Step 9 betreten); eine echte Verfahrensgebühr Nr. 3100 wird nirgends berechnet
 - **Auswirkung:** Step 8/10 zeigen einen Betrag, der nicht zum beschrifteten Streitwert passt; zwei fast identische 2300er-Berechnungen unter zwei Labels; sichtbares Override-Feld ohne Wirkung. Nach Gebühren-Analyse divergieren `rvgData` (1,3) und `rvg_ausserg` (neuer Faktor) zusätzlich.
 - **Fix-Richtung — ENTSCHIEDEN (RA Schatz, 2026-07-17): KEINE gerichtliche Gebührenberechnung bauen** — gerichtliche Gebühren gehören in die Kostenfestsetzung, nicht in die Klage. Das Streitwert-Konzept ist:
@@ -263,7 +268,8 @@
 - **Fix-Richtung:** Bei 0 € Antrag + VK-Abschnitt weglassen.
 - **Neu aus S2 (KW-03, hier mitzubehandeln):** Klammer-Randfall Fall B — wenn Zahlungen den quotierten Anspruch übersteigen (`klagebetrag` klemmt auf 0), nennt der Fall-B-Differenz-Satz eine geringere Zahlungssumme als real geleistet (`zahlungen_anzeige = ersatzfaehig − klagebetrag`, arithmetisch konsistent, aber juristisch schief). Zusammen mit der 0-€-Antrags-Frage lösen.
 
-### - [ ] KW-35 — RVG-Fallback nutzt SQLite-Importdatum
+### - [x] KW-35 — RVG-Fallback nutzt SQLite-Importdatum — behoben `8da95f62`, Session 4 2026-07-18 (mit KW-08 vorgezogen)
+> **Umsetzung:** Fix-Richtung „durchreichen": der Generier-Endpoint legt `akte_daten["akte"]["rvg_anlagedatum"] = _rvg_anlagedatum(az, akte.erstellt_am)` an; der `berechne_rvg`-Fallback im Service nutzt `rvg_anlagedatum or erstellt_am`. Trennscharfer DOCX-Test (Tarif 2021 vs. 2025: 159,94 € vs. 167,67 € bei SW 700 €).
 - **Datei:** `backend/word/klage_service.py:963–965` (`erstellt_am` statt `_rvg_anlagedatum` aus `klage_routes.py:48–85`)
 - **Auswirkung:** Alt-Akte, 2025 importiert → fälschlich 2025er-Gebührentabelle. Nur relevant wenn `cfg.rvg` fehlt (Legacy-Pfad).
 - **Fix-Richtung:** `_rvg_anlagedatum` durchreichen oder Fallback entfernen (zusammen mit KW-08).
@@ -328,7 +334,7 @@
 | **1** | KW-01 + KW-23 (zusammen!), KW-02, KW-14 | Verlorene Eingaben + falsche Beträge + Ereignis-Fix; kleinster Eingriff, größte Wirkung |
 | **2** ✅ | KW-03, KW-04, KW-05, KW-07, KW-11 + KW-39 (vorgezogen) — erledigt 2026-07-17, Branch `klage-wizard-fixes-s2` | Konsistente Beträge & Tatsachenbehauptungen im DOCX. Baseline: Backend 204f/1000p (null neue), Frontend 122 + Build. Neues DOCX-Direkttest-Muster `test_klage_service_docx.py`. |
 | **3** ✅ | KW-06, KW-15–KW-21 (Rubrum/Grammatik-Cluster) — erledigt 2026-07-18, Branch `klage-wizard-fixes-s3` | Als V3-Refactoring (Partei-Objekt) in einem Zug: neue Helfer `_anrede_norm`, `_ist_maennliche_privatperson`, `_beklagten_grammatik`, `_beklagten_rolle`, `_vertreter_suffix`, `_rechtsform_klasse` (Backend) + `kanonischeBeklagte`/`beklagtenGrammatik`/`versichererSuffix` (Frontend). Baseline: Backend 204f/1044p (Alt-Cluster, null neue, +44 Passes), Frontend 141 Vitest (122→141) + Build. FF-Merge nach Freigabe ausstehend. |
-| **4** | KW-09, KW-10, KW-12, KW-13, KW-08 | Datum/RVG/Anlagen; V5+V6 |
+| **4** ✅ | KW-09, KW-10, KW-12, KW-13, KW-08 + KW-35 (vorgezogen) — erledigt 2026-07-18, Branch `klage-wizard-fixes-s4` | Datum/RVG/Anlagen als V5 (Datumsvertrag: ISO im Transport, `_fmt_datum`/`fmtDatumDe` nur im Renderer, BE↔FE wortgleicher Port) + V6 (nur noch Nr. 2300 außergerichtlich, gerichtl. SW als Zahl) + V4 (`AnlagenZaehler` mit Override-Scan). Legacy-Button weg (V8-Teil). Neue cfg-Keys: `verzug_schreiben_datum`; entfallene: `rvg`, `rvg_override`. Eintritt-Default Schreibdatum+14 Tage. Baseline: Frontend 159 Vitest (143→159) + Build; Backend-Voll-Lauf siehe TODO. FF-Merge nach Freigabe ausstehend. |
 | **5** | KW-22, KW-24–KW-29 (Wizard-State/UX) | V7 Dirty-Tracking als gemeinsames Muster |
 | **6** | KW-30–KW-40 + V10 Golden-File-Matrix | Politur + Regressionsschutz |
 
