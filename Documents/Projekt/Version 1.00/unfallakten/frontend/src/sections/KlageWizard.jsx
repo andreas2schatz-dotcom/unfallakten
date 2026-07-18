@@ -1677,6 +1677,7 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
                                zinsenAb, wizardVerzugDatum,
                                laedt, onGenerieren, fehler,
                                lgGrenzwert, swAusserg, antraegeText, gebuehrenText,
+                               antraegeVeraltet, onAntraegeNeuGenerieren, onAntraegeBehalten,
                                hq = 100, hqTyp = "gegnerisch" }) {
   const klagebetrag  = berechneKlagebetrag(positionen, hq, hqTyp);
   const rvgAussGes   = rvgAussergOv   ? parseFloat(rvgAussergOv)   : (rvgAussergData?.gesamt || 0);
@@ -1715,6 +1716,8 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
 
   return (
     <div>
+      <TextVeraltetBadge sichtbar={antraegeVeraltet}
+        onNeuGenerieren={onAntraegeNeuGenerieren} onBehalten={onAntraegeBehalten} />
       <div style={{ background: T.surface, borderRadius: 10, padding: "1rem 1.25rem",
         marginBottom: "1.25rem", border: `1px solid ${T.border}` }}>
         <div style={{ fontFamily: PLEX, fontSize: "0.72rem", fontWeight: 700,
@@ -1929,6 +1932,61 @@ export function komponiereAntraege(antraegeText, gebuehrenText) {
   return antraegeText.replace(ANTRAEGE_PLACEHOLDER, gebuehrenText);
 }
 
+export function antraegeBasis(opts) {
+  const o = opts || {};
+  return JSON.stringify({
+    pos: (o.positionen || []).filter(p => p.checked).map(p => [p.key, p.betrag]),
+    mitSG: !!o.mitSG,
+    sgMind: o.mitSG ? (o.sgMind ?? null) : null,
+    bek: (o.beklagte || []).map(b => [b.id, b.checked !== false, b.rolle_klage || null]),
+    weiblich: o.weiblich ?? null,
+    zinsenAb: o.zinsenAb ?? null,
+    verzug: o.verzug ?? null,
+    unfalldatum: o.unfalldatum ?? null,
+    mitFestSg: !!o.mitFestSg,
+    mitFestSach: !!o.mitFestSach,
+    hq: o.hq ?? 100,
+    hqTyp: o.hqTyp ?? "gegnerisch",
+  });
+}
+
+export function AntraegeSync({ step, opts, antraegeText, manuell, basisStand, onAntraegeText, onAntraegeBasis }) {
+  const basisAktuell = antraegeBasis(opts);
+  useEffect(() => {
+    if (step < 6) return;
+    if (!antraegeText || (!manuell && basisAktuell !== basisStand)) {
+      onAntraegeText(baueAntraegeText(opts));
+      onAntraegeBasis(basisAktuell);
+    }
+  }, [step, basisAktuell]); // eslint-disable-line
+  return null;
+}
+
+export function TextVeraltetBadge({ sichtbar, onNeuGenerieren, onBehalten }) {
+  if (!sichtbar) return null;
+  return (
+    <div style={{ background: `${T.amber}12`, border: `1px solid ${T.amber}50`,
+      borderRadius: 7, padding: "0.5rem 0.75rem", marginBottom: "0.75rem",
+      display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <span style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.amberText, flex: 1 }}>
+        ⚠ Text veraltet – Eingaben haben sich geändert.
+      </span>
+      <button onClick={onNeuGenerieren}
+        style={{ padding: "5px 10px", borderRadius: 6, cursor: "pointer",
+          border: `1.5px solid ${T.navy}`, background: "#fff",
+          fontFamily: PLEX, fontSize: "0.78rem", fontWeight: 600, color: T.navy }}>
+        ↻ Neu generieren
+      </button>
+      <button onClick={onBehalten}
+        style={{ padding: "5px 10px", borderRadius: 6, cursor: "pointer",
+          border: `1.5px solid ${T.border}`, background: "#fff",
+          fontFamily: PLEX, fontSize: "0.78rem", fontWeight: 600, color: T.textMuted }}>
+        Behalten
+      </button>
+    </div>
+  );
+}
+
 export function baueAntraegeText(opts) {
   const { positionen, mitSG, sgMind, beklagte, weiblich, zinsenAb, verzug,
           unfalldatum, mitFestSg, mitFestSach, hq = 100, hqTyp = "gegnerisch" } = opts;
@@ -2000,25 +2058,14 @@ export function baueAntraegeText(opts) {
 export function StepAntraege({ positionen, mitSG, sgMind, beklagte, weiblich,
                         zinsenAb, verzug, unfalldatum,
                         mitFestSg, onMitFestSg, mitFestSach, onMitFestSach,
-                        antraegeText, onAntraegeText, gebuehrenText,
+                        antraegeText, onAntraegeText, onAntraegeManuell, gebuehrenText,
+                        antraegeVeraltet, onNeuGenerieren, onBehalten,
                         hq = 100, hqTyp = "gegnerisch" }) {
   const klagebetrag   = berechneKlagebetrag(positionen, hq, hqTyp);
   const sgGesamt      = mitSG && sgMind > 0 ? klagebetrag + sgMind : klagebetrag;
   const zinsDat       = zinsenAb === "verzug" && verzug ? `seit dem ${fmtDatumDe(verzug)}` : "seit Rechtshängigkeit";
   const antraegeFinal  = komponiereAntraege(antraegeText, gebuehrenText);
   const hatPlatzhalter = !!antraegeFinal && antraegeFinal.includes(ANTRAEGE_PLACEHOLDER);
-
-  function regenerieren() {
-    onAntraegeText(baueAntraegeText({
-      positionen, mitSG, sgMind, beklagte, weiblich,
-      zinsenAb, verzug, unfalldatum, mitFestSg, mitFestSach, hq, hqTyp,
-    }));
-  }
-
-  // Initial generieren wenn noch leer
-  useEffect(() => {
-    if (!antraegeText) regenerieren();
-  }, []); // eslint-disable-line
 
   return (
     <div style={{ display: "flex", gap: "1.5rem", alignItems: "stretch" }}>
@@ -2067,7 +2114,7 @@ export function StepAntraege({ positionen, mitSG, sgMind, beklagte, weiblich,
           </label>
         ))}
 
-        <button onClick={regenerieren}
+        <button onClick={onNeuGenerieren}
           style={{ padding: "9px 12px", borderRadius: 8, cursor: "pointer",
             border: `1.5px solid ${T.navy}`, background: `${T.navy}08`,
             fontFamily: PLEX, fontSize: "0.85rem", fontWeight: 600, color: T.navy, marginTop: "auto" }}>
@@ -2089,7 +2136,11 @@ export function StepAntraege({ positionen, mitSG, sgMind, beklagte, weiblich,
         )}
       </div>
 
-      <DokumentCard editText={antraegeText} onEditText={onAntraegeText} />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <TextVeraltetBadge sichtbar={antraegeVeraltet} onNeuGenerieren={onNeuGenerieren} onBehalten={onBehalten} />
+        <DokumentCard editText={antraegeText}
+          onEditText={val => { onAntraegeManuell(true); onAntraegeText(val); }} />
+      </div>
     </div>
   );
 }
@@ -2421,6 +2472,8 @@ export default function KlageWizard({
   wizardMitFestSg, onMitFestSg,
   wizardMitFestSach, onMitFestSach,
   wizardAntraegeText, onAntraegeText,
+  wizardAntraegeManuell, onAntraegeManuell,
+  wizardAntraegeBasis, onAntraegeBasis,
   // Step 7 (Rechtliche Würdigung)
   wizardHq, onWizardHq, wizardHqTyp, onWizardHqTyp, wizardHb, onWizardHb,
   wizardRwText, onWizardRwText, kuerzungsarten,
@@ -2457,6 +2510,20 @@ export default function KlageWizard({
   const klaegerObj = beklagte?.find(b => b.rolle_klage === "klaeger");
   const klaeger    = (klaegerObj?.anrede || "").toLowerCase() === "frau" ? "Die Klägerin" : "Der Kläger";
   const weiblich   = klaeger.startsWith("Die");
+
+  const antraegeOpts = {
+    positionen, mitSG, sgMind, beklagte, weiblich,
+    zinsenAb, verzug: wizardVerzugDatum, unfalldatum,
+    mitFestSg: wizardMitFestSg, mitFestSach: wizardMitFestSach,
+    hq: wizardHq, hqTyp: wizardHqTyp,
+  };
+  const antraegeVeraltet = wizardAntraegeManuell && antraegeBasis(antraegeOpts) !== wizardAntraegeBasis;
+  const antraegeNeuGenerieren = () => {
+    onAntraegeText(baueAntraegeText(antraegeOpts));
+    onAntraegeBasis(antraegeBasis(antraegeOpts));
+    onAntraegeManuell(false);
+  };
+  const antraegeBehalten = () => onAntraegeBasis(antraegeBasis(antraegeOpts));
 
   const kannWeiter = () => !schrittBlockiert(step, { gerichtBestaetigt, positionen });
   const weiter = () => {
@@ -2518,6 +2585,11 @@ export default function KlageWizard({
           <div style={{ flex: 1, overflowY: "auto", padding: "1.5rem" }}>
             <Fortschrittsbalken step={step} maxStep={wizardMaxStep} onStepChange={onStepChange}
               springenErlaubt={(nr) => kannSpringen(nr, step, { gerichtBestaetigt, positionen })} />
+
+            <AntraegeSync step={step} opts={antraegeOpts}
+              antraegeText={wizardAntraegeText} manuell={wizardAntraegeManuell}
+              basisStand={wizardAntraegeBasis}
+              onAntraegeText={onAntraegeText} onAntraegeBasis={onAntraegeBasis} />
 
             {step === 1 && (
               <StepGericht
@@ -2585,7 +2657,11 @@ export default function KlageWizard({
                 mitFestSg={wizardMitFestSg}   onMitFestSg={onMitFestSg}
                 mitFestSach={wizardMitFestSach} onMitFestSach={onMitFestSach}
                 antraegeText={wizardAntraegeText} onAntraegeText={onAntraegeText}
+                onAntraegeManuell={onAntraegeManuell}
                 gebuehrenText={wizardGebuehrenText}
+                antraegeVeraltet={antraegeVeraltet}
+                onNeuGenerieren={antraegeNeuGenerieren}
+                onBehalten={antraegeBehalten}
                 hq={wizardHq}             hqTyp={wizardHqTyp}
               />
             )}
@@ -2649,6 +2725,9 @@ export default function KlageWizard({
                 lgGrenzwert={lgGrenzwert}   swAusserg={swAusserg}
                 antraegeText={wizardAntraegeText}
                 gebuehrenText={wizardGebuehrenText}
+                antraegeVeraltet={antraegeVeraltet}
+                onAntraegeNeuGenerieren={antraegeNeuGenerieren}
+                onAntraegeBehalten={antraegeBehalten}
                 hq={wizardHq}               hqTyp={wizardHqTyp}
               />
             )}

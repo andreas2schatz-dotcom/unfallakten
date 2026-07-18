@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { StepZusammenfassung, ANTRAEGE_PLACEHOLDER } from "./KlageWizard.jsx";
 
 const BASIS_PROPS = {
@@ -85,5 +85,34 @@ describe("StepZusammenfassung – KW-13 RVG-gerichtlich-Duplikat entfernt", () =
     expect(screen.queryByText(/RVG gerichtlich/)).toBeNull();
     expect(screen.getByText(/Gerichtlicher Streitwert/)).toBeTruthy();
     expect(screen.getByText(/RVG außergerichtlich/)).toBeTruthy();
+  });
+});
+
+describe("StepZusammenfassung – KW-22 Veraltet-Badge (Dirty-Tracking)", () => {
+  it("zeigt Veraltet-Badge wenn antraegeVeraltet, Knoepfe rufen Callbacks, Generieren bleibt moeglich", () => {
+    const onAntraegeNeuGenerieren = vi.fn();
+    const onAntraegeBehalten      = vi.fn();
+    render(<StepZusammenfassung {...BASIS_PROPS}
+      antraegeText={ANTRAEGE_OHNE_PLATZHALTER}
+      antraegeVeraltet={true}
+      onAntraegeNeuGenerieren={onAntraegeNeuGenerieren}
+      onAntraegeBehalten={onAntraegeBehalten}
+    />);
+
+    expect(screen.getByText(/Text veraltet/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Neu generieren/i));
+    expect(onAntraegeNeuGenerieren).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByText(/Behalten/i));
+    expect(onAntraegeBehalten).toHaveBeenCalledTimes(1);
+
+    expect(screen.getByRole("button", { name: /Als Word generieren/i })).not.toBeDisabled();
+  });
+
+  it("antraegeVeraltet=false rendert kein Badge", () => {
+    render(<StepZusammenfassung {...BASIS_PROPS}
+      antraegeText={ANTRAEGE_OHNE_PLATZHALTER}
+      antraegeVeraltet={false}
+    />);
+    expect(screen.queryByText(/Text veraltet/i)).not.toBeInTheDocument();
   });
 });

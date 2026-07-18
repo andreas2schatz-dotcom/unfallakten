@@ -193,6 +193,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [wizardMitFestSg, setWizardMitFestSg]       = useState(false);
   const [wizardMitFestSach, setWizardMitFestSach]   = useState(false);
   const [wizardAntraegeText, setWizardAntraegeText] = useState("");
+  const [wizardAntraegeManuell, setWizardAntraegeManuell] = useState(false);
+  const [wizardAntraegeBasis, setWizardAntraegeBasis]     = useState(null);
   const [wizardRvgAussergData, setWizardRvgAussergData]         = useState(null);
   const [wizardRvgAussergOv, setWizardRvgAussergOv]             = useState("");
   const [wizardRvgBereitsGezahlt, setWizardRvgBereitsGezahlt]   = useState("");
@@ -460,6 +462,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setWizardMitFestSg(mitSG);
     setWizardMitFestSach(false);
     setWizardAntraegeText("");
+    setWizardAntraegeManuell(false);
+    setWizardAntraegeBasis(null);
     setWizardRvgAussergData(null);
     setWizardRvgAussergOv("");
     setWizardRvgBereitsGezahlt("");
@@ -591,6 +595,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           wizardMitFestSg={wizardMitFestSg}     onMitFestSg={setWizardMitFestSg}
           wizardMitFestSach={wizardMitFestSach}  onMitFestSach={setWizardMitFestSach}
           wizardAntraegeText={wizardAntraegeText} onAntraegeText={setWizardAntraegeText}
+          wizardAntraegeManuell={wizardAntraegeManuell} onAntraegeManuell={setWizardAntraegeManuell}
+          wizardAntraegeBasis={wizardAntraegeBasis}     onAntraegeBasis={setWizardAntraegeBasis}
           // Step 7: Rechtliche Würdigung
           wizardHq={wizardHq}           onWizardHq={setWizardHq}
           wizardHqTyp={wizardHqTyp}     onWizardHqTyp={setWizardHqTyp}
