@@ -105,6 +105,20 @@ Erwartung: `schema_version: 57`, alle Spalten/Tabellen **DA**. Wenn eine **FEHLT
 **nicht starten**, den DEV-Trap-Fix (manuelles `ALTER TABLE`) analog anwenden und
 Ursache klären.
 
+**6b. KW-27-Zusatzcheck (PRD-33 S5, 2026-07-18):** Die `beteiligte`-Tabelle darf
+`rolle='gericht'` nicht per CHECK ablehnen — sonst schlägt die Gericht-Persistenz des
+Klage-Wizards auf dieser DB fehl (sichtbar per Toast, aber ohne Speicherung):
+```bash
+docker compose -f docker-compose.prod.yml run --rm backend python -c "
+import sqlite3,os; c=sqlite3.connect(os.environ['DB_PATH'])
+sql=c.execute(\"SELECT sql FROM sqlite_master WHERE name='beteiligte'\").fetchone()[0]
+print('gericht im CHECK bzw. kein rolle-CHECK:', ('gericht' in sql) or ('CHECK' not in sql.upper()) or ('rolle' not in sql))
+"
+```
+Erwartung: `True`. Bei `False`: Rebuild-Migration der `beteiligte`-Tabelle nötig
+(SQLite kann CHECK nicht per ALTER erweitern) — Entscheidung RA Schatz, siehe
+`docs/BUGFIX_KLAGE_WIZARD.md` (KW-27, Bestands-DB-Einordnung).
+
 **7. Stack starten.**
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build   # oder: make deploy
