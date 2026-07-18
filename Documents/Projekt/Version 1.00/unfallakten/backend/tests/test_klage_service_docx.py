@@ -757,16 +757,18 @@ class TestKW35RvgAnlagedatumFallback(unittest.TestCase):
 
 
 class TestKW13RvgOverrideEntfernt(unittest.TestCase):
-    def test_rvg_override_wird_ignoriert_rvg_ausserg_gilt(self):
+    def test_rvg_override_wird_ignoriert(self):
         akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 700.0)])
+        akte_daten["akte"]["rvg_anlagedatum"] = "2026-01-01"
         akte_daten["klage_config"]["rvg_override"] = 9999.99
-        akte_daten["klage_config"]["rvg_ausserg"] = {"gesamt": 159.94, "streitwert": 700.0,
-                                                     "faktor": 1.3, "gebuehr_netto": 114.4,
-                                                     "post_pauschale": 20.0, "zwischen_netto": 134.4,
-                                                     "ust": 25.54}
+        # Bewusst KEIN rvg_ausserg["gesamt"]: Tabelle und RVG-Antrag fallen auf
+        # berechne_rvg zurueck - nur so wuerde ein wieder eingefuehrtes
+        # rvg_override-Lesen (rvg["gesamt"] = float(rvg_override)) den Test rot machen.
         xml = _document_xml(generiere_klageschrift(akte_daten))
+        erwartet = berechne_rvg(700.0, erstellt_am="2026-01-01")["gesamt"]
+        erwartet_str = f"{erwartet:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         self.assertNotIn("9.999,99", xml)
-        self.assertIn("159,94", xml)
+        self.assertIn(erwartet_str, xml)
 
 
 if __name__ == "__main__":
