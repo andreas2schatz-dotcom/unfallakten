@@ -1165,8 +1165,7 @@ def generiere_klage(akte_id: str):
     """
     POST /akten/<az>/klage/generieren
     Body: { klage_config: { beklagte, positionen, mit_schmerzensgeld,
-                             schmerzensgeld_mindest, verzugsdatum, zinsen_ab,
-                             rvg_override } }
+                             schmerzensgeld_mindest, verzugsdatum, zinsen_ab } }
     """
     akte = hole_akte_by_id(akte_id)
     if not akte:

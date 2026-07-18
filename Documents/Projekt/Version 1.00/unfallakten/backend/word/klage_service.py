@@ -1404,6 +1404,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         cfg.get("antraege_override"),
         details.get("rw_text_override"),
         details.get("verzug_text_override"),
+        details.get("aktivlegitimation_text_override"),
     ))
 
     # ── {{EINLEITUNG}} ────────────────────────────────────────────────────
