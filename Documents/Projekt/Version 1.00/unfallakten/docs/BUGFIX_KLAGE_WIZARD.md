@@ -37,14 +37,14 @@
 | KW-19 | P2 | `frontend/src/sections/KlageWizard.jsx:1528` | Generieren mit 0 Beklagten möglich | ✅ behoben S3 `7e27f0c5` |
 | KW-20 | P2 | `frontend/src/sections/KlageWizard.jsx:106` | Beklagten-Nummerierung Sachverhalt ≠ Rubrum; Nicht-Halter-Person fehlt | ✅ behoben S3 `8b23efbe`+`8e10749c` |
 | KW-21 | P2 | `backend/word/klage_service.py:664` | Rechtsform-Heuristik matcht Substrings („UG" in „FAHRZEUGBAU") | ✅ behoben S3 `cbc41c13` |
-| KW-22 | P3 | `frontend/src/sections/KlageWizard.jsx:1832` | Anträge-Text stale nach Positions-/SG-Änderung; Feststellungs-Checkboxen ohne Textwirkung | offen |
+| KW-22 | P3 | `frontend/src/sections/KlageWizard.jsx:1832` | Anträge-Text stale nach Positions-/SG-Änderung; Feststellungs-Checkboxen ohne Textwirkung | ✅ behoben S5 `4a4300e3` |
 | KW-23 | P3 | `frontend/src/sections/KlageWizard.jsx:1744` | Platzhalter „[Außergerichtliche Anwaltsgebühren …]" kann im Antragstext verbleiben | ✅ behoben `a6711c2d` |
-| KW-24 | P3 | `frontend/src/sections/KlageWizard.jsx:2010` | Step-9-Änderungen nach Erst-Ersetzung wirkungslos; `wizardGebuehrenText` nie gesendet | offen |
-| KW-25 | P3 | `frontend/src/sections/KlageWizard.jsx:489` | Step 3: manuelle Sachverhalt-Edits beim Remount überschrieben | offen |
-| KW-26 | P3 | `frontend/src/sections/KlageWizard.jsx:2271` | Fortschrittsbalken umgeht kannWeiter()-Sperren | offen |
-| KW-27 | P3 | `backend/routers/klage_routes.py:946` | Gericht-Persistenz: Rückweg tot (`rolle='gericht'` wird vorab weggefiltert) | offen |
-| KW-28 | P3 | `frontend/src/sections/KlageSection.jsx:165` | Verzugsdokument-Auswahl ohne jede Wirkung (Placebo) | offen |
-| KW-29 | P3 | `frontend/src/sections/KlageSection.jsx:250` | Vertreter-Lookup-Modal öffnet wiederholt unaufgefordert | offen |
+| KW-24 | P3 | `frontend/src/sections/KlageWizard.jsx:2010` | Step-9-Änderungen nach Erst-Ersetzung wirkungslos; `wizardGebuehrenText` nie gesendet | ✅ behoben S5 `0a2d3816`+`52d33252` |
+| KW-25 | P3 | `frontend/src/sections/KlageWizard.jsx:489` | Step 3: manuelle Sachverhalt-Edits beim Remount überschrieben | ✅ behoben S5 `00d4c278` |
+| KW-26 | P3 | `frontend/src/sections/KlageWizard.jsx:2271` | Fortschrittsbalken umgeht kannWeiter()-Sperren | ✅ behoben S5 `34c613ca` |
+| KW-27 | P3 | `backend/routers/klage_routes.py:946` | Gericht-Persistenz: Rückweg tot (`rolle='gericht'` wird vorab weggefiltert) | ✅ behoben S5 `6752215e` |
+| KW-28 | P3 | `frontend/src/sections/KlageSection.jsx:165` | Verzugsdokument-Auswahl ohne jede Wirkung (Placebo) | ✅ behoben S5 `a332bab4`+`2b9e1a45` |
+| KW-29 | P3 | `frontend/src/sections/KlageSection.jsx:250` | Vertreter-Lookup-Modal öffnet wiederholt unaufgefordert | ✅ behoben S5 `e3c1ab68` |
 | KW-30 | P4 | `backend/word/klage_service.py:1271` | Leere Felder erzeugen kaputte Sätze („…Unfall vom … in  geltend") | offen |
 | KW-31 | P4 | `backend/word/klage_service.py:688` | `sachverhalt_override` zerstört Absatzstruktur des Nutzers | offen |
 | KW-32 | P4 | `backend/word/klage_service.py:1440` | Verzug-Abschnitt ohne Nummer/Überschrift, Nummerierungssprung | offen |
@@ -203,7 +203,8 @@
 
 ## P3 — Wizard-State / verlorene bzw. veraltete Texte
 
-### - [ ] KW-22 — Anträge-Text stale nach Positions-/SG-Änderung; Feststellungs-Checkboxen ohne Textwirkung
+### - [x] KW-22 — Anträge-Text stale nach Positions-/SG-Änderung; Feststellungs-Checkboxen ohne Textwirkung — behoben `4a4300e3`, Session 5 2026-07-18
+> **Umsetzung (V7-Kern):** Neue Exports `antraegeBasis(opts)` (JSON-Fingerprint der textrelevanten Eingaben: checked-Positionen+Beträge, mitSG/sgMind, Beklagte, weiblich, zinsenAb, verzug, unfalldatum, mitFestSg/mitFestSach, hq/hqTyp), `AntraegeSync` (immer gemountete Sync-Komponente im Wizard: regeneriert ab Step ≥ 6 bei Basis-Änderung automatisch, solange nicht manuell — wirkt auch bei Sprung Step 5 → 10 ohne Step-6-Besuch) und `TextVeraltetBadge`. Section-State neu: `wizardAntraegeManuell` + `wizardAntraegeBasis` (Reset in `oeffneWizard`). Manueller Edit in Step 6 setzt das Manuell-Flag; danach nie automatisches Überschreiben, stattdessen Badge „⚠ Text veraltet — Eingaben haben sich geändert" mit „↻ Neu generieren"/„Behalten" in Step 6 UND Step 10 (eine Handler-Quelle). Die Badge **sperrt das Generieren nicht** (bewusste Nutzerentscheidung möglich). Feststellungs-Checkboxen bleiben Toggle-only — die Regeneration kommt automatisch über die Basis. Alter „nur wenn leer"-Mount-Effect entfernt. Wirksamkeit der Tests per Mutations-Gegenbeweis belegt (Badge-Wiring aus → rot; mitFestSach aus Basis → rot).
 - **Datei:** `frontend/src/sections/KlageWizard.jsx:1832–1834` (nur generieren wenn leer), `:1762–1765` (Klagebetrag als Fließtext im Antrag), `:1862–1865` (Checkbox-onChange ruft `regenerieren()` nicht)
 - **Auswirkung:** Position in Step 5 abgewählt (5.000 → 3.000 €) → Zusammenfassung zeigt 3.000 €, `antraege_override` fordert 5.000 €. Feststellungsantrag anhaken ändert die Vorschau nicht. **Derzeit durch KW-01 maskiert — wird mit dessen Fix akut.**
 - **Fix-Richtung:** Zentrales Dirty-Tracking (Verbesserung V7): Badge „Text veraltet — Eingaben haben sich geändert" mit Wahl Neu generieren/Behalten; Checkboxen triggern Regeneration (bzw. Backend-Flags als alleinige Quelle nutzen und die Anträge dort zusammensetzen).
@@ -213,32 +214,38 @@
 - **Auswirkung:** Step 6 neu generieren → direkt via Fortschrittsbalken zu Step 10 → Generieren: „[Außergerichtliche Anwaltsgebühren – wird in Schritt 9 ergänzt]" steht als nummerierter Klageantrag im Text. **Derzeit durch KW-01 maskiert.**
 - **Fix-Richtung:** `gesperrt`-Guard in Step 10: `antraegeText.includes(PLACEHOLDER)` → roter Warnblock + Sperre. Quick Win, muss zeitgleich mit KW-01 kommen.
 
-### - [ ] KW-24 — Step-9-Änderungen nach Erst-Ersetzung wirkungslos
+### - [x] KW-24 — Step-9-Änderungen nach Erst-Ersetzung wirkungslos — behoben `0a2d3816`+`52d33252`, Session 5 2026-07-18
+> **Umsetzung:** Gebühren-Antrag ist jetzt ein eigenes Segment: der Einbrenn-Effect ist ersatzlos entfernt, der Platzhalter bleibt DAUERHAFT in `wizardAntraegeText`, und die neue exportierte Funktion `komponiereAntraege(antraegeText, gebuehrenText)` ersetzt ihn erst beim Senden (`wizardGenerieren` → `antraege_override`) bzw. für Anzeige/Guards. Step-9-Änderungen (Bereits-gezahlt, Override, manuelle Edits) landen damit immer im DOCX. Regenerations-Effects zusammengeführt mit Manuell-Schutz: neuer Section-State `wizardGebuehrenManuell` (Verzug-Muster inkl. Reset-Button); Remount überschreibt manuelle Gebühren-Edits nicht mehr. Step-10-Guard und Step-6-Statusbanner (Fix-Wave `52d33252`) prüfen den KOMPONIERTEN Text: Platzhalter + vorhandener Gebühren-Text sperrt/warnt nicht mehr, Platzhalter ohne Gebühren-Text sperrt weiterhin (KW-23-Schutz bleibt).
 - **Datei:** `frontend/src/sections/KlageWizard.jsx:2010–2015` (Ersetzung nur solange Platzhalter vorhanden), `:2003–2007` (Remount-Effect überschreibt `wizardGebuehrenText` ohne Manuell-Schutz), `KlageSection.jsx:560–574` (`wizardGebuehrenText` wird nie gesendet)
 - **Auswirkung:** Nach der ersten Ersetzung sind „Bereits gezahlt"-Änderungen und manuelle Edits am Gebühren-Antrag wirkungslos für den Anträge-Text; das DOCX fordert den alten Betrag.
 - **Fix-Richtung:** Gebühren-Antrag nicht per String-Ersetzung „einbrennen", sondern als eigenes Segment führen, das beim Generieren zusammengesetzt wird; Dirty-Tracking wie KW-22.
 
-### - [ ] KW-25 — Step 3: manuelle Sachverhalt-Edits beim Remount überschrieben
+### - [x] KW-25 — Step 3: manuelle Sachverhalt-Edits beim Remount überschrieben — behoben `00d4c278`, Session 5 2026-07-18
+> **Umsetzung:** `prevAutoRef` ersatzlos entfernt; Manuell-Flag in den Section-State gehoben (`wizardSachverhaltManuell`, Reset in `oeffneWizard`) nach dem `wizardVerzugManuell`-Muster. Effect in `StepAktLeg` (jetzt named export) regeneriert nur bei nicht-manuellem Text (Deps unverändert); DokumentCard-Edit setzt das Flag; „↻ Neu generieren"-Reset-Button wie beim Verzug. Verhaltens-Rot per Gegenbeweis belegt (Guard deaktiviert → Remount-Kerntest rot).
 - **Datei:** `frontend/src/sections/KlageWizard.jsx:489–503` (`prevAutoRef` lokal in `StepAktLeg`, beim Unmount weg → Remount überschreibt bedingungslos)
 - **Auswirkung:** Manuell ergänztes Beweisangebot in Step 3 → zu Step 4 → zurück zu Step 3 → Ergänzung kommentarlos weg; betrifft genau den `sachverhalt_override`-Text der Klageschrift.
 - **Fix-Richtung:** Manuell-Flag/prevAuto in den Section-State heben (wie beim gefixten `wizardVerzugManuell`), oder Dirty-Tracking V7.
 
-### - [ ] KW-26 — Fortschrittsbalken umgeht kannWeiter()-Sperren
+### - [x] KW-26 — Fortschrittsbalken umgeht kannWeiter()-Sperren — behoben `34c613ca`, Session 5 2026-07-18
+> **Umsetzung:** Neue Exports `schrittBlockiert(nr, ctx)` (eine Quelle für die Sperr-Regeln Step 1/5) und `kannSpringen(ziel, step, ctx)` (rückwärts immer, vorwärts nur wenn alle Steps bis Ziel-1 frei — kumulativ). `Fortschrittsbalken` (jetzt named export) erhält `springenErlaubt`-Prop; `kannWeiter()` nutzt dieselbe Quelle. maxStep-Begrenzung und Nicht-klickbar-Optik unverändert. Wirksamkeit per Gegenbeweis (Guard-Revert → Klick-durch-Test rot).
 - **Datei:** `frontend/src/sections/KlageWizard.jsx:2271–2275` (kannWeiter nur Steps 1+5) vs. `:205` (Balken: alles ≤ maxStep klickbar)
 - **Auswirkung:** Positionen in Step 5 abwählen → „Weiter" gesperrt, Klick auf Kreis „6" geht trotzdem; Auslöser für KW-23.
 - **Fix-Richtung:** Balken-Klick durch dieselbe kannWeiter-Prüfung leiten (kumulativ bis Ziel-Step).
 
-### - [ ] KW-27 — Gericht-Persistenz: Rückweg tot
+### - [x] KW-27 — Gericht-Persistenz: Rückweg tot — behoben `6752215e`, Session 5 2026-07-18
+> **Umsetzung:** Gericht-Zeile wird jetzt VOR dem Rollen-Filter gelesen (`gericht_bet` via `next(...)`), Prio-1a nutzt sie direkt (Dict-Konstruktion inkl. `quelle="akte"` unverändert), toter Zweitfilter entfernt. KEIN V9/keine Migration nötig. Frontend-Autobestätigung (`quelle==="akte"` → `wizardGerichtBest`) funktioniert damit ohne Änderung. **Nebenfund mitgefixt (Scope-Erweiterung, Controller-gebilligt):** die Frisch-DB-CHECK-Constraint `beteiligte.rolle` in `backend/db/schema.py` kannte `'gericht'` nicht → PUT scheiterte in jeder frisch erzeugten DB (inkl. Test-Suite) mit IntegrityError; additiv ergänzt (CREATE TABLE IF NOT EXISTS = No-Op auf Bestands-DBs; die aktive Dev-DB hat die Constraint nicht mehr und enthält bereits produktive gericht-Zeilen). Route-Test `test_klage_kw27_gericht_persistenz.py` (PUT→GET-Roundtrip, Gericht nicht in Beteiligten-Liste).
 - **Datei:** `backend/routers/klage_routes.py:1442–1451` (PUT speichert `beteiligte` mit `rolle='gericht'`) vs. `:946` (`alle_bet` vorab auf klaeger/beklagter gefiltert → Prio-1a-Loop `:998–1009` findet nie etwas; zweiter Filter `:1034` tot)
 - **Auswirkung:** Manuell gewähltes Gericht wird gespeichert, aber beim nächsten Öffnen kommt wieder der RA-MICRO-/Unfallort-Vorschlag; die Auto-Bestätigung (`quelle === "akte"`) greift nie.
 - **Fix-Richtung:** Gericht-Zeile vor dem Rollen-Filter lesen — oder strukturell: Gericht als eigenes Feld an `unfallakte` statt Missbrauch von `beteiligte` (Verbesserung V9).
 
-### - [ ] KW-28 — Verzugsdokument-Auswahl ohne Wirkung (Placebo)
+### - [x] KW-28 — Verzugsdokument-Auswahl ohne Wirkung (Placebo) — behoben `a332bab4`+`2b9e1a45`, Session 5 2026-07-18
+> **Umsetzung (Entscheidung: wirksam machen statt entfernen):** Zentraler Handler `waehleVerzugDok` in KlageSection, verdrahtet an BEIDEN Auswahl-Stellen (Kachel-5-Buttons + Step-8-Select, StepVerzug jetzt named export + Wiring-Test). Auswahl setzt `wizardVerzugDokDatum` (Schreibdatum) + `wizardVerzugDatum` via `verzugEintrittDefault` (+14 Tage) und baut bei nicht-manuellem Verzugstext `buildVerzugAutoText` neu. **Datumsquelle (Fix-Wave):** `verzug_dokumente` liefert jetzt `datum` = MAX(`forderung_positionen.datum`) je Dokument (korrelierte Subquery, echtes Schreibdatum; Backend-Test `test_klage_kw28_verzugdok_datum.py`); Frontend `verzugDatenAusDok` (KlageSection named export) bevorzugt `datum`, Fallback `hochgeladen_am` (Upload-Zeitstempel als Näherungs-Proxy für gescannte Fremdschreiben ohne forderung_position — Felder bleiben editierbar), Null-Guard bei unparsebarem Datum (kein Clobber). Dokument ohne Datum → nur ID-Wechsel. `verzugDokId` wird weiterhin NICHT gesendet (BEWEIS läuft über das Schreibdatum, S4-Vertrag); Initial-Load-Vorbelegung unverändert.
 - **Datei:** `frontend/src/sections/KlageSection.jsx:165/223`, `KlageWizard.jsx:1388–1402` (`verzugDokId` wird nie gesendet, übernimmt auch nicht das Dokumentdatum)
 - **Auswirkung:** Nutzer wählt das verzugsbegründende Schreiben aus — ohne jeden Effekt auf Datum, BEWEIS-Zeile oder Dokument.
 - **Fix-Richtung:** Auswahl übernimmt das Dokumentdatum in „Datum des Schreibens" und sendet die Doc-ID als BEWEIS-/Anlagen-Referenz — oder das Feld entfernen.
 
-### - [ ] KW-29 — Vertreter-Lookup-Modal öffnet wiederholt unaufgefordert
+### - [x] KW-29 — Vertreter-Lookup-Modal öffnet wiederholt unaufgefordert — behoben `e3c1ab68`, Session 5 2026-07-18
+> **Umsetzung:** Auto-Lookup ist jetzt still: `lookupVertreter(id, name, {oeffneModal:false})` füllt nur den Cache; das Modal öffnet ausschließlich auf Klick der „🔍 Lookup"-Buttons (bei vorhandenem Cache-Ergebnis sofort aus dem Cache, ohne erneuten Fetch). Neuer Export `sollAutoLookup(b, lookupCache)` mit Existenz-Guard (`lookupCache[b.id]` gesetzt → kein erneuter Auto-Lookup — behebt die `?.laden`-Lücke; Mutations-Gegenbeweis geführt). **Entscheidungs-Notiz:** das im Handover erwähnte „dismissed-Set" entfällt — ohne Auto-Open gibt es nichts zu dismissen, der Cache ist der Einmal-Guard. **Bewusstes Design (RA Schatz ggf. bestätigen):** ein fehlgeschlagener Auto-Lookup blockiert automatische Wiederholungen für die Sitzung (Anti-Spam); der manuelle Klick fetcht in dem Fall neu — keine Sackgasse.
 - **Datei:** `frontend/src/sections/KlageSection.jsx:250–263, 349–360` (Auto-Lookup öffnet Modal je Firma; Guard prüft nur `laden`, nicht „bereits nachgeschlagen"; jede `setBek`-Änderung triggert erneut)
 - **Auswirkung:** Modal-Spam beim Tab-Aufruf; bewusst geschlossene Modals kommen nach jeder Beteiligten-Änderung wieder.
 - **Fix-Richtung:** Auto-Lookup nur still cachen, Modal nur auf expliziten Klick; „dismissed"-Set je Sitzung.
@@ -335,7 +342,7 @@
 | **2** ✅ | KW-03, KW-04, KW-05, KW-07, KW-11 + KW-39 (vorgezogen) — erledigt 2026-07-17, Branch `klage-wizard-fixes-s2` | Konsistente Beträge & Tatsachenbehauptungen im DOCX. Baseline: Backend 204f/1000p (null neue), Frontend 122 + Build. Neues DOCX-Direkttest-Muster `test_klage_service_docx.py`. |
 | **3** ✅ | KW-06, KW-15–KW-21 (Rubrum/Grammatik-Cluster) — erledigt 2026-07-18, Branch `klage-wizard-fixes-s3` | Als V3-Refactoring (Partei-Objekt) in einem Zug: neue Helfer `_anrede_norm`, `_ist_maennliche_privatperson`, `_beklagten_grammatik`, `_beklagten_rolle`, `_vertreter_suffix`, `_rechtsform_klasse` (Backend) + `kanonischeBeklagte`/`beklagtenGrammatik`/`versichererSuffix` (Frontend). Baseline: Backend 204f/1044p (Alt-Cluster, null neue, +44 Passes), Frontend 141 Vitest (122→141) + Build. FF-Merge nach Freigabe ausstehend. |
 | **4** ✅ | KW-09, KW-10, KW-12, KW-13, KW-08 + KW-35 (vorgezogen) — erledigt 2026-07-18, Branch `klage-wizard-fixes-s4` | Datum/RVG/Anlagen als V5 (Datumsvertrag: ISO im Transport, `_fmt_datum`/`fmtDatumDe` nur im Renderer, BE↔FE wortgleicher Port) + V6 (nur noch Nr. 2300 außergerichtlich, gerichtl. SW als Zahl) + V4 (`AnlagenZaehler` mit Override-Scan). Legacy-Button weg (V8-Teil). Neue cfg-Keys: `verzug_schreiben_datum`; entfallene: `rvg`, `rvg_override`. Eintritt-Default Schreibdatum+14 Tage. Baseline: Frontend 159 Vitest (143→159) + Build; Backend-Voll-Lauf siehe TODO. FF-Merge nach Freigabe ausstehend. |
-| **5** | KW-22, KW-24–KW-29 (Wizard-State/UX) | V7 Dirty-Tracking als gemeinsames Muster |
+| **5** ✅ | KW-22, KW-24–KW-29 (Wizard-State/UX) — erledigt 2026-07-18, Branch `klage-wizard-fixes-s5` | V7 umgesetzt: Manuell-Flags im Section-State (`wizardSachverhaltManuell`/`wizardGebuehrenManuell`/`wizardAntraegeManuell`) + `antraegeBasis`-Fingerprint + `AntraegeSync` (immer gemountet) + `TextVeraltetBadge` (Step 6+10); Gebühren-Antrag als Segment mit `komponiereAntraege` beim Senden (Platzhalter bleibt im State); `kannSpringen` kumulativ für den Fortschrittsbalken; KW-27 ohne V9/Migration (Gericht-Zeile vor Rollen-Filter + Frisch-DB-CHECK um `'gericht'`); KW-28 mit echtem Schreibdatum aus `forderung_positionen` (neues `datum`-Feld in `verzug_dokumente`); KW-29 stiller Lookup-Cache statt dismissed-Set. Plan: `docs/superpowers/plans/2026-07-18-prd33-s5-wizard-state-ux.md`. Baseline: Backend 204f/1059p (Alt-Cluster, null neue, +5 Passes), Frontend 198 Vitest (159→198) + Build. FF-Merge nach Freigabe ausstehend. |
 | **6** | KW-30–KW-40 + V10 Golden-File-Matrix | Politur + Regressionsschutz |
 
 > **Grundsatzentscheidungen (RA Schatz, 2026-07-17) — alle getroffen:**
