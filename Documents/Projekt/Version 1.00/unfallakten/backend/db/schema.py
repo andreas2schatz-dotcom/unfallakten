@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS beteiligte (
     akte_id         TEXT    NOT NULL REFERENCES unfallakte(az) ON DELETE CASCADE,
     rolle           TEXT    NOT NULL
                     CHECK(rolle IN ('mandant', 'gegner', 'zeuge',
-                                    'sachverstaendiger', 'sonstiger')),
+                                    'sachverstaendiger', 'sonstiger', 'gericht')),
     name            TEXT    NOT NULL,
     vorname         TEXT,
     firma           TEXT,

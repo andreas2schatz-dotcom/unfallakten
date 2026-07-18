@@ -958,6 +958,10 @@ def hole_klage_daten(akte_id: str):
         if not b.get("kfz_kennzeichen") and ist_echter_gegner and _wdm("varG-KZ"):
             b["kfz_kennzeichen"] = _wdm("varG-KZ")
 
+    gericht_bet = next(
+        (b for b in alle_bet if (b.get("rolle") or "").lower() == "gericht"),
+        None,
+    )
     # Nur Kläger und Beklagte ins Frontend — Zeugen, SV, sonstige Beteiligte ausblenden
     alle_bet = [b for b in alle_bet if b.get("rolle_klage") in ("klaeger", "beklagter")]
 
@@ -1011,18 +1015,16 @@ def hole_klage_daten(akte_id: str):
     gericht_quelle    = None
 
     # 1a – SQLite
-    for b in alle_bet:
-        if (b.get("rolle") or "").lower() == "gericht":
-            gericht_vorschlag = {
-                "adressnr": b.get("id"),
-                "name":     b.get("firma") or b.get("versicherung") or b.get("name") or "Gericht",
-                "strasse":  b.get("anschrift") or "",
-                "plz":      b.get("plz") or "",
-                "ort":      b.get("ort") or "",
-                "quelle":   "akte",
-            }
-            gericht_quelle = "akte"
-            break
+    if gericht_bet is not None:
+        gericht_vorschlag = {
+            "adressnr": gericht_bet.get("id"),
+            "name":     gericht_bet.get("firma") or gericht_bet.get("versicherung") or gericht_bet.get("name") or "Gericht",
+            "strasse":  gericht_bet.get("anschrift") or "",
+            "plz":      gericht_bet.get("plz") or "",
+            "ort":      gericht_bet.get("ort") or "",
+            "quelle":   "akte",
+        }
+        gericht_quelle = "akte"
 
     # 1b – RA-Micro tblAktenBeteiligte (auch wenn SQLite leer)
     if not gericht_vorschlag:
@@ -1045,9 +1047,6 @@ def hole_klage_daten(akte_id: str):
                     gericht_quelle    = kandidaten[0].get("quelle", "unfallort")
             except Exception as e:
                 logger.debug("Gericht-Vorschlag: %s", e)
-
-    # Gericht aus Parteien-Liste entfernen (wird separat via gericht_vorschlag behandelt)
-    alle_bet = [b for b in alle_bet if (b.get("rolle") or "").lower() != "gericht"]
 
     # ── RVG-Vorberechnung ─────────────────────────────────────────────────────
     klagebetrag  = sum(p["betrag"] for p in pos_definitionen if p["checked"])
