@@ -14,6 +14,12 @@ import {
   beteiligte as apiBeteiligte,
 } from "../api.js";
 
+export function verzugDatenAusDok(dok) {
+  const datum = dok?.hochgeladen_am ? String(dok.hochgeladen_am).slice(0, 10) : null;
+  if (!datum) return null;
+  return { dokDatum: datum, eintritt: verzugEintrittDefault(datum) };
+}
+
 function vertretungsHinweis(name) {
   const n = (name || "").toUpperCase();
   if (/(GMBH|GBR|\bKG\b|OHG)/.test(n)) return "– vertreten durch den/die Geschäftsführer –";
@@ -182,6 +188,18 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [wizardVerzugDatum, setWizardVerzugDatum]     = useState("");
   const [wizardVerzugDokDatum, setWizardVerzugDokDatum] = useState("");
   const [wizardVerzugManuell, setWizardVerzugManuell] = useState(false);
+
+  const waehleVerzugDok = (dokId) => {
+    setVerzugDokId(dokId);
+    const daten = verzugDatenAusDok(verzugDokListe.find(d => d.id === dokId));
+    if (!daten) return;
+    setWizardVerzugDokDatum(daten.dokDatum);
+    setWizardVerzugDatum(daten.eintritt);
+    if (!wizardVerzugManuell) {
+      setWizardVerzugText(buildVerzugAutoText(daten.dokDatum, daten.eintritt));
+    }
+  };
+
   const [kiLaedt, setKiLaedt]                     = useState(false);
   const [lgGrenzwert, setLgGrenzwert]             = useState(10000);
   // PRD-26: neue Wizard-States
@@ -610,7 +628,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           wizardVerzugDokDatum={wizardVerzugDokDatum} onWizardVerzugDokDatum={setWizardVerzugDokDatum}
           wizardVerzugManuell={wizardVerzugManuell}   onWizardVerzugManuell={setWizardVerzugManuell}
           verzugDokListe={verzugDokListe}
-          verzugDokId={verzugDokId}                   onVerzugDokId={setVerzugDokId}
+          verzugDokId={verzugDokId}                   onVerzugDokId={waehleVerzugDok}
           // Step 9: Außergerichtl. Gebühren
           swAusserg={swAussergEffektiv}
           wizardRvgAussergData={wizardRvgAussergData}       onRvgAussergData={setWizardRvgAussergData}
@@ -1181,7 +1199,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                       const sel = verzugDokId === dok.id;
                       const klasseLabel = { mahnschreiben:"Mahnschreiben", verzugsschreiben:"Verzugsschreiben", forderungsschreiben:"Forderungsschreiben" }[dok.dokumentenklasse] || dok.dokumentenklasse;
                       return (
-                        <button key={dok.id} onClick={() => setVerzugDokId(dok.id)}
+                        <button key={dok.id} onClick={() => waehleVerzugDok(dok.id)}
                           style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px",
                             background: sel ? T.accentPale : T.white,
                             border: `1.5px solid ${sel ? T.accent : T.border}`,
