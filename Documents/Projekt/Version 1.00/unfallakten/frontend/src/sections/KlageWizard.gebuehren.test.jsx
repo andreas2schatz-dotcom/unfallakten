@@ -2,7 +2,7 @@ import { useState } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { apiGebuehren } from "../api.js";
-import { StepGebuehren } from "./KlageWizard.jsx";
+import { StepGebuehren, komponiereAntraege, ANTRAEGE_PLACEHOLDER } from "./KlageWizard.jsx";
 
 vi.mock("../api.js", () => ({
   apiGebuehren: {
@@ -129,5 +129,93 @@ describe("StepGebuehren – KW-06 Gesamtschuldner-Grammatik", () => {
     const letzterText = spies.onGebuehrenText.mock.calls.at(-1)[0];
     expect(letzterText).toContain("Die Beklagten werden als Gesamtschuldner verurteilt");
     expect(letzterText).not.toContain("(zu 1)");
+  });
+});
+
+describe("komponiereAntraege", () => {
+  it("ersetzt den Platzhalter durch den Gebuehren-Text", () => {
+    const a = `1. Antrag X\n2. ${ANTRAEGE_PLACEHOLDER}\n3. Kosten`;
+    expect(komponiereAntraege(a, "GEBUEHREN-SATZ")).toBe("1. Antrag X\n2. GEBUEHREN-SATZ\n3. Kosten");
+  });
+  it("ohne Gebuehren-Text bleibt der Platzhalter stehen", () => {
+    const a = `Antrag ${ANTRAEGE_PLACEHOLDER}`;
+    expect(komponiereAntraege(a, "")).toBe(a);
+    expect(komponiereAntraege(a, null)).toBe(a);
+  });
+  it("ohne Platzhalter bleibt der Text unveraendert", () => {
+    expect(komponiereAntraege("fertiger Text", "GEB")).toBe("fertiger Text");
+  });
+  it("leerer Antraege-Text bleibt leer", () => {
+    expect(komponiereAntraege("", "GEB")).toBe("");
+  });
+});
+
+function WrapperSegment({ gemountet = true, antraegeTextInitial = "", rvgAussergOvInitial = "500" }) {
+  const [gebuehrenText, setGebuehrenText] = useState("");
+  const [gebuehrenManuell, setGebuehrenManuell] = useState(false);
+  const [antraegeText, setAntraegeText] = useState(antraegeTextInitial);
+  const [rvgAussergOv, setRvgAussergOv] = useState(rvgAussergOvInitial);
+  const [rvgBereitsGezahlt, setRvgBereitsGezahlt] = useState("");
+
+  return gemountet ? (
+    <>
+      <StepGebuehren
+        akteId="44/22"
+        swAusserg={10000}
+        rvgAussergData={null}
+        onRvgAussergData={() => {}}
+        rvgAussergOv={rvgAussergOv}
+        onRvgAussergOv={setRvgAussergOv}
+        rvgBereitsGezahlt={rvgBereitsGezahlt}
+        onRvgBereitsGezahlt={setRvgBereitsGezahlt}
+        gebuehrenText={gebuehrenText}
+        onGebuehrenText={setGebuehrenText}
+        beklagte={BEKLAGTE_EINZEL}
+        weiblich={false}
+        zinsenAb="rechtshaengigkeit"
+        verzug=""
+        antraegeText={antraegeText}
+        onAntraegeText={setAntraegeText}
+        gespeichertGb={null}
+        onGespeichertGb={() => {}}
+        gebuehrenManuell={gebuehrenManuell}
+        onGebuehrenManuell={setGebuehrenManuell}
+      />
+      <div data-testid="antraege-preview">{antraegeText}</div>
+    </>
+  ) : <div data-testid="leer" />;
+}
+
+describe("StepGebuehren – KW-24 Segment-Komposition", () => {
+  it("bereitsGezahlt-Aenderung regeneriert den Gebuehren-Text", () => {
+    render(<WrapperSegment />);
+
+    const bereitsGezahltInput = screen.getAllByRole("spinbutton")[1];
+    fireEvent.change(bereitsGezahltInput, { target: { value: "100" } });
+
+    expect(screen.getByRole("textbox").value).toContain("400,00 €");
+  });
+
+  it("manueller Edit wird beim Remount NICHT ueberschrieben", () => {
+    const { rerender } = render(<WrapperSegment gemountet={true} />);
+
+    expect(screen.getByRole("textbox").value).not.toBe("");
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "MANUELL TEXT" } });
+    expect(screen.getByRole("textbox").value).toBe("MANUELL TEXT");
+
+    rerender(<WrapperSegment gemountet={false} />);
+    expect(screen.getByTestId("leer")).toBeTruthy();
+
+    rerender(<WrapperSegment gemountet={true} />);
+    expect(screen.getByRole("textbox").value).toBe("MANUELL TEXT");
+  });
+
+  it("antraegeText behaelt den Platzhalter — keine Einbrennung", () => {
+    const antraegeInitial = `1. Antrag X\n2. ${ANTRAEGE_PLACEHOLDER}`;
+    render(<WrapperSegment antraegeTextInitial={antraegeInitial} />);
+
+    expect(screen.getByRole("textbox").value).not.toBe("");
+    expect(screen.getByTestId("antraege-preview").textContent).toContain(ANTRAEGE_PLACEHOLDER);
   });
 });

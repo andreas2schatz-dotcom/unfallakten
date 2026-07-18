@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import KlageWizard, { berechneSwAussergEffektiv, buildRwVorschau, buildVerzugAutoText } from "./KlageWizard.jsx";
+import KlageWizard, { berechneSwAussergEffektiv, buildRwVorschau, buildVerzugAutoText, komponiereAntraege } from "./KlageWizard.jsx";
 import { RegulierungsTabelle, TodoSection } from './UebersichtSection.jsx';
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
@@ -197,6 +197,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [wizardRvgAussergOv, setWizardRvgAussergOv]             = useState("");
   const [wizardRvgBereitsGezahlt, setWizardRvgBereitsGezahlt]   = useState("");
   const [wizardGebuehrenText, setWizardGebuehrenText]   = useState("");
+  const [wizardGebuehrenManuell, setWizardGebuehrenManuell] = useState(false);
   const [gespeichertGb, setGespeichertGb]               = useState(null); // PRD-28: gespeicherte Gebührenberechnung
 
   useEffect(() => {
@@ -463,6 +464,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setWizardRvgAussergOv("");
     setWizardRvgBereitsGezahlt("");
     setWizardGebuehrenText("");
+    setWizardGebuehrenManuell(false);
 
     setWizardStep(1);
     setWizardOffen(true);
@@ -506,7 +508,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         verzug_text_override:              wizardVerzugText || null,
         mit_feststellung_sg:               wizardMitFestSg,
         mit_feststellung_sach:             wizardMitFestSach,
-        antraege_override:                 wizardAntraegeText || null,
+        antraege_override:                 komponiereAntraege(wizardAntraegeText, wizardGebuehrenText) || null,
         rvg_ausserg:                       wizardRvgAussergData,
         rvg_ausserg_override:              wizardRvgAussergOv ? parseFloat(wizardRvgAussergOv) : null,
         rvg_bereits_gezahlt:               wizardRvgBereitsGezahlt ? parseFloat(wizardRvgBereitsGezahlt) : null,
@@ -609,6 +611,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           wizardRvgAussergOv={wizardRvgAussergOv}           onRvgAussergOv={setWizardRvgAussergOv}
           wizardRvgBereitsGezahlt={wizardRvgBereitsGezahlt} onRvgBereitsGezahlt={setWizardRvgBereitsGezahlt}
           wizardGebuehrenText={wizardGebuehrenText}         onGebuehrenText={setWizardGebuehrenText}
+          wizardGebuehrenManuell={wizardGebuehrenManuell}   onGebuehrenManuell={setWizardGebuehrenManuell}
           gespeichertGb={gespeichertGb}               onGespeichertGb={setGespeichertGb}
           wizardAkteId={akteId}
           // Shared

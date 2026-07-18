@@ -1676,7 +1676,7 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
                                aktLegTyp, aktLegFreigabe,
                                zinsenAb, wizardVerzugDatum,
                                laedt, onGenerieren, fehler,
-                               lgGrenzwert, swAusserg, antraegeText,
+                               lgGrenzwert, swAusserg, antraegeText, gebuehrenText,
                                hq = 100, hqTyp = "gegnerisch" }) {
   const klagebetrag  = berechneKlagebetrag(positionen, hq, hqTyp);
   const rvgAussGes   = rvgAussergOv   ? parseFloat(rvgAussergOv)   : (rvgAussergData?.gesamt || 0);
@@ -1692,7 +1692,8 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
   const keinPositionen = positionen.filter(p => p.checked).length === 0;
   const keinGericht    = !gericht;
   const keineBeklagten = beklagteG.length === 0;
-  const hatPlatzhalter = !!antraegeText && antraegeText.includes(ANTRAEGE_PLACEHOLDER);
+  const antraegeFinal  = komponiereAntraege(antraegeText, gebuehrenText);
+  const hatPlatzhalter = !!antraegeFinal && antraegeFinal.includes(ANTRAEGE_PLACEHOLDER);
   const gesperrt       = laedt || keinGericht || keinPositionen || keineBeklagten || firmenOhneVertreter.length > 0 || hatPlatzhalter;
 
   const aktLegLabel = { eigentum: "Eigentum", finanziert: "Finanziert", geleast: "Geleast" }[aktLegTyp] || aktLegTyp;
@@ -1922,6 +1923,12 @@ function StepGericht({ gericht, setGericht, gerichtSuche, setGSuche,
 const ALPHABET = "abcdefghijklmnopqrstuvwxyz";
 export const ANTRAEGE_PLACEHOLDER = "[Außergerichtliche Anwaltsgebühren – wird in Schritt 9 ergänzt]";
 
+export function komponiereAntraege(antraegeText, gebuehrenText) {
+  if (!antraegeText || !gebuehrenText) return antraegeText;
+  if (!antraegeText.includes(ANTRAEGE_PLACEHOLDER)) return antraegeText;
+  return antraegeText.replace(ANTRAEGE_PLACEHOLDER, gebuehrenText);
+}
+
 export function baueAntraegeText(opts) {
   const { positionen, mitSG, sgMind, beklagte, weiblich, zinsenAb, verzug,
           unfalldatum, mitFestSg, mitFestSach, hq = 100, hqTyp = "gegnerisch" } = opts;
@@ -2099,6 +2106,7 @@ export function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
                          rvgAussergOv, onRvgAussergOv,
                          rvgBereitsGezahlt, onRvgBereitsGezahlt,
                          gebuehrenText, onGebuehrenText,
+                         gebuehrenManuell, onGebuehrenManuell,
                          beklagte, weiblich,
                          zinsenAb, verzug,
                          antraegeText, onAntraegeText,
@@ -2172,24 +2180,14 @@ export function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
   }
 
   useEffect(() => {
-    if (!gebuehrenText && rvgGesamt > 0) {
-      onGebuehrenText(baueGebuehrenAntrag());
-    }
-  }, [rvgGesamt]); // eslint-disable-line
+    if (gebuehrenManuell) return;
+    if (rvgGesamt > 0) onGebuehrenText(baueGebuehrenAntrag());
+  }, [rvgGesamt, bereitsGez]); // eslint-disable-line
 
-  useEffect(() => {
-    if (rvgGesamt > 0) {
-      onGebuehrenText(baueGebuehrenAntrag());
-    }
-  }, [bereitsGez]); // eslint-disable-line
-
-  // Platzhalter in antraegeText ersetzen sobald gebuehrenText gesetzt
-  useEffect(() => {
-    if (!gebuehrenText || !antraegeText) return;
-    if (antraegeText.includes(ANTRAEGE_PLACEHOLDER)) {
-      onAntraegeText(antraegeText.replace(ANTRAEGE_PLACEHOLDER, gebuehrenText));
-    }
-  }, [gebuehrenText]); // eslint-disable-line
+  function handleGebuehrenReset() {
+    onGebuehrenManuell(false);
+    onGebuehrenText(baueGebuehrenAntrag());
+  }
 
   const fNr = (v) => (v || 0).toLocaleString("de-DE",
     { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
@@ -2374,9 +2372,21 @@ export function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
         <div style={{ fontFamily: PLEX, fontSize: "0.72rem", color: T.textFaint }}>
           Text erscheint als Klageantrag. Wird automatisch in Schritt 6 eingefügt.
         </div>
+
+        <button
+          onClick={handleGebuehrenReset}
+          style={{
+            padding: "9px 12px", borderRadius: 8, cursor: "pointer",
+            border: `1.5px solid ${T.navy}`, background: `${T.navy}08`,
+            fontFamily: PLEX, fontSize: "0.85rem", fontWeight: 600, color: T.navy,
+            marginTop: "auto",
+          }}
+        >
+          ↺ Text zurücksetzen
+        </button>
       </div>
 
-      <DokumentCard editText={gebuehrenText} onEditText={onGebuehrenText} />
+      <DokumentCard editText={gebuehrenText} onEditText={val => { onGebuehrenManuell(true); onGebuehrenText(val); }} />
     </div>
   );
 }
@@ -2426,6 +2436,7 @@ export default function KlageWizard({
   wizardRvgAussergOv, onRvgAussergOv,
   wizardRvgBereitsGezahlt, onRvgBereitsGezahlt,
   wizardGebuehrenText, onGebuehrenText,
+  wizardGebuehrenManuell, onGebuehrenManuell,
   gespeichertGb, onGespeichertGb,
   wizardAkteId,
   // Shared
@@ -2615,6 +2626,7 @@ export default function KlageWizard({
                 rvgAussergOv={wizardRvgAussergOv}     onRvgAussergOv={onRvgAussergOv}
                 rvgBereitsGezahlt={wizardRvgBereitsGezahlt} onRvgBereitsGezahlt={onRvgBereitsGezahlt}
                 gebuehrenText={wizardGebuehrenText}   onGebuehrenText={onGebuehrenText}
+                gebuehrenManuell={wizardGebuehrenManuell} onGebuehrenManuell={onGebuehrenManuell}
                 beklagte={beklagte}                   weiblich={weiblich}
                 zinsenAb={zinsenAb}                   verzug={wizardVerzugDatum}
                 antraegeText={wizardAntraegeText}     onAntraegeText={onAntraegeText}
@@ -2634,6 +2646,7 @@ export default function KlageWizard({
                 fehler={fehler}
                 lgGrenzwert={lgGrenzwert}   swAusserg={swAusserg}
                 antraegeText={wizardAntraegeText}
+                gebuehrenText={wizardGebuehrenText}
                 hq={wizardHq}               hqTyp={wizardHqTyp}
               />
             )}

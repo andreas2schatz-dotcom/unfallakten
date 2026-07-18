@@ -29,13 +29,21 @@ const ANTRAEGE_OHNE_PLATZHALTER =
   `1. Die Beklagte wird verurteilt, an den Kläger 1.000,00 € zu zahlen.`;
 
 describe("StepZusammenfassung – KW-23 Platzhalter-Guard", () => {
-  it("sperrt Generieren-Button und zeigt Warnblock, wenn Anträge-Text den Platzhalter enthält", () => {
-    render(<StepZusammenfassung {...BASIS_PROPS} antraegeText={ANTRAEGE_MIT_PLATZHALTER} />);
+  it("sperrt Generieren-Button und zeigt Warnblock, wenn Anträge-Text den Platzhalter enthält (kein Gebuehren-Text aus Schritt 9)", () => {
+    render(<StepZusammenfassung {...BASIS_PROPS} antraegeText={ANTRAEGE_MIT_PLATZHALTER} gebuehrenText={null} />);
 
     const button = screen.getByRole("button", { name: /Als Word generieren/i });
     expect(button).toBeDisabled();
     expect(screen.getByText(/Platzhalter/i)).toBeInTheDocument();
     expect(screen.getByText(/Schritt 9/i)).toBeInTheDocument();
+  });
+
+  it("Platzhalter + vorhandener Gebuehren-Text (KW-24) sperrt NICHT", () => {
+    render(<StepZusammenfassung {...BASIS_PROPS} antraegeText={ANTRAEGE_MIT_PLATZHALTER} gebuehrenText="GEB" />);
+
+    const button = screen.getByRole("button", { name: /Als Word generieren/i });
+    expect(button).not.toBeDisabled();
+    expect(screen.queryByText(/Platzhalter/i)).not.toBeInTheDocument();
   });
 
   it("laesst den Button bei fertigem Anträge-Text (ohne Platzhalter) unangetastet", () => {
