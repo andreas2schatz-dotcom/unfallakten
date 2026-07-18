@@ -7,6 +7,9 @@ describe("fmtDatumDe (KW-09, wortgleich zu _fmt_datum)", () => {
   it("laesst deutsches Datum unveraendert", () => expect(fmtDatumDe("04.05.2026")).toBe("04.05.2026"));
   it("leer -> leer", () => expect(fmtDatumDe("")).toBe(""));
   it("unbekanntes Format unveraendert", () => expect(fmtDatumDe("unbekannt")).toBe("unbekannt"));
+  it("DD.MM.YY (WDM-Kurzformat) wird zu DD.MM.20YY", () => expect(fmtDatumDe("04.05.26")).toBe("04.05.2026"));
+  it("einstellige ISO-Teile bleiben ungepolstert (wie _fmt_datum)", () => expect(fmtDatumDe("2026-5-4")).toBe("4.5.2026"));
+  it("einstellige deutsche Teile werden gepolstert", () => expect(fmtDatumDe("4.5.2026")).toBe("04.05.2026"));
 });
 
 describe("baueAntraegeText nutzt fmtDatumDe (KW-09)", () => {
