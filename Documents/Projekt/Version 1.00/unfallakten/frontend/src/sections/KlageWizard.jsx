@@ -290,13 +290,27 @@ export function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguli
 
 // ── Teilkomponenten ────────────────────────────────────────────────────────────
 
-function Fortschrittsbalken({ step, maxStep, onStepChange }) {
+export function schrittBlockiert(nr, { gerichtBestaetigt, positionen }) {
+  if (nr === 1 && !gerichtBestaetigt) return true;
+  if (nr === 5 && !(positionen || []).some(p => p.checked)) return true;
+  return false;
+}
+
+export function kannSpringen(ziel, step, ctx) {
+  if (ziel <= step) return true;
+  for (let k = step; k < ziel; k++) {
+    if (schrittBlockiert(k, ctx)) return false;
+  }
+  return true;
+}
+
+export function Fortschrittsbalken({ step, maxStep, onStepChange, springenErlaubt }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: "1.5rem" }}>
       {STEPS.map((s, i) => {
         const aktiv     = s.nr === step;
         const erledigt  = s.nr < step;
-        const klickbar  = s.nr <= maxStep && s.nr !== step;
+        const klickbar  = s.nr <= maxStep && s.nr !== step && (!springenErlaubt || springenErlaubt(s.nr));
         return (
           <React.Fragment key={s.nr}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, minWidth: 0 }}>
@@ -2415,11 +2429,7 @@ export default function KlageWizard({
   const klaeger    = (klaegerObj?.anrede || "").toLowerCase() === "frau" ? "Die Klägerin" : "Der Kläger";
   const weiblich   = klaeger.startsWith("Die");
 
-  const kannWeiter = () => {
-    if (step === 1 && !gerichtBestaetigt) return false;
-    if (step === 5 && positionen.filter(p => p.checked).length === 0) return false;
-    return true;
-  };
+  const kannWeiter = () => !schrittBlockiert(step, { gerichtBestaetigt, positionen });
   const weiter = () => {
     if (!kannWeiter()) return;
     const next = step + 1;
@@ -2477,7 +2487,8 @@ export default function KlageWizard({
 
           {/* Body */}
           <div style={{ flex: 1, overflowY: "auto", padding: "1.5rem" }}>
-            <Fortschrittsbalken step={step} maxStep={wizardMaxStep} onStepChange={onStepChange} />
+            <Fortschrittsbalken step={step} maxStep={wizardMaxStep} onStepChange={onStepChange}
+              springenErlaubt={(nr) => kannSpringen(nr, step, { gerichtBestaetigt, positionen })} />
 
             {step === 1 && (
               <StepGericht
