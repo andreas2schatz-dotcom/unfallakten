@@ -15,9 +15,11 @@ import {
 } from "../api.js";
 
 export function verzugDatenAusDok(dok) {
-  const datum = dok?.hochgeladen_am ? String(dok.hochgeladen_am).slice(0, 10) : null;
+  const datum = dok?.datum || (dok?.hochgeladen_am ? String(dok.hochgeladen_am).slice(0, 10) : null);
   if (!datum) return null;
-  return { dokDatum: datum, eintritt: verzugEintrittDefault(datum) };
+  const eintritt = verzugEintrittDefault(datum);
+  if (!eintritt) return null;
+  return { dokDatum: datum, eintritt };
 }
 
 function vertretungsHinweis(name) {

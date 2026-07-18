@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { buildVerzugAutoText } from "./KlageWizard.jsx";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { buildVerzugAutoText, StepVerzug } from "./KlageWizard.jsx";
 import { verzugEintrittDefault } from "../config/utils.js";
 
 describe("buildVerzugAutoText (KW-10)", () => {
@@ -23,4 +24,31 @@ describe("verzugEintrittDefault (KW-10)", () => {
   it("ISO-Input wird verarbeitet", () => expect(verzugEintrittDefault("2026-05-04")).toBe("18.05.2026"));
   it("Monatsuebergang", () => expect(verzugEintrittDefault("20.12.2026")).toBe("03.01.2027"));
   it("leer -> leer", () => expect(verzugEintrittDefault("")).toBe(""));
+});
+
+const STEP_VERZUG_BASIS_PROPS = {
+  zinsenAb: "verzug",
+  weiblich: false,
+  wizardVerzugDatum: "",
+  onWizardVerzugDatum: vi.fn(),
+  wizardVerzugDokDatum: "",
+  onWizardVerzugDokDatum: vi.fn(),
+  wizardVerzugText: "",
+  onWizardVerzugText: vi.fn(),
+  manuelleBearbeitung: false,
+  onManuelleBearbeitung: vi.fn(),
+  verzugDokListe: [{ id: 5, dateiname: "mahnschreiben.pdf" }, { id: 9, dateiname: "verzugsschreiben.pdf" }],
+  verzugDokId: null,
+  onVerzugDokId: vi.fn(),
+};
+
+describe("StepVerzug – KW-28 Step-8-Select-Wiring", () => {
+  it("ruft onVerzugDokId mit der ausgewaehlten Dokument-ID auf", () => {
+    render(<StepVerzug {...STEP_VERZUG_BASIS_PROPS} />);
+
+    const select = screen.getByRole("combobox");
+    fireEvent.change(select, { target: { value: "9" } });
+
+    expect(STEP_VERZUG_BASIS_PROPS.onVerzugDokId).toHaveBeenCalledWith(9);
+  });
 });

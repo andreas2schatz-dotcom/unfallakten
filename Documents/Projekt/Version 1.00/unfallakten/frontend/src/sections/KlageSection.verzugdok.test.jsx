@@ -15,4 +15,24 @@ describe("verzugDatenAusDok", () => {
     expect(verzugDatenAusDok({ id: 7 })).toBeNull();
     expect(verzugDatenAusDok(null)).toBeNull();
   });
+
+  it("bevorzugt das Schreibdatum (forderung_positionen) vor dem Upload-Zeitstempel", () => {
+    const dok = { id: 7, datum: "2026-06-01", hochgeladen_am: "2026-06-20 09:30:00" };
+    expect(verzugDatenAusDok(dok)).toEqual({
+      dokDatum: "2026-06-01",
+      eintritt: verzugEintrittDefault("2026-06-01"),
+    });
+  });
+
+  it("faellt auf hochgeladen_am zurueck, wenn kein Schreibdatum vorhanden ist", () => {
+    const dok = { id: 7, datum: null, hochgeladen_am: "2026-06-20 09:30:00" };
+    expect(verzugDatenAusDok(dok)).toEqual({
+      dokDatum: "2026-06-20",
+      eintritt: verzugEintrittDefault("2026-06-20"),
+    });
+  });
+
+  it("liefert null, wenn das Datum nicht parsebar ist (kein Clobber von wizardVerzugDatum)", () => {
+    expect(verzugDatenAusDok({ id: 7, datum: "kein-datum" })).toBeNull();
+  });
 });

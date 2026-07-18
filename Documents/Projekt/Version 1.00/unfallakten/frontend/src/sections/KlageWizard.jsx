@@ -1486,7 +1486,7 @@ export function buildVerzugAutoText(dokDatum, eintrittDatum) {
   return bDat ? `${basis}\n\nBEWEIS: Schreiben vom ${bDat}` : basis;
 }
 
-function StepVerzug({ zinsenAb, weiblich,
+export function StepVerzug({ zinsenAb, weiblich,
                       wizardVerzugDatum, onWizardVerzugDatum,
                       wizardVerzugDokDatum, onWizardVerzugDokDatum,
                       wizardVerzugText, onWizardVerzugText,

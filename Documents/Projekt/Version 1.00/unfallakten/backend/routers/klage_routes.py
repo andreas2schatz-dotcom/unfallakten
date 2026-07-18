@@ -642,17 +642,19 @@ def hole_klage_daten(akte_id: str):
         verzug_dokumente = []
         try:
             vdok_rows = conn.execute(
-                """SELECT id, dateiname, dokumentenklasse, hochgeladen_am
-                   FROM dokumente
-                   WHERE akte_id = ?
-                     AND dokumentenklasse IN ('mahnschreiben', 'verzugsschreiben', 'forderungsschreiben')
+                """SELECT d.id, d.dateiname, d.dokumentenklasse, d.hochgeladen_am,
+                          (SELECT MAX(fp.datum) FROM forderung_positionen fp
+                           WHERE fp.dokument_id = d.id) AS datum
+                   FROM dokumente d
+                   WHERE d.akte_id = ?
+                     AND d.dokumentenklasse IN ('mahnschreiben', 'verzugsschreiben', 'forderungsschreiben')
                    ORDER BY
-                     CASE dokumentenklasse
+                     CASE d.dokumentenklasse
                        WHEN 'mahnschreiben'   THEN 1
                        WHEN 'verzugsschreiben' THEN 2
                        ELSE 3
                      END,
-                     hochgeladen_am DESC""",
+                     d.hochgeladen_am DESC""",
                 (az,)
             ).fetchall()
             verzug_dokumente = [dict(r) for r in vdok_rows]
