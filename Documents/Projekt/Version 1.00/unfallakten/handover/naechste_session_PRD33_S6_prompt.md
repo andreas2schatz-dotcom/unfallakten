@@ -40,7 +40,7 @@ RA-MICRO read-only, keine Migration erwartet. Baseline: Backend 204f/1059p/18s
 (204f = bekannte Alt-Cluster test_modul1–7, test_dashboard_uebersicht, test_sv_portal,
 test_prd27, test_modul6, test_migration_46; Achtung: ±2 Test-Order-Rauschen im
 Auth-Cluster möglich — bei Abweichung Datei-Ebene vergleichen), null neue Failures;
-Frontend 198 Vitest + Build grün. Arbeitsbranch von main (z. B. klage-wizard-fixes-s6),
+Frontend 200 Vitest + Build grün. Arbeitsbranch von main (z. B. klage-wizard-fixes-s6),
 am Ende FF-Merge nach Freigabe. Beim Abhaken: [x] + Commit-Hash im Tracking-Doc,
 Status-Tabelle mitpflegen, TODO.md aktualisieren.
 
@@ -79,7 +79,14 @@ als Mini-Task mitgehen, wenn ohnehin an der Datei gearbeitet wird):
   Beklagten-Stammdaten im Wizard editierbar werden); Fixture-Boilerplate-Duplikat
   test_klage_kw18↔kw27.
 - Offene Nutzer-Bestätigungen: Verzugseintritt-Default +14 Tage (S4); KW-29-Design
-  „fehlgeschlagener Auto-Lookup blockiert Auto-Retries für die Sitzung" (S5).
+  „fehlgeschlagener Auto-Lookup blockiert Auto-Retries für die Sitzung" (S5);
+  KW-28 `hochgeladen_am`-Fallback als Schreibdatum-Vorschlag für gescannte
+  Fremdschreiben ohne forderung_position (S5-Abschluss-Review I1 — editierbar, aber
+  Upload≠Schreibdatum möglich; Alternative: kein Vorschlag/null); KW-27 Rebuild-
+  Migration für Bestands-DBs mit altem beteiligte-CHECK (Live-Dev-DB nicht betroffen,
+  Go-Live-Check 6b im Rollout-Runbook; nur nötig falls eine betroffene DB in Betrieb geht).
+- KW-27-Kontext: `gerichtSpeichernOderWarnen` (KlageSection named export) zeigt
+  Persistenz-Fehlschläge als Toast — nicht wieder still schlucken.
 
 Abschluss: Tracking-Doc + TODO.md aktualisieren (PRD-33 damit KOMPLETT — Abschluss-Vermerk),
 Abschluss-Review (Opus, Whole-Branch), Commits auf dem Branch, FF-Merge nach Freigabe.
