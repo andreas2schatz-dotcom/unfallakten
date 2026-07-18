@@ -19,7 +19,7 @@ import zipfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from backend.word.klage_service import generiere_klageschrift
+from backend.word.klage_service import generiere_klageschrift, berechne_rvg
 
 
 def _position(key, label, betrag, betrag_original=None, checked=True):
@@ -717,6 +717,24 @@ class TestKW09VerzugsdatumFormat(unittest.TestCase):
         xml = _document_xml(generiere_klageschrift(akte_daten))
         self.assertIn("seit Rechtshängigkeit zu zahlen", xml)
         self.assertIn("Verzug ist mit Rechtshängigkeit eingetreten.", xml)
+
+
+class TestKW35RvgAnlagedatumFallback(unittest.TestCase):
+    def test_fallback_nutzt_rvg_anlagedatum_statt_erstellt_am(self):
+        # Akte 2024 angelegt (alter RVG-Tarif), aber erst 2026 in SQLite importiert.
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 700.0)])
+        akte_daten["akte"]["erstellt_am"] = "2026-01-01"
+        akte_daten["akte"]["rvg_anlagedatum"] = "2024-06-01"
+        # kein cfg["rvg"], kein cfg["rvg_ausserg"] -> berechne_rvg-Fallback greift
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+        erwartet_alt  = berechne_rvg(700.0, erstellt_am="2024-06-01")["gesamt"]
+        erwartet_neu  = berechne_rvg(700.0, erstellt_am="2026-01-01")["gesamt"]
+        self.assertNotEqual(erwartet_alt, erwartet_neu,
+                            "Testaufbau: Tarife 2021/2025 muessen sich beim gewaehlten Streitwert unterscheiden")
+        alt_str = f"{erwartet_alt:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        neu_str = f"{erwartet_neu:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        self.assertIn(alt_str, xml)
+        self.assertNotIn(neu_str, xml)
 
 
 if __name__ == "__main__":

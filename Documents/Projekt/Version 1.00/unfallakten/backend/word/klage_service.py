@@ -1096,7 +1096,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
 
     # ── RVG ──────────────────────────────────────────────────────────────────
     rvg_override     = cfg.get("rvg_override")
-    akte_erstellt_am = akte.get("erstellt_am")
+    akte_erstellt_am = akte.get("rvg_anlagedatum") or akte.get("erstellt_am")
     rvg              = cfg.get("rvg") or berechne_rvg(klagebetrag,
                                                        erstellt_am=akte_erstellt_am)
     if rvg_override is not None:

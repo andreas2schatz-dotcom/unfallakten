@@ -1308,6 +1308,7 @@ def generiere_klage(akte_id: str):
             "unfallort":    (akte.unfallort or "").strip() or _wdm("varU-ORT") or "",
             "haftungsquote": akte.haftungsquote,
             "erstellt_am":  akte.erstellt_am,
+            "rvg_anlagedatum": _rvg_anlagedatum(az, akte.erstellt_am),
         },
         "mandant":      mandant,
         "kanzlei":      KANZLEI_INFO,
@@ -1381,6 +1382,7 @@ def generiere_klage(akte_id: str):
     except FileNotFoundError as e:
         return _err(str(e), 501)
     except ValueError as e:
+        logger.warning("Klage-Generierung abgelehnt (422): %s", e)
         return _err(str(e), 422)
     except Exception as e:
         logger.error("Klage-Generierung fehlgeschlagen: %s", e, exc_info=True)

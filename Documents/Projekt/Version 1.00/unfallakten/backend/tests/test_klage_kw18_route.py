@@ -102,17 +102,19 @@ class TestKW18RouteValueErrorWird422(unittest.TestCase):
                 "Kein Kläger ermittelbar – bitte Mandanten-/Parteidaten prüfen."
             ),
         ):
-            resp = self.client.post(
-                "/akten/44/22/klage/generieren",
-                headers=self.headers,
-                json={
-                    "in_db": False,
-                    "klage_config": {"beklagte": [], "positionen": []},
-                    "overrides": {},
-                },
-            )
+            with self.assertLogs("backend.routers.klage_routes", level="WARNING") as logs:
+                resp = self.client.post(
+                    "/akten/44/22/klage/generieren",
+                    headers=self.headers,
+                    json={
+                        "in_db": False,
+                        "klage_config": {"beklagte": [], "positionen": []},
+                        "overrides": {},
+                    },
+                )
         self.assertEqual(resp.status_code, 422)
         self.assertIn("Kein Kläger ermittelbar", resp.get_json()["fehler"])
+        self.assertTrue(any("Klage-Generierung abgelehnt" in z for z in logs.output))
 
 
 if __name__ == "__main__":
