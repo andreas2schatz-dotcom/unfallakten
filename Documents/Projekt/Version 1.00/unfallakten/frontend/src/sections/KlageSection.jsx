@@ -370,32 +370,6 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     finally { setGLaedt(false); }
   };
 
-  const generieren = async () => {
-    setGenLaedt(true); setFehler("");
-    try {
-      await apiKlage.generieren(akteId, {
-        gericht:               gericht,
-        // Kläger immer mitsenden (kein checked-Filter), Beklagte nur wenn checked
-        beklagte:              beklagte.filter(b => b.rolle_klage === "klaeger" || b.checked),
-        positionen:            positionen,
-        mit_schmerzensgeld:    mitSG,
-        schmerzensgeld_mindest: sgMind,
-        verzugsdatum:          zinsenAb === "verzug" ? (wizardVerzugDatum || verzug) : null,
-        zinsen_ab:             zinsenAb,
-        rvg:                   rvgData,
-        rvg_override:          rvgOverride ? parseFloat(rvgOverride) : null,
-      });
-      setToast("Klageschrift heruntergeladen.");
-      // B-07: Status → klage persistieren
-      try {
-        await apiAkten.aktualisieren(akteId, { status: "klage" });
-        if (dispatch) dispatch({ type: "SET_STATUS", akteId, status: "klage" });
-      } catch { /* Status-Update nicht kritisch */ }
-    } catch (e) {
-      setFehler(e?.message || "Fehler bei der Generierung.");
-    } finally { setGenLaedt(false); }
-  };
-
   // ── Wizard öffnen – State aus DB-Werten initialisieren ────────────────
   const oeffneWizard = () => {
     const al = daten?.aktivlegitimation || {};
@@ -988,27 +962,6 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                     textAlign:"center" }}>
                   🧙 Klage-Wizard
                 </Btn>
-                <Btn onClick={generieren}
-                  title="Veraltet – bitte Wizard verwenden"
-                  disabled={generiert_laedt || !gericht ||
-                    positionen.filter(p => p.checked).length === 0 ||
-                    (() => {
-                      const ohne = beklagte.filter(b =>
-                        b.checked && b.rolle_klage !== "klaeger" &&
-                        (b.versicherung || b.firma) && !b.vertreter_name);
-                      return ohne.length > 0;
-                    })()}
-                  style={{ background:"#9ca3af", color:"white", padding:"13px 8px",
-                    fontSize:"0.9rem", fontWeight:700, borderRadius:9, width:"100%",
-                    textAlign:"center", opacity:0.85 }}>
-                  {generiert_laedt
-                    ? <><div style={{ width:12, height:12,
-                        border:"2px solid rgba(255,255,255,0.3)",
-                        borderTopColor:"white", borderRadius:"50%",
-                        animation:"spin 0.7s linear infinite",
-                        display:"inline-block", marginRight:6 }}/>Wird erstellt …</>
-                    : "⚖ Klageschrift (veraltet)"}
-                </Btn>
               </div>
             </Card>
           </div>{/* end rechte Kachel */}
@@ -1394,30 +1347,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
               disabled={!daten}
               style={{ background:"transparent", color:T.navy,
                 border:`2px solid ${T.navy}`, padding:"12px 20px",
-                fontSize:"0.95rem", fontWeight:600, borderRadius:9,
-                marginRight:10 }}>
+                fontSize:"0.95rem", fontWeight:600, borderRadius:9 }}>
               🧙 Wizard
-            </Btn>
-            <Btn onClick={generieren}
-              title="Veraltet – bitte Wizard verwenden"
-              disabled={generiert_laedt || !gericht || positionen.filter(p=>p.checked).length === 0 || (() => {
-                // Pflicht: Firmen brauchen Vertreter
-                const firmenOhneVertreter = beklagte.filter(b =>
-                  b.checked &&
-                  b.rolle_klage !== "klaeger" &&
-                  (b.versicherung || b.firma) &&  // ist Firma
-                  !b.vertreter_name               // kein Vertreter gesetzt
-                );
-                return firmenOhneVertreter.length > 0;
-              })()}
-              style={{ background:"#9ca3af", color:"white", padding:"12px 28px",
-                fontSize:"1rem", fontWeight:700, borderRadius:9, opacity:0.85 }}>
-              {generiert_laedt
-                ? <><div style={{ width:14, height:14, border:"2px solid rgba(255,255,255,0.3)",
-                    borderTopColor:"white", borderRadius:"50%",
-                    animation:"spin 0.7s linear infinite", display:"inline-block",
-                    marginRight:8 }}/>Wird erstellt …</>
-                : "⚖ Klageschrift generieren (veraltet)"}
             </Btn>
           </div>
         </Card>
