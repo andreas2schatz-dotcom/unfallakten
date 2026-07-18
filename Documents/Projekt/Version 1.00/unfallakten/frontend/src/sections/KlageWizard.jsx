@@ -1456,13 +1456,12 @@ export function buildVerzugAutoText(dokDatum, eintrittDatum) {
   return bDat ? `${basis}\n\nBEWEIS: Schreiben vom ${bDat}` : basis;
 }
 
-function StepVerzug({ zinsenAb, rvgData, rvgOverride, weiblich,
+function StepVerzug({ zinsenAb, weiblich,
                       wizardVerzugDatum, onWizardVerzugDatum,
                       wizardVerzugDokDatum, onWizardVerzugDokDatum,
                       wizardVerzugText, onWizardVerzugText,
                       manuelleBearbeitung, onManuelleBearbeitung,
                       verzugDokListe, verzugDokId, onVerzugDokId }) {
-  const rvgGesamt     = rvgOverride ? parseFloat(rvgOverride) : (rvgData?.gesamt || 0);
   const pickerEinRef  = useRef(null);
   const pickerDokRef  = useRef(null);
 
@@ -1619,7 +1618,6 @@ function StepVerzug({ zinsenAb, rvgData, rvgOverride, weiblich,
             <div>Zinsen ab: <span style={{ fontFamily: MONO, color: T.navy }}>
               {zinsenAb === "verzug" ? "Verzugseintritt" : "Rechtshängigkeit"}
             </span></div>
-            <div>RVG: <span style={{ fontFamily: MONO, color: T.navy }}>{fmtEuro(rvgGesamt)}</span></div>
           </div>
         </div>
 
@@ -1644,7 +1642,6 @@ function StepVerzug({ zinsenAb, rvgData, rvgOverride, weiblich,
 // ── Step 10: Zusammenfassung + Generieren ──────────────────────────────────────
 
 export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMind,
-                               rvgData, rvgOverride,
                                rvgAussergData, rvgAussergOv,
                                aktLegTyp, aktLegFreigabe,
                                zinsenAb, wizardVerzugDatum,
@@ -1652,7 +1649,6 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
                                lgGrenzwert, swAusserg, antraegeText,
                                hq = 100, hqTyp = "gegnerisch" }) {
   const klagebetrag  = berechneKlagebetrag(positionen, hq, hqTyp);
-  const rvgGesamt    = rvgOverride    ? parseFloat(rvgOverride)    : (rvgData?.gesamt        || 0);
   const rvgAussGes   = rvgAussergOv   ? parseFloat(rvgAussergOv)   : (rvgAussergData?.gesamt || 0);
   const swGerichtlich = klagebetrag + (mitSG && sgMind > 0 ? sgMind : 0);
   const istAmtsgericht = gericht && /amtsgericht/i.test(gericht.name || "");
@@ -1711,8 +1707,9 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
             ? `${aktLegLabel} – ⚠ ungeklärt`
             : `${aktLegLabel}${aktLegTyp !== "eigentum" ? ` · ${freigabeLabel}` : ""}`}
           warn={aktLegFreigabe === "ungeklaert"} />
-        <ZeileZusammenfassung icon="💶" label={`RVG gerichtlich (SW: ${fmtEuro(swGerichtlich)})`} wert={fmtEuro(rvgGesamt)} />
-        <ZeileZusammenfassung icon="💶" label={`RVG außergerichtlich (SW: ${fmtEuro(swAusserg || 0)})`}
+        <ZeileZusammenfassung icon="⚖" label="Gerichtlicher Streitwert (Gegenstandswert)"
+          wert={fmtEuro(swGerichtlich)} />
+        <ZeileZusammenfassung icon="💶" label={`Nr. 2300 VV RVG außergerichtlich (SW: ${fmtEuro(swAusserg || 0)})`}
           wert={rvgAussGes > 0 ? fmtEuro(rvgAussGes) : "–"} warn={rvgAussGes === 0} />
       </div>
 
@@ -2401,7 +2398,7 @@ export default function KlageWizard({
   gespeichertGb, onGespeichertGb,
   wizardAkteId,
   // Shared
-  beklagte, rvgData, rvgOverride, zinsenAb,
+  beklagte, zinsenAb,
   lgGrenzwert,
   // Generieren
   laedt, onGenerieren, fehler,
@@ -2567,7 +2564,6 @@ export default function KlageWizard({
             {step === 8 && (
               <StepVerzug
                 zinsenAb={zinsenAb}
-                rvgData={rvgData}               rvgOverride={rvgOverride}
                 weiblich={weiblich}
                 wizardVerzugDatum={wizardVerzugDatum}
                 onWizardVerzugDatum={onWizardVerzugDatum}
@@ -2601,7 +2597,6 @@ export default function KlageWizard({
               <StepZusammenfassung
                 gericht={gericht}           beklagte={beklagte}
                 positionen={positionen}     mitSG={mitSG}          sgMind={sgMind}
-                rvgData={rvgData}           rvgOverride={rvgOverride}
                 rvgAussergData={wizardRvgAussergData} rvgAussergOv={wizardRvgAussergOv}
                 aktLegTyp={aktLegTyp}       aktLegFreigabe={aktLegFreigabe}
                 zinsenAb={zinsenAb}         wizardVerzugDatum={wizardVerzugDatum}

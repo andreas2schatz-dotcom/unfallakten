@@ -8,8 +8,6 @@ const BASIS_PROPS = {
   positionen: [{ key: "fahrzeugschaden", label: "Fahrzeugschaden", betrag: 1000, checked: true }],
   mitSG: false,
   sgMind: 0,
-  rvgData: null,
-  rvgOverride: null,
   rvgAussergData: null,
   rvgAussergOv: null,
   aktLegTyp: "eigentum",
@@ -70,5 +68,14 @@ describe("StepZusammenfassung – KW-19 Generieren-Sperre bei 0 Beklagten", () =
 
     expect(screen.getByText(/Keine Beklagten ausgewählt/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Als Word generieren/i })).toBeDisabled();
+  });
+});
+
+describe("StepZusammenfassung – KW-13 RVG-gerichtlich-Duplikat entfernt", () => {
+  it("zeigt gerichtlichen Streitwert als Zahl statt 'RVG gerichtlich'", () => {
+    render(<StepZusammenfassung {...BASIS_PROPS} />);
+    expect(screen.queryByText(/RVG gerichtlich/)).toBeNull();
+    expect(screen.getByText(/Gerichtlicher Streitwert/)).toBeTruthy();
+    expect(screen.getByText(/RVG außergerichtlich/)).toBeTruthy();
   });
 });

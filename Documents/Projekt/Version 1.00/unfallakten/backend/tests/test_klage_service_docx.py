@@ -756,5 +756,18 @@ class TestKW35RvgAnlagedatumFallback(unittest.TestCase):
         self.assertNotIn(neu_str, xml)
 
 
+class TestKW13RvgOverrideEntfernt(unittest.TestCase):
+    def test_rvg_override_wird_ignoriert_rvg_ausserg_gilt(self):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 700.0)])
+        akte_daten["klage_config"]["rvg_override"] = 9999.99
+        akte_daten["klage_config"]["rvg_ausserg"] = {"gesamt": 159.94, "streitwert": 700.0,
+                                                     "faktor": 1.3, "gebuehr_netto": 114.4,
+                                                     "post_pauschale": 20.0, "zwischen_netto": 134.4,
+                                                     "ust": 25.54}
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+        self.assertNotIn("9.999,99", xml)
+        self.assertIn("159,94", xml)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -162,7 +162,6 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [zinsenAb, setZinsenAb]       = useState("verzug");
   const [verzugDokListe, setVerzugDokListe] = useState([]);
   const [verzugDokId, setVerzugDokId]       = useState(null);
-  const [rvgOverride, setRvgOv] = useState("");
   const [rvgData, setRvgData]   = useState(null);
 
   // ── Wizard-State (PRD-24) ──────────────────────────────────────────────
@@ -519,8 +518,6 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         verzugsdatum:           zinsenAb === "verzug" ? (wizardVerzugDatum || null) : null,
         verzug_schreiben_datum: wizardVerzugDokDatum || null,
         zinsen_ab:              zinsenAb,
-        rvg:                    rvgData,
-        rvg_override:           rvgOverride ? parseFloat(rvgOverride) : null,
         haftungsquote:          wizardHq,
         haftungsquote_typ:      wizardHqTyp,
       }, overrides);
@@ -535,7 +532,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     } finally { setGenLaedt(false); }
   };
 
-  const rvgGesamt = rvgOverride ? parseFloat(rvgOverride) : (rvgData?.gesamt || 0);
+  const rvgGesamt = (wizardRvgAussergData?.gesamt ?? rvgData?.gesamt) || 0;
 
   const inS = { padding:"6px 10px", border:`1px solid ${T.border}`, borderRadius:7,
     fontFamily:"ui-monospace,monospace", fontSize:"0.915rem", outline:"none",
@@ -612,8 +609,6 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           wizardAkteId={akteId}
           // Shared
           beklagte={beklagte}
-          rvgData={rvgData}
-          rvgOverride={rvgOverride}
           zinsenAb={zinsenAb}
           lgGrenzwert={lgGrenzwert}
           // Generieren
@@ -1245,7 +1240,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                     { label:"Außergerichtl. Streitwert", val: gesamtAusserg,
                       hint:"Basis für vorgerichtliche RVG-Gebühr" },
                     { label:"Gerichtl. Streitwert", val: swGericht,
-                      hint:"Basis für gerichtliche RVG-Gebühr" },
+                      hint:"Gegenstandswert der Klage (Gebühren folgen im Kostenfestsetzungsverfahren)" },
                   ].map(sw => (
                     <div key={sw.label} style={{ flex:1, background:T.surface,
                       borderRadius:8, padding:"0.6rem 0.9rem",
@@ -1296,17 +1291,6 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                 </div>
               </div>
             )}
-            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-              <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
-                color:T.textMuted, whiteSpace:"nowrap" }}>Manueller Override:</label>
-              <input type="number" min="0" step="0.01"
-                value={rvgOverride}
-                onChange={e => setRvgOv(e.target.value)}
-                placeholder={rvgData ? rvgData.gesamt.toFixed(2) : ""}
-                style={{ ...inS, width:140 }}/>
-              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
-                color:T.textMuted }}>€ (überschreibt Berechnung)</span>
-            </div>
           </div>
         </Card>
 
@@ -1324,7 +1308,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
               <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem",
                 color:"rgba(255,255,255,0.5)", marginTop:2 }}>
                 {mitSG ? `Sachschaden ${fmtEuro(klagebetrag)} + Schmerzensgeld mind. ${fmtEuro(sgMind)}` : ""}
-                {" · "}RVG {fmtEuro(rvgGesamt)} als Nebenforderung
+                {" · "}Nr. 2300 außergerichtl. {fmtEuro(rvgGesamt)} als Nebenforderung
               </div>
               {gericht
                 ? <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem",
