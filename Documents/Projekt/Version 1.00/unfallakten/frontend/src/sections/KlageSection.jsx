@@ -3,7 +3,7 @@ import KlageWizard, { berechneSwAussergEffektiv, buildRwVorschau } from "./Klage
 import { RegulierungsTabelle, TodoSection } from './UebersichtSection.jsx';
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
-import { fmtEuro } from "../config/utils.js";
+import { fmtEuro, fmtDatumDe } from "../config/utils.js";
 import { Card, KlageCardHead, Btn, Toast } from "../components/common.jsx";
 import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
 import {
@@ -480,7 +480,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     if (!wizardVerzugDokDatum) setWizardVerzugDokDatum(verzugDatum);
     if (!wizardVerzugDatum)    setWizardVerzugDatum(verzugDatum);
     setWizardVerzugText(verzugDatum
-      ? `Der Verzug ist nach Ablauf der Zahlungsfrist bzw. dem ernsthaften und endgültigen Verweigern der Leistung am ${verzugDatum} eingetreten.\n\nBEWEIS: Schreiben vom ${verzugDatum}`
+      ? `Der Verzug ist nach Ablauf der Zahlungsfrist bzw. dem ernsthaften und endgültigen Verweigern der Leistung am ${fmtDatumDe(verzugDatum)} eingetreten.\n\nBEWEIS: Schreiben vom ${fmtDatumDe(verzugDatum)}`
       : "Verzug ist mit Rechtshängigkeit eingetreten.");
     setWizardVerzugManuell(false);
 

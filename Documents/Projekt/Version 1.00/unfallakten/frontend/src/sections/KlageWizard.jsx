@@ -17,7 +17,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import T from "../config/theme.js";
-import { fmtEuro } from "../config/utils.js";
+import { fmtEuro, fmtDatumDe } from "../config/utils.js";
 import { apiGebuehren } from "../api.js";
 import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
 
@@ -1449,8 +1449,8 @@ export function StepRw({ hq, onHq, hqTyp = "gegnerisch", onHqTyp, hb, onHb, abre
 // ── Step 6: Verzug & Kosten ────────────────────────────────────────────────────
 
 function buildVerzugAutoText(dokDatum, eintrittDatum) {
-  const vDat = eintrittDatum || dokDatum;
-  const bDat = dokDatum || eintrittDatum;
+  const vDat = fmtDatumDe(eintrittDatum || dokDatum);
+  const bDat = fmtDatumDe(dokDatum || eintrittDatum);
   if (!vDat) return "Verzug ist mit Rechtshängigkeit eingetreten.";
   return `Der Verzug ist nach Ablauf der Zahlungsfrist bzw. dem ernsthaften und endgültigen Verweigern der Leistung am ${vDat} eingetreten.\n\nBEWEIS: Schreiben vom ${bDat}`;
 }
@@ -1571,7 +1571,7 @@ function StepVerzug({ zinsenAb, rvgData, rvgOverride, weiblich,
           </div>
           {wizardVerzugDokDatum && (
             <div style={{ fontFamily: PLEX, fontSize: "0.72rem", color: T.textFaint, marginTop: 3 }}>
-              → BEWEIS: Schreiben vom {wizardVerzugDokDatum}
+              → BEWEIS: Schreiben vom {fmtDatumDe(wizardVerzugDokDatum)}
             </div>
           )}
         </div>
@@ -1704,7 +1704,7 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
         <ZeileZusammenfassung icon="⚖" label="Klagebetrag"
           wert={fmtEuro(klagebetrag + (mitSG && sgMind > 0 ? sgMind : 0))} warn={keinPositionen} />
         <ZeileZusammenfassung icon="⏱" label="Zinsen ab"
-          wert={wizardVerzugDatum ? `Verzugseintritt ${wizardVerzugDatum}` : "Rechtshängigkeit"} />
+          wert={wizardVerzugDatum ? `Verzugseintritt ${fmtDatumDe(wizardVerzugDatum)}` : "Rechtshängigkeit"} />
         <ZeileZusammenfassung icon="🏠" label="Aktivlegitimation"
           wert={aktLegFreigabe === "ungeklaert"
             ? `${aktLegLabel} – ⚠ ungeklärt`
@@ -1902,7 +1902,7 @@ export function baueAntraegeText(opts) {
   const g           = beklagtenGrammatik(beklagte);
   const kl_akk      = weiblich ? "die Klägerin"  : "den Kläger";  // Akkusativ: zahlen an…
   const kl_dat      = weiblich ? "der Klägerin"  : "dem Kläger";  // Dativ: verpflichtet…zu ersetzen
-  const zinsDat     = zinsenAb === "verzug" && verzug ? `seit dem ${verzug}` : "seit Rechtshängigkeit";
+  const zinsDat     = zinsenAb === "verzug" && verzug ? `seit dem ${fmtDatumDe(verzug)}` : "seit Rechtshängigkeit";
   const udStr       = unfalldatum || "TT.MM.JJJJ";
   const fNr         = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 
@@ -1969,7 +1969,7 @@ function StepAntraege({ positionen, mitSG, sgMind, beklagte, weiblich,
                         hq = 100, hqTyp = "gegnerisch" }) {
   const klagebetrag   = berechneKlagebetrag(positionen, hq, hqTyp);
   const sgGesamt      = mitSG && sgMind > 0 ? klagebetrag + sgMind : klagebetrag;
-  const zinsDat       = zinsenAb === "verzug" && verzug ? `seit dem ${verzug}` : "seit Rechtshängigkeit";
+  const zinsDat       = zinsenAb === "verzug" && verzug ? `seit dem ${fmtDatumDe(verzug)}` : "seit Rechtshängigkeit";
   const hatPlatzhalter = antraegeText?.includes(ANTRAEGE_PLACEHOLDER);
 
   function regenerieren() {
@@ -2077,7 +2077,7 @@ export function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
                          gespeichertGb, onGespeichertGb, akteId }) {
   const g            = beklagtenGrammatik(beklagte);
   const kl_akk       = weiblich ? "die Klägerin" : "den Kläger";
-  const zinsDat      = zinsenAb === "verzug" && verzug ? `seit dem ${verzug}` : "seit Rechtshängigkeit";
+  const zinsDat      = zinsenAb === "verzug" && verzug ? `seit dem ${fmtDatumDe(verzug)}` : "seit Rechtshängigkeit";
   const rvgGesamt    = rvgAussergOv ? parseFloat(rvgAussergOv) : (rvgAussergData?.gesamt || 0);
   const bereitsGez   = parseFloat(rvgBereitsGezahlt) || 0;
   const rvgNetto     = Math.max(0, rvgGesamt - bereitsGez);
