@@ -1105,6 +1105,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     # ── Zinsen ───────────────────────────────────────────────────────────────
     zinsen_ab     = cfg.get("zinsen_ab") or "verzug"
     verzugsdatum  = _fmt_datum(cfg.get("verzugsdatum") or "")
+    verzug_schreiben = _fmt_datum(cfg.get("verzug_schreiben_datum") or "") or verzugsdatum
     zins_sachsch  = f"dem {verzugsdatum}" if zinsen_ab == "verzug" and verzugsdatum else "Rechtshängigkeit"
     zins_rvg      = "Rechtshängigkeit"
 
@@ -1748,7 +1749,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
                 f"Der Verzug ist nach Ablauf der Zahlungsfrist bzw. dem ernsthaften "
                 f"und endgültigen Verweigern der Leistung am {verzugsdatum} eingetreten."
             )
-            verzug_xml += _beweis(f"Schreiben vom {verzugsdatum}")
+            verzug_xml += _beweis(f"Schreiben vom {verzug_schreiben}")
         else:
             verzug_xml = _p("Verzug ist mit Rechtshängigkeit eingetreten.")
         verzug_xml += _lz()

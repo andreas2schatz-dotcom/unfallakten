@@ -719,6 +719,25 @@ class TestKW09VerzugsdatumFormat(unittest.TestCase):
         self.assertIn("Verzug ist mit Rechtshängigkeit eingetreten.", xml)
 
 
+class TestKW10SchreibdatumGetrennt(unittest.TestCase):
+    def test_beweis_nutzt_schreibdatum_eintritt_bleibt_verzugsdatum(self):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 700.0)])
+        akte_daten["klage_config"]["zinsen_ab"] = "verzug"
+        akte_daten["klage_config"]["verzugsdatum"] = "2026-05-19"
+        akte_daten["klage_config"]["verzug_schreiben_datum"] = "2026-05-04"
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+        self.assertIn("am 19.05.2026 eingetreten", xml)
+        self.assertIn("Schreiben vom 04.05.2026", xml)
+        self.assertNotIn("Schreiben vom 19.05.2026", xml)
+
+    def test_ohne_schreiben_datum_faellt_beweis_auf_verzugsdatum_zurueck(self):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 700.0)])
+        akte_daten["klage_config"]["zinsen_ab"] = "verzug"
+        akte_daten["klage_config"]["verzugsdatum"] = "2026-05-19"
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+        self.assertIn("Schreiben vom 19.05.2026", xml)
+
+
 class TestKW35RvgAnlagedatumFallback(unittest.TestCase):
     def test_fallback_nutzt_rvg_anlagedatum_statt_erstellt_am(self):
         # Akte 2024 angelegt (alter RVG-Tarif), aber erst 2026 in SQLite importiert.

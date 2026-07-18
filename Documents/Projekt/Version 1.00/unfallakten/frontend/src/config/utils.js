@@ -32,4 +32,13 @@ function fmtDatumDe(iso) {
 }
 
 
-export { fmtEuro, fmtSize, fmtDatumDe };
+// KW-10: Vorbelegung Verzugseintritt = Schreibdatum + 14 Tage (Kanzlei-Standardfrist)
+function verzugEintrittDefault(schreibDatum) {
+  const de = fmtDatumDe(schreibDatum);
+  const m = de.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!m) return "";
+  const d = new Date(Date.UTC(+m[3], +m[2] - 1, +m[1] + 14));
+  return `${String(d.getUTCDate()).padStart(2, "0")}.${String(d.getUTCMonth() + 1).padStart(2, "0")}.${d.getUTCFullYear()}`;
+}
+
+export { fmtEuro, fmtSize, fmtDatumDe, verzugEintrittDefault };

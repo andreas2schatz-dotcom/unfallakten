@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import KlageWizard, { berechneSwAussergEffektiv, buildRwVorschau } from "./KlageWizard.jsx";
+import KlageWizard, { berechneSwAussergEffektiv, buildRwVorschau, buildVerzugAutoText } from "./KlageWizard.jsx";
 import { RegulierungsTabelle, TodoSection } from './UebersichtSection.jsx';
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
-import { fmtEuro, fmtDatumDe } from "../config/utils.js";
+import { fmtEuro, verzugEintrittDefault } from "../config/utils.js";
 import { Card, KlageCardHead, Btn, Toast } from "../components/common.jsx";
 import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
 import {
@@ -160,7 +160,6 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [sgMind, setSGMind]     = useState(0);
   const [showSgAssistent, setShowSgAssistent] = useState(false);
   const [zinsenAb, setZinsenAb]       = useState("verzug");
-  const [verzug, setVerzug]           = useState("");
   const [verzugDokListe, setVerzugDokListe] = useState([]);
   const [verzugDokId, setVerzugDokId]       = useState(null);
   const [rvgOverride, setRvgOv] = useState("");
@@ -212,9 +211,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           checked: !!b.vorschlag_beklagter,
         })));
         const initVerzug = res.verzug_datum || "";
-        setVerzug(initVerzug);
         setWizardVerzugDokDatum(initVerzug);
-        setWizardVerzugDatum(initVerzug);
+        setWizardVerzugDatum(verzugEintrittDefault(initVerzug));
         const vdl = res.verzug_dokumente || [];
         setVerzugDokListe(vdl);
         // Vorauswahl: mahnschreiben/verzugsschreiben bevorzugen
@@ -449,13 +447,9 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setWizardHb(hb);
     setWizardRwText(buildRwVorschau(hb, hq, gesReg, weiblich, "gegnerisch", beklagte));
 
-    // Verzug-States nur initialisieren wenn noch leer (Kachel 5 könnte sie bereits befüllt haben)
-    const verzugDatum = wizardVerzugDatum || wizardVerzugDokDatum || verzug || "";
-    if (!wizardVerzugDokDatum) setWizardVerzugDokDatum(verzugDatum);
-    if (!wizardVerzugDatum)    setWizardVerzugDatum(verzugDatum);
-    setWizardVerzugText(verzugDatum
-      ? `Der Verzug ist nach Ablauf der Zahlungsfrist bzw. dem ernsthaften und endgültigen Verweigern der Leistung am ${fmtDatumDe(verzugDatum)} eingetreten.\n\nBEWEIS: Schreiben vom ${fmtDatumDe(verzugDatum)}`
-      : "Verzug ist mit Rechtshängigkeit eingetreten.");
+    const dok = wizardVerzugDokDatum || "";
+    const ein = wizardVerzugDatum || "";
+    setWizardVerzugText(buildVerzugAutoText(dok, ein));
     setWizardVerzugManuell(false);
 
     // PRD-26: neue States initialisieren
@@ -522,7 +516,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         positionen:             wizardPos,
         mit_schmerzensgeld:     wizardMitSG,
         schmerzensgeld_mindest: wizardMitSG ? wizardSGMind : 0,
-        verzugsdatum:           zinsenAb === "verzug" ? verzug : null,
+        verzugsdatum:           zinsenAb === "verzug" ? (wizardVerzugDatum || null) : null,
+        verzug_schreiben_datum: wizardVerzugDokDatum || null,
         zinsen_ab:              zinsenAb,
         rvg:                    rvgData,
         rvg_override:           rvgOverride ? parseFloat(rvgOverride) : null,
@@ -620,7 +615,6 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           rvgData={rvgData}
           rvgOverride={rvgOverride}
           zinsenAb={zinsenAb}
-          verzug={verzug}
           lgGrenzwert={lgGrenzwert}
           // Generieren
           laedt={generiert_laedt}
@@ -1204,8 +1198,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
               {/* Zwei Datumsfelder */}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                 {[
-                  { label:"Datum des Schreibens", val:wizardVerzugDokDatum, set: v => { setWizardVerzugDokDatum(v); setVerzug(v); } },
-                  { label:"Datum Verzugseintritt", val:wizardVerzugDatum,    set: v => { setWizardVerzugDatum(v);    setVerzug(v); } },
+                  { label:"Datum des Schreibens", val:wizardVerzugDokDatum, set: v => setWizardVerzugDokDatum(v) },
+                  { label:"Datum Verzugseintritt", val:wizardVerzugDatum,    set: v => setWizardVerzugDatum(v) },
                 ].map(({ label, val, set }) => {
                   const iso = (() => {
                     if (!val) return "";

@@ -1448,11 +1448,12 @@ export function StepRw({ hq, onHq, hqTyp = "gegnerisch", onHqTyp, hb, onHb, abre
 
 // ── Step 6: Verzug & Kosten ────────────────────────────────────────────────────
 
-function buildVerzugAutoText(dokDatum, eintrittDatum) {
-  const vDat = fmtDatumDe(eintrittDatum || dokDatum);
-  const bDat = fmtDatumDe(dokDatum || eintrittDatum);
+export function buildVerzugAutoText(dokDatum, eintrittDatum) {
+  const vDat = fmtDatumDe(eintrittDatum);
+  const bDat = fmtDatumDe(dokDatum);
   if (!vDat) return "Verzug ist mit Rechtshängigkeit eingetreten.";
-  return `Der Verzug ist nach Ablauf der Zahlungsfrist bzw. dem ernsthaften und endgültigen Verweigern der Leistung am ${vDat} eingetreten.\n\nBEWEIS: Schreiben vom ${bDat}`;
+  const basis = `Der Verzug ist nach Ablauf der Zahlungsfrist bzw. dem ernsthaften und endgültigen Verweigern der Leistung am ${vDat} eingetreten.`;
+  return bDat ? `${basis}\n\nBEWEIS: Schreiben vom ${bDat}` : basis;
 }
 
 function StepVerzug({ zinsenAb, rvgData, rvgOverride, weiblich,
@@ -2400,7 +2401,7 @@ export default function KlageWizard({
   gespeichertGb, onGespeichertGb,
   wizardAkteId,
   // Shared
-  beklagte, rvgData, rvgOverride, zinsenAb, verzug,
+  beklagte, rvgData, rvgOverride, zinsenAb,
   lgGrenzwert,
   // Generieren
   laedt, onGenerieren, fehler,
@@ -2540,7 +2541,7 @@ export default function KlageWizard({
               <StepAntraege
                 positionen={positionen}   mitSG={mitSG}   sgMind={sgMind}
                 beklagte={beklagte}       weiblich={weiblich}
-                zinsenAb={zinsenAb}       verzug={wizardVerzugDatum || verzug}
+                zinsenAb={zinsenAb}       verzug={wizardVerzugDatum}
                 unfalldatum={unfalldatum}
                 mitFestSg={wizardMitFestSg}   onMitFestSg={onMitFestSg}
                 mitFestSach={wizardMitFestSach} onMitFestSach={onMitFestSach}
@@ -2589,7 +2590,7 @@ export default function KlageWizard({
                 rvgBereitsGezahlt={wizardRvgBereitsGezahlt} onRvgBereitsGezahlt={onRvgBereitsGezahlt}
                 gebuehrenText={wizardGebuehrenText}   onGebuehrenText={onGebuehrenText}
                 beklagte={beklagte}                   weiblich={weiblich}
-                zinsenAb={zinsenAb}                   verzug={verzug}
+                zinsenAb={zinsenAb}                   verzug={wizardVerzugDatum}
                 antraegeText={wizardAntraegeText}     onAntraegeText={onAntraegeText}
                 gespeichertGb={gespeichertGb}         onGespeichertGb={onGespeichertGb}
                 akteId={wizardAkteId}
