@@ -1104,7 +1104,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
 
     # ── Zinsen ───────────────────────────────────────────────────────────────
     zinsen_ab     = cfg.get("zinsen_ab") or "verzug"
-    verzugsdatum  = cfg.get("verzugsdatum") or ""
+    verzugsdatum  = _fmt_datum(cfg.get("verzugsdatum") or "")
     zins_sachsch  = f"dem {verzugsdatum}" if zinsen_ab == "verzug" and verzugsdatum else "Rechtshängigkeit"
     zins_rvg      = "Rechtshängigkeit"
 

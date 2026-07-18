@@ -693,5 +693,31 @@ class TestKW18KlaegerFallback(unittest.TestCase):
             generiere_klageschrift(akte_daten)
 
 
+class TestKW09VerzugsdatumFormat(unittest.TestCase):
+    def _akte_mit_verzug(self, verzugsdatum):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 700.0)])
+        akte_daten["klage_config"]["zinsen_ab"] = "verzug"
+        akte_daten["klage_config"]["verzugsdatum"] = verzugsdatum
+        return akte_daten
+
+    def test_iso_datum_erscheint_deutsch_in_antrag_und_verzugsabschnitt(self):
+        xml = _document_xml(generiere_klageschrift(self._akte_mit_verzug("2026-05-04")))
+        self.assertNotIn("2026-05-04", xml)
+        self.assertIn("seit dem 04.05.2026 zu zahlen", xml)
+        self.assertIn("am 04.05.2026 eingetreten", xml)
+        self.assertIn("Schreiben vom 04.05.2026", xml)
+
+    def test_deutsches_datum_bleibt_unveraendert(self):
+        xml = _document_xml(generiere_klageschrift(self._akte_mit_verzug("04.05.2026")))
+        self.assertIn("seit dem 04.05.2026 zu zahlen", xml)
+
+    def test_ohne_verzugsdatum_bleibt_rechtshaengigkeit(self):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 700.0)])
+        akte_daten["klage_config"]["zinsen_ab"] = "verzug"
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+        self.assertIn("seit Rechtshängigkeit zu zahlen", xml)
+        self.assertIn("Verzug ist mit Rechtshängigkeit eingetreten.", xml)
+
+
 if __name__ == "__main__":
     unittest.main()
