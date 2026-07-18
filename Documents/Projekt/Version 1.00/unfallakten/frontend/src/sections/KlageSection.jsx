@@ -14,6 +14,15 @@ import {
   beteiligte as apiBeteiligte,
 } from "../api.js";
 
+export function sollAutoLookup(b, lookupCache) {
+  if (b.rolle_klage === "klaeger") return false;
+  if (b.vertreter_name) return false;
+  const istFirma = !!(b.versicherung || b.firma || (!b.vorname && b.name && b.rolle !== "mandant"));
+  if (!istFirma) return false;
+  if (lookupCache[b.id]) return false;
+  return true;
+}
+
 export function verzugDatenAusDok(dok) {
   const datum = dok?.datum || (dok?.hochgeladen_am ? String(dok.hochgeladen_am).slice(0, 10) : null);
   if (!datum) return null;
@@ -268,15 +277,10 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   useEffect(() => {
     if (!beklagte.length) return;
     beklagte.forEach(b => {
-      if (b.rolle_klage === "klaeger") return;
-      if (b.vertreter_name) return;
+      if (!sollAutoLookup(b, vertreterLookup)) return;
       const name = b.versicherung || b.firma ||
         (String(b.vorname || "") + " " + String(b.name || "")).trim();
-      const istFirma = !!(b.versicherung || b.firma ||
-        (!b.vorname && b.name && b.rolle !== "mandant"));
-      if (!istFirma) return;
-      if (vertreterLookup[b.id]?.laden) return;
-      lookupVertreter(b.id, name);
+      lookupVertreter(b.id, name, { oeffneModal: false });
     });
   }, [beklagte]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -367,12 +371,14 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     } catch { /* nicht kritisch */ }
   };
 
-  const lookupVertreter = async (id, firmenname) => {
+  const lookupVertreter = async (id, firmenname, { oeffneModal = true } = {}) => {
+    const cached = vertreterLookup[id]?.ergebnis;
+    if (cached && oeffneModal) { setVModal({id, name: firmenname, daten: cached}); return; }
     setVLookup(p => ({...p, [id]: {laden: true, ergebnis: null}}));
     try {
       const res = await apiFirmen.vertreter(firmenname);
       setVLookup(p => ({...p, [id]: {laden: false, ergebnis: res}}));
-      setVModal({id, name: firmenname, daten: res});
+      if (oeffneModal) setVModal({id, name: firmenname, daten: res});
     } catch(e) {
       setVLookup(p => ({...p, [id]: {laden: false, ergebnis: null}}));
       const msg = e?.status ? `HTTP ${e.status}: ${e.message}` : (e?.message || String(e));
