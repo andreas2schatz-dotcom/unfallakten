@@ -174,6 +174,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [wizardMitSG, setWizardMitSG]         = useState(false);
   const [wizardSGMind, setWizardSGMind]       = useState(0);
   const [wizardSachverhaltText, setWizardSachverhaltText] = useState("");
+  const [wizardSachverhaltManuell, setWizardSachverhaltManuell] = useState(false);
   const [auslandsunfall, setAuslandsunfall] = useState(false);
   const [wizardUnfallText, setWizardUnfallText] = useState("");
   const [wizardRwText, setWizardRwText]         = useState("");
@@ -419,6 +420,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setWizardMitSG(mitSG);
     setWizardSGMind(sgMind);
     setWizardSachverhaltText("");
+    setWizardSachverhaltManuell(false);
     setAuslandsunfall(false);
 
     // ── Unfallhergang: Schilderung laden + Mandant→Kläger ersetzen ──
@@ -566,6 +568,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           mandantKz={daten?.unfalldetails?._wdm_mandant_kz || ""}
           sachverhaltText={wizardSachverhaltText}
           onSachverhaltText={setWizardSachverhaltText}
+          sachverhaltManuell={wizardSachverhaltManuell}
+          onSachverhaltManuell={setWizardSachverhaltManuell}
           auslandsunfall={auslandsunfall}
           onAuslandsunfall={setAuslandsunfall}
           mandantVorsteuer={beklagte.find(b => b.rolle_klage === "klaeger")?.vorsteuer === "J"}

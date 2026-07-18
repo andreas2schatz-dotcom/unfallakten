@@ -585,7 +585,7 @@ function StepRubrum({ beklagte, onClose }) {
 
 // ── Step 3: Aktivlegitimation / Sachverhalt ────────────────────────────────────
 
-function StepAktLeg({
+export function StepAktLeg({
   aktLegTyp, onAktLegTyp, aktLegFreigabe, onAktLegFreigabe,
   aktLegDatum, onAktLegDatum, mandantIstFahrer, mandantKz,
   klaeger,
@@ -593,24 +593,28 @@ function StepAktLeg({
   vorsteuer, unfalldatum, unfallort, beklagte,
   auslandsunfall, onAuslandsunfall,
   sachverhaltText, onSachverhaltText,
+  sachverhaltManuell, onSachverhaltManuell,
 }) {
   const brauchtFreigabe = aktLegTyp !== "eigentum";
 
-  const prevAutoRef = useRef(null);
-
-  useEffect(() => {
-    const newAuto = buildSachverhaltText({
+  function buildAuto() {
+    return buildSachverhaltText({
       klaeger, vorsteuer, unfalldatum, unfallort,
       beklagte,
       aktLegTyp, aktLegFreigabe, aktLegDatum, mandantKz, mandantIstFahrer,
       auslandsunfall,
     });
-    // nur überschreiben wenn Text noch nicht manuell bearbeitet wurde
-    if (prevAutoRef.current === null || sachverhaltText === prevAutoRef.current) {
-      if (onSachverhaltText) onSachverhaltText(newAuto);
-    }
-    prevAutoRef.current = newAuto;
+  }
+
+  useEffect(() => {
+    if (sachverhaltManuell) return;
+    if (onSachverhaltText) onSachverhaltText(buildAuto());
   }, [aktLegTyp, aktLegFreigabe, aktLegDatum, mandantIstFahrer, auslandsunfall]); // eslint-disable-line
+
+  function handleReset() {
+    onSachverhaltManuell(false);
+    if (onSachverhaltText) onSachverhaltText(buildAuto());
+  }
 
   return (
     <div style={{ display: "flex", gap: "1.5rem", alignItems: "stretch" }}>
@@ -690,12 +694,24 @@ function StepAktLeg({
             Auslandsunfall (Zuständigkeitstext einfügen)
           </label>
         </div>
+
+        <button
+          onClick={handleReset}
+          style={{
+            padding: "9px 12px", borderRadius: 8, cursor: "pointer",
+            border: `1.5px solid ${T.navy}`, background: `${T.navy}08`,
+            fontFamily: PLEX, fontSize: "0.85rem", fontWeight: 600, color: T.navy,
+            marginTop: "1.5rem",
+          }}
+        >
+          ↻ Neu generieren
+        </button>
       </div>
 
       <DokumentCard
         warnung={brauchtFreigabe && aktLegFreigabe === "ungeklaert"}
         editText={sachverhaltText}
-        onEditText={onSachverhaltText}
+        onEditText={val => { onSachverhaltManuell(true); onSachverhaltText(val); }}
       />
     </div>
   );
@@ -2379,6 +2395,7 @@ export default function KlageWizard({
   aktLegTyp, onAktLegTyp, aktLegFreigabe, onAktLegFreigabe,
   aktLegDatum, onAktLegDatum, mandantIstFahrer, mandantKz,
   sachverhaltText, onSachverhaltText,
+  sachverhaltManuell, onSachverhaltManuell,
   auslandsunfall, onAuslandsunfall,
   mandantVorsteuer,
   unfallort,
@@ -2515,6 +2532,8 @@ export default function KlageWizard({
                 klaeger={klaeger}
                 sachverhaltText={sachverhaltText}
                 onSachverhaltText={onSachverhaltText}
+                sachverhaltManuell={sachverhaltManuell}
+                onSachverhaltManuell={onSachverhaltManuell}
                 vorsteuer={mandantVorsteuer}
                 unfalldatum={unfalldatum}
                 unfallort={unfallort}
