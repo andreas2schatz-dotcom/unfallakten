@@ -756,6 +756,39 @@ class TestKW35RvgAnlagedatumFallback(unittest.TestCase):
         self.assertNotIn(neu_str, xml)
 
 
+class TestKW12AnlagenNummern(unittest.TestCase):
+    def _mit_aktivleg(self, akte_daten, typ="finanziert", freigabe="freigabe"):
+        akte_daten["unfalldetails"]["aktivlegitimation_typ"] = typ
+        akte_daten["unfalldetails"]["aktivlegitimation_freigabe"] = freigabe
+        akte_daten["unfalldetails"]["aktivlegitimation_datum"] = "01.03.2026"
+        return akte_daten
+
+    def test_eigentum_gutachten_k1_sg_k2(self):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 700.0)],
+                                  mit_schmerzensgeld=True, schmerzensgeld_mindest=1000.0)
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+        self.assertIn("Schadengutachten (Anlage K 1)", xml)
+        self.assertIn("(Anlage K 2)", xml)          # Atteste
+        self.assertNotIn("Anlage K 3", xml)
+
+    def test_finanziert_freigabe_k1_gutachten_k2_sg_k3(self):
+        akte_daten = self._mit_aktivleg(
+            _akte_daten([_position("wertminderung", "Wertminderung", 700.0)],
+                        mit_schmerzensgeld=True, schmerzensgeld_mindest=1000.0))
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+        self.assertIn("Freigabeerklärung vom 01.03.2026, Anlage K 1", xml)
+        self.assertIn("Schadengutachten (Anlage K 2)", xml)
+        self.assertIn("(Anlage K 3)", xml)          # Atteste
+        self.assertNotIn("Anlage K1", xml)          # alte Schreibweise weg
+
+    def test_sachverhalt_override_mit_k1_verschiebt_gutachten_auf_k2(self):
+        akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 700.0)])
+        akte_daten["unfalldetails"]["sachverhalt_override"] = (
+            "Das Fahrzeug ist finanziert.\n\nBEWEIS:\tFreigabeerklärung vom 01.03.2026, Anlage K 1\n")
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+        self.assertIn("Schadengutachten (Anlage K 2)", xml)
+
+
 class TestKW13RvgOverrideEntfernt(unittest.TestCase):
     def test_rvg_override_wird_ignoriert(self):
         akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 700.0)])

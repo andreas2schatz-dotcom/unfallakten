@@ -110,12 +110,12 @@ function buildVorschauText(typ, freigabe, datum, mkz, mandantIstFahrer, klaeger)
     const beweisZusatz = datumStr ? `vom ${datumStr}, ` : "";
     return (
       basis +
-      `der vorliegenden Freigabeerklärung der ${finTyp} aktivlegitimiert, den Schaden im eigenen Namen und auf eigene Rechnung geltend zu machen.\n\nBEWEIS: Freigabeerklärung ${beweisZusatz}Anlage K1`
+      `der vorliegenden Freigabeerklärung der ${finTyp} aktivlegitimiert, den Schaden im eigenen Namen und auf eigene Rechnung geltend zu machen.\n\nBEWEIS: Freigabeerklärung ${beweisZusatz}Anlage K 1`
     );
   }
   return (
     basis +
-    `der ${bedingTyp} aktivlegitimiert, den Schaden im eigenen Namen und auf eigene Rechnung geltend zu machen.\n\nBEWEIS: ${bedingTyp} in Kopie, Anlage K1`
+    `der ${bedingTyp} aktivlegitimiert, den Schaden im eigenen Namen und auf eigene Rechnung geltend zu machen.\n\nBEWEIS: ${bedingTyp} in Kopie, Anlage K 1`
   );
 }
 

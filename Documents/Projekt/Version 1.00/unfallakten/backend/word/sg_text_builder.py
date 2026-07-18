@@ -39,7 +39,8 @@ def _fmt_datum(s: str) -> str:
 
 
 
-def baue_sg_abschnitt(ps_data: dict, kl_nom: str, sg_mind: float, verb_hat: str = "hat"):
+def baue_sg_abschnitt(ps_data: dict, kl_nom: str, sg_mind: float, verb_hat: str = "hat",
+                       anlage_nr: str = "K 2"):
     """
     Baut den Schmerzensgeld-Abschnitt aus den personenschaden-Daten.
 
@@ -48,10 +49,12 @@ def baue_sg_abschnitt(ps_data: dict, kl_nom: str, sg_mind: float, verb_hat: str 
         kl_nom    – Nominativ des Klägers/der Klägerin, z.B. "Die Klägerin"
         sg_mind   – Mindestbetrag in Euro (0 = kein Mindestbetrag)
         verb_hat  – Verbform „hat"/„haben" je nach Numerus (Default „hat")
+        anlage_nr – Anlagen-Nummer fuer die Atteste (KW-12, Default „K 2" haelt
+                    den Forderungsschreiben-Pfad byte-gleich)
 
     Rückgabe: (absaetze: list[str], beweis: str, vgl: str|None)
     """
-    beweis = "BEWEIS: Ärztliche Atteste und Befundberichte (Anlage K 2)"
+    beweis = f"BEWEIS: Ärztliche Atteste und Befundberichte (Anlage {anlage_nr})"
 
     if not ps_data:
         # Fallback ohne Daten

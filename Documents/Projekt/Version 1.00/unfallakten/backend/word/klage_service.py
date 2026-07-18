@@ -417,7 +417,28 @@ def _get_kl_genus_vars(anrede: str) -> dict:
     }
 
 
-def get_aktivlegitimation_text(details: dict, kl_einf: str, anrede: str) -> str:
+_ANLAGE_RE = re.compile(r"Anlage K ?(\d+)")
+
+
+def _max_anlagen_nr(*texte) -> int:
+    """Hoechste in Override-Texten bereits vergebene K-Nummer (0 wenn keine)."""
+    nums = [int(m) for t in texte if t for m in _ANLAGE_RE.findall(t)]
+    return max(nums) if nums else 0
+
+
+class AnlagenZaehler:
+    """Vergibt fortlaufende K-Nummern (KW-12) in Dokumentreihenfolge."""
+
+    def __init__(self, start: int = 0):
+        self._n = start
+
+    def naechste(self) -> str:
+        self._n += 1
+        return f"K {self._n}"
+
+
+def get_aktivlegitimation_text(details: dict, kl_einf: str, anrede: str,
+                                anlage_nr: str = "K 1") -> str:
     """
     Baut den Aktivlegitimations-Absatz für die Klageschrift.
     Gibt leeren String zurück wenn kein Text generiert werden soll (Fall G).
@@ -483,7 +504,7 @@ def get_aktivlegitimation_text(details: dict, kl_einf: str, anrede: str) -> str:
             basis
             + f"der vorliegenden Freigabeerklärung der {fin_typ} aktivlegitimiert, "
             + "den Schaden im eigenen Namen und auf eigene Rechnung geltend zu machen."
-            + f"\n\nBEWEIS:\tFreigabeerklärung vom {datum}, Anlage K1\n"
+            + f"\n\nBEWEIS:\tFreigabeerklärung vom {datum}, Anlage {anlage_nr}\n"
         )
     else:
         # Fall D / F (bedingungen)
@@ -491,7 +512,7 @@ def get_aktivlegitimation_text(details: dict, kl_einf: str, anrede: str) -> str:
             basis
             + f"der {bedingungstyp} aktivlegitimiert, "
             + "den Schaden im eigenen Namen und auf eigene Rechnung geltend zu machen."
-            + f"\n\nBEWEIS:\t{bedingungstyp} in Kopie, Anlage K1\n"
+            + f"\n\nBEWEIS:\t{bedingungstyp} in Kopie, Anlage {anlage_nr}\n"
         )
 
     return text
@@ -790,14 +811,17 @@ def _sachverhalt_override_xml(text):
     return xml
 
 
-def _build_aktivlegitimation_xml(details: dict, kl_einf: str, anrede: str) -> str:
+def _build_aktivlegitimation_xml(details: dict, kl_einf: str, anrede: str,
+                                  anlage_nr: str = "K 1") -> str:
     """
     Wandelt get_aktivlegitimation_text() in OOXML um.
     Behandelt den BEWEIS-Block separat mit _beweis()-Helper.
     Gibt leeren String zurück wenn kein Text (Fall G).
+    anlage_nr wird nur im Auto-Pfad verwendet - bei text_override traegt der
+    Override seinen eigenen Anlagenverweis (wird von _max_anlagen_nr erfasst).
     """
     text_override = details.get("aktivlegitimation_text_override")
-    raw = text_override if text_override else get_aktivlegitimation_text(details, kl_einf, anrede)
+    raw = text_override if text_override else get_aktivlegitimation_text(details, kl_einf, anrede, anlage_nr=anlage_nr)
     if not raw:
         return ""
 
@@ -1372,6 +1396,16 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         antraege_xml += antrag(bek_gram["kosten"], fett=False)
         antraege_xml += _versaeumnis_block
 
+    # ── KW-12: fortlaufende Anlagen-Nummern in Dokumentreihenfolge ─────────
+    # (AktLeg → Schaden-Gutachten → Schmerzensgeld-Atteste); Start-Wert scannt
+    # Override-Texte, die selbst bereits Anlagen-Nummern vergeben.
+    anlagen = AnlagenZaehler(start=_max_anlagen_nr(
+        details.get("sachverhalt_override"),
+        cfg.get("antraege_override"),
+        details.get("rw_text_override"),
+        details.get("verzug_text_override"),
+    ))
+
     # ── {{EINLEITUNG}} ────────────────────────────────────────────────────
     if details.get("sachverhalt_override"):
         # Wizard hat einen kombinierten Sachverhalt-Text übergeben (Einleitung +
@@ -1463,6 +1497,10 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
             einleitung_xml += _p(f"{intro_satz} {beklagte_satz} {eigentuemer_satz}")
             if aktivlegitimation_typ == "eigentum" and not hat_override:
                 aktivleg_xml = ""
+            elif aktivlegitimation_typ in ("finanziert", "geleast") and not hat_override:
+                # Nur der Auto-Pfad erzeugt einen Anlagen-BEWEIS - Nummer verbrauchen.
+                aktivleg_xml = _build_aktivlegitimation_xml(
+                    details, kl_nom, anrede_m, anlage_nr=anlagen.naechste())
             else:
                 aktivleg_xml = _build_aktivlegitimation_xml(details, kl_nom, anrede_m)
 
@@ -1608,7 +1646,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     schaden_xml += _p("Durch den Unfall ist ein Schaden entstanden, der sich wie folgt zusammensetzt:")
     schaden_xml += tabelle_xml
     schaden_xml += _lz()
-    schaden_xml += _beweis("Schadengutachten (Anlage K 1)")
+    schaden_xml += _beweis(f"Schadengutachten (Anlage {anlagen.naechste()})")
     schaden_xml += _lz()
     schaden_xml += _p("Einholung eines gerichtlichen Sachverständigengutachtens.", fett=True)
 
@@ -1718,7 +1756,8 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         sg_xml = _lz() + _p("5.) Schmerzensgeld", fett=True)
         sg_absaetze, sg_beweis, sg_vgl = baue_sg_abschnitt(
             ps_data, kl_nom, sg_mind,
-            verb_hat="haben" if mehrere_klaeger else "hat")
+            verb_hat="haben" if mehrere_klaeger else "hat",
+            anlage_nr=anlagen.naechste())
         for absatz in sg_absaetze:
             sg_xml += _p(absatz)
         if sg_vgl:

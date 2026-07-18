@@ -161,5 +161,11 @@ class TestSgTextBuilderNumerus(unittest.TestCase):
                       "erlitten: HWS-Distorsion.", absaetze[0])
 
 
+class TestKW12SgBuilderDefaultAnlage(unittest.TestCase):
+    def test_kw12_sg_builder_default_anlage_bleibt_k2(self):
+        absaetze, beweis, _vgl = baue_sg_abschnitt(None, "Die Klägerin", 0.0)
+        self.assertTrue(beweis.endswith("(Anlage K 2)"))
+
+
 if __name__ == "__main__":
     unittest.main()
