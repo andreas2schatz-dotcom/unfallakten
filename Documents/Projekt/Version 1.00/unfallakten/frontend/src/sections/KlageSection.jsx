@@ -31,6 +31,19 @@ export function verzugDatenAusDok(dok) {
   return { dokDatum: datum, eintritt };
 }
 
+// KW-27 Nachtrag: Persistenzfehler beim Gericht-Speichern sichtbar machen statt still
+// zu schlucken (z.B. IntegrityError/HTTP 500 bei alter CHECK-Constraint auf beteiligte.rolle
+// ohne 'gericht'). Liefert null bei Erfolg, sonst eine nutzerlesbare Warnmeldung.
+export async function gerichtSpeichernOderWarnen(akteId, gericht) {
+  try {
+    await apiKlage.gerichtSpeichern(akteId, gericht);
+    return null;
+  } catch (e) {
+    const msg = e?.status ? `HTTP ${e.status}: ${e.message}` : (e?.message || String(e));
+    return "Gericht konnte nicht in der Akte gespeichert werden – Auswahl gilt nur für diese Sitzung (" + msg + ").";
+  }
+}
+
 function vertretungsHinweis(name) {
   const n = (name || "").toUpperCase();
   if (/(GMBH|GBR|\bKG\b|OHG)/.test(n)) return "– vertreten durch den/die Geschäftsführer –";
@@ -503,7 +516,9 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   // ── Gericht bestätigen + in Akte speichern + Wizard weiterschalten ────
   const gerichtBestaetigenUndWeiter = () => {
     if (gericht) {
-      apiKlage.gerichtSpeichern(akteId, gericht).catch(() => {});
+      gerichtSpeichernOderWarnen(akteId, gericht).then(warnung => {
+        if (warnung) setToast(warnung);
+      });
     }
     setWizardGerichtBest(true);
     const next = wizardStep + 1;
