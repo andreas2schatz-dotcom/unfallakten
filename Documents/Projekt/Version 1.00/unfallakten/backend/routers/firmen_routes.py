@@ -196,6 +196,62 @@ def _extrahiere_vertreter(seiten_html, erwartete_funktion):
     return ergebnis[:5]
 
 
+_FIRMEN_SUFFIX = re.compile(
+    r"[A-Z\xc4\xd6\xdc][A-Za-z\xc4\xd6\xdc\xe4\xf6\xfc\xdf\-\.&\s]{2,60}?"
+    r"\b(AG|SE|GmbH|KGaA|e\.\s?V\.)\b")
+
+
+def _extrahiere_vertreter_fuer_firma(seiten_html, firmenname,
+                                     erwartete_funktion, fenster=600):
+    """
+    Blockbezogene Extraktion fuer Sammel-Impressen (mehrere Gesellschaften auf
+    einer Seite, z.B. adac.de): gelesen wird nur das Textfenster direkt hinter
+    jedem Vorkommen des gesuchten Firmennamens, abgeschnitten am naechsten
+    fremden Gesellschaftsnamen — sonst kommen die Organe der Schwester-
+    gesellschaften mit.
+    """
+    if not seiten_html:
+        return []
+    tokens = [re.escape(t) for t in re.split(r"\W+", firmenname or "") if t]
+    if not tokens:
+        return []
+    plain = re.sub(r"\s+", " ",
+            re.sub(r"<[^>]+>", " ", html_mod.unescape(seiten_html)))
+    firmen_re = re.compile(r"\W+".join(tokens), re.IGNORECASE)
+    ergebnis, seen = [], set()
+    for m in firmen_re.finditer(plain):
+        block = plain[m.end(): m.end() + fenster]
+        cut = _FIRMEN_SUFFIX.search(block)
+        if cut:
+            block = block[:cut.start()]
+        for t in _extrahiere_vertreter(block, erwartete_funktion):
+            if t["name"].lower() not in seen:
+                seen.add(t["name"].lower())
+                ergebnis.append(t)
+    return ergebnis[:5]
+
+
+def _normalisiere_firmentext(t):
+    return re.sub(
+        r"\s+", " ",
+        re.sub(r"[^a-z0-9\xe4\xf6\xfc\xdf ]", " ", (t or "").lower())
+    ).strip()
+
+
+def _seite_passt_zur_firma(seiten_html, firmenname):
+    """
+    True nur, wenn die Seite den vollen Firmennamen nennt. Ohne diesen Check
+    liefert die Websuche das Impressum der falschen Firma (z.B. ADAC e.V.
+    statt ADAC Autoversicherung AG) und deren Organe werden uebernommen.
+    """
+    firma = _normalisiere_firmentext(firmenname)
+    if not seiten_html or not firma:
+        return False
+    plain = re.sub(r"\s+", " ",
+            re.sub(r"<[^>]+>", " ", html_mod.unescape(seiten_html)))
+    return firma in _normalisiere_firmentext(plain)
+
+
 def _impressum_vertreter(firmenname, erwartete_funktion=""):
     """Sucht Vertretungsberechtigte im Impressum der Firmenwebseite."""
     q = urllib.parse.quote(firmenname + " Impressum")
@@ -224,11 +280,14 @@ def _impressum_vertreter(firmenname, erwartete_funktion=""):
                 impressum_urls.append(base.group(1) + "/impressum")
     impressum_urls = list(dict.fromkeys(impressum_urls))  # deduplizieren
 
-    for url in impressum_urls[:4]:
+    for url in impressum_urls[:6]:
         html2 = _fetch(url)
         if not html2:
             continue
-        result = _extrahiere_vertreter(html2, erwartete_funktion)
+        if not _seite_passt_zur_firma(html2, firmenname):
+            continue
+        result = _extrahiere_vertreter_fuer_firma(
+            html2, firmenname, erwartete_funktion)
         if result:
             return result
     return []
