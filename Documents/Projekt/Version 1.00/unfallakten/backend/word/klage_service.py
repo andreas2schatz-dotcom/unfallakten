@@ -23,7 +23,6 @@ import logging
 import math
 import os
 import re
-import zipfile
 from datetime import date
 from pathlib import Path
 from typing import Optional
@@ -36,8 +35,6 @@ from .sg_text_builder import baue_sg_abschnitt
 logger = logging.getLogger(__name__)
 
 _MODUL_DIR = os.path.dirname(__file__)
-# Klageschrift nutzt dieselbe Vorlage wie Forderungsschreiben
-_VORLAGE_FS = Path(_MODUL_DIR) / "forderungsschreiben_vorlage.docx"  # Forderungsschreiben
 
 # ── RVG Tabelle § 13 RVG – Anlage 2 ──────────────────────────────────────────
 # Stichtag: Akten angelegt bis 31.05.2025 → KostRÄG 2021
@@ -283,135 +280,9 @@ def _pct_str(wert: float) -> str:
 
 # ── OOXML-Bausteine ──────────────────────────────────────────────────────────
 
-def _xml_absatz(text: str, fett: bool = False, einzug: bool = False,
-                abstand_nach: int = 0, abstand_vor: int = 0,
-                schriftgroesse: int = 24) -> str:
-    """Einfacher Absatz in Arial 12pt."""
-    b_start = "<w:b/><w:bCs/>" if fett else ""
-    ppr = ""
-    spacing = ""
-    if abstand_nach or abstand_vor:
-        spacing = f'<w:spacing w:before="{abstand_vor}" w:after="{abstand_nach}"/>'
-    if einzug:
-        ppr = f'<w:pPr><w:ind w:left="720"/>{spacing}</w:pPr>'
-    elif spacing:
-        ppr = f'<w:pPr>{spacing}</w:pPr>'
-
-    return (
-        f'<w:p><w:pPr><w:pStyle w:val="Fliesstext"/></w:pPr>'
-        f'<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
-        f'<w:sz w:val="{schriftgroesse}"/><w:szCs w:val="{schriftgroesse}"/>'
-        f'{b_start}</w:rPr><w:t xml:space="preserve">{_esc(text)}</w:t></w:r></w:p>'
-    )
-
-
-def _xml_leerzeile() -> str:
-    return '<w:p><w:pPr><w:pStyle w:val="Fliesstext"/></w:pPr></w:p>'
-
-
 def _esc(text: str) -> str:
     """XML-Escaping."""
     return (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
-
-
-def _xml_tabelle_schaden(positionen: list) -> str:
-    """
-    Baut eine 2-spaltige Schadentabelle:
-    Position | Betrag
-    """
-    # Tabellenbreite: 9163 Twips (wie im Forderungsschreiben)
-    W_POS   = 7000
-    W_BETR  = 2163
-
-    def zeile(links: str, rechts: str, fett: bool = False) -> str:
-        b = "<w:b/><w:bCs/>" if fett else ""
-        return (
-            f'<w:tr>'
-            f'<w:tc><w:tcPr><w:tcW w:w="{W_POS}" w:type="dxa"/></w:tcPr>'
-            f'<w:p><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
-            f'<w:sz w:val="24"/><w:szCs w:val="24"/>{b}</w:rPr>'
-            f'<w:t xml:space="preserve">{_esc(links)}</w:t></w:r></w:p></w:tc>'
-            f'<w:tc><w:tcPr><w:tcW w:w="{W_BETR}" w:type="dxa"/></w:tcPr>'
-            f'<w:p><w:pPr><w:jc w:val="right"/></w:pPr>'
-            f'<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
-            f'<w:sz w:val="24"/><w:szCs w:val="24"/>{b}</w:rPr>'
-            f'<w:t xml:space="preserve">{_esc(rechts)}</w:t></w:r></w:p></w:tc>'
-            f'</w:tr>'
-        )
-
-    reihen = [zeile("Schadenposition", "Betrag", fett=True)]
-    gesamt = 0.0
-    for pos in positionen:
-        betrag = float(pos.get("betrag") or 0)
-        gesamt += betrag
-        reihen.append(zeile(pos["label"], _eur_str(betrag)))
-    reihen.append(zeile("Gesamtschaden", _eur_str(gesamt), fett=True))
-
-    return (
-        f'<w:tbl>'
-        f'<w:tblPr>'
-        f'<w:tblStyle w:val="Tabellenraster"/>'
-        f'<w:tblW w:w="9163" w:type="dxa"/>'
-        f'<w:tblBorders>'
-        f'<w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/>'
-        f'<w:left w:val="none"/>'
-        f'<w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/>'
-        f'<w:right w:val="none"/>'
-        f'<w:insideH w:val="single" w:sz="4" w:space="0" w:color="AAAAAA"/>'
-        f'<w:insideV w:val="none"/>'
-        f'</w:tblBorders>'
-        f'</w:tblPr>'
-        f'{"".join(reihen)}'
-        f'</w:tbl>'
-    )
-
-
-def _xml_tabelle_rvg(rvg: dict) -> str:
-    """Baut die RVG-Gebührentabelle."""
-    W_POS  = 6500
-    W_BETR = 2663
-
-    def zeile(links: str, mitte: str, rechts: str, fett: bool = False) -> str:
-        b = "<w:b/><w:bCs/>" if fett else ""
-        def zelle(w, text, align="left"):
-            al = f'<w:jc w:val="{align}"/>' if align != "left" else ""
-            return (
-                f'<w:tc><w:tcPr><w:tcW w:w="{w}" w:type="dxa"/></w:tcPr>'
-                f'<w:p><w:pPr>{al}</w:pPr>'
-                f'<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
-                f'<w:sz w:val="24"/><w:szCs w:val="24"/>{b}</w:rPr>'
-                f'<w:t xml:space="preserve">{_esc(text)}</w:t></w:r></w:p></w:tc>'
-            )
-        return f'<w:tr>{zelle(4000, links)}{zelle(1500, mitte, "center")}{zelle(W_BETR, rechts, "right")}</w:tr>'
-
-    streitwert = rvg.get("streitwert", 0)
-    return (
-        f'<w:tbl>'
-        f'<w:tblPr>'
-        f'<w:tblStyle w:val="Tabellenraster"/>'
-        f'<w:tblW w:w="9163" w:type="dxa"/>'
-        f'<w:tblBorders>'
-        f'<w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/>'
-        f'<w:left w:val="none"/>'
-        f'<w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/>'
-        f'<w:right w:val="none"/>'
-        f'<w:insideH w:val="single" w:sz="4" w:space="0" w:color="AAAAAA"/>'
-        f'<w:insideV w:val="none"/>'
-        f'</w:tblBorders>'
-        f'</w:tblPr>'
-        + zeile(f"Gegenstandswert: {_eur_str(streitwert)}", "", "", fett=True)
-        + zeile("Geschäftsgebühr §§ 13, 14, Nr. 2300 VV RVG",
-                str(rvg["faktor"]).replace(".", ","),
-                _eur_str(rvg["gebuehr_netto"]))
-        + zeile("Zwischensumme der Gebührenpositionen", "",
-                _eur_str(rvg["gebuehr_netto"]))
-        + zeile("Pauschale für Post und Telekommunikation Nr. 7002 VV RVG", "",
-                _eur_str(rvg["post_pauschale"]))
-        + zeile("Zwischensumme netto", "", _eur_str(rvg["zwischen_netto"]))
-        + zeile("19% Umsatzsteuer", "", _eur_str(rvg["ust"]))
-        + zeile("Gesamtbetrag", "", _eur_str(rvg["gesamt"]), fett=True)
-        + '</w:tbl>'
-    )
 
 
 # ── Hauptfunktion ─────────────────────────────────────────────────────────────
@@ -1036,7 +907,6 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
 
     # ── Mandant / Grammatik ───────────────────────────────────────────────────
     mandant_name    = " ".join(filter(None, [mandant.get("vorname"), mandant.get("name")]))                       or mandant.get("firma") or "KLÄGER"
-    mandant_anschr  = mandant.get("anschrift") or ""
     mandant_plz_ort = " ".join(filter(None, [mandant.get("plz"), mandant.get("ort")])) or ""
     _anrede_raw = (mandant.get("anrede") or "").strip()
     # Normalisierung: RA-MICRO liefert sAnrede numerisch ("1"=Herr, "2"=Frau)
@@ -1173,22 +1043,6 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     # ════════════════════════════════════════════════════════════════════════
     # EINFACHE PLATZHALTER
     # ════════════════════════════════════════════════════════════════════════
-    kanzlei_str = kanzlei.get("name") or "Koch, Schatz & Kollegen"
-    
-    def _tab_rechts(text: str, fett: bool = True) -> str:
-        """Absatz mit Tab-Stop bei 8364 (rechts unter Sidebar, wie im Original)."""
-        b = "<w:b/><w:bCs/>" if fett else ""
-        rpr = f'<w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>{b}</w:rPr>'
-        return (
-            f'<w:p><w:pPr>'
-            f'<w:tabs><w:tab w:val="center" w:pos="8364"/></w:tabs>'
-            f'<w:ind w:right="-1136"/>'
-            f'{rpr}</w:pPr>'
-            f'<w:r>{rpr}<w:tab/></w:r>'
-            f'<w:r>{rpr}<w:t xml:space="preserve">{_esc(text)}</w:t></w:r>'
-            f'</w:p>'
-        )
-
     replacements = {
         "{{GEGENSTANDSWERT}}": _esc(_eur_str(klagebetrag + (sg_mind if mit_sg else 0))),
     }
@@ -1982,17 +1836,6 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     }
 
     return _render_docx(_VORLAGE, replacements, ooxml_blocks, unterschrift)
-
-def _xml_antrag(nr: int, text: str) -> str:
-    """Nummerierten Klageantrag als OOXML-Absatz."""
-    return (
-        f'<w:p>'
-        f'<w:pPr><w:ind w:left="720" w:hanging="720"/></w:pPr>'
-        f'<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
-        f'<w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>'
-        f'<w:t xml:space="preserve">{nr}.\t{_esc(text)}</w:t></w:r>'
-        f'</w:p>'
-    )
 
 
 def _fmt_datum(iso: str) -> str:
