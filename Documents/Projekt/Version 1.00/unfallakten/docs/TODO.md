@@ -49,6 +49,13 @@
 
 ## 🔄 In Arbeit
 
+### 📋 GEPLANT (2026-07-19): Klage-Wizard-Verbesserungsrunde — 4 Pakete (Scope-Session, Designs freigegeben)
+Brainstorming mit RA Schatz 2026-07-19, alle vier Designs freigegeben und als Specs committet. **Noch keine Implementierungspläne** — je Paket vor Umsetzung `superpowers:writing-plans`. Empfohlene Reihenfolge 1→2→3→4 (3+4 teilen sich den Textaufbau-Umbau/V11 — bei der Planung abstimmen).
+1. **Entwurf speichern** — expliziter Speichern-Knopf, Schließen-Guard, Fortsetzen-Dialog, Positions-Abgleich mit Hinweis; Tabelle `klage_entwurf` (JSON + format_version). Spec: `docs/superpowers/specs/2026-07-19-klage-wizard-entwurf-speichern-design.md`
+2. **UI-Führung** — Status-Symbole (✓/⚠/●) im Fortschrittsbalken, Einwände als eigener Schritt (10→11 Schritte, Schnell-Durchlauf ohne Kürzungen), Inline-Wort-Diff „Änderungen anzeigen". Spec: `…2026-07-19-klage-wizard-ui-fuehrung-design.md`
+3. **Gesamtvorschau** — wortgenaue Server-Text-Vorschau (`POST /klage/vorschau`, strukturierte Abschnitte statt DOCX), abschnittsweise inline bearbeitbar in Schritt 11; kein PDF/LibreOffice. Spec: `…2026-07-19-klage-wizard-gesamtvorschau-design.md`
+4. **Standardtexte pflegbar (V11)** — Baustein-Registry (YAML, fail-loud) + Override-Tabelle, Einstellungs-Karte mit Platzhalter-Einfügehilfe (Chips) + Live-Vorschau an Beispiel-Akte; Stufe 1 = ~32 grammatikfreie Bausteine, Stufe 2 = ~24 mit vorflektierten Platzhaltern; Nebenbefund Fall-B „Die Beklagte" hartcodiert mitbeheben. Spec: `…2026-07-19-klage-wizard-standardtexte-design.md`
+
 ### ✅ ERLEDIGT (2026-07-14): Fragebogen-Feld-Übernahme bei Freigabe (Folge aus BUG-01)
 **Branch `intake-stufe1`, Commits `362a0895`…`367f44de` (10 Feature-Commits, nicht gepusht). Subagent-Driven (7 Tasks, TDD), Abschluss-Review Opus: READY WITH FOLLOW-UPS (keine Critical/Important).** Spec: `docs/superpowers/specs/2026-07-14-fragebogen-feld-uebernahme-design.md` · Plan: `docs/superpowers/plans/2026-07-14-fragebogen-feld-uebernahme.md` · UX-Mockup (freigegeben): https://claude.ai/code/artifact/6e3de215-25d2-4ada-88eb-5f9e13353e91
 - **Was:** Wird ein Unfallbogen in der Review-Queue freigegeben, zeigt der Freigabe-Dialog die geparsten Felder als **editierbare Vorschau**; übernommen werden nur leere Aktenfelder, **abweichende Felder sind überschreibbar** (Default = Akten-Wert, „Bogen übernehmen"), gefüllt-gleiche als gesperrte Zeile. Abschnitts-Checkboxen (Mandant/Gegner/Unfall/Personenschaden) + Auto-Collapse.
