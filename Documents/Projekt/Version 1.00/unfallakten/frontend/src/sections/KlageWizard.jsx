@@ -2485,6 +2485,36 @@ export function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
   );
 }
 
+export function SchliessenGuardDialog({ onEntwurfSpeichern, onClose, onZurueck }) {
+  const [laeuft, setLaeuft] = useState(false);
+  const speichernUndSchliessen = async () => {
+    setLaeuft(true);
+    const ok = await onEntwurfSpeichern();
+    setLaeuft(false);
+    if (ok) onClose();
+    else onZurueck();
+  };
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+      display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200 }}>
+      <div style={{ background: "#fff", borderRadius: "10px", padding: "1.5rem",
+        maxWidth: "24rem", width: "90%", boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}>
+        <h3 style={{ margin: "0 0 0.5rem" }}>Ungespeicherte Änderungen</h3>
+        <p>Der Entwurf wurde seit der letzten Speicherung geändert.</p>
+        <div style={{ display: "flex", gap: "0.6rem", justifyContent: "flex-end",
+          marginTop: "1rem", flexWrap: "wrap" }}>
+          <button onClick={onZurueck} disabled={laeuft}>Zurück zum Wizard</button>
+          <button onClick={onClose} disabled={laeuft}>Verwerfen</button>
+          <button onClick={speichernUndSchliessen} disabled={laeuft}
+            style={{ fontWeight: 600 }}>
+            💾 Speichern &amp; schließen
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Hauptkomponente ────────────────────────────────────────────────────────────
 
 export default function KlageWizard({
@@ -2544,12 +2574,17 @@ export default function KlageWizard({
   onEntwurfSpeichern, entwurfDirty, entwurfGespeichertAm, entwurfFehler, entwurfLaeuft,
 }) {
   const backdropRef = useRef(null);
+  const [zeigeSchliessenGuard, setZeigeSchliessenGuard] = useState(false);
+  const schliessenAnfordern = () => {
+    if (entwurfDirty) setZeigeSchliessenGuard(true);
+    else onClose();
+  };
 
   useEffect(() => {
-    const handler = e => { if (e.key === "Escape" && !laedt) onClose(); };
+    const handler = e => { if (e.key === "Escape" && !laedt) schliessenAnfordern(); };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [laedt, onClose]);
+  }, [laedt, schliessenAnfordern]);
 
   const klaegerObj = beklagte?.find(b => b.rolle_klage === "klaeger");
   const klaeger    = (klaegerObj?.anrede || "").toLowerCase() === "frau" ? "Die Klägerin" : "Der Kläger";
@@ -2582,7 +2617,7 @@ export default function KlageWizard({
     <>
       <div
         ref={backdropRef}
-        onClick={e => { if (e.target === backdropRef.current && !laedt) onClose(); }}
+        onClick={e => { if (e.target === backdropRef.current && !laedt) schliessenAnfordern(); }}
         style={{
           position: "fixed", inset: 0,
           background: "rgba(10, 20, 50, 0.55)",
@@ -2617,7 +2652,7 @@ export default function KlageWizard({
                 Schritt {step} von {STEPS.length} – {STEPS[step - 1]?.label}
               </div>
             </div>
-            <button onClick={() => !laedt && onClose()} disabled={laedt}
+            <button onClick={() => !laedt && schliessenAnfordern()} disabled={laedt}
               style={{
                 background: "none", border: "none", cursor: "pointer",
                 fontSize: "1.3rem", color: T.textMuted, padding: "4px 8px",
@@ -2827,6 +2862,14 @@ export default function KlageWizard({
           </div>
         </div>
       </div>
+
+      {zeigeSchliessenGuard && (
+        <SchliessenGuardDialog
+          onEntwurfSpeichern={onEntwurfSpeichern}
+          onClose={() => { setZeigeSchliessenGuard(false); onClose(); }}
+          onZurueck={() => setZeigeSchliessenGuard(false)}
+        />
+      )}
 
       <style>{`
         @keyframes fadeIn  { from { opacity: 0 } to { opacity: 1 } }

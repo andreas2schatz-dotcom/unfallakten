@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { EntwurfStatusLeiste } from "./KlageWizard.jsx";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { EntwurfStatusLeiste, SchliessenGuardDialog } from "./KlageWizard.jsx";
 
 describe("EntwurfStatusLeiste", () => {
   it("zeigt Speichern-Knopf und ruft onSpeichern", () => {
@@ -29,5 +29,48 @@ describe("EntwurfStatusLeiste", () => {
       onSpeichern={() => {}} />);
     expect(screen.getByText(/nicht gespeichert/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Entwurf speichern/ })).toBeDisabled();
+  });
+});
+
+describe("SchliessenGuardDialog", () => {
+  it("Speichern & Schließen: erst speichern, bei Erfolg schliessen", async () => {
+    const onEntwurfSpeichern = vi.fn().mockResolvedValue(true);
+    const onClose = vi.fn();
+    render(<SchliessenGuardDialog onEntwurfSpeichern={onEntwurfSpeichern}
+      onClose={onClose} onZurueck={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /Speichern/ }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(onEntwurfSpeichern).toHaveBeenCalledTimes(1);
+  });
+
+  it("Speichern schlaegt fehl: nicht schliessen, zurueck zum Wizard", async () => {
+    const onEntwurfSpeichern = vi.fn().mockResolvedValue(false);
+    const onClose = vi.fn();
+    const onZurueck = vi.fn();
+    render(<SchliessenGuardDialog onEntwurfSpeichern={onEntwurfSpeichern}
+      onClose={onClose} onZurueck={onZurueck} />);
+    fireEvent.click(screen.getByRole("button", { name: /Speichern/ }));
+    await waitFor(() => expect(onZurueck).toHaveBeenCalledTimes(1));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("Verwerfen schliesst ohne zu speichern", () => {
+    const onEntwurfSpeichern = vi.fn();
+    const onClose = vi.fn();
+    render(<SchliessenGuardDialog onEntwurfSpeichern={onEntwurfSpeichern}
+      onClose={onClose} onZurueck={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /Verwerfen/ }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onEntwurfSpeichern).not.toHaveBeenCalled();
+  });
+
+  it("Zurueck zum Wizard schliesst nur den Dialog", () => {
+    const onZurueck = vi.fn();
+    const onClose = vi.fn();
+    render(<SchliessenGuardDialog onEntwurfSpeichern={() => {}}
+      onClose={onClose} onZurueck={onZurueck} />);
+    fireEvent.click(screen.getByRole("button", { name: /Zurück zum Wizard/ }));
+    expect(onZurueck).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
