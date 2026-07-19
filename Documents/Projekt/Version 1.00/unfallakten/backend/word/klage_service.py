@@ -1393,13 +1393,16 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
             )
             antraege_xml += _lz()
         # BE-3: RVG-Antrag auf außergerichtlichem Streitwert (wenn rvg_ausserg vorhanden)
-        rvg_antrag_nr = antrag_nr[0]   # Nummer vor dem Aufruf merken
-        antraege_xml += antrag(
-            f"{bek_gram['verurteilt']}, an {kl_dat} weitere {_eur_str(rvg_antrag_betrag)} "
-            f"nebst Zinsen von 5 Prozentpunkten über dem Basiszinssatz "
-            f"seit {zins_rvg} zu zahlen."
-        )
-        antraege_xml += _lz()
+        # KW-34: kein Antrag, wenn der offene RVG-Betrag auf 0 geklemmt ist (bereits
+        # vollständig ausgeglichen) - "weitere 0,00 €" waere sonst sachlich falsch.
+        rvg_antrag_nr = antrag_nr[0]   # Nummer vor dem (evtl.) Aufruf merken
+        if rvg_antrag_betrag > 0:
+            antraege_xml += antrag(
+                f"{bek_gram['verurteilt']}, an {kl_dat} weitere {_eur_str(rvg_antrag_betrag)} "
+                f"nebst Zinsen von 5 Prozentpunkten über dem Basiszinssatz "
+                f"seit {zins_rvg} zu zahlen."
+            )
+            antraege_xml += _lz()
         antraege_xml += antrag(bek_gram["kosten"], fett=False)
         antraege_xml += _versaeumnis_block
 
@@ -1683,7 +1686,23 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         _ersatzfaehig = round(schaden_gesamt * hq / 100, 2)
         _zahlungen_anzeige = round(_ersatzfaehig - klagebetrag, 2)
         schaden_xml += _lz()
-        if _zahlungen_anzeige > 0:
+        # KW-34: Zahlungen übersteigen den quotierten Anspruch - klagebetrag ist auf 0
+        # geklemmt (max(0.0, ...) bei :1122). _zahlungen_anzeige waere hier arithmetisch
+        # schöngerechnet (sie zeigt nur die Differenz bis 0, nicht die echte Zahlungssumme
+        # fallb_zahlungen) - stattdessen die echte Summe nennen, gleiche Rundung wie :1119.
+        if klagebetrag == 0.0 and fallb_zahlungen > _ersatzfaehig:
+            schaden_xml += _p("Die Beklagte hat folgende Zahlungen auf den Schaden geleistet:")
+            if reg_tbl_xml:
+                schaden_xml += reg_tbl_xml
+            schaden_xml += _lz()
+            schaden_xml += _p(
+                f"Von dem Gesamtschaden in Höhe von {_eur_str(schaden_gesamt)} sind unter "
+                f"Berücksichtigung der Mithaftungsquote von {_pct_str(100 - hq)} % {_pct_str(hq)} %, "
+                f"mithin {_eur_str(_ersatzfaehig)}, ersatzfähig. Hierauf wurden bereits Zahlungen "
+                f"in Höhe von {_eur_str(fallb_zahlungen)} geleistet; der ersatzfähige Betrag ist "
+                f"damit vollständig ausgeglichen."
+            )
+        elif _zahlungen_anzeige > 0:
             schaden_xml += _p("Die Beklagte hat folgende Zahlungen auf den Schaden geleistet:")
             if reg_tbl_xml:
                 schaden_xml += reg_tbl_xml
@@ -1872,29 +1891,36 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     bek_haften = bek_gram["haftet"]
     bek_nom    = bek_gram["nom_klein"]
 
-    vk_xml  = _lz() + _abschnitt_kopf("Vorgerichtliche Rechtsanwaltsgebühren")
-    vk_xml += _p(
-        f"Der Klageantrag zu {rvg_antrag_nr}. ergibt sich aus den vorgerichtlich entstandenen "
-        f"Gebühren, für die {bek_nom} ebenfalls {bek_haften}. "
-        f"Der Anspruch auf Zahlung vorgerichtlicher Rechtsverfolgungskosten folgt aus § 249 ff. BGB "
-        f"unabhängig von einem etwaigen Verzugseintritt. Der Geschädigte sieht sich im Regelfall "
-        f"einem in der Regulierung von Unfallschäden versierten Sachbearbeiter des "
-        f"Haftpflichtversicherers gegenüber. Unter dem Aspekt der Waffengleichheit wird deshalb "
-        f"eine Erstattungsfähigkeit der Rechtsanwaltskosten im Rahmen der Rechtsverfolgungskosten "
-        f"grundsätzlich bejaht (Berz/Buhrmann Straßenverkehrsrecht \u2013 Hdb/Ziegenhardt, "
-        f"48. EL August 2023 5. C. Rn. 82, Beck-online)."
-    )
-    vk_xml += _lz()
-    vk_xml += _p(
-        "Der Prozessbevollmächtigte war bereits vorgerichtlich mit der Gegenseite in Kontakt "
-        "getreten. Letztmalig, als man die Gegenseite unter Fristsetzung zur Zahlung aufforderte."
-    )
-    vk_xml += _lz()
-    vk_xml += _p(
-        "Die hieraus vorgerichtlich entstandenen Rechtsanwaltsgebühren sind zu ersetzen. "
-        "Die Gebühren berechnen sich wie folgt:"
-    )
-    vk_xml += rvg_tabelle
+    # KW-34: kein VK-Abschnitt, wenn der offene RVG-Betrag auf 0 geklemmt ist -
+    # gilt auch im Override-Pfad (der VK-Abschnitt ist stets auto-generiert, ein
+    # "weitere 0,00 EUR"-Begruendungstext waere auch unter einem Nutzer-Antrag falsch).
+    # Guard um den gesamten Block inkl. _abschnitt_kopf(), damit der laufende
+    # Abschnittszaehler (KW-32) ihn automatisch ueberspringt.
+    vk_xml = ""
+    if rvg_antrag_betrag > 0:
+        vk_xml  = _lz() + _abschnitt_kopf("Vorgerichtliche Rechtsanwaltsgebühren")
+        vk_xml += _p(
+            f"Der Klageantrag zu {rvg_antrag_nr}. ergibt sich aus den vorgerichtlich entstandenen "
+            f"Gebühren, für die {bek_nom} ebenfalls {bek_haften}. "
+            f"Der Anspruch auf Zahlung vorgerichtlicher Rechtsverfolgungskosten folgt aus § 249 ff. BGB "
+            f"unabhängig von einem etwaigen Verzugseintritt. Der Geschädigte sieht sich im Regelfall "
+            f"einem in der Regulierung von Unfallschäden versierten Sachbearbeiter des "
+            f"Haftpflichtversicherers gegenüber. Unter dem Aspekt der Waffengleichheit wird deshalb "
+            f"eine Erstattungsfähigkeit der Rechtsanwaltskosten im Rahmen der Rechtsverfolgungskosten "
+            f"grundsätzlich bejaht (Berz/Buhrmann Straßenverkehrsrecht \u2013 Hdb/Ziegenhardt, "
+            f"48. EL August 2023 5. C. Rn. 82, Beck-online)."
+        )
+        vk_xml += _lz()
+        vk_xml += _p(
+            "Der Prozessbevollmächtigte war bereits vorgerichtlich mit der Gegenseite in Kontakt "
+            "getreten. Letztmalig, als man die Gegenseite unter Fristsetzung zur Zahlung aufforderte."
+        )
+        vk_xml += _lz()
+        vk_xml += _p(
+            "Die hieraus vorgerichtlich entstandenen Rechtsanwaltsgebühren sind zu ersetzen. "
+            "Die Gebühren berechnen sich wie folgt:"
+        )
+        vk_xml += rvg_tabelle
 
     # ── {{SCHLUSSFORMEL}} ─────────────────────────────────────────────────
     # K-15: Sachbearbeiter aus RA-MICRO (identisch mit Forderungsschreiben)

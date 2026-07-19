@@ -435,6 +435,8 @@ class TestKW03HaftungsquoteFallAB(unittest.TestCase):
     def test_g_klagebetrag_max_0_klammer_bei_uebersteigenden_zahlungen(self):
         # gesamt_voll=10000, betrag=100 -> zahlungen=9900; hq=20 -> ersatzfaehig=2000.
         # Ohne max(0, ...)-Klammer waere klagebetrag 2000-9900 = -7900.
+        # KW-34: zahlungen (9900) > ersatzfaehig (2000) -> Klemm-Satz nennt die echte
+        # Zahlungssumme (9.900,00) statt der schoengerechneten Differenz (2.000,00).
         positionen = [
             _position("wertminderung", "Wertminderung", betrag=100.0, betrag_original=10000.0, checked=True),
         ]
@@ -448,8 +450,8 @@ class TestKW03HaftungsquoteFallAB(unittest.TestCase):
         self.assertIn(
             "Von dem Gesamtschaden in Höhe von 10.000,00 € sind unter Berücksichtigung "
             "der Mithaftungsquote von 80 % 20 %, mithin 2.000,00 €, ersatzfähig. "
-            "Abzüglich der geleisteten Zahlungen in Höhe von 2.000,00 € "
-            "verbleiben 0,00 €, die mit dem Klageantrag zu 1 geltend gemacht werden.",
+            "Hierauf wurden bereits Zahlungen in Höhe von 9.900,00 € geleistet; "
+            "der ersatzfähige Betrag ist damit vollständig ausgeglichen.",
             xml,
         )
 
@@ -761,6 +763,26 @@ class TestKW35RvgAnlagedatumFallback(unittest.TestCase):
         neu_str = f"{erwartet_neu:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         self.assertIn(alt_str, xml)
         self.assertNotIn(neu_str, xml)
+
+
+class TestKw34RvgNull(unittest.TestCase):
+    def test_kein_rvg_antrag_bei_null(self):
+        akte = _akte_daten([_position("fahrzeugschaden", "Fahrzeugschaden", 1000.0)])
+        akte["klage_config"]["rvg_ausserg"] = {"gesamt": 150.0, "faktor": 1.3, "streitwert": 1000.0}
+        akte["klage_config"]["rvg_bereits_gezahlt"] = 500.0   # > gesamt → Betrag klemmt auf 0
+        xml = _document_xml(generiere_klageschrift(akte))
+        self.assertNotIn("weitere 0,00", xml)
+        self.assertNotIn("Vorgerichtliche Rechtsanwaltsgebühren", xml)
+
+    def test_fall_b_zahlungen_ueber_quotiertem_anspruch(self):
+        pos = [_position("fahrzeugschaden", "Fahrzeugschaden", 0.0, betrag_original=1000.0)]
+        akte = _akte_daten(pos)
+        akte["klage_config"]["haftungsquote"] = 50
+        akte["klage_config"]["haftungsquote_typ"] = "eigen"
+        # Zahlungen 1000 € > quotierter Anspruch 500 € → klagebetrag klemmt auf 0
+        xml = _document_xml(generiere_klageschrift(akte))
+        self.assertIn("1.000,00", xml)          # echte Zahlungssumme genannt
+        self.assertNotIn("Zahlungen in Höhe von 500,00", xml)  # nicht mehr die geschönte Differenz
 
 
 class TestKW12AnlagenNummern(unittest.TestCase):
