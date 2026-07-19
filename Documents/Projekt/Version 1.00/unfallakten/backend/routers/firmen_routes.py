@@ -7,6 +7,7 @@ POST /firmen/vertreter/speichern
 Keine externen Dependencies (kein mechanize, kein bs4).
 Alles mit stdlib: urllib, re, threading.
 """
+import html as html_mod
 import re
 import time
 import logging
@@ -126,7 +127,76 @@ def _suche_handelsregister_mechanize(name):
         logger.warning("Handelsregister mechanize fehlgeschlagen: %s", e)
         return []
 
-def _impressum_vertreter(firmenname):
+_NAMENSKLASSE = r"[A-Za-z\xe4\xf6\xfc\xc4\xd6\xdc\xdf\s\-\.]{4,50}"
+
+_FUNKTIONSWORT = re.compile(
+    r"(?i)\b(gesch\xe4ftsf\xfchrer(?:in)?|vorstand(?:svorsitzende(?:r)?)?|inhaber(?:in)?)\b")
+
+# Nur eindeutige Adress-Tokens abschneiden — "weg"/"ring" o.ae. kaemen in
+# Nachnamen vor (Hellweg, Mehring)
+_STRASSEN_TOKEN = re.compile(
+    r"\s+\S*(stra\xdfe|strasse|str\.)\b.*$", re.IGNORECASE)
+
+
+def _funktion_aus_wort(wort):
+    w = (wort or "").lower()
+    if w.startswith("gesch\xe4ftsf\xfchrer"):
+        return "Gesch\xe4ftsf\xfchrer"
+    if w.startswith("vorstand"):
+        return "Vorstand"
+    if w.startswith("inhaber"):
+        return "Inhaber"
+    return None
+
+
+def _widerspricht(funktion, erwartete_funktion):
+    if erwartete_funktion not in ("Gesch\xe4ftsf\xfchrer", "Vorstand"):
+        return False
+    if funktion in (None, "Vertretungsberechtigter"):
+        return False
+    return funktion != erwartete_funktion
+
+
+def _extrahiere_vertreter(seiten_html, erwartete_funktion):
+    """
+    Zieht Vertretungsberechtigte aus Impressum-HTML. Entities werden dekodiert
+    (nicht geloescht — sonst verlieren Namen ihre Umlaute), Funktionswoerter im
+    Treffer werden vom Namen getrennt, und Treffer, deren Organ der Rechtsform
+    widerspricht (GF-Fund bei einer AG = fremdes Impressum), fliegen raus.
+    """
+    if not seiten_html:
+        return []
+    plain = re.sub(r"\s+", " ",
+            re.sub(r"<[^>]+>", " ", html_mod.unescape(seiten_html)))
+    ergebnis, seen = [], set()
+    for pat, funk in [
+        (r"Gesch\xe4ftsf\xfchrer(?:in)?\s*[:\-]\s*(" + _NAMENSKLASSE + r")",
+         "Gesch\xe4ftsf\xfchrer"),
+        (r"Vorstand\s*[:\-]\s*(" + _NAMENSKLASSE + r")", "Vorstand"),
+        (r"vertreten durch\s*:?\s*(" + _NAMENSKLASSE + r")",
+         "Vertretungsberechtigter"),
+        (r"Inhaber\s*[:\-]\s*(" + _NAMENSKLASSE + r")", "Inhaber"),
+    ]:
+        for m in re.finditer(pat, plain, re.IGNORECASE):
+            roh = re.split(r"[\d,;()\n]", m.group(1).strip())[0].strip().rstrip(".,;")
+            roh = _STRASSEN_TOKEN.sub("", roh).strip().rstrip(".,;")
+            funktion = funk
+            fw = _FUNKTIONSWORT.search(roh)
+            if fw:
+                if fw.start() == 0:
+                    funktion = _funktion_aus_wort(fw.group(1)) or funktion
+                    roh = roh[fw.end():].lstrip(" :-").strip()
+                else:
+                    roh = roh[:fw.start()].strip().rstrip(".,;")
+            if _widerspricht(funktion, erwartete_funktion):
+                continue
+            if 4 < len(roh) < 55 and roh.lower() not in seen:
+                seen.add(roh.lower())
+                ergebnis.append({"name": roh, "funktion": funktion})
+    return ergebnis[:5]
+
+
+def _impressum_vertreter(firmenname, erwartete_funktion=""):
     """Sucht Vertretungsberechtigte im Impressum der Firmenwebseite."""
     q = urllib.parse.quote(firmenname + " Impressum")
     html = _fetch("https://html.duckduckgo.com/html/?q=" + q)
@@ -158,44 +228,29 @@ def _impressum_vertreter(firmenname):
         html2 = _fetch(url)
         if not html2:
             continue
-        plain = re.sub(r"\s+", " ",
-                re.sub(r"<[^>]+>", " ",
-                re.sub(r"&[a-z]+;", " ", html2)))
-        result, seen = [], set()
-        for pat, funk in [
-            (r"Gesch.ftsf.hrer(?:in)?\s*[:\-]\s*([A-Z][a-zA-Z\xe4\xf6\xfc\xc4\xd6\xdc\xdf\s\-\.]{4,50})",
-             "Gesch\xe4ftsf\xfchrer"),
-            (r"Vorstand\s*[:\-]\s*([A-Z][a-zA-Z\xe4\xf6\xfc\xc4\xd6\xdc\xdf\s\-\.]{4,50})",
-             "Vorstand"),
-            (r"vertreten durch\s*:?\s*([A-Z][a-zA-Z\xe4\xf6\xfc\xc4\xd6\xdc\xdf\s\-\.]{4,50})",
-             "Vertretungsberechtigter"),
-            (r"Inhaber\s*[:\-]\s*([A-Z][a-zA-Z\xe4\xf6\xfc\xc4\xd6\xdc\xdf\s\-\.]{4,50})",
-             "Inhaber"),
-        ]:
-            for m in re.finditer(pat, plain, re.IGNORECASE):
-                n = re.split(r"[\d,;()\n]", m.group(1).strip())[0].strip().rstrip(".,;")
-                if 4 < len(n) < 55 and n.lower() not in seen:
-                    seen.add(n.lower())
-                    result.append({"name": n, "funktion": funk})
+        result = _extrahiere_vertreter(html2, erwartete_funktion)
         if result:
-            return result[:5]
+            return result
     return []
 
 # ── Hilfsfunktionen ────────────────────────────────────────────────────────────
 def _rechtsform(name):
-    n = name.upper()
+    # Wortgrenzen statt Substring — sonst wird "Magna" zur AG
+    n = (name or "").upper()
     for rf in ["GMBH & CO. KG", "GMBH & CO KG", "GMBH", "AG", "SE",
                "KGAA", "KG", "OHG", "GBR", "UG", "EV", "EG"]:
-        if rf in n:
+        if re.search(r"(?<![A-Z\xc4\xd6\xdc])" + re.escape(rf)
+                     + r"(?![A-Z\xc4\xd6\xdc])", n):
             return rf
     return ""
 
 def _funktion_default(rechtsform):
+    # Vorstand-Gruppe zuerst — sonst macht "KG" in "KGAA" die KGaA zum GF-Fall
     rf = rechtsform.upper()
-    if any(x in rf for x in ("GMBH", "UG", "GBR", "KG", "OHG")):
-        return "Gesch\xe4ftsf\xfchrer"
     if any(x in rf for x in ("AG", "SE", "KGAA")):
         return "Vorstand"
+    if any(x in rf for x in ("GMBH", "UG", "GBR", "KG", "OHG")):
+        return "Gesch\xe4ftsf\xfchrer"
     return "gesetzlicher Vertreter"
 
 def _j(d, s=200): return jsonify(d), s
@@ -222,7 +277,7 @@ def suche_vertreter():
 
     try:
         # Impressum ist die zuverlaessigste Quelle fuer Vertreter (Pflicht nach §5 TMG)
-        vertreter = _impressum_vertreter(name)
+        vertreter = _impressum_vertreter(name, funk)
 
         # Optional: HR-Stammdaten via mechanize (registernr/gericht) anreichern
         hr_info = {}
