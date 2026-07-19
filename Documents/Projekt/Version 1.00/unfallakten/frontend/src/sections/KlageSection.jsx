@@ -7,6 +7,7 @@ import { fmtEuro, fmtDatumDe, verzugEintrittDefault } from "../config/utils.js";
 import { KLAGE_KEY_MAP } from "../config/klagePositionKeys.js";
 import { Card, KlageCardHead, Btn, Toast } from "../components/common.jsx";
 import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
+import KlageEntwurfDialog from "./KlageEntwurfDialog.jsx";
 import {
   akten as apiAkten,
   apiKlage,
@@ -436,12 +437,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     finally { setGLaedt(false); }
   };
 
-  // ── Wizard öffnen – State aus DB-Werten initialisieren ────────────────
-  const oeffneWizard = () => {
-    const al = daten?.aktivlegitimation || {};
-    setAktLegTyp(al.typ || "eigentum");
-    setAktLegFreigabe(al.freigabe_status || "freigabe");
-    setAktLegDatum(al.datum_freigabe || "");
+  // ── Wizard-Positionen berechnen – Offene Beträge vorausberechnen ──────
+  const berechneWizardPositionen = () => {
     // Offene Beträge vorausberechnen (gefordert − reguliert je Position)
     // KLAGE_KEY_MAP normalisiert die Fahrzeugschaden-Keys aus dem Abrechnung-Parser
     const _regMap = {};
@@ -474,7 +471,16 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         betrag: Math.max(0, (p.betrag || 0) - (_reductions[p.key] || 0)),
       }));
     }
-    setWizardPos(_workPos);
+    return _workPos;
+  };
+
+  // ── Wizard frisch initialisieren – State aus DB-Werten ────────────────
+  const initialisiereWizardFrisch = () => {
+    const al = daten?.aktivlegitimation || {};
+    setAktLegTyp(al.typ || "eigentum");
+    setAktLegFreigabe(al.freigabe_status || "freigabe");
+    setAktLegDatum(al.datum_freigabe || "");
+    setWizardPos(berechneWizardPositionen());
     setWizardMitSG(mitSG);
     setWizardSGMind(sgMind);
     setWizardSachverhaltText("");
@@ -517,6 +523,71 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setWizardGebuehrenManuell(false);
 
     setWizardStep(1);
+    setWizardOffen(true);
+
+    setEntwurfLetzterStand(null);
+    setEntwurfGespeichertAm(null);
+    setEntwurfFehler(null);
+    setEntwurfAenderungen([]);
+  };
+
+  // ── Wizard öffnen – vorhandenen Entwurf prüfen und ggf. Dialog anzeigen ─
+  const oeffneWizard = async () => {
+    let row = null;
+    try {
+      row = await apiKlage.entwurfLaden(akteId);
+    } catch {
+      // 404 (kein Entwurf) oder Serverfehler: wie bisher frisch starten
+    }
+    if (!row) { initialisiereWizardFrisch(); return; }
+    const p = parseEntwurf(row);
+    if (p.ok) {
+      setEntwurfDialog({
+        typ: "fortsetzen", entwurf: p.entwurf, gespeichertAm: row.gespeichert_am,
+      });
+    } else {
+      setEntwurfDialog({ typ: "mismatch" });
+    }
+  };
+
+  // ── Wizard aus gespeichertem Entwurf wiederherstellen ──────────────────
+  const initialisiereWizardAusEntwurf = (e, gespeichertAm) => {
+    const rec = reconcilePositionen(e.positionen, berechneWizardPositionen());
+    setWizardPos(rec.positionen);
+    setEntwurfAenderungen(rec.aenderungen);
+    setAktLegTyp(e.aktLegTyp ?? "eigentum");
+    setAktLegFreigabe(e.aktLegFreigabe ?? "freigabe");
+    setAktLegDatum(e.aktLegDatum ?? "");
+    setAuslandsunfall(!!e.auslandsunfall);
+    setWizardSachverhaltText(e.wizardSachverhaltText ?? "");
+    setWizardSachverhaltManuell(!!e.wizardSachverhaltManuell);
+    setWizardUnfallText(e.wizardUnfallText ?? "");
+    setWizardRwText(e.wizardRwText ?? "");
+    setWizardVerzugText(e.wizardVerzugText ?? "");
+    setWizardVerzugManuell(!!e.wizardVerzugManuell);
+    setWizardVerzugDatum(e.wizardVerzugDatum ?? "");
+    setWizardVerzugDokDatum(e.wizardVerzugDokDatum ?? "");
+    setWizardAntraegeText(e.wizardAntraegeText ?? "");
+    setWizardAntraegeManuell(!!e.wizardAntraegeManuell);
+    setWizardAntraegeBasis(e.wizardAntraegeBasis ?? null);
+    setWizardGebuehrenText(e.wizardGebuehrenText ?? "");
+    setWizardGebuehrenManuell(!!e.wizardGebuehrenManuell);
+    setWizardMitSG(!!e.wizardMitSG);
+    setWizardSGMind(e.wizardSGMind ?? 0);
+    setWizardHq(e.wizardHq ?? 100);
+    setWizardHqTyp(e.wizardHqTyp ?? "gegnerisch");
+    setWizardHb(e.wizardHb ?? "");
+    setWizardMitFestSg(!!e.wizardMitFestSg);
+    setWizardMitFestSach(!!e.wizardMitFestSach);
+    setWizardRvgAussergOv(e.wizardRvgAussergOv ?? "");
+    setWizardRvgBereitsGezahlt(e.wizardRvgBereitsGezahlt ?? "");
+    setWizardGerichtBest(!!e.wizardGerichtBest);
+    setWizardRvgAussergData(null);
+    setEntwurfLetzterStand(JSON.stringify(e));
+    setEntwurfGespeichertAm(gespeichertAm);
+    setEntwurfFehler(null);
+    setWizardMaxStep(e.wizardMaxStep || 1);
+    setWizardStep(e.wizardStep || 1);
     setWizardOffen(true);
   };
 
@@ -631,6 +702,20 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     <div style={{ flex:1, overflowY:"auto", background:T.offWhite }}>
       <VertreterModal vertreterModal={vertreterModal} setVModal={setVModal}
         setBek={setBek} apiFirmen={apiFirmen} vertreterLookup={vertreterLookup} T={T} />
+      {entwurfDialog && (
+        <KlageEntwurfDialog
+          typ={entwurfDialog.typ}
+          gespeichertAm={entwurfDialog.gespeichertAm}
+          step={entwurfDialog.entwurf?.wizardStep || 1}
+          onFortsetzen={() => {
+            const d = entwurfDialog;
+            setEntwurfDialog(null);
+            initialisiereWizardAusEntwurf(d.entwurf, d.gespeichertAm);
+          }}
+          onNeuBeginnen={() => { setEntwurfDialog(null); initialisiereWizardFrisch(); }}
+          onAbbrechen={() => setEntwurfDialog(null)}
+        />
+      )}
       {wizardOffen && (
         <KlageWizard
           step={wizardStep}          onStepChange={setWizardStep}
