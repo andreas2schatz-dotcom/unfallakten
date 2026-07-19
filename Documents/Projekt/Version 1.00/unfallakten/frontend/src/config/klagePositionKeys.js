@@ -30,22 +30,12 @@ export const KLAGE_KEY_MAP = {
   // bezeichnen denselben Betrag (siehe _REGULIERUNG_LABEL_MAP in klage_service.py,
   // beide -> "Unkostenpauschale").
   kostenpauschale: "unkostenpauschale",
-
-  // WDM-Sonstige-Schaeden: dieselbe Normalisierung wie _WDM_RE in
-  // abrechnungsuebersicht_service.py (sonstiges_wdm_N -> extra_wdm_ssN). Der
-  // Wizard erzeugt seine dynamischen "extra_*"-Positionen aus WDM-Extras mit
-  // genau dieser id (siehe ramicro_akte_routes.py, "id": f"wdm_ss{i}").
-  sonstiges_wdm_1: "extra_wdm_ss1",
-  sonstiges_wdm_2: "extra_wdm_ss2",
-  sonstiges_wdm_3: "extra_wdm_ss3",
-  sonstiges_wdm_4: "extra_wdm_ss4",
-  sonstiges_wdm_5: "extra_wdm_ss5",
-  sonstiges_wdm_6: "extra_wdm_ss6",
 };
 
 // Bewusst NICHT positionsgebundene Regulierungs-Keys: pos_definitionen fuehrt
 // dafuer keine eigene Klage-Position, weil sie entweder eine Gegenrechnung,
-// eine ungebundene Zahlung oder ein Abzugs-/Meta-Wert sind.
+// eine ungebundene Zahlung, ein Abzugs-/Meta-Wert oder statisch nicht
+// abbildbar sind.
 export const KEYS_OHNE_POSITION = new Set([
   "restwert",          // Gegenrechnung auf den Fahrzeugschaden, keine eigene Klage-Position
   "restkraftstoff",    // keine eigene Wizard-Position (pos_definitionen kennt sie nicht)
@@ -53,4 +43,19 @@ export const KEYS_OHNE_POSITION = new Set([
   "mwst_abzug",         // Abzugs-Key (reduziert eine andere Position, keine eigene)
   "pruefbericht_abzug", // Abzugs-Key (reduziert eine andere Position, keine eigene)
   "vorschuss",          // ungebundene Zahlung, keiner Einzelposition zugeordnet
+  // WDM-Sonstige-Schaeden: der Wizard erzeugt dafuer KEINEN vorhersagbaren
+  // statischen Key. pos_definitionen baut ihn in klage_routes.py als
+  // f"extra_{e.get('key', e.get('label', '?'))}" - die WDM-Extra-Dicts aus
+  // ramicro_akte_routes.py liefern kein "key"-Feld (nur id/label/betrag/netto),
+  // also greift der Label-Fallback: realer Key ist "extra_<Label>" (Beleg:
+  // Fixture "extra_Bergungskosten" in test_klage_service_docx.py). Ein
+  // statisches Mapping kann das nicht treffen -> bewusst ausgenommen statt
+  // falsch gemappt; Zahlungen auf diese Keys fallen wie zuvor in den
+  // _unassigned-Topf.
+  "sonstiges_wdm_1",
+  "sonstiges_wdm_2",
+  "sonstiges_wdm_3",
+  "sonstiges_wdm_4",
+  "sonstiges_wdm_5",
+  "sonstiges_wdm_6",
 ]);
