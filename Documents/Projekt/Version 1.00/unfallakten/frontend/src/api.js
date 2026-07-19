@@ -304,6 +304,10 @@ export const apiKlage = {
   gerichte:        (az, q='', typ='') => request(`/akten/${az}/klage/gerichte?q=${encodeURIComponent(q)}&typ=${typ}`),
   gerichtSpeichern:(az, gericht)     => request(`/akten/${az}/klage/gericht`, {
                                          method: 'PUT', body: JSON.stringify(gericht) }),
+  entwurfLaden:     (az)       => request(`/akten/${az}/klage/entwurf`),
+  entwurfSpeichern: (az, body) => request(`/akten/${az}/klage/entwurf`, {
+                                    method: 'PUT', body: JSON.stringify(body) }),
+  entwurfLoeschen:  (az)       => request(`/akten/${az}/klage/entwurf`, { method: 'DELETE' }),
   kiHaftung:       (az, schilderung, hq) => request(`/akten/${az}/klage/ki-haftung`, {
                                          method: 'POST',
                                          body: JSON.stringify({ schilderung, hq }) }),

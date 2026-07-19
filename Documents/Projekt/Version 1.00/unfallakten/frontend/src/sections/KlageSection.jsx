@@ -14,6 +14,12 @@ import {
   apiFirmen,
   beteiligte as apiBeteiligte,
 } from "../api.js";
+import {
+  ENTWURF_FORMAT_VERSION,
+  serialisiereEntwurf,
+  parseEntwurf,
+  reconcilePositionen,
+} from "./klageEntwurfLogik.js";
 
 export function sollAutoLookup(b, lookupCache) {
   if (b.rolle_klage === "klaeger") return false;
@@ -48,6 +54,21 @@ export async function gerichtSpeichernOderWarnen(akteId, gericht) {
   } catch (e) {
     const msg = e?.status ? `HTTP ${e.status}: ${e.message}` : (e?.message || String(e));
     return "Gericht konnte nicht in der Akte gespeichert werden – Auswahl gilt nur für diese Sitzung (" + msg + ").";
+  }
+}
+
+export async function entwurfSpeichernRemote(akteId, entwurf) {
+  try {
+    const r = await apiKlage.entwurfSpeichern(akteId, {
+      entwurf,
+      format_version: ENTWURF_FORMAT_VERSION,
+    });
+    return { ok: true, gespeichertAm: r.gespeichert_am };
+  } catch {
+    return {
+      ok: false,
+      fehler: "Entwurf konnte nicht gespeichert werden – Änderungen sind noch nicht gesichert.",
+    };
   }
 }
 
@@ -250,6 +271,14 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [wizardGebuehrenText, setWizardGebuehrenText]   = useState("");
   const [wizardGebuehrenManuell, setWizardGebuehrenManuell] = useState(false);
   const [gespeichertGb, setGespeichertGb]               = useState(null); // PRD-28: gespeicherte Gebührenberechnung
+
+  // ── Entwurf speichern (Paket 1) ─────────────────────────────────────────
+  const [entwurfLetzterStand, setEntwurfLetzterStand]   = useState(null);
+  const [entwurfGespeichertAm, setEntwurfGespeichertAm] = useState(null);
+  const [entwurfFehler, setEntwurfFehler]               = useState(null);
+  const [entwurfLaeuft, setEntwurfLaeuft]               = useState(false);
+  const [entwurfDialog, setEntwurfDialog]               = useState(null);
+  const [entwurfAenderungen, setEntwurfAenderungen]     = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -491,6 +520,35 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setWizardOffen(true);
   };
 
+  const aktuellerEntwurf = () => serialisiereEntwurf({
+    wizardStep, wizardMaxStep, aktLegTyp, aktLegFreigabe, aktLegDatum,
+    auslandsunfall, wizardSachverhaltText, wizardSachverhaltManuell,
+    wizardUnfallText, wizardRwText, wizardVerzugText, wizardVerzugManuell,
+    wizardVerzugDatum, wizardVerzugDokDatum, wizardAntraegeText,
+    wizardAntraegeManuell, wizardAntraegeBasis, wizardGebuehrenText,
+    wizardGebuehrenManuell, wizardPos, wizardMitSG, wizardSGMind,
+    wizardHq, wizardHqTyp, wizardHb, wizardMitFestSg, wizardMitFestSach,
+    wizardRvgAussergOv, wizardRvgBereitsGezahlt, wizardGerichtBest,
+  });
+
+  const entwurfDirty = wizardOffen &&
+    JSON.stringify(aktuellerEntwurf()) !== entwurfLetzterStand;
+
+  const speichereEntwurf = async () => {
+    const entwurf = aktuellerEntwurf();
+    setEntwurfLaeuft(true);
+    setEntwurfFehler(null);
+    const r = await entwurfSpeichernRemote(akteId, entwurf);
+    setEntwurfLaeuft(false);
+    if (r.ok) {
+      setEntwurfLetzterStand(JSON.stringify(entwurf));
+      setEntwurfGespeichertAm(r.gespeichertAm);
+      return true;
+    }
+    setEntwurfFehler(r.fehler);
+    return false;
+  };
+
   // ── Gericht bestätigen + in Akte speichern + Wizard weiterschalten ────
   const gerichtBestaetigenUndWeiter = () => {
     if (gericht) {
@@ -549,6 +607,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         haftungsquote_typ:      wizardHqTyp,
       }, overrides);
       setToast("Klageschrift heruntergeladen.");
+      await speichereEntwurf();
       setWizardOffen(false);
       try {
         await apiAkten.aktualisieren(akteId, { status: "klage" });
