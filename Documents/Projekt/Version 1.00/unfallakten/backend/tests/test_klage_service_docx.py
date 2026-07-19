@@ -14,6 +14,7 @@ import io
 import json
 import os
 import sys
+import tempfile
 import unittest
 import zipfile
 
@@ -991,6 +992,78 @@ class TestKw36FallBHalbeCentsRundung(unittest.TestCase):
 
         self.assertIn("16,67 €", xml)
         self.assertNotIn("16,66 €", xml)
+
+
+class TestKw40(unittest.TestCase):
+    def test_antrag_nutzt_tab_element(self):
+        akte = _akte_daten([_position("fahrzeugschaden", "Fahrzeugschaden", 1000.0)])
+        xml = _document_xml(generiere_klageschrift(akte))
+        idx = xml.index("wird verurteilt")
+        p_start = xml.rindex("<w:p>", 0, idx)
+        p_end = xml.index("</w:p>", idx) + len("</w:p>")
+        antrag_par = xml[p_start:p_end]
+        self.assertNotIn("1.\t", antrag_par)   # kein roher Tab im w:t des Antrags
+        self.assertIn("<w:tab/>", antrag_par)  # stattdessen eigener Tab-Run
+
+    def test_ghpv_ueberspringt_nicht_gecheckte(self):
+        pos = [_position("fahrzeugschaden", "Fahrzeugschaden", 1000.0)]
+        akte = _akte_daten(pos)
+        akte["klage_config"]["beklagte"] = [
+            {"rolle_klage": "beklagter", "checked": False,
+             "versicherung": "FALSCHE VERS", "schaden_nr": "FALSCH-1",
+             "anschrift": "Teststr. 1", "plz": "11111", "ort": "Falschstadt"},
+            {"rolle_klage": "beklagter", "checked": True,
+             "versicherung": "RICHTIGE VERS", "schaden_nr": "RICHTIG-1",
+             "anschrift": "Teststr. 2", "plz": "22222", "ort": "Richtigstadt"},
+        ]
+        xml = _document_xml(generiere_klageschrift(akte))
+        self.assertIn("RICHTIG-1", xml)
+        self.assertNotIn("FALSCH-1", xml)
+
+    def test_unbekannter_extra_key_wird_sonstige_schaeden(self):
+        # extra_wdm_ss1 ist kein bekannter Positions-Key -> ohne Fix wuerde der
+        # generische Fallback "Extra Wdm Ss1" (title-case) rendern statt des
+        # bewussten "Sonstige Schäden"-Labels (analog sonstiges_wdm_-Praefix).
+        positionen = [
+            _position("wertminderung", "Wertminderung", betrag=400.0, betrag_original=500.0, checked=True),
+        ]
+        schaden = {"wertminderung": 500.0}
+        reg_agg = {"extra_wdm_ss1": {"gesamt_reguliert": 100.0}}
+        abrechnungen = [{"gesamt_reguliert": 100.0}]
+        akte_daten = _akte_daten(positionen, schaden, reg_agg, abrechnungen)
+
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+
+        self.assertIn("Sonstige Schäden", xml)
+        self.assertNotIn("Extra Wdm Ss1", xml)
+
+    def test_merge_split_placeholders_deckt_block_platzhalter_ab(self):
+        # KW-40(e): _render_docx reichte an _merge_split_placeholders bisher nur
+        # die einfachen replacements-Keys weiter (hier: keine), nicht die
+        # ooxml_blocks-Keys - ein von Word ueber zwei Runs zersplitteter
+        # Block-Platzhalter wurde dadurch nie gemerged und blieb unersetzt.
+        from backend.word.klage_service import _render_docx
+
+        doc_xml = (
+            '<w:document><w:body>'
+            '<w:p><w:r><w:t>{{TEST</w:t></w:r><w:r><w:t>BLOCK}}</w:t></w:r></w:p>'
+            '</w:body></w:document>'
+        )
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as z:
+            z.writestr("word/document.xml", doc_xml)
+
+        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as f:
+            f.write(buf.getvalue())
+            vorlage_pfad = f.name
+        try:
+            out = _render_docx(vorlage_pfad, {}, {"{{TESTBLOCK}}": "<w:p><w:r><w:t>ERSETZT</w:t></w:r></w:p>"})
+        finally:
+            os.remove(vorlage_pfad)
+
+        xml = _document_xml(out)
+        self.assertIn("ERSETZT", xml)
+        self.assertNotIn("{{TESTBLOCK}}", xml)
 
 
 if __name__ == "__main__":

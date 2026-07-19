@@ -469,7 +469,10 @@ def _render_docx(vorlage: Path, replacements: dict, ooxml_blocks: dict,
                     data = rels_xml.encode("utf-8")
             elif item.filename == "word/document.xml":
                 xml = data.decode("utf-8")
-                xml = _merge_split_placeholders(xml, list(replacements.keys()))
+                # KW-40(e): auch die ooxml_blocks-Platzhalter mergen, nicht nur
+                # replacements - sonst bleibt ein von Word ueber mehrere Runs
+                # zersplitteter Block-Platzhalter (z.B. {{HPV_BLOCK}}) unersetzt.
+                xml = _merge_split_placeholders(xml, list(replacements.keys()) + list(ooxml_blocks.keys()))
                 for key, value in replacements.items():
                     xml = xml.replace(key, value)
                 for ph, block in ooxml_blocks.items():
@@ -791,7 +794,7 @@ def _baue_regulierungs_tbl_xml(reg_agg: dict, ungebunden: float = 0.0, body_widt
         betrag = float(daten.get("gesamt_reguliert") or 0)
         if betrag == 0:
             continue
-        if key.startswith("sonstiges_wdm_"):
+        if key.startswith("sonstiges_wdm_") or key.startswith("extra_wdm_"):
             label = "Sonstige Schäden"
         else:
             label = _REGULIERUNG_LABEL_MAP.get(key, key.replace("_", " ").title())
@@ -876,9 +879,11 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
 
     # ── Beklagte / GHPV ──────────────────────────────────────────────────────
     beklagte_liste = cfg.get("beklagte") or []
-    # Erste beklagte = GHPV
+    # Erste gecheckte, nicht-klagende Partei = GHPV (KW-40: gleiches Filtermuster
+    # wie beklagte_gef, sonst kann eine abgewaehlte Partei die GHPV stellen).
     ghpv          = next((b for b in beklagte_liste
-                          if (b.get("rolle_klage","") or b.get("rolle","")) != "klaeger"), {})
+                          if (b.get("rolle_klage") or b.get("rolle") or "") not in ("klaeger", "mandant")
+                          and b.get("checked", True)), {})
     ghpv_name     = ghpv.get("versicherung") or ghpv.get("firma") or ghpv.get("name") or "KEINE HPV ERFASST"
     ghpv_anschrift= ghpv.get("anschrift") or ""
     ghpv_plz_ort  = " ".join(filter(None, [ghpv.get("plz"), ghpv.get("ort")])) or ""
@@ -1155,12 +1160,16 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     antrag_nr = [1]
     def antrag(text, fett=True):
         nr = antrag_nr[0]; antrag_nr[0] += 1
-        return (
-            f'<w:p><w:pPr><w:jc w:val="both"/><w:ind w:left="720" w:hanging="360"/></w:pPr>'
-            f'<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
+        rpr = (
+            f'<w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
             f'{"<w:b/><w:bCs/>" if fett else ""}'
             f'<w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>'
-            f'<w:t xml:space="preserve">{nr}.\t{_esc(text)}</w:t></w:r></w:p>'
+        )
+        return (
+            f'<w:p><w:pPr><w:jc w:val="both"/><w:ind w:left="720" w:hanging="360"/></w:pPr>'
+            f'<w:r>{rpr}<w:t xml:space="preserve">{nr}.</w:t></w:r>'
+            f'<w:r>{rpr}<w:tab/></w:r>'
+            f'<w:r>{rpr}<w:t xml:space="preserve">{_esc(text)}</w:t></w:r></w:p>'
         )
 
     vollmacht_text = ("der Kläger" if mehrere_klaeger
