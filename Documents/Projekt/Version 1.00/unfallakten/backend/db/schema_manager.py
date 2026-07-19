@@ -312,6 +312,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     58: "-- migration_58_intake_aufgeteilt_aus_id",  # Handled by _run_migration_58 (PDF-Splitting Review-UI)
     59: "-- migration_59_dokument_bezeichnung",  # Handled by _run_migration_59 (PRD-37 Dokumentenbezeichnung)
     60: "-- migration_60_personenschaden_krankenhaus_aufenthalt",  # Handled by _run_migration_60 (Schema-Drift-Fix)
+    61: "-- migration_61_klage_entwurf",  # Handled by _run_migration_61 (Klage-Wizard Entwurf)
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -1045,6 +1046,36 @@ def _run_migration_60(conn: sqlite3.Connection) -> None:
         "Migration 60 abgeschlossen (personenschaden.krankenhaus_aufenthalt).")
 
 
+def _run_migration_61(conn: sqlite3.Connection) -> None:
+    """
+    Migration 61 - Neue Tabelle klage_entwurf (Klage-Wizard Entwurf speichern).
+
+    Eine Zeile je Akte (akte_id UNIQUE, Upsert per ON CONFLICT). entwurf_json
+    traegt den kompletten Wizard-Zustand als JSON, format_version erkennt
+    Entwuerfe aelterer Wizard-Staende (Fortsetzen-Dialog bietet dann nur
+    "Neu beginnen"). Kein executescript, explizite Commits um DDL
+    (feedback_migration_executescript / Reloader-Falle).
+    """
+    conn.commit()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS klage_entwurf (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            akte_id         TEXT    NOT NULL UNIQUE
+                            REFERENCES unfallakte(az) ON DELETE CASCADE,
+            entwurf_json    TEXT    NOT NULL,
+            format_version  INTEGER NOT NULL,
+            gespeichert_am  TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+        )
+    """)
+    conn.commit()
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (?, ?)",
+        (61, "Migration 61 - Tabelle klage_entwurf (Klage-Wizard Entwurf)"),
+    )
+    logger.info("Migration 61 abgeschlossen (Tabelle klage_entwurf).")
+
+
 def _run_migration_54(conn: sqlite3.Connection) -> None:
     """
     Migration 54 - intake_dokumente.textquelle erlaubt 'email_text'.
@@ -1458,6 +1489,8 @@ def run_migrations() -> None:
                 _run_migration_59(conn)
             elif version == 60:
                 _run_migration_60(conn)
+            elif version == 61:
+                _run_migration_61(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
