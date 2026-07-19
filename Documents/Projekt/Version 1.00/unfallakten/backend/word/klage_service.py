@@ -1763,7 +1763,9 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
             sg_xml += _p(absatz)
         if sg_vgl:
             sg_xml += _p(sg_vgl, einzug=True)
-        sg_xml += _p(sg_beweis, einzug=True)
+        if sg_beweis:
+            sg_beweis_inhalt = re.sub(r"^BEWEIS:\s*", "", sg_beweis)
+            sg_xml += _beweis(sg_beweis_inhalt)
     else:
         sg_xml = ""   # leer → Platzhalter verschwindet
 
@@ -1820,7 +1822,8 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         '<w:insideH w:val="single" w:sz="2" w:space="0" w:color="CCCCCC"/>'
         '</w:tblBorders></w:tblPr>'
         + _rvg_tbl_zeile(f"Gegenstandswert:", _eur_str(sw_ausserg), fett=True)
-        + _rvg_tbl_zeile(f"Geschäftsgebühr §§ 13, 14, Nr. 2300 VV RVG ({rvg_fuer_tab.get('faktor', 1.3)}):",
+        + _rvg_tbl_zeile(f"Geschäftsgebühr §§ 13, 14, Nr. 2300 VV RVG "
+                         f"({str(rvg_fuer_tab.get('faktor', 1.3)).replace('.', ',')}):",
                          _eur_str(rvg_fuer_tab.get("gebuehr_netto", 0)))
         + _rvg_tbl_zeile("Post u. Telekommunikation Nr. 7002 VV RVG:",
                          _eur_str(rvg_fuer_tab.get("post_pauschale", 0)))

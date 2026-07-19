@@ -19,7 +19,7 @@ import zipfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from backend.word.klage_service import generiere_klageschrift, berechne_rvg
+from backend.word.klage_service import generiere_klageschrift, berechne_rvg, _beweis
 
 
 def _position(key, label, betrag, betrag_original=None, checked=True):
@@ -802,6 +802,27 @@ class TestKW13RvgOverrideEntfernt(unittest.TestCase):
         erwartet_str = f"{erwartet:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         self.assertNotIn("9.999,99", xml)
         self.assertIn(erwartet_str, xml)
+
+
+class TestKw33SgBeweis(unittest.TestCase):
+    def test_sg_beweis_als_beweis_absatz_formatiert(self):
+        akte = _akte_daten([_position("fahrzeugschaden", "Fahrzeugschaden", 1000.0)],
+                            mit_schmerzensgeld=True, schmerzensgeld_mindest=2000.0)
+        xml = _document_xml(generiere_klageschrift(akte))
+        # SG-Beweis muss ueber den _beweis()-Helper gerendert sein (fettes "BEWEIS:"
+        # + <w:tab/> + Inhalt als eigener Run), nicht als einzelner _p()-Fliesstext-Run
+        # mit "BEWEIS: " als Textpraefix.
+        erwartet = _beweis("Ärztliche Atteste und Befundberichte (Anlage K 2)")
+        self.assertIn(erwartet, xml)
+        self.assertNotIn("BEWEIS: Ärztliche Atteste", xml)
+
+
+class TestKw37FaktorKomma(unittest.TestCase):
+    def test_rvg_faktor_mit_komma(self):
+        akte = _akte_daten([_position("fahrzeugschaden", "Fahrzeugschaden", 1000.0)])
+        xml = _document_xml(generiere_klageschrift(akte))
+        self.assertIn("Nr. 2300 VV RVG (1,3):", xml)
+        self.assertNotIn("Nr. 2300 VV RVG (1.3):", xml)
 
 
 if __name__ == "__main__":
