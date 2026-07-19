@@ -971,5 +971,27 @@ class TestKw32Abschnittszaehler(unittest.TestCase):
         self.assertIn("4.) Rechtliche Würdigung", xml)
 
 
+class TestKw36FallBHalbeCentsRundung(unittest.TestCase):
+    def test_centhaelfte_rundet_wie_fe_round2_half_up_nicht_kaufmaennisch(self):
+        # 50,50 EUR * 33 % = 16,665 EUR - exakte Centhaelfte. Pythons round()
+        # (kaufmaennisch/round-half-even) ergaebe 16,66; die FE-Vorschau
+        # (KlageWizard.jsx::berechneKlagebetrag, Math.round-basiert) ergibt
+        # 16,67. Ohne Fix wuerde der (nicht ueberschreibbare) Unfallschaden-
+        # Absatz 16,66 nennen, waehrend der Antrag-1-Text ueber antraege_override
+        # (FE-Text) 16,67 nennt - Divergenz im selben Dokument.
+        positionen = [
+            _position("wertminderung", "Wertminderung", betrag=50.50, betrag_original=50.50, checked=True),
+        ]
+        schaden = {"wertminderung": 50.50}
+        akte_daten = _akte_daten(positionen, schaden)
+        akte_daten["klage_config"]["haftungsquote"] = 33
+        akte_daten["klage_config"]["haftungsquote_typ"] = "eigen"
+
+        xml = _document_xml(generiere_klageschrift(akte_daten))
+
+        self.assertIn("16,67 €", xml)
+        self.assertNotIn("16,66 €", xml)
+
+
 if __name__ == "__main__":
     unittest.main()

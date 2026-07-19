@@ -20,6 +20,7 @@ Wird aufgerufen von word_service.py mit akte_daten + klage_config.
 import io
 import json
 import logging
+import math
 import os
 import re
 import zipfile
@@ -260,6 +261,16 @@ def _eur(betrag: float) -> str:
 
 def _eur_str(betrag: float) -> str:
     return f"{_eur(betrag)} €"
+
+
+def _round2_half_up(x: float) -> float:
+    """KW-36: rundet halbe Cents aufwaerts (spiegelt frontend round2()/Math.round).
+    Nur fuer den Fall-B-Klagebetrag (Antrag 1) verwenden - dieser Wert wird auch
+    von der FE-Vorschau (KlageWizard.jsx::berechneKlagebetrag) unabhaengig
+    berechnet und landet unveraendert im antraege_override; Pythons round()
+    rundet .xx5-Grenzwerte kaufmaennisch (zur geraden Ziffer), was bei exakten
+    Centhaelften vom FE-Ergebnis abweichen kann (16.665 -> 16.66 vs. 16.67)."""
+    return math.floor(x * 100 + 0.5) / 100
 
 
 def _pct_str(wert: float) -> str:
@@ -1116,10 +1127,10 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
             float(p.get("betragOriginal") if p.get("betragOriginal") is not None else p.get("betrag") or 0)
             for p in positionen
         )
-        fallb_zahlungen = round(
-            fallb_gesamt_voll - sum(float(p.get("betrag") or 0) for p in positionen), 2
+        fallb_zahlungen = _round2_half_up(
+            fallb_gesamt_voll - sum(float(p.get("betrag") or 0) for p in positionen)
         )
-        klagebetrag = max(0.0, round(fallb_gesamt_voll * hq / 100 - fallb_zahlungen, 2))
+        klagebetrag = max(0.0, _round2_half_up(fallb_gesamt_voll * hq / 100 - fallb_zahlungen))
     else:
         klagebetrag = sum(float(p.get("betrag") or 0) for p in positionen)
 
@@ -1683,8 +1694,10 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         # fallb_gesamt_voll (cfg-betragOriginal-Summe) kann bei Nebenkosten
         # (netto/brutto via _netto_oder_brutto) von schaden_gesamt abweichen -
         # nur klagebetrag (Antrag 1) darf auf fallb_gesamt_voll basieren.
-        _ersatzfaehig = round(schaden_gesamt * hq / 100, 2)
-        _zahlungen_anzeige = round(_ersatzfaehig - klagebetrag, 2)
+        # KW-36: gleiche Rundung wie fallb_zahlungen/klagebetrag (_round2_half_up),
+        # sonst koennte _ersatzfaehig bei einer Centhaelfte von klagebetrag abweichen.
+        _ersatzfaehig = _round2_half_up(schaden_gesamt * hq / 100)
+        _zahlungen_anzeige = _round2_half_up(_ersatzfaehig - klagebetrag)
         schaden_xml += _lz()
         # KW-34: Zahlungen übersteigen den quotierten Anspruch - klagebetrag ist auf 0
         # geklemmt (max(0.0, ...) bei :1122). _zahlungen_anzeige waere hier arithmetisch

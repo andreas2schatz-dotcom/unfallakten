@@ -104,6 +104,13 @@ describe("buildRwVorschau – KW-03 oeffneWizard-Initialtext (Review-Fix)", () =
   });
 });
 
+describe("buildRwVorschau – KW-36 hq=0-Guard bei hqTyp=eigen", () => {
+  it("hq=0 mit hqTyp eigen erzeugt keinen Anrechnungs-Baustein (Regressions-Pin)", () => {
+    const text = buildRwVorschau("", 0, 0, false, "eigen");
+    expect(text).not.toMatch(/anrechnen|Mithaftungsquote von 0/);
+  });
+});
+
 describe("buildRwVorschau – KW-03 alleinige-Haftung-Satz (hq=100, genus-/anzahlbewusst, Rückportierung)", () => {
   it("hq=100, ein männlicher Beklagter (natürliche Person): 'des Beklagten' / 'bei dem ... Beklagten'", () => {
     const beklagte = [
