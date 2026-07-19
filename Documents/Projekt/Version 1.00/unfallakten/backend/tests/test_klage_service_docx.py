@@ -874,6 +874,18 @@ class TestKw31OverrideAbsaetze(unittest.TestCase):
         self.assertIn('BEWEIS:</w:t>', xml)                      # _beweis()-Format
         self.assertNotIn("Eigentümer. BEWEIS:", xml)             # nicht als Fließtext verkettet
 
+    def test_beweis_tab_variante_nach_einfachem_umbruch_wird_beweis_absatz(self):
+        xml = self._xml_fuer("Der Kläger ist Eigentümer.\nBEWEIS:\tZeugnis des Herrn Meier")
+        self.assertIn(_beweis("Zeugnis des Herrn Meier"), xml)
+        self.assertNotIn("Eigentümer. BEWEIS:", xml)
+
+    def test_bare_beweis_ohne_inhalt_wird_leerer_beweis_absatz(self):
+        xml = self._xml_fuer("Vor dem Beweis.\nBEWEIS:\nNach dem Beweis.")
+        self.assertIn(_beweis(""), xml)
+        self.assertNotIn("Vor dem Beweis. BEWEIS:", xml)
+        self.assertNotIn("BEWEIS: Nach dem Beweis.", xml)
+        self.assertIn(">Nach dem Beweis.<", xml)
+
     def test_leerzeile_erzeugt_zwei_absaetze(self):
         xml = self._xml_fuer("Absatz eins.\n\nAbsatz zwei.")
         self.assertIn(">Absatz eins.<", xml)
