@@ -701,11 +701,14 @@ class TestKW09VerzugsdatumFormat(unittest.TestCase):
         return akte_daten
 
     def test_iso_datum_erscheint_deutsch_in_antrag_und_verzugsabschnitt(self):
+        # S4-M5: ohne verzug_schreiben_datum gibt es keinen BEWEIS-Satz mehr
+        # (kein Fallback aufs Eintrittsdatum) - ISO-Formatierung des Schreibdatums
+        # ist separat in TestKW10SchreibdatumGetrennt abgedeckt.
         xml = _document_xml(generiere_klageschrift(self._akte_mit_verzug("2026-05-04")))
         self.assertNotIn("2026-05-04", xml)
         self.assertIn("seit dem 04.05.2026 zu zahlen", xml)
         self.assertIn("am 04.05.2026 eingetreten", xml)
-        self.assertIn("Schreiben vom 04.05.2026", xml)
+        self.assertNotIn("Schreiben vom", xml)
 
     def test_deutsches_datum_bleibt_unveraendert(self):
         xml = _document_xml(generiere_klageschrift(self._akte_mit_verzug("04.05.2026")))
@@ -730,12 +733,16 @@ class TestKW10SchreibdatumGetrennt(unittest.TestCase):
         self.assertIn("Schreiben vom 04.05.2026", xml)
         self.assertNotIn("Schreiben vom 19.05.2026", xml)
 
-    def test_ohne_schreiben_datum_faellt_beweis_auf_verzugsdatum_zurueck(self):
+    def test_ohne_schreiben_datum_kein_beweis_mehr(self):
+        # S4-M5: Backend glich sich ans Frontend (buildVerzugAutoText) an - kein
+        # BEWEIS-Satz mehr, wenn verzug_schreiben_datum nicht explizit gesetzt ist
+        # (vorher Fallback aufs Eintrittsdatum, divergierte von der Wizard-Vorschau).
         akte_daten = _akte_daten([_position("wertminderung", "Wertminderung", 700.0)])
         akte_daten["klage_config"]["zinsen_ab"] = "verzug"
         akte_daten["klage_config"]["verzugsdatum"] = "2026-05-19"
         xml = _document_xml(generiere_klageschrift(akte_daten))
-        self.assertIn("Schreiben vom 19.05.2026", xml)
+        self.assertIn("am 19.05.2026 eingetreten", xml)
+        self.assertNotIn("Schreiben vom", xml)
 
 
 class TestKW35RvgAnlagedatumFallback(unittest.TestCase):
@@ -895,6 +902,42 @@ class TestKw31OverrideAbsaetze(unittest.TestCase):
     def test_einfacher_umbruch_bleibt_ein_absatz(self):
         xml = self._xml_fuer("Zeile eins\nZeile zwei")
         self.assertIn("Zeile eins Zeile zwei", xml)
+
+
+class TestKw32Abschnittszaehler(unittest.TestCase):
+    def test_verzug_hat_nummer_und_ueberschrift_ohne_sg(self):
+        akte = _akte_daten([_position("fahrzeugschaden", "Fahrzeugschaden", 1000.0)])
+        akte["klage_config"]["verzugsdatum"] = "2026-05-04"
+        xml = _document_xml(generiere_klageschrift(akte))
+        self.assertIn("5.) Verzug", xml)
+        self.assertIn("6.) Vorgerichtliche Rechtsanwaltsgebühren", xml)
+
+    def test_nummern_mit_sg(self):
+        akte = _akte_daten([_position("fahrzeugschaden", "Fahrzeugschaden", 1000.0)],
+                           mit_schmerzensgeld=True, schmerzensgeld_mindest=2000.0)
+        akte["klage_config"]["verzugsdatum"] = "2026-05-04"
+        xml = _document_xml(generiere_klageschrift(akte))
+        self.assertIn("5.) Schmerzensgeld", xml)
+        self.assertIn("6.) Verzug", xml)
+        self.assertIn("7.) Vorgerichtliche Rechtsanwaltsgebühren", xml)
+
+    def test_verzug_ohne_verzugsdatum_bleibt_nummeriert(self):
+        # Verzug-Block rendert auch ohne verzugsdatum/Override den Default-Satz
+        # ("Verzug ist mit Rechtshaengigkeit eingetreten.") - der Block ist also
+        # nie wirklich leer; die Ueberschrift darf hier nicht uebersprungen werden.
+        akte = _akte_daten([_position("fahrzeugschaden", "Fahrzeugschaden", 1000.0)])
+        xml = _document_xml(generiere_klageschrift(akte))
+        self.assertIn("5.) Verzug", xml)
+        self.assertIn("Verzug ist mit Rechtshängigkeit eingetreten.", xml)
+        self.assertIn("6.) Vorgerichtliche Rechtsanwaltsgebühren", xml)
+
+    def test_sachverhalt_bis_rechtliche_wuerdigung_unveraendert_nummeriert(self):
+        akte = _akte_daten([_position("fahrzeugschaden", "Fahrzeugschaden", 1000.0)])
+        xml = _document_xml(generiere_klageschrift(akte))
+        self.assertIn("1.) Sachverhalt", xml)
+        self.assertIn("2.) Unfallhergang", xml)
+        self.assertIn("3.) Unfallschaden", xml)
+        self.assertIn("4.) Rechtliche Würdigung", xml)
 
 
 if __name__ == "__main__":

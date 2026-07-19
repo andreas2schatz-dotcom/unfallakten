@@ -1414,15 +1414,24 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         details.get("aktivlegitimation_text_override"),
     ))
 
+    # ── KW-32: laufender Abschnittszähler statt hart codierter Nummern -
+    # die Kopfstellen werden in Dokumentreihenfolge aufgerufen (SG → Verzug →
+    # Vorgerichtliche Kosten, siehe ooxml_blocks/Template), der Zähler zählt
+    # nur reale Abschnitte (SG nur bei mit_sg, Verzug nur wenn er Inhalt hat).
+    abschnitt_nr = [0]
+    def _abschnitt_kopf(titel: str) -> str:
+        abschnitt_nr[0] += 1
+        return _p(f"{abschnitt_nr[0]}.) {titel}", fett=True)
+
     # ── {{EINLEITUNG}} ────────────────────────────────────────────────────
     if details.get("sachverhalt_override"):
         # Wizard hat einen kombinierten Sachverhalt-Text übergeben (Einleitung +
         # Beklagten-Block + AktLeg in einem). Überschreibt die Auto-Generierung.
-        einleitung_xml = _lz() + _p("1.) Sachverhalt", fett=True)
+        einleitung_xml = _lz() + _abschnitt_kopf("Sachverhalt")
         einleitung_xml += _sachverhalt_override_xml(details["sachverhalt_override"])
         aktivleg_xml   = ""
     else:
-        einleitung_xml  = _lz() + _p("1.) Sachverhalt", fett=True)
+        einleitung_xml  = _lz() + _abschnitt_kopf("Sachverhalt")
 
         # Alle Einleitungssätze zu einem Fließtext-Absatz zusammenführen
         # KW-30: Ort/Datum-Segment nur setzen wenn Wert vorhanden (kein "vom  "/"in  " mehr)
@@ -1528,7 +1537,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     ea_az  = details.get("ermittlungsakte_az") or ""
     ea_beh = details.get("ermittlungsakte_behoerde") or ""
 
-    unfall_xml  = _lz() + _p("2.) Unfallhergang", fett=True)
+    unfall_xml  = _lz() + _abschnitt_kopf("Unfallhergang")
     if schilderung:
         unfall_xml += _p(schilderung)
     else:
@@ -1657,7 +1666,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         reg_agg, ungebunden=ungebundener_vorschuss
     )
 
-    schaden_xml  = _lz() + _p("3.) Unfallschaden", fett=True)
+    schaden_xml  = _lz() + _abschnitt_kopf("Unfallschaden")
     schaden_xml += _p("Durch den Unfall ist ein Schaden entstanden, der sich wie folgt zusammensetzt:")
     schaden_xml += tabelle_xml
     schaden_xml += _lz()
@@ -1720,7 +1729,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     # ── {{RECHTLICHE_WUERDIGUNG}} ─────────────────────────────────────────
     rw_text_override = (details.get("rw_text_override") or "").strip()
     if rw_text_override:
-        rw_xml = _lz() + _p("4.) Rechtliche Würdigung", fett=True)
+        rw_xml = _lz() + _abschnitt_kopf("Rechtliche Würdigung")
         for _line in rw_text_override.split("\n"):
             _line = _line.strip()
             if not _line:
@@ -1732,7 +1741,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     else:
         haftungsbegruendung = details.get("haftungsbegruendung") or ""
 
-        rw_xml  = _lz() + _p("4.) Rechtliche Würdigung", fett=True)
+        rw_xml  = _lz() + _abschnitt_kopf("Rechtliche Würdigung")
         rw_xml += _p(f"Der bei der Beklagten versicherte Unfallgegner verursachte den Unfall "
                      f"durch {haftungsbegruendung or 'sein schuldhaftes Verhalten'}. "
                      f"Die Haftungsquote beträgt {_pct_str(hq)} %.")
@@ -1768,7 +1777,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
 
     # ── {{SCHMERZENSGELD}} ────────────────────────────────────────────────
     if mit_sg:
-        sg_xml = _lz() + _p("5.) Schmerzensgeld", fett=True)
+        sg_xml = _lz() + _abschnitt_kopf("Schmerzensgeld")
         sg_absaetze, sg_beweis, sg_vgl = baue_sg_abschnitt(
             ps_data, kl_nom, sg_mind,
             verb_hat="haben" if mehrere_klaeger else "hat",
@@ -1786,26 +1795,34 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     # ── {{VERZUG}} ────────────────────────────────────────────────────────
     verzug_text_override = (details.get("verzug_text_override") or "").strip()
     if verzug_text_override:
-        verzug_xml = ""
+        verzug_body_xml = ""
         for _line in verzug_text_override.split("\n"):
             _line = _line.strip()
             if not _line:
-                verzug_xml += _lz()
+                verzug_body_xml += _lz()
             elif _line.upper().startswith("BEWEIS:"):
-                verzug_xml += _beweis(_line[len("BEWEIS:"):].strip())
+                verzug_body_xml += _beweis(_line[len("BEWEIS:"):].strip())
             else:
-                verzug_xml += _p(_line)
-        verzug_xml += _lz()
+                verzug_body_xml += _p(_line)
     else:
         if verzugsdatum:
-            verzug_xml = _p(
+            verzug_body_xml = _p(
                 f"Der Verzug ist nach Ablauf der Zahlungsfrist bzw. dem ernsthaften "
                 f"und endgültigen Verweigern der Leistung am {verzugsdatum} eingetreten."
             )
-            verzug_xml += _beweis(f"Schreiben vom {verzug_schreiben}")
+            # S4-M5: BEWEIS nur wenn verzug_schreiben_datum explizit gesetzt ist -
+            # vorher Fallback aufs Eintrittsdatum, divergierte vom Frontend
+            # (buildVerzugAutoText laesst den Satz ohne Schreibdatum ebenfalls weg).
+            if cfg.get("verzug_schreiben_datum"):
+                verzug_body_xml += _beweis(f"Schreiben vom {verzug_schreiben}")
         else:
-            verzug_xml = _p("Verzug ist mit Rechtshängigkeit eingetreten.")
-        verzug_xml += _lz()
+            verzug_body_xml = _p("Verzug ist mit Rechtshängigkeit eingetreten.")
+
+    # KW-32: eigene Überschrift, nur wenn der Block tatsächlich Inhalt hat.
+    if verzug_body_xml:
+        verzug_xml = _lz() + _abschnitt_kopf("Verzug") + verzug_body_xml + _lz()
+    else:
+        verzug_xml = ""
 
     # ── {{VORGERICHTLICHE_KOSTEN}} ────────────────────────────────────────
     # K-14: RVG als saubere 2-Spalten-Tabelle (wie Schadentabelle)
@@ -1855,8 +1872,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     bek_haften = bek_gram["haftet"]
     bek_nom    = bek_gram["nom_klein"]
 
-    vk_nr   = 5 + int(mit_sg)  # 5 ohne SG, 6 mit SG
-    vk_xml  = _lz() + _p(f"{vk_nr}.) Vorgerichtliche Rechtsanwaltsgebühren", fett=True)
+    vk_xml  = _lz() + _abschnitt_kopf("Vorgerichtliche Rechtsanwaltsgebühren")
     vk_xml += _p(
         f"Der Klageantrag zu {rvg_antrag_nr}. ergibt sich aus den vorgerichtlich entstandenen "
         f"Gebühren, für die {bek_nom} ebenfalls {bek_haften}. "
