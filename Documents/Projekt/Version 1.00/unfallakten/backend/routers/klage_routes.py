@@ -17,12 +17,14 @@ import json
 import logging
 import os
 import re
+import sqlite3
 import uuid
 from pathlib import Path
 from flask import Blueprint, request, jsonify, g, send_file
 from ..auth.middleware import login_erforderlich
 from ..models.akte import hole_akte_by_id
 from ..db.database import get_connection
+from ._helpers import pruefe_akte as _pruefe_akte
 from ..models.schaden import hole_schadenpositionen, hole_regulierungen_by_akte
 from ..models.dokument import registriere_dokument
 from ..word.klage_service import berechne_rvg, generiere_klageschrift, berechne_fahrzeugschaden
@@ -1930,5 +1932,91 @@ def suche_gerichte(akte_id: str):
                         })
         except Exception as e:
             logger.warning("Gerichte SQLite-Fallback: %s", e)
+
+
+# ── Wizard-Entwurf speichern (Paket 1) ────────────────────────────────────────
+
+@klage_bp.route("/entwurf", methods=["GET"])
+@login_erforderlich
+def hole_klage_entwurf(akte_id: str):
+    """
+    GET /akten/<az>/klage/entwurf
+    Liefert den gespeicherten Wizard-Entwurf; 404 wenn keiner existiert.
+    """
+    akte_obj = _pruefe_akte(akte_id)
+    if not akte_obj:
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    az = getattr(akte_obj, "aktenzeichen", akte_id)
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT entwurf_json, format_version, gespeichert_am "
+            "FROM klage_entwurf WHERE akte_id = ?", (az,)
+        ).fetchone()
+    if not row:
+        return _err("Kein Entwurf vorhanden.", 404)
+    return _j({
+        "entwurf_json": row["entwurf_json"],
+        "format_version": row["format_version"],
+        "gespeichert_am": row["gespeichert_am"],
+    })
+
+
+@klage_bp.route("/entwurf", methods=["PUT"])
+@login_erforderlich
+def speichere_klage_entwurf(akte_id: str):
+    """
+    PUT /akten/<az>/klage/entwurf
+    Upsert des Wizard-Entwurfs. Body: { entwurf: <Objekt>, format_version: <int> }
+    """
+    akte_obj = _pruefe_akte(akte_id)
+    if not akte_obj:
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    az = getattr(akte_obj, "aktenzeichen", akte_id)
+
+    daten = request.get_json(silent=True) or {}
+    entwurf = daten.get("entwurf")
+    fv = daten.get("format_version")
+    if not isinstance(entwurf, dict):
+        return _err("entwurf (Objekt) ist erforderlich.", 422)
+    if not isinstance(fv, int) or isinstance(fv, bool) or fv < 1:
+        return _err("format_version (Ganzzahl >= 1) ist erforderlich.", 422)
+
+    entwurf_json = json.dumps(entwurf, ensure_ascii=False)
+    try:
+        with get_connection() as conn:
+            conn.execute(
+                """INSERT INTO klage_entwurf
+                       (akte_id, entwurf_json, format_version, gespeichert_am)
+                   VALUES (?, ?, ?, datetime('now','localtime'))
+                   ON CONFLICT(akte_id) DO UPDATE SET
+                       entwurf_json   = excluded.entwurf_json,
+                       format_version = excluded.format_version,
+                       gespeichert_am = excluded.gespeichert_am""",
+                (az, entwurf_json, fv)
+            )
+            row = conn.execute(
+                "SELECT gespeichert_am FROM klage_entwurf WHERE akte_id = ?",
+                (az,)
+            ).fetchone()
+    except sqlite3.IntegrityError:
+        # Akte existiert nur in RA-MICRO, nicht in SQLite -> FK schlaegt an
+        return _err(f"Akte {az} ist nicht in der lokalen Datenbank angelegt.", 404)
+    return _j({"ok": True, "gespeichert_am": row["gespeichert_am"]})
+
+
+@klage_bp.route("/entwurf", methods=["DELETE"])
+@login_erforderlich
+def loesche_klage_entwurf(akte_id: str):
+    """
+    DELETE /akten/<az>/klage/entwurf
+    Loescht den Entwurf; idempotent (200 auch ohne vorhandenen Entwurf).
+    """
+    akte_obj = _pruefe_akte(akte_id)
+    if not akte_obj:
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    az = getattr(akte_obj, "aktenzeichen", akte_id)
+    with get_connection() as conn:
+        conn.execute("DELETE FROM klage_entwurf WHERE akte_id = ?", (az,))
+    return _j({"ok": True})
 
     return _j({"gerichte": gerichte})
