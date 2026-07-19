@@ -1352,6 +1352,8 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
             f"seit {zins_sachsch} zu zahlen."
         )
         antraege_xml += _lz()
+        # KW-30: "vom {unfalltag}"-Segment nur wenn Unfalldatum gesetzt
+        ereignis_seg = f" vom {unfalltag}" if unfalltag else ""
         if mit_sg:
             if sg_mind > 0:
                 antraege_xml += antrag(
@@ -1372,7 +1374,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
             antraege_xml += antrag(
                 f"Es wird festgestellt, dass {bek_gram['verpflichtet']}, {kl_dat3} "
                 f"sämtliche künftigen materiellen und immateriellen Schäden zu ersetzen, "
-                f"die aus dem Unfallereignis vom {unfalltag} noch entstehen werden, "
+                f"die aus dem Unfallereignis{ereignis_seg} noch entstehen werden, "
                 f"soweit Ansprüche nicht auf Sozialversicherungsträger oder sonstige Dritte "
                 f"übergegangen sind oder noch übergehen werden."
             )
@@ -1382,7 +1384,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
             antraege_xml += antrag(
                 f"Es wird festgestellt, dass {bek_gram['verpflichtet']}, {kl_dat3} "
                 f"sämtliche weiteren materiellen Schäden zu ersetzen, die aus dem "
-                f"Unfallereignis vom {unfalltag} noch entstehen werden."
+                f"Unfallereignis{ereignis_seg} noch entstehen werden."
             )
             antraege_xml += _lz()
         # BE-3: RVG-Antrag auf außergerichtlichem Streitwert (wenn rvg_ausserg vorhanden)
@@ -1418,20 +1420,27 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         einleitung_xml  = _lz() + _p("1.) Sachverhalt", fett=True)
 
         # Alle Einleitungssätze zu einem Fließtext-Absatz zusammenführen
+        # KW-30: Ort/Datum-Segment nur setzen wenn Wert vorhanden (kein "vom  "/"in  " mehr)
+        unfall_seg = ""
+        if unfalltag:
+            unfall_seg += f" vom {unfalltag}"
+        if unfallort:
+            unfall_seg += f" in {unfallort}"
+
         if unfalltag:
             intro_satz = (
                 f"{kl_nom} {kl_macht} als {nicht_vst} {kl_gesch} Schadensersatzforderungen "
-                f"aus einem Verkehrsunfall vom {unfalltag} in {unfallort} geltend."
+                f"aus einem Verkehrsunfall{unfall_seg} geltend."
             )
         elif mehrere_klaeger:
             intro_satz = (
                 f"{kl_nom} {kl_macht} als {nicht_vst} {kl_gesch} Schadensersatzforderungen "
-                f"aus einem Verkehrsunfall in {unfallort} geltend."
+                f"aus einem Verkehrsunfall{unfall_seg} geltend."
             )
         else:
             intro_satz = (
-                f"{kl_nom} macht Schadensersatzforderungen aus einem Verkehrsunfall "
-                f"in {unfallort} geltend."
+                f"{kl_nom} macht Schadensersatzforderungen aus einem Verkehrsunfall"
+                f"{unfall_seg} geltend."
             )
         bek_saetze = []
         mehrere_bek = len(beklagte_gef) > 1

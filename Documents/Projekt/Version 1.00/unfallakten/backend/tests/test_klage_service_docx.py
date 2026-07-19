@@ -825,5 +825,43 @@ class TestKw37FaktorKomma(unittest.TestCase):
         self.assertNotIn("Nr. 2300 VV RVG (1.3):", xml)
 
 
+class TestKw30LeereFelder(unittest.TestCase):
+    """KW-30: Bedingte Ort-/Datum-Segmente statt fixer 'vom  '/'in  '-Fragmente."""
+
+    def _akte_ohne_ort(self):
+        akte = _akte_daten([_position("fahrzeugschaden", "Fahrzeugschaden", 1000.0)])
+        # _akte_daten() setzt kein unfalldatum -> hier explizit setzen, damit dieser
+        # Test wirklich nur den Ort-Fall (nicht zusaetzlich den Datum-Fall) prueft.
+        akte["akte"]["unfalldatum"] = "2026-03-10"
+        akte["akte"]["unfallort"] = ""
+        return akte
+
+    def test_einleitung_ohne_ort_kein_in_fragment(self):
+        xml = _document_xml(generiere_klageschrift(self._akte_ohne_ort()))
+        self.assertNotIn("in  geltend", xml)
+        self.assertIn("Verkehrsunfall vom", xml)   # Datum-Segment bleibt
+
+    def test_einleitung_ohne_ort_und_datum(self):
+        akte = self._akte_ohne_ort()
+        akte["akte"]["unfalldatum"] = ""
+        xml = _document_xml(generiere_klageschrift(akte))
+        self.assertIn("aus einem Verkehrsunfall geltend", xml)
+
+    def test_feststellung_ohne_datum_kein_vom_fragment(self):
+        akte = _akte_daten([_position("fahrzeugschaden", "Fahrzeugschaden", 1000.0)])
+        akte["akte"]["unfalldatum"] = ""
+        akte["klage_config"]["mit_feststellung_sach"] = True
+        xml = _document_xml(generiere_klageschrift(akte))
+        self.assertNotIn("Unfallereignis vom  noch", xml)
+        self.assertIn("aus dem Unfallereignis noch entstehen", xml)
+
+    def test_einleitung_mit_ort_und_datum_bytegleich(self):
+        akte = _akte_daten([_position("fahrzeugschaden", "Fahrzeugschaden", 1000.0)])
+        akte["akte"]["unfalldatum"] = "2026-03-10"
+        akte["akte"]["unfallort"] = "Offenbach"
+        xml = _document_xml(generiere_klageschrift(akte))
+        self.assertIn("aus einem Verkehrsunfall vom 10.03.2026 in Offenbach geltend.", xml)
+
+
 if __name__ == "__main__":
     unittest.main()
