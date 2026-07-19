@@ -488,6 +488,23 @@ sonstiges_wdm_1 … sonstiges_wdm_6
 
 ---
 
+### klage_entwurf
+*Erstellt: Migration 61 (backend/db) · Klage-Wizard „Entwurf speichern" (Paket 1)*
+
+Ein Wizard-Entwurf je Akte (`akte_id` UNIQUE, Upsert per `ON CONFLICT`). `entwurf_json` trägt den kompletten Wizard-Zustand als JSON, `format_version` erkennt Entwürfe älterer Wizard-Stände — der Fortsetzen-Dialog bietet bei veralteter Version dann nur „Neu beginnen" statt „Fortsetzen" an.
+
+| Spalte | Typ | Constraint |
+|---|---|---|
+| `id` | INTEGER | **PK AUTOINCREMENT** |
+| `akte_id` | TEXT | NOT NULL UNIQUE FK unfallakte(az) ON DELETE CASCADE |
+| `entwurf_json` | TEXT | NOT NULL — kompletter Wizard-Zustand als JSON |
+| `format_version` | INTEGER | NOT NULL |
+| `gespeichert_am` | TEXT | NOT NULL DEFAULT datetime('now','localtime') |
+
+Endpunkte: `GET/PUT/DELETE /akten/<az>/klage/entwurf` (Router `backend/routers/klage_routes.py`).
+
+---
+
 ### weitere Tabellen (Kurzform)
 
 | Tabelle | Mig | Zweck | PK |
