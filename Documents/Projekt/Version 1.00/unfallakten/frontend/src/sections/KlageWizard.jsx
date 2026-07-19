@@ -21,6 +21,7 @@ import { fmtEuro, fmtDatumDe } from "../config/utils.js";
 import { KLAGE_KEY_MAP } from "../config/klagePositionKeys.js";
 import { apiGebuehren } from "../api.js";
 import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
+import { formatGespeichertAm } from "./klageEntwurfLogik.js";
 
 // ── Konstanten ─────────────────────────────────────────────────────────────────
 
@@ -2006,6 +2007,28 @@ export function TextVeraltetBadge({ sichtbar, onNeuGenerieren, onBehalten }) {
   );
 }
 
+export function EntwurfStatusLeiste({ dirty, gespeichertAm, fehler, laeuft, onSpeichern }) {
+  let status = "";
+  let statusFarbe = T.textMuted;
+  if (fehler) { status = fehler; statusFarbe = T.red; }
+  else if (dirty) { status = "Ungespeicherte Änderungen"; statusFarbe = T.amberText; }
+  else if (gespeichertAm) {
+    status = `Gespeichert ${formatGespeichertAm(gespeichertAm)}`;
+    statusFarbe = T.green;
+  }
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+      <button onClick={onSpeichern} disabled={laeuft}
+        style={{ padding: "5px 10px", borderRadius: 6, cursor: laeuft ? "wait" : "pointer",
+          border: `1.5px solid ${T.navy}`, background: "#fff",
+          fontFamily: PLEX, fontSize: "0.78rem", fontWeight: 600, color: T.navy }}>
+        💾 Entwurf speichern
+      </button>
+      {status && <span style={{ fontFamily: PLEX, fontSize: "0.78rem", color: statusFarbe }}>{status}</span>}
+    </div>
+  );
+}
+
 export function baueAntraegeText(opts) {
   const { positionen, mitSG, sgMind, beklagte, weiblich, zinsenAb, verzug,
           unfalldatum, mitFestSg, mitFestSach, hq = 100, hqTyp = "gegnerisch" } = opts;
@@ -2517,6 +2540,8 @@ export default function KlageWizard({
   lgGrenzwert,
   // Generieren
   laedt, onGenerieren, fehler,
+  // Entwurf speichern
+  onEntwurfSpeichern, entwurfDirty, entwurfGespeichertAm, entwurfFehler, entwurfLaeuft,
 }) {
   const backdropRef = useRef(null);
 
@@ -2781,6 +2806,9 @@ export default function KlageWizard({
                 ⚠ Bitte mindestens eine Position auswählen
               </div>
             )}
+
+            <EntwurfStatusLeiste dirty={entwurfDirty} gespeichertAm={entwurfGespeichertAm}
+              fehler={entwurfFehler} laeuft={entwurfLaeuft} onSpeichern={onEntwurfSpeichern} />
 
             {step < STEPS.length && (
               <button onClick={weiter} disabled={!kannWeiter()}

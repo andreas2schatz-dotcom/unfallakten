@@ -706,6 +706,12 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           laedt={generiert_laedt}
           onGenerieren={wizardGenerieren}
           fehler={fehler}
+          // Entwurf speichern
+          onEntwurfSpeichern={speichereEntwurf}
+          entwurfDirty={entwurfDirty}
+          entwurfGespeichertAm={entwurfGespeichertAm}
+          entwurfFehler={entwurfFehler}
+          entwurfLaeuft={entwurfLaeuft}
         />
       )}
       {showSgAssistent && (() => {
