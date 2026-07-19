@@ -78,7 +78,10 @@ als Mini-Task mitgehen, wenn ohnehin an der Datei gearbeitet wird):
   `bek`-Fingerprint erfasst anrede/versicherung/firma nicht (nur relevant, falls
   Beklagten-Stammdaten im Wizard editierbar werden); Fixture-Boilerplate-Duplikat
   test_klage_kw18↔kw27.
-- Offene Nutzer-Bestätigungen: Verzugseintritt-Default +14 Tage (S4); KW-29-Design
+- Offene Nutzer-Bestätigungen: ~~Verzugseintritt-Default +14 Tage (S4)~~ **BESTÄTIGT
+  RA Schatz 2026-07-19**; langfristig abgelöst durch Backlog-Idee „Dokumentenklasse
+  Klagedrohung mit frist_datum" (TODO.md, Priorität Mittel — Eintritt dann = Tag nach
+  Fristablauf, +14 nur noch Fallback); KW-29-Design
   „fehlgeschlagener Auto-Lookup blockiert Auto-Retries für die Sitzung" (S5);
   KW-28 `hochgeladen_am`-Fallback als Schreibdatum-Vorschlag für gescannte
   Fremdschreiben ohne forderung_position (S5-Abschluss-Review I1 — editierbar, aber

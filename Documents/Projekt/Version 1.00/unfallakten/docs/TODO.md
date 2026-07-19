@@ -270,6 +270,11 @@ PRD vorhanden: `handover/PRD-25c_Mandantenkommunikation.md`
 
 ### Priorität: Mittel
 
+**Dokumentenklasse „Klagedrohung" mit Frist-Eigenschaft → Verzugs-Automatik im Klage-Wizard** *(Idee RA Schatz 2026-07-19, im Zuge der PRD-33-S5-Abnahme)*
+Schreiben mit Fristsetzung (letzte Zahlungsaufforderung/Klagedrohung) bekommen eine eigene Dokumentenklasse `klagedrohung` mit strukturiertem `frist_datum`. Der Klage-Wizard weiß dann sofort, welches Schreiben mit welcher Frist den Verzug begründet: Vorbelegung Verzugseintritt = **Tag nach Fristablauf** (statt heutigem +14-Tage-Default, der zum Fallback wird), Schreibdatum + BEWEIS aus demselben Dokument, Herkunft sichtbar („Frist aus Schreiben vom …").
+Zwei Befüllungswege: **(a) selbst erzeugte Schreiben** (Forderungsschreiben-Generator setzt die Frist ja selbst) → Frist beim Erzeugen exakt stempeln, kein Parsen nötig — der verlässlichste Pfad; **(b) gescannte/importierte Schreiben** → Intake-Klassifikator (Registry, Stufe 1) + Parser extrahiert das Fristdatum. Integration: `verzug_dokumente`-Query (hat seit S5 schon `datum`) um `frist_datum` erweitern; optional Verknüpfung mit dem Fristen-System (PRD-25a), damit die ohnehin eingetragene Frist direkt am Dokument hängt. Juristischer Rand: Verzug ohne Frist (§ 286 I/III BGB) bleibt der manuelle/Fallback-Pfad.
+(aus: Nutzer-Feedback zur PRD-33-Session-5-Abnahme)
+
 **PRD-32 Phase 2 – Rechnungstypen-Parser: Beleg-Mapping**
 Phase 1 (Subklassen im Classifier) ist fertig. Phase 2: erkannte Rechnungstypen automatisch der richtigen Schadenposition zuordnen (Standkosten → Standgeld-Position, Abschlepprechnung → Abschleppkosten-Position).
 Plan: `handover/PRD-32_Rechnungstypen_Parser.md`
