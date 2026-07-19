@@ -139,6 +139,15 @@ class TestKlageEntwurfEndpoints(unittest.TestCase):
         r3 = self.client.delete(f"/akten/{self.az}/klage/entwurf", headers=self.headers)
         self.assertEqual(r3.status_code, 200)
 
+    def test_gerichte_endpoint_unversehrt(self):
+        """Regressionsschutz: /entwurf-Einbau darf suche_gerichte nicht beschaedigen."""
+        r = self.client.get(
+            f"/akten/{self.az}/klage/gerichte?q=Amtsgericht",
+            headers=self.headers,
+        )
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        self.assertIn("gerichte", r.get_json())
+
 
 if __name__ == "__main__":
     unittest.main()

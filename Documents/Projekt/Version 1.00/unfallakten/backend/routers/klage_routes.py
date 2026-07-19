@@ -1933,6 +1933,8 @@ def suche_gerichte(akte_id: str):
         except Exception as e:
             logger.warning("Gerichte SQLite-Fallback: %s", e)
 
+    return _j({"gerichte": gerichte})
+
 
 # ── Wizard-Entwurf speichern (Paket 1) ────────────────────────────────────────
 
@@ -2018,5 +2020,3 @@ def loesche_klage_entwurf(akte_id: str):
     with get_connection() as conn:
         conn.execute("DELETE FROM klage_entwurf WHERE akte_id = ?", (az,))
     return _j({"ok": True})
-
-    return _j({"gerichte": gerichte})
