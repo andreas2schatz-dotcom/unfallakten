@@ -415,8 +415,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   };
 
   const lookupVertreter = async (id, firmenname, { oeffneModal = true } = {}) => {
-    const cached = vertreterLookup[id]?.ergebnis;
-    if (cached && oeffneModal) { setVModal({id, name: firmenname, daten: cached}); return; }
+    // Expliziter Klick sucht IMMER frisch — der Sitzungs-Cache dient nur dem
+    // stillen Vorab-Lookup und wuerde sonst veraltete Organe zeigen
     setVLookup(p => ({...p, [id]: {laden: true, ergebnis: null}}));
     try {
       const res = await apiFirmen.vertreter(firmenname);
