@@ -1066,5 +1066,75 @@ class TestKw40(unittest.TestCase):
         self.assertNotIn("{{TESTBLOCK}}", xml)
 
 
+class TestV10RenderSmoke(unittest.TestCase):
+    """V10: Waechter gegen unersetzte/zersplitterte Platzhalter im Ergebnis-XML."""
+
+    def test_kein_unersetzter_platzhalter(self):
+        akte = _akte_daten([_position("fahrzeugschaden", "Fahrzeugschaden", 1000.0)])
+        xml = _document_xml(generiere_klageschrift(akte))
+        self.assertNotIn("{{", xml)
+        self.assertNotIn("}}", xml)
+
+
+class TestV10Matrix(unittest.TestCase):
+    """V10: Golden-File-Matrix ueber SG x Beklagte x Aktivlegitimation x Overrides.
+
+    Pinnt den Session-6-Endzustand (laufende Abschnittsnummerierung, VK-Abschnitt
+    entfaellt bei RVG 0, bedingte Feststellungs-/Einleitungs-Segmente) als
+    Strukturschutz - keine engen Formulierungs-Pins.
+    """
+
+    VERS = {"rolle_klage": "beklagter", "versicherung": "Test-Versicherung AG",
+            "anschrift": "Teststr. 2", "plz": "12345", "ort": "Teststadt"}
+    MANN = {"rolle_klage": "beklagter", "vorname": "Hans", "name": "Huber",
+            "anrede": "1", "anschrift": "Weg 3", "plz": "63065", "ort": "Offenbach"}
+
+    def _cfg(self, mit_sg, n_bek, akt_typ, mit_overrides):
+        pos = [_position("fahrzeugschaden", "Fahrzeugschaden", 3000.0)]
+        akte = _akte_daten(pos, mit_schmerzensgeld=mit_sg,
+                           schmerzensgeld_mindest=2000.0 if mit_sg else 0.0)
+        akte["unfalldetails"]["aktivlegitimation_typ"] = akt_typ
+        akte["klage_config"]["beklagte"] = [self.VERS] if n_bek == 1 else [self.VERS, self.MANN]
+        # Verzugsdatum immer gesetzt: prueft die laufende Verzug-Ueberschrift (KW-32)
+        # unabhaengig von den anderen drei Achsen mit.
+        akte["klage_config"]["verzugsdatum"] = "2026-05-04"
+        if mit_overrides:
+            akte["klage_config"]["antraege_override"] = (
+                "1.\tDie Beklagten werden verurteilt, an den Kläger 3.000,00 € zu zahlen.\n"
+                "2.\tDie Beklagten tragen die Kosten des Rechtsstreits."
+            )
+            akte["unfalldetails"]["sachverhalt_override"] = "Absatz.\n\nBEWEIS: Zeugnis Meier"
+        return akte
+
+    def test_matrix(self):
+        for mit_sg in (False, True):
+            for n_bek in (1, 2):
+                for akt_typ in ("eigentum", "finanziert", "geleast"):
+                    for ov in (False, True):
+                        with self.subTest(sg=mit_sg, bek=n_bek, typ=akt_typ, overrides=ov):
+                            doc = generiere_klageschrift(self._cfg(mit_sg, n_bek, akt_typ, ov))
+                            self.assertTrue(doc.startswith(b"PK"))
+                            xml = _document_xml(doc)
+                            self.assertNotIn("{{", xml)
+                            self.assertNotIn("}}", xml)
+                            if mit_sg and not ov:
+                                self.assertIn("Schmerzensgeld", xml)
+                            if n_bek == 2 and not ov:
+                                self.assertIn("Gesamtschuldner", xml)
+                            if akt_typ == "geleast" and not ov:
+                                self.assertNotIn("ist Eigentümer des", xml)
+                            # Gegenstueck zur geleast-Negativprobe: bei "eigentum" (und
+                            # keinem sachverhalt_override, der die Einleitung ersetzt)
+                            # muss der Eigentumssatz tatsaechlich stehen.
+                            if akt_typ == "eigentum" and not ov:
+                                self.assertIn("ist Eigentümer des", xml)
+                            # Verzug hat immer Inhalt (verzugsdatum oben gesetzt) und
+                            # damit laut KW-32 eine eigene laufende Nummer/Ueberschrift.
+                            self.assertRegex(xml, r"\d+\.\)\s*Verzug")
+                            # RVG-Betrag ist bei betrag=3000 nie auf 0 geklemmt -> der
+                            # VK-Abschnitt (KW-34) bleibt in jeder Kombination vorhanden.
+                            self.assertRegex(xml, r"\d+\.\)\s*Vorgerichtliche Rechtsanwaltsgebühren")
+
+
 if __name__ == "__main__":
     unittest.main()
