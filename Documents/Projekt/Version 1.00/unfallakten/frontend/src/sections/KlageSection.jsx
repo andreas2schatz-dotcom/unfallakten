@@ -21,6 +21,12 @@ import {
   parseEntwurf,
   reconcilePositionen,
 } from "./klageEntwurfLogik.js";
+import {
+  istPersonPartei,
+  istFirmenPartei,
+  parteiAnzeigeName,
+  organBezeichnung,
+} from "./parteiLogik.js";
 
 export function sollAutoLookup(b, lookupCache) {
   if (b.rolle_klage === "klaeger") return false;
@@ -74,10 +80,7 @@ export async function entwurfSpeichernRemote(akteId, entwurf) {
 }
 
 function vertretungsHinweis(name) {
-  const n = (name || "").toUpperCase();
-  if (/(GMBH|GBR|\bKG\b|OHG)/.test(n)) return "– vertreten durch den/die Geschäftsführer –";
-  if (/(\bAG\b|\bSE\b|KGAA)/.test(n))  return "– vertreten durch den Vorstand –";
-  return "– vertreten durch den gesetzlichen Vertreter –";
+  return `– vertreten durch ${organBezeichnung(name)} –`;
 }
 
 // ── Vertreter-Lookup Modal ─────────────────────────────────────────────────
@@ -1019,23 +1022,23 @@ function KlageSection({ akteId, akte, st, dispatch }) {
               const bekl = beklagte.filter(b => b.rolle_klage !== "klaeger");
               const mehrere = bekl.length > 1;
               return bekl.map((b, i) => {
-                const personName = (`${b.vorname||""} ${b.name||""}`).trim();
-                // Personen haben Vorrang vor Firmen-/Versicherungsname (WDM-Enrichment darf nicht verstecken)
-                const name    = personName || b.versicherung || b.firma || "Unbekannt";
+                const istPerson = istPersonPartei(b);
+                const personName = istPerson ? (`${b.vorname||""} ${b.name||""}`).trim() : "";
+                // Personen (mit Vornamen) haben Vorrang; Versicherer tragen den
+                // Firmennamen im Namensfeld und bleiben trotzdem Firma (Lookup!)
+                const name    = parteiAnzeigeName(b);
                 const anschr  = [b.anschrift, [b.plz, b.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ");
-                // istFirma nur wenn KEIN Personenname vorhanden
-                const istFirma = !personName && !!(b.versicherung || b.firma
-                  || (!b.vorname && b.name && b.rolle !== "mandant"));
+                const istFirma = istFirmenPartei(b);
                 // Versicherungsname als Extrainfo wenn Person bekannt
                 const extras  = [
                   b.schaden_nr ? `Schaden-Nr. ${b.schaden_nr}` : null,
                   b.kfz_kennzeichen || null,
-                  (personName && b.versicherung) ? `Vers.: ${b.versicherung}` : null,
+                  (istPerson && b.versicherung) ? `Vers.: ${b.versicherung}` : null,
                 ].filter(Boolean);
                 const nr      = mehrere ? ` zu ${i+1})` : "";
                 // Vertreter-Suffix für Adresszeile
                 const vName = b.vertreter_name || "";
-                const vFunk = b.vertreter_funktion || vertretungsHinweis(name).replace("– vertreten durch ", "").replace(" –", "");
+                const vFunk = b.vertreter_funktion || organBezeichnung(name);
                 const vertretungSuffix = vName
                   ? `, vertreten durch ${vFunk} ${vName}`
                   : "";

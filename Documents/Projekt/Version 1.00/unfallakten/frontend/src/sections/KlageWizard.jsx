@@ -22,6 +22,7 @@ import { KLAGE_KEY_MAP } from "../config/klagePositionKeys.js";
 import { apiGebuehren } from "../api.js";
 import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
 import { formatGespeichertAm } from "./klageEntwurfLogik.js";
+import { istPersonPartei, parteiAnzeigeName, organBezeichnung } from "./parteiLogik.js";
 
 // ── Konstanten ─────────────────────────────────────────────────────────────────
 
@@ -477,7 +478,7 @@ function _schadenNrBereinigt(raw) {
   return raw.replace(/^Schadennummer:\s*/i, "").trim();
 }
 
-function StepRubrum({ beklagte, onClose }) {
+export function StepRubrum({ beklagte, onClose }) {
   // checked=null → wie checked=true behandeln (Word-Verhalten: default True)
   const klaeger   = (beklagte || []).filter(b => b.rolle_klage === "klaeger");
   const beklagteG = kanonischeBeklagte(beklagte);
@@ -575,18 +576,19 @@ function StepRubrum({ beklagte, onClose }) {
         {beklagteG.length === 0 ? (
           <div style={{ color: T.amber, fontSize: "0.875rem" }}>⚠ Keine Beklagten ausgewählt.</div>
         ) : beklagteG.map((b, i) => {
-          const name       = b.versicherung || b.firma || `${b.vorname || ""} ${b.name || ""}`.trim() || "Unbekannt";
+          const istPerson  = istPersonPartei(b);
+          const name       = parteiAnzeigeName(b);
           const anschr     = [b.anschrift, [b.plz, b.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ");
-          const ist_firma  = !!(b.versicherung || b.firma);
+          const ist_firma  = !istPerson && !!(b.versicherung || b.firma || b.name);
           const vertr      = b.vertreter_name
-            ? `, vertreten durch ${b.vertreter_funktion || "den Vorstand"} ${b.vertreter_name}`
-            : ist_firma ? `, vertreten durch den Vorstand` : "";
+            ? `, vertreten durch ${b.vertreter_funktion || organBezeichnung(name)} ${b.vertreter_name}`
+            : ist_firma ? `, vertreten durch ${organBezeichnung(name)}` : "";
           const schadenNr  = _schadenNrBereinigt(b.schaden_nr);
           const schadenSfx = schadenNr ? `, zur Schadennummer ${schadenNr}` : "";
           const nr_suffix  = mehrereB ? ` zu ${i + 1})` : "";
           const zeile      = [name, anschr].filter(Boolean).join(", ") + vertr + schadenSfx;
           const warn       = ist_firma && !b.vertreter_name;
-          const maennlich  = !b.versicherung && !b.firma && anredeNorm(b.anrede) === "herr";
+          const maennlich  = istPerson && anredeNorm(b.anrede) === "herr";
           return <RubrumZeile key={b.id || i} links={zeile}
             rolle={`Beklagte${maennlich ? "r" : ""}${nr_suffix}`} warn={warn} />;
         })}
