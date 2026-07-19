@@ -785,29 +785,34 @@ def _vertretungs_hinweis(firmenname: str) -> str:
 def _sachverhalt_override_xml(text):
     # type: (str) -> str
     """
-    Wandelt einen sachverhalt_override-Freitext in OOXML um.
-    BEWEIS:\\t-Zeilen werden mit Tab-Stop-Formatierung gerendert.
-    Aller andere Text wird als ein einzelner Fließtext-Absatz (Blocksatz) zusammengeführt.
+    Wandelt einen sachverhalt_override-Freitext in OOXML um. Zeilenweise:
+    Leerzeile beendet den aktuellen Fließtext-Absatz; eine Zeile, die mit
+    BEWEIS: beginnt (Tab oder Space danach, auch ohne Inhalt), wird IMMER als
+    eigener _beweis()-Absatz gerendert - auch nach einfachem Zeilenumbruch.
+    Aufeinanderfolgende Nicht-BEWEIS-Zeilen ohne Leerzeile dazwischen werden zu
+    einem Fließtext-Absatz zusammengeführt (Blocksatz).
     """
     xml = ""
     fliess_teile = []
-    for block in text.split("\n\n"):
-        block = block.strip()
-        if not block:
-            continue
-        if block.startswith("BEWEIS:\t") or block.upper().startswith("BEWEIS: "):
-            if fliess_teile:
-                xml += _p(" ".join(fliess_teile))
-                fliess_teile = []
-            xml += _beweis(block[block.index("\t") + 1:].strip()
-                           if "\t" in block else block[len("BEWEIS:"):].strip())
+
+    def _flush():
+        nonlocal xml, fliess_teile
+        if fliess_teile:
+            xml += _p(" ".join(fliess_teile))
+            fliess_teile = []
+
+    for zeile in text.split("\n"):
+        z = zeile.strip()
+        if not z:
+            _flush()
+        elif (z.startswith("BEWEIS:\t") or z.upper().startswith("BEWEIS: ")
+              or z.upper() == "BEWEIS:"):
+            _flush()
+            inhalt = z[z.index("\t") + 1:].strip() if "\t" in z else z[len("BEWEIS:"):].strip()
+            xml += _beweis(inhalt)
         else:
-            for zeile in block.split("\n"):
-                z = zeile.strip()
-                if z:
-                    fliess_teile.append(z)
-    if fliess_teile:
-        xml += _p(" ".join(fliess_teile))
+            fliess_teile.append(z)
+    _flush()
     return xml
 
 

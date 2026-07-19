@@ -863,5 +863,27 @@ class TestKw30LeereFelder(unittest.TestCase):
         self.assertIn("aus einem Verkehrsunfall vom 10.03.2026 in Offenbach geltend.", xml)
 
 
+class TestKw31OverrideAbsaetze(unittest.TestCase):
+    def _xml_fuer(self, override):
+        akte = _akte_daten([_position("fahrzeugschaden", "Fahrzeugschaden", 1000.0)])
+        akte["unfalldetails"]["sachverhalt_override"] = override
+        return _document_xml(generiere_klageschrift(akte))
+
+    def test_beweis_nach_einfachem_umbruch_wird_beweis_absatz(self):
+        xml = self._xml_fuer("Der Kläger ist Eigentümer.\nBEWEIS: Zeugnis des Herrn Meier")
+        self.assertIn('BEWEIS:</w:t>', xml)                      # _beweis()-Format
+        self.assertNotIn("Eigentümer. BEWEIS:", xml)             # nicht als Fließtext verkettet
+
+    def test_leerzeile_erzeugt_zwei_absaetze(self):
+        xml = self._xml_fuer("Absatz eins.\n\nAbsatz zwei.")
+        self.assertIn(">Absatz eins.<", xml)
+        self.assertIn(">Absatz zwei.<", xml)
+        self.assertNotIn("Absatz eins. Absatz zwei.", xml)
+
+    def test_einfacher_umbruch_bleibt_ein_absatz(self):
+        xml = self._xml_fuer("Zeile eins\nZeile zwei")
+        self.assertIn("Zeile eins Zeile zwei", xml)
+
+
 if __name__ == "__main__":
     unittest.main()
