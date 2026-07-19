@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import KlageWizard, { berechneSwAussergEffektiv, buildRwVorschau, buildVerzugAutoText, komponiereAntraege, ersetzeMandantDurchKlaeger } from "./KlageWizard.jsx";
+import KlageWizard, { berechneSwAussergEffektiv, buildRwVorschau, buildVerzugAutoText, komponiereAntraege, ersetzeMandantDurchKlaeger, parseBetragOderNull } from "./KlageWizard.jsx";
 import { RegulierungsTabelle, TodoSection } from './UebersichtSection.jsx';
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
@@ -30,6 +30,12 @@ export function verzugDatenAusDok(dok) {
   const eintritt = verzugEintrittDefault(datum);
   if (!eintritt) return null;
   return { dokDatum: datum, eintritt };
+}
+
+// KW-40: expliziter NaN-Guard fuer den Versand-Payload (statt der impliziten
+// JSON.stringify(NaN)->null-Abhaengigkeit) – liefert null bei leerem/nicht-numerischem Wert.
+export function baueRvgAussergOverride(wizardRvgAussergOv) {
+  return parseBetragOderNull(wizardRvgAussergOv);
 }
 
 // KW-27 Nachtrag: Persistenzfehler beim Gericht-Speichern sichtbar machen statt still
@@ -527,7 +533,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         mit_feststellung_sach:             wizardMitFestSach,
         antraege_override:                 komponiereAntraege(wizardAntraegeText, wizardGebuehrenText) || null,
         rvg_ausserg:                       wizardRvgAussergData,
-        rvg_ausserg_override:              wizardRvgAussergOv ? parseFloat(wizardRvgAussergOv) : null,
+        rvg_ausserg_override:              baueRvgAussergOverride(wizardRvgAussergOv),
         rvg_bereits_gezahlt:               wizardRvgBereitsGezahlt ? parseFloat(wizardRvgBereitsGezahlt) : null,
       };
       await apiKlage.generieren(akteId, {
