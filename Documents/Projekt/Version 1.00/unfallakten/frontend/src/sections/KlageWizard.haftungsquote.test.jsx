@@ -209,7 +209,6 @@ describe("StepZusammenfassung – KW-03 Klagebetrag mit Haftungsquote", () => {
     gericht: { name: "Amtsgericht Offenbach" },
     beklagte: [{ id: 1, name: "Muster", rolle_klage: "beklagter", checked: true }],
     mitSG: false, sgMind: 0,
-    rvgData: null, rvgOverride: null,
     rvgAussergData: null, rvgAussergOv: null,
     aktLegTyp: "eigentum", aktLegFreigabe: "freigabe",
     zinsenAb: "verzug", wizardVerzugDatum: null,

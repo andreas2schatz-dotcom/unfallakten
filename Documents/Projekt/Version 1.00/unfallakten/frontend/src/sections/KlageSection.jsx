@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import KlageWizard, { berechneSwAussergEffektiv, buildRwVorschau, buildVerzugAutoText, komponiereAntraege } from "./KlageWizard.jsx";
+import KlageWizard, { berechneSwAussergEffektiv, buildRwVorschau, buildVerzugAutoText, komponiereAntraege, ersetzeMandantDurchKlaeger } from "./KlageWizard.jsx";
 import { RegulierungsTabelle, TodoSection } from './UebersichtSection.jsx';
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
-import { fmtEuro, verzugEintrittDefault } from "../config/utils.js";
+import { fmtEuro, fmtDatumDe, verzugEintrittDefault } from "../config/utils.js";
 import { KLAGE_KEY_MAP } from "../config/klagePositionKeys.js";
 import { Card, KlageCardHead, Btn, Toast } from "../components/common.jsx";
 import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
@@ -218,7 +218,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setVerzugDokId(dokId);
     const daten = verzugDatenAusDok(verzugDokListe.find(d => d.id === dokId));
     if (!daten) return;
-    setWizardVerzugDokDatum(daten.dokDatum);
+    setWizardVerzugDokDatum(fmtDatumDe(daten.dokDatum));
     setWizardVerzugDatum(daten.eintritt);
     if (!wizardVerzugManuell) {
       setWizardVerzugText(buildVerzugAutoText(daten.dokDatum, daten.eintritt));
@@ -257,7 +257,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           checked: !!b.vorschlag_beklagter,
         })));
         const initVerzug = res.verzug_datum || "";
-        setWizardVerzugDokDatum(initVerzug);
+        setWizardVerzugDokDatum(fmtDatumDe(initVerzug));
         setWizardVerzugDatum(verzugEintrittDefault(initVerzug));
         const vdl = res.verzug_dokumente || [];
         setVerzugDokListe(vdl);
@@ -450,16 +450,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     const klaegerObj = beklagte.find(b => b.rolle_klage === "klaeger");
     const weiblich   = (klaegerObj?.anrede || "").toLowerCase() === "frau";
     const schilderung = daten?.unfalldetails?.schilderung || "";
-    let unfall = schilderung;
-    if (unfall) {
-      unfall = unfall.replace(/\bder Mandantin\b/gi, "der Klägerin");
-      unfall = unfall.replace(/\bdes Mandanten\b/gi, weiblich ? "der Klägerin" : "des Klägers");
-      unfall = unfall.replace(/\bdem Mandanten\b/gi, weiblich ? "der Klägerin" : "dem Kläger");
-      unfall = unfall.replace(/\bdie Mandantin\b/gi, "die Klägerin");
-      unfall = unfall.replace(/\bden Mandanten\b/gi, weiblich ? "die Klägerin" : "den Kläger");
-      unfall = unfall.replace(/\bMandantin\b/g, "Klägerin");
-      unfall = unfall.replace(/\bMandant\b/g, weiblich ? "Klägerin" : "Kläger");
-    }
+    const unfall = ersetzeMandantDurchKlaeger(schilderung, weiblich);
     setWizardUnfallText(unfall);
 
     // ── Rechtliche Würdigung: dynamisch vorbauen ──

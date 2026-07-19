@@ -230,6 +230,16 @@ export function berechneSwAussergEffektiv(swAusserg, hq, hqTyp) {
 }
 
 /**
+ * KW-40: liefert die geparste Zahl oder null, wenn der Override leer bzw.
+ * nicht-numerisch ist (statt NaN durchzureichen).
+ */
+export function parseBetragOderNull(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const n = parseFloat(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
  * Erstellt den Vorschautext für die Rechtliche Würdigung.
  */
 export function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguliert, weiblich, hqTyp = "gegnerisch", beklagte = []) {
@@ -720,9 +730,12 @@ export function StepAktLeg({
 
 // ── Step 3: Unfallhergang ──────────────────────────────────────────────────────
 
-function _buildUnfallAutoText(original, weiblich) {
-  if (!original) return "";
-  let t = original;
+export function ersetzeMandantDurchKlaeger(text, weiblich) {
+  if (!text) return text || "";
+  let t = text;
+  t = t.replace(/\bDer Mandant\b/g, weiblich ? "Die Klägerin" : "Der Kläger");
+  t = t.replace(/\bDem Mandanten\b/g, weiblich ? "Der Klägerin" : "Dem Kläger");
+  t = t.replace(/\bDen Mandanten\b/g, weiblich ? "Die Klägerin" : "Den Kläger");
   t = t.replace(/\bder Mandantin\b/gi, "der Klägerin");
   t = t.replace(/\bdes Mandanten\b/gi, weiblich ? "der Klägerin" : "des Klägers");
   t = t.replace(/\bdem Mandanten\b/gi, weiblich ? "der Klägerin" : "dem Kläger");
@@ -768,7 +781,7 @@ function StepUnfall({ schilderungOriginal, klaeger, unfalltextEdit, onUnfalltext
         </div>
         {schilderungOriginal && (
           <button
-            onClick={() => onUnfalltextEdit(_buildUnfallAutoText(schilderungOriginal, weiblich))}
+            onClick={() => onUnfalltextEdit(ersetzeMandantDurchKlaeger(schilderungOriginal, weiblich))}
             style={{
               padding: "9px 12px", borderRadius: 8, cursor: "pointer",
               border: `1.5px solid ${T.navy}`, background: `${T.navy}08`,
@@ -1139,7 +1152,7 @@ function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, 
       ].filter(Boolean).join("\n");
     });
 
-    const gesamtKuerzung = selected.reduce((s, ka) => s + (kuerzungMap[ka.id] || 0), 0);
+    const gesamtKuerzung = selected.reduce((s, ka) => s + Math.max(0, kuerzungMap[ka.id] || 0), 0);
     const schlusssatz = gesamtKuerzung > 0
       ? `Insgesamt hat die Beklagte${zuSuffix} daher einen Betrag in Höhe von ${fmtEuro(gesamtKuerzung)} zu Unrecht einbehalten.`
       : "";
@@ -1284,6 +1297,7 @@ export function StepRw({ hq, onHq, hqTyp = "gegnerisch", onHqTyp, hb, onHb, abre
                   onKiHaftung, kiLaedt }) {
   const gesamtReg = (abrechnungen || []).reduce((s, ab) => s + (parseFloat(ab.gesamt_reguliert) || 0), 0);
   const [einwandeOffen, setEinwandeOffen] = useState(false);
+  const einwaendeEingefuegtRef = useRef(null);
 
   function neuGenerieren() {
     onRwText(buildRwVorschau(hb, hq, gesamtReg, weiblich, hqTyp, beklagte));
@@ -1296,9 +1310,14 @@ export function StepRw({ hq, onHq, hqTyp = "gegnerisch", onHqTyp, hb, onHb, abre
 
   function einwandeUebernehmen(generierterText) {
     setEinwandeOffen(false);
-    if (generierterText) {
+    if (!generierterText) return;
+    const vorherigerBlock = einwaendeEingefuegtRef.current;
+    if (vorherigerBlock && rwText && rwText.includes(vorherigerBlock)) {
+      onRwText(rwText.replace(vorherigerBlock, generierterText));
+    } else {
       onRwText((rwText ? rwText + "\n\n" : "") + generierterText);
     }
+    einwaendeEingefuegtRef.current = generierterText;
   }
 
   return (
@@ -1669,9 +1688,10 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
                                laedt, onGenerieren, fehler,
                                lgGrenzwert, swAusserg, antraegeText, gebuehrenText,
                                antraegeVeraltet, onAntraegeNeuGenerieren, onAntraegeBehalten,
+                               unfallort, unfalldatum,
                                hq = 100, hqTyp = "gegnerisch" }) {
   const klagebetrag  = berechneKlagebetrag(positionen, hq, hqTyp);
-  const rvgAussGes   = rvgAussergOv   ? parseFloat(rvgAussergOv)   : (rvgAussergData?.gesamt || 0);
+  const rvgAussGes   = parseBetragOderNull(rvgAussergOv) ?? (rvgAussergData?.gesamt || 0);
   const swGerichtlich = klagebetrag + (mitSG && sgMind > 0 ? sgMind : 0);
   const istAmtsgericht = gericht && /amtsgericht/i.test(gericht.name || "");
   const lgWarnung = lgGrenzwert > 0 && swGerichtlich > lgGrenzwert && istAmtsgericht;
@@ -1738,7 +1758,7 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
           wert={rvgAussGes > 0 ? fmtEuro(rvgAussGes) : "–"} warn={rvgAussGes === 0} />
       </div>
 
-      {(keinGericht || keinPositionen || keineBeklagten || firmenOhneVertreter.length > 0 || aktLegFreigabe === "ungeklaert" || lgWarnung || hatPlatzhalter) && (
+      {(keinGericht || keinPositionen || keineBeklagten || firmenOhneVertreter.length > 0 || aktLegFreigabe === "ungeklaert" || lgWarnung || hatPlatzhalter || !unfallort || !unfalldatum) && (
         <div style={{ marginBottom: "1rem" }}>
           {hatPlatzhalter && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: T.red,
             padding: "7px 12px", background: `${T.red}10`, borderRadius: 7, marginBottom: 6 }}>
@@ -1763,7 +1783,15 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
           </div>}
           {aktLegFreigabe === "ungeklaert" && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: T.amber,
             padding: "7px 12px", background: `${T.amber}12`, borderRadius: 7, marginBottom: 6 }}>
-            ⚠ Aktivlegitimation ungeklärt – kein Text wird generiert.
+            ⚠ Aktivlegitimation ungeklärt – der Abschnitt enthält keinen Auto-Text; Ihr Sachverhaltstext wird unverändert übernommen.
+          </div>}
+          {!unfallort && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: T.amber,
+            padding: "7px 12px", background: `${T.amber}12`, borderRadius: 7, marginBottom: 6 }}>
+            ⚠ Kein Unfallort in der Akte – die Einleitung nennt keinen Ort.
+          </div>}
+          {!unfalldatum && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: T.amber,
+            padding: "7px 12px", background: `${T.amber}12`, borderRadius: 7, marginBottom: 6 }}>
+            ⚠ Kein Unfalldatum in der Akte – die Einleitung nennt kein Datum.
           </div>}
           {lgWarnung && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: "#c05c00",
             padding: "7px 12px", background: "#c05c0015", borderRadius: 7, marginBottom: 6, border: "1px solid #c05c0030" }}>
@@ -2157,7 +2185,7 @@ export function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
   const g            = beklagtenGrammatik(beklagte);
   const kl_akk       = weiblich ? "die Klägerin" : "den Kläger";
   const zinsDat      = zinsenAb === "verzug" && verzug ? `seit dem ${fmtDatumDe(verzug)}` : "seit Rechtshängigkeit";
-  const rvgGesamt    = rvgAussergOv ? parseFloat(rvgAussergOv) : (rvgAussergData?.gesamt || 0);
+  const rvgGesamt    = parseBetragOderNull(rvgAussergOv) ?? (rvgAussergData?.gesamt || 0);
   const bereitsGez   = parseFloat(rvgBereitsGezahlt) || 0;
   const rvgNetto     = Math.max(0, rvgGesamt - bereitsGez);
 
@@ -2719,6 +2747,7 @@ export default function KlageWizard({
                 antraegeVeraltet={antraegeVeraltet}
                 onAntraegeNeuGenerieren={antraegeNeuGenerieren}
                 onAntraegeBehalten={antraegeBehalten}
+                unfallort={unfallort}       unfalldatum={unfalldatum}
                 hq={wizardHq}               hqTyp={wizardHqTyp}
               />
             )}
