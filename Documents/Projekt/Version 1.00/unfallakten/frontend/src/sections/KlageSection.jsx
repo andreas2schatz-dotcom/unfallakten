@@ -4,6 +4,7 @@ import { RegulierungsTabelle, TodoSection } from './UebersichtSection.jsx';
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
 import { fmtEuro, verzugEintrittDefault } from "../config/utils.js";
+import { KLAGE_KEY_MAP } from "../config/klagePositionKeys.js";
 import { Card, KlageCardHead, Btn, Toast } from "../components/common.jsx";
 import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
 import {
@@ -309,21 +310,11 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   // verwendet für beide rvgBerechnen-Aufrufe, die StepGebuehren-Prop und die Anzeige.
   const swAussergEffektiv = berechneSwAussergEffektiv(swAusserg, wizardHq, wizardHqTyp);
 
-  // Per-Position offene Beträge — selbe _KEY_MAP-Logik wie oeffneWizard()
-  const _KLAGEN_KEY_MAP = {
-    "reparatur_netto":     "fahrzeugschaden",
-    "reparatur_brutto":    "fahrzeugschaden",
-    "reparaturkosten":     "fahrzeugschaden",
-    "wba":                 "fahrzeugschaden",
-    "rep_gutachten_netto": "fahrzeugschaden",
-    "rep_rechnung_netto":  "fahrzeugschaden",
-    "rep_rechnung_brutto": "fahrzeugschaden",
-    "wiederbeschaffung":   "fahrzeugschaden",
-  };
+  // Per-Position offene Beträge — selbe KLAGE_KEY_MAP-Logik wie oeffneWizard()
   const _posRegMap = {};
   (daten?.abrechnungen || []).forEach(ab => {
     (ab.positionen || []).forEach(rp => {
-      const k = _KLAGEN_KEY_MAP[rp.position_key] || rp.position_key;
+      const k = KLAGE_KEY_MAP[rp.position_key] || rp.position_key;
       if (k) _posRegMap[k] = (_posRegMap[k] || 0) + (parseFloat(rp.betrag_reguliert) || 0);
     });
   });
@@ -417,22 +408,12 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setAktLegFreigabe(al.freigabe_status || "freigabe");
     setAktLegDatum(al.datum_freigabe || "");
     // Offene Beträge vorausberechnen (gefordert − reguliert je Position)
-    // Fahrzeugschaden-Keys aus dem Abrechnung-Parser → Wizard-Key "fahrzeugschaden"
-    const _KEY_MAP = {
-      "reparatur_netto":     "fahrzeugschaden",
-      "reparatur_brutto":    "fahrzeugschaden",
-      "reparaturkosten":     "fahrzeugschaden",
-      "wba":                 "fahrzeugschaden",
-      "rep_gutachten_netto": "fahrzeugschaden",
-      "rep_rechnung_netto":  "fahrzeugschaden",
-      "rep_rechnung_brutto": "fahrzeugschaden",
-      "wiederbeschaffung":   "fahrzeugschaden",
-    };
+    // KLAGE_KEY_MAP normalisiert die Fahrzeugschaden-Keys aus dem Abrechnung-Parser
     const _regMap = {};
     (daten?.abrechnungen || []).forEach(ab => {
       (ab.positionen || []).forEach(rp => {
         const rawKey = rp.position_key;
-        const k = _KEY_MAP[rawKey] || rawKey;
+        const k = KLAGE_KEY_MAP[rawKey] || rawKey;
         if (k) _regMap[k] = (_regMap[k] || 0) + (parseFloat(rp.betrag_reguliert) || 0);
       });
     });

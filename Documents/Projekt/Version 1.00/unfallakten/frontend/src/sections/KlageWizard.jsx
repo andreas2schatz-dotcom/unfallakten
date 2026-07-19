@@ -18,6 +18,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import T from "../config/theme.js";
 import { fmtEuro, fmtDatumDe } from "../config/utils.js";
+import { KLAGE_KEY_MAP } from "../config/klagePositionKeys.js";
 import { apiGebuehren } from "../api.js";
 import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
 
@@ -823,23 +824,13 @@ export function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, o
   }, [mitSG, positionen, onTogglePos]);
 
   // Provenance-Map: position_key → { gesamt, quellen[] }
-  // DB-Rohdaten verwenden die echten Schaden-Feldnamen; alles, was zum Fahrzeugschaden gehört,
-  // wird auf den Wizard-Key "fahrzeugschaden" normalisiert.
-  const _PROV_KEY_MAP = {
-    "reparatur_netto":     "fahrzeugschaden",
-    "reparatur_brutto":    "fahrzeugschaden",
-    "reparaturkosten":     "fahrzeugschaden",
-    "wba":                 "fahrzeugschaden",
-    "rep_gutachten_netto": "fahrzeugschaden",
-    "rep_rechnung_netto":  "fahrzeugschaden",
-    "rep_rechnung_brutto": "fahrzeugschaden",
-    "wiederbeschaffung":   "fahrzeugschaden",
-  };
+  // DB-Rohdaten verwenden die echten Schaden-Feldnamen; KLAGE_KEY_MAP normalisiert
+  // alles, was zum Fahrzeugschaden gehört, auf den Wizard-Key "fahrzeugschaden".
   const provenanceMap = {};
   (abrechnungen || []).forEach(ab => {
     (ab.positionen || []).forEach(rp => {
       const rawKey = rp.position_key;
-      const k      = _PROV_KEY_MAP[rawKey] || rawKey;
+      const k      = KLAGE_KEY_MAP[rawKey] || rawKey;
       const betrag = parseFloat(rp.betrag_reguliert) || 0;
       if (!k || betrag === 0) return;
       if (!provenanceMap[k]) provenanceMap[k] = { gesamt: 0, quellen: [] };
