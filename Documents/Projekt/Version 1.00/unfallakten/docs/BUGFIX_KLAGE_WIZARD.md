@@ -12,6 +12,8 @@
 > - Vorsicht Wechselwirkung: **KW-01 maskiert derzeit KW-22/KW-23** (verworfene Overrides verstecken stale Texte/Platzhalter). KW-01 nie ohne mindestens den Platzhalter-Guard aus KW-23 fixen.
 > - Beim Abhaken: `[x]` setzen und Commit-Hash hinter den Titel schreiben.
 
+> **PRD-33 KOMPLETT (2026-07-19):** Sessions 1–6 abgeschlossen, alle 40 KW-Bugs behoben oder mit Begründung als entfallen dokumentiert (KW-36 teilweise). Die V10-Golden-File-Matrix (24 Kombinationen) + Render-Smoke-Test sind als dauerhafter Regressionsschutz in der Suite verankert. FF-Merge von Session 6 (`klage-wizard-fixes-s6`) nach `main` nach Freigabe ausstehend.
+
 ## Status-Übersicht
 
 | ID | Prio | Datei | Kurztitel | Status |
@@ -45,17 +47,17 @@
 | KW-27 | P3 | `backend/routers/klage_routes.py:946` | Gericht-Persistenz: Rückweg tot (`rolle='gericht'` wird vorab weggefiltert) | ✅ behoben S5 `6752215e` |
 | KW-28 | P3 | `frontend/src/sections/KlageSection.jsx:165` | Verzugsdokument-Auswahl ohne jede Wirkung (Placebo) | ✅ behoben S5 `a332bab4`+`2b9e1a45` |
 | KW-29 | P3 | `frontend/src/sections/KlageSection.jsx:250` | Vertreter-Lookup-Modal öffnet wiederholt unaufgefordert | ✅ behoben S5 `e3c1ab68` |
-| KW-30 | P4 | `backend/word/klage_service.py:1271` | Leere Felder erzeugen kaputte Sätze („…Unfall vom … in  geltend") | offen |
-| KW-31 | P4 | `backend/word/klage_service.py:688` | `sachverhalt_override` zerstört Absatzstruktur des Nutzers | offen |
-| KW-32 | P4 | `backend/word/klage_service.py:1440` | Verzug-Abschnitt ohne Nummer/Überschrift, Nummerierungssprung | offen |
-| KW-33 | P4 | `backend/word/klage_service.py:1421` | SG-Beweisantritt nicht als BEWEIS formatiert | offen |
-| KW-34 | P4 | `backend/word/klage_service.py:989` | RVG-Antrag über „0,00 €" möglich | offen |
+| KW-30 | P4 | `backend/word/klage_service.py:1271` | Leere Felder erzeugen kaputte Sätze („…Unfall vom … in  geltend") | ✅ behoben S6 (BE `ebef927d`, FE `efc64588`) |
+| KW-31 | P4 | `backend/word/klage_service.py:688` | `sachverhalt_override` zerstört Absatzstruktur des Nutzers | ✅ behoben S6 `449c5f0f`+`351e79e6` |
+| KW-32 | P4 | `backend/word/klage_service.py:1440` | Verzug-Abschnitt ohne Nummer/Überschrift, Nummerierungssprung | ✅ behoben S6 `30d4fbc0` |
+| KW-33 | P4 | `backend/word/klage_service.py:1421` | SG-Beweisantritt nicht als BEWEIS formatiert | ✅ behoben S6 `10febac9` |
+| KW-34 | P4 | `backend/word/klage_service.py:989` | RVG-Antrag über „0,00 €" möglich | ✅ behoben S6 `1ad1a93f`+`b2e0ab16` |
 | KW-35 | P4 | `backend/word/klage_service.py:963` | RVG-Fallback nutzt SQLite-Importdatum statt RA-MICRO-Anlagedatum | ✅ behoben S4 `8da95f62` (mit KW-08 vorgezogen) |
-| KW-36 | P4 | `backend/word/klage_service.py:1394` | Haftungsquote int-Truncation: 66,67 % → „66 % + 33 % = 99" | offen |
-| KW-37 | P4 | `backend/word/klage_service.py:1478` | RVG-Faktor „(1.3)" mit Punkt statt Komma | offen |
-| KW-38 | P4 | `frontend/src/sections/KlageSection.jsx:275` | Positions-Key-Vertrag ungesichert (`_KEY_MAP` nur Fahrzeugschaden) | offen |
+| KW-36 | P4 | `backend/word/klage_service.py:1394` | Haftungsquote int-Truncation: 66,67 % → „66 % + 33 % = 99" | ✅ S6 (Truncation/Guard entfällt, Rundungs-Parität `3e87ff86`) |
+| KW-37 | P4 | `backend/word/klage_service.py:1478` | RVG-Faktor „(1.3)" mit Punkt statt Komma | ✅ behoben S6 `10febac9` |
+| KW-38 | P4 | `frontend/src/sections/KlageSection.jsx:275` | Positions-Key-Vertrag ungesichert (`_KEY_MAP` nur Fahrzeugschaden) | ✅ behoben S6 `13d7eefc`+`c83e23d8` |
 | KW-39 | P4 | `backend/routers/klage_routes.py:783` | Vorsteuer-Inkonsistenz Nebenkosten (Antrag brutto, Tabelle netto) | ✅ behoben `e19edc64` (S2 vorgezogen) |
-| KW-40 | P4 | diverse | Sammelposten Kleinkram/toter Code (Details unten) | offen |
+| KW-40 | P4 | diverse | Sammelposten Kleinkram/toter Code (Details unten) | ✅ behoben S6 (BE `ba56cb1b`+`d7f81be0`, FE `efc64588`+`d0ceb920`) |
 
 ---
 
@@ -255,23 +257,28 @@
 
 ## P4 — Textqualität / Kleinkram / toter Code
 
-### - [ ] KW-30 — Leere Felder erzeugen kaputte Sätze
+### - [x] KW-30 — Leere Felder erzeugen kaputte Sätze — behoben BE `ebef927d` + FE `efc64588`, Session 6 2026-07-19
+> **Umsetzung:** Betroffene Bausteine (Unfallort-Satz, Feststellungsanträge) auf bedingte Segmente (`unfall_seg`/`ereignis_seg`) umgestellt — der Ortsteil bzw. Datumsteil entfällt ersatzlos, wenn das Feld leer ist, statt eine Lücke im Satz zu hinterlassen. Standardfall (alle Felder gesetzt) bleibt byte-gleich zum Vorzustand (Pin-Test). Frontend ergänzt Step-10-Warnblöcke bei fehlendem `unfallort`/`unfalldatum` — reine Warnung, keine Sperre (der Anwalt kann die Klage trotzdem ohne diese Felder generieren, wird aber gewarnt).
 - **Datei:** `backend/word/klage_service.py:1271–1277` („…Verkehrsunfall vom 01.02.2026 in  geltend." bei leerem Unfallort), `:1233/1243` (Feststellungsanträge: „aus dem Unfallereignis vom  noch entstehen" bei leerem Unfalltag)
 - **Fix-Richtung:** Bausteine mit bedingten Segmenten („ in {ort}" nur wenn gesetzt); Pflichtfeld-Warnung in Step 10.
 
-### - [ ] KW-31 — `sachverhalt_override` zerstört Absatzstruktur
+### - [x] KW-31 — `sachverhalt_override` zerstört Absatzstruktur — behoben `449c5f0f`+`351e79e6`, Session 6 2026-07-19
+> **Umsetzung:** Parser auf zeilenweise Auswertung umgestellt: jede Leerzeile beendet einen Absatz, BEWEIS-Erkennung greift jetzt auch nach einfachem `\n` (nicht mehr nur `\n\n`). Nebenfund im selben Zug mitbehoben: der Alt-Code flushte `\n\n`-getrennte Absätze in bestimmten Konstellationen gar nicht. Fix-Wave `351e79e6` deckt Randfälle ab (bare `BEWEIS`-Zeile ohne Doppelpunkt-Suffix, Tab-eingerückte Variante).
 - **Datei:** `backend/word/klage_service.py:688–714` (Nicht-BEWEIS-Blöcke bis zum nächsten BEWEIS zu einem Absatz verkettet; BEWEIS-Zeile mit einfachem `\n` wird Fließtext — Split nur auf `\n\n`)
 - **Fix-Richtung:** Jede Leerzeile = Absatz; BEWEIS-Erkennung zeilenweise.
 
-### - [ ] KW-32 — Verzug-Abschnitt ohne Nummer/Überschrift
+### - [x] KW-32 — Verzug-Abschnitt ohne Nummer/Überschrift — behoben `30d4fbc0`, Session 6 2026-07-19
+> **Umsetzung:** Neuer laufender Zähler-Helfer `_abschnitt_kopf` ersetzt die Arithmetik (`5 + int(mit_sg)` etc.) an allen 9 Kopfstellen. Verzug bekommt jetzt eine eigene Nummer + Überschrift („N.) Verzug") statt unnummeriert im Fließtext zwischen SG und VK zu hängen. Mit S4-M5-Vertrag verzahnt: der Verzug-BEWEIS erscheint weiterhin nur, wenn `verzug_schreiben_datum` gesetzt ist.
 - **Datei:** Template-Reihenfolge `{{SCHMERZENSGELD}} {{VERZUG}} {{VORGERICHTLICHE_KOSTEN}}`; Nummerierung springt 4 → 5 (SG) → 5/6 (VK), Verzug hängt unnummeriert dazwischen (`klage_service.py`, Abschnittszähler `5 + int(mit_sg)`)
 - **Fix-Richtung:** Laufender Abschnittszähler statt Arithmetik; Verzug bekommt eigene Nummer+Überschrift.
 
-### - [ ] KW-33 — SG-Beweisantritt nicht als BEWEIS formatiert
+### - [x] KW-33 — SG-Beweisantritt nicht als BEWEIS formatiert — behoben `10febac9`, Session 6 2026-07-19
+> **Umsetzung:** SG-Beweis läuft jetzt über den bestehenden `_beweis()`-Helfer (fett + Tabstopp) statt über `_p(sg_beweis, einzug=True)`; ein Präfix-Strip verhindert doppeltes „BEWEIS:" wenn der Text es bereits enthält.
 - **Datei:** `backend/word/klage_service.py:1421` (`_p(sg_beweis, einzug=True)` statt `_beweis()`)
 - **Fix-Richtung:** `_beweis()` verwenden (fett + Tabstopp, wie überall sonst).
 
-### - [ ] KW-34 — RVG-Antrag über „0,00 €" möglich
+### - [x] KW-34 — RVG-Antrag über „0,00 €" möglich — behoben `1ad1a93f`+`b2e0ab16`, Session 6 2026-07-19
+> **Umsetzung:** Bei RVG-Betrag ≤ 0 entfallen sowohl der RVG-Antrag als auch der komplette VK-Abschnitt (auch im Override-Pfad, nicht nur im Auto-Pfad). Der Fall-B-Klemmsatz (Zahlungen übersteigen den quotierten Anspruch) nennt jetzt die real geleistete Zahlungssumme statt der arithmetisch abgeleiteten Differenz — Formulierung ist RA Schatz vorzulegen. Fix-Wave `b2e0ab16` hat den Klemm-Test mit einer realen `wertminderung`-Fixture wirksam gemacht (vorher griff der Test nicht).
 - **Datei:** `backend/word/klage_service.py:989–991 + 1248` (`max(0.0, …)` → Antrag „…weitere 0,00 € … zu zahlen" samt VK-Abschnitt)
 - **Fix-Richtung:** Bei 0 € Antrag + VK-Abschnitt weglassen.
 - **Neu aus S2 (KW-03, hier mitzubehandeln):** Klammer-Randfall Fall B — wenn Zahlungen den quotierten Anspruch übersteigen (`klagebetrag` klemmt auf 0), nennt der Fall-B-Differenz-Satz eine geringere Zahlungssumme als real geleistet (`zahlungen_anzeige = ersatzfaehig − klagebetrag`, arithmetisch konsistent, aber juristisch schief). Zusammen mit der 0-€-Antrags-Frage lösen.
@@ -282,16 +289,19 @@
 - **Auswirkung:** Alt-Akte, 2025 importiert → fälschlich 2025er-Gebührentabelle. Nur relevant wenn `cfg.rvg` fehlt (Legacy-Pfad).
 - **Fix-Richtung:** `_rvg_anlagedatum` durchreichen oder Fallback entfernen (zusammen mit KW-08).
 
-### - [ ] KW-36 — Haftungsquote int-Truncation
+### - [x] KW-36 — Haftungsquote int-Truncation — ✅ S6, teilweise entfällt (Rundungs-Parität `3e87ff86`), Session 6 2026-07-19
+> **Umsetzung:** Verifiziert per Grep, dass die ursprüngliche int-Truncation nicht mehr existiert — `_pct_str`/`pctStr` sind seit S2/S3 überall im Einsatz, betreffen also **entfällt** (kein Fund mehr im Code). Der optionale `hq=0`-Guard **entfällt ebenfalls**: `parseFloat(...) || 100` schluckt `0` bereits korrekt (führt zu 100 %, nicht zu einem sinnfreien 0-%-Text); ein Regressions-Pin-Test wurde committet, um das dauerhaft zu belegen. Der einzige real behobene Teil: eine Rundungs-Divergenz zwischen Frontend (JS `Math.round` = half-up) und Backend (Python `round` = banker's rounding) wurde nachgewiesen — konkretes Beispiel 50,50 € × 33 % → FE 16,67 vs. BE 16,66, beide Werte tauchen im selben DOCX auf. Fix: neuer Helfer `_round2_half_up`, an exakt den 4 Rundungsstellen im Fall-B-Pfad eingesetzt (Backend jetzt half-up wie das Frontend).
 - **Datei:** `backend/word/klage_service.py:1394/1410` (`int(hq)`/`int(100-hq)`: 66,67 % → „66 %" + „33 %" = 99)
 - **Fix-Richtung:** Runden statt truncaten; Summe = 100 sicherstellen.
 - **Stand nach S2:** In allen von S2 berührten/neuen Texten bereits via `_pct_str`/`pctStr` gelöst; Rest-Scope = verbliebene Alt-Stellen. **Empfehlung Abschluss-Review S2:** gemeinsamen Rundungs-Helper BE/FE einführen (JS `Math.round` = half-up vs. Python `round` = banker's — theoretische 1-Cent-Divergenz Antragstext↔Backend-Werte im selben Dokument) und in Session 6 zusammen mit KW-34 lösen. Optional: Ein-Zeilen-Guard gegen `hq=0` + `typ=eigen` (RW-Text behauptet dann „100 % anrechnen", Betrag bleibt voll — sinnfreie Eingabe, Slider erlaubt 0).
 
-### - [ ] KW-37 — RVG-Faktor „(1.3)" mit Punkt statt Komma
+### - [x] KW-37 — RVG-Faktor „(1.3)" mit Punkt statt Komma — behoben `10febac9`, Session 6 2026-07-19
+> **Umsetzung:** Komma-Format an der aktiven Tabellen-Stelle über einen `.replace(".", ",")` auf den Faktor-String korrigiert (dieselbe Fix-Session wie KW-33/KW-37, gemeinsamer Commit).
 - **Datei:** `backend/word/klage_service.py:1478` (die tote Alt-Funktion `:386` machte den Komma-Replace korrekt)
 - **Fix-Richtung:** Komma-Format wie überall.
 
-### - [ ] KW-38 — Positions-Key-Vertrag ungesichert
+### - [x] KW-38 — Positions-Key-Vertrag ungesichert — behoben `13d7eefc`+`c83e23d8`, Session 6 2026-07-19
+> **Umsetzung:** Neue zentrale Registry `frontend/src/config/klagePositionKeys.js` (`KLAGE_KEY_MAP` + `KEYS_OHNE_POSITION`) löst drei bisher separat gepflegte Map-Kopien ab; 8 Aliase byte-gleich übernommen. Neu wirksam durch die Konsolidierung: `kostenpauschale`→`unkostenpauschale`, `wbw*`→`fahrzeugschaden` (vorher unmapped, senkten `_unassigned` statt einer echten Position). `sonstiges_wdm_*` bewusst **nicht** gemappt — der reale Wizard-Key für diese Position ist label-basiert (`extra_<Label>`, siehe `klage_routes.py:~844`), das ist keine Lücke sondern eine dokumentierte Grenze (in `KEYS_OHNE_POSITION` vermerkt). Contract-Tests in beide Richtungen: Frontend-Spiegel prüft alle 38 Keys, Backend-Wächter `test_klage_kw38_position_keys.py` verhindert stille Drift zwischen Wizard-Keys und `regulierung_positionen.position_key`.
 - **Datei:** `frontend/src/sections/KlageSection.jsx:275–284, 407–416` (`_KEY_MAP` nur Fahrzeugschaden-Parser-Keys; Zahlungen auf nicht-mappende Keys senken `_unassigned`, reduzieren aber keine Position)
 - **Auswirkung:** Offener Betrag/Klagebetrag zu hoch. Verwandter Bug-Typ war schon einmal da (`sonstiges_wdm_X ≠ extra_wdm_ssX`, siehe [[unfallakten-key-mismatch-bug]]).
 - **Fix-Richtung:** Vollständiges Key-Mapping + Test, der alle `regulierung_positionen.position_key`-Werte gegen die Wizard-Keys prüft; langfristig V2 (offen-je-Position im Backend).
@@ -302,7 +312,8 @@
 - **Auswirkung:** Beim Vorsteuer-Mandanten: Antrag brutto, Tabelle netto → Widerspruch.
 - **Fix-Richtung:** `pos_definitionen` vorsteuer-bewusst machen (dieselbe `_netto_oder_brutto`-Logik).
 
-### - [ ] KW-40 — Sammelposten Kleinkram / toter Code
+### - [x] KW-40 — Sammelposten Kleinkram / toter Code — behoben BE `ba56cb1b`+`d7f81be0`, FE `efc64588`+`d0ceb920`, Session 6 2026-07-19
+> **Umsetzung:** Backend: 10 tote Symbole entfernt (`_xml_absatz`, `_xml_leerzeile`, `_xml_tabelle_schaden`, `_xml_tabelle_rvg`, `_xml_antrag`, `_tab_rechts`, `_VORLAGE_FS`, `kanzlei_str`, `mandant_anschr`, Top-Level `import zipfile`); `antrag()` nutzt jetzt `<w:tab/>`-Runs statt rohem Tab-Zeichen; GHPV-Filter zieht wie `beklagte_gef` `checked` + Rollen nach; nicht gemappte `extra_wdm_`-Positionen werden jetzt sauber als „Sonstige Schäden" beschriftet statt roh als „Extra Wdm Ss1"; `_merge_split_placeholders` läuft jetzt über alle 16 Platzhalter statt nur `{{GEGENSTANDSWERT}}` (Absicherung durch V10-Render-Smoke-Test). Die RVG-Antragsnummer-Raterei bei `antraege_override` bleibt bewusst unangetastet (kein sauberer 1-Zeilen-Fix, Risiko/Aufwand nicht gerechtfertigt). Frontend: „Text übernehmen" im Einwände-Panel ersetzt jetzt statt anzuhängen; die Kürzungs-Summe klemmt negative Werte (reguliert > gefordert reduziert die Summe nicht mehr unter 0); `ersetzeMandantDurchKlaeger` als einziger Export dedupliziert die vorher zweifach geführte Mandant→Kläger-Ersetzung inkl. Artikel-Fix (Der/Dem/Den); der „ungeklärt"-Warntext in Step 3 ist jetzt ehrlich (Anzeige entspricht wieder dem tatsächlichen Payload); NaN-Guard `parseBetragOderNull` + expliziter Versand-Guard `baueRvgAussergOverride` verhindern `fmtEuro(NaN)`-Anzeigen; toter Fixture-Rest entfernt. S4-M6 im selben Zug mitgenommen: `StepVerzug`-Vorbelegung nutzt jetzt `fmtDatumDe`. Tote-Fracht-Punkte aus dem letzten Aufzählungsblock (gesendet-nie-gelesen/GET-nie-genutzt) bewusst **nicht** angefasst — reine Vertrags-Doku ohne funktionalen Fehler, kein TDD-Ansatzpunkt.
 - `klage_service.py`: toter Code entfernen (`_xml_absatz`, `_xml_leerzeile`, `_xml_tabelle_schaden`, `_xml_tabelle_rvg`, `_xml_antrag`, `_tab_rechts`, `_VORLAGE_FS`, `kanzlei_str`, `mandant_anschr`, Top-Level `import zipfile`)
 - `klage_service.py:808`: nicht gemappte position_keys landen als „Extra Wdm Ss1" in der Zahlungs-Tabelle
 - `klage_service.py:561`: `_merge_split_placeholders` läuft nur über `{{GEGENSTANDSWERT}}`, nicht über die 15 Block-Platzhalter — erneutes Speichern der Vorlage in Word kann Platzhalter zersplittern → bleibt roh im Dokument (Absicherung: Render-Smoke-Test V10)
@@ -344,7 +355,7 @@
 | **3** ✅ | KW-06, KW-15–KW-21 (Rubrum/Grammatik-Cluster) — erledigt 2026-07-18, Branch `klage-wizard-fixes-s3` | Als V3-Refactoring (Partei-Objekt) in einem Zug: neue Helfer `_anrede_norm`, `_ist_maennliche_privatperson`, `_beklagten_grammatik`, `_beklagten_rolle`, `_vertreter_suffix`, `_rechtsform_klasse` (Backend) + `kanonischeBeklagte`/`beklagtenGrammatik`/`versichererSuffix` (Frontend). Baseline: Backend 204f/1044p (Alt-Cluster, null neue, +44 Passes), Frontend 141 Vitest (122→141) + Build. FF-Merge nach Freigabe ausstehend. |
 | **4** ✅ | KW-09, KW-10, KW-12, KW-13, KW-08 + KW-35 (vorgezogen) — erledigt 2026-07-18, Branch `klage-wizard-fixes-s4` | Datum/RVG/Anlagen als V5 (Datumsvertrag: ISO im Transport, `_fmt_datum`/`fmtDatumDe` nur im Renderer, BE↔FE wortgleicher Port) + V6 (nur noch Nr. 2300 außergerichtlich, gerichtl. SW als Zahl) + V4 (`AnlagenZaehler` mit Override-Scan). Legacy-Button weg (V8-Teil). Neue cfg-Keys: `verzug_schreiben_datum`; entfallene: `rvg`, `rvg_override`. Eintritt-Default Schreibdatum+14 Tage. Baseline: Frontend 159 Vitest (143→159) + Build; Backend-Voll-Lauf siehe TODO. FF-Merge nach Freigabe ausstehend. |
 | **5** ✅ | KW-22, KW-24–KW-29 (Wizard-State/UX) — erledigt 2026-07-18, Branch `klage-wizard-fixes-s5` | V7 umgesetzt: Manuell-Flags im Section-State (`wizardSachverhaltManuell`/`wizardGebuehrenManuell`/`wizardAntraegeManuell`) + `antraegeBasis`-Fingerprint + `AntraegeSync` (immer gemountet) + `TextVeraltetBadge` (Step 6+10); Gebühren-Antrag als Segment mit `komponiereAntraege` beim Senden (Platzhalter bleibt im State); `kannSpringen` kumulativ für den Fortschrittsbalken; KW-27 ohne V9/Migration (Gericht-Zeile vor Rollen-Filter + Frisch-DB-CHECK um `'gericht'`); KW-28 mit echtem Schreibdatum aus `forderung_positionen` (neues `datum`-Feld in `verzug_dokumente`); KW-29 stiller Lookup-Cache statt dismissed-Set. Plan: `docs/superpowers/plans/2026-07-18-prd33-s5-wizard-state-ux.md`. Baseline: Backend 204f/1059p (Alt-Cluster, null neue, +5 Passes), Frontend 198 Vitest (159→198) + Build. FF-Merge nach Freigabe ausstehend. |
-| **6** | KW-30–KW-40 + V10 Golden-File-Matrix | Politur + Regressionsschutz |
+| **6** ✅ | KW-30–34, KW-36–38, KW-40 + V10 Golden-File-Matrix — erledigt 2026-07-19, Branch `klage-wizard-fixes-s6` | Politur (Textqualität/toter Code) + dauerhafter Regressionsschutz. KW-35/KW-39 bereits in S4/S2 erledigt; KW-36 teilweise entfällt (Truncation/hq=0-Guard nicht mehr vorhanden), Rest = Rundungs-Parität BE/FE (`_round2_half_up`). V10: `TestV10RenderSmoke` (kein `{{`/`}}` im Ergebnis-XML, Wächter-Wirksamkeit per Mutation belegt) + `TestV10Matrix` (24 Kombinationen mit_sg × 1/2 Beklagte × eigentum/finanziert/geleast × Overrides an/aus, No-Platzhalter-Check + Struktur-Invarianten in allen 24). Baseline: Backend voller Lauf **204f/1086p/18s + 24 Subtests** (204f = Alt-Cluster, null neue Failures, +27 Passes ggü. S5), Frontend **223** Vitest (200→223) + Build grün. 15 Code/Test-Commits `c003e962`..`81706b67`. FF-Merge nach Freigabe ausstehend. **PRD-33 damit komplett (alle 40 KW-Bugs behoben oder begründet entfallen).** |
 
 > **Grundsatzentscheidungen (RA Schatz, 2026-07-17) — alle getroffen:**
 > 1. **KW-03 Haftungsquote:** Zwei Fälle. Fall A (gegnerische Quote) = nur Darstellung in der RW, Beträge 100 %. Fall B (eigene Quote) = Klagebetrag quotiert: **erst quotieren, dann Zahlungen abziehen**; SG-Mindestbetrag NICHT auto-quotiert; Quote gilt auch für den vorgerichtlichen Streitwert (Nr.-2300-Basis). Schadentabelle immer 100 %. Step 7 bekommt die Fall-Auswahl.
