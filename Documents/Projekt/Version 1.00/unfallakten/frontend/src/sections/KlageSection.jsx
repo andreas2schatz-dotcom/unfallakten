@@ -605,6 +605,13 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const entwurfDirty = wizardOffen &&
     JSON.stringify(aktuellerEntwurf()) !== entwurfLetzterStand;
 
+  // Frisch geoeffneter Wizard gilt nicht als ungespeichert (Basislinie einmal erfassen)
+  useEffect(() => {
+    if (wizardOffen && entwurfLetzterStand === null) {
+      setEntwurfLetzterStand(JSON.stringify(aktuellerEntwurf()));
+    }
+  }, [wizardOffen]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const speichereEntwurf = async () => {
     const entwurf = aktuellerEntwurf();
     setEntwurfLaeuft(true);
