@@ -775,14 +775,23 @@ class TestKw34RvgNull(unittest.TestCase):
         self.assertNotIn("Vorgerichtliche Rechtsanwaltsgebühren", xml)
 
     def test_fall_b_zahlungen_ueber_quotiertem_anspruch(self):
-        pos = [_position("fahrzeugschaden", "Fahrzeugschaden", 0.0, betrag_original=1000.0)]
-        akte = _akte_daten(pos)
+        # "fahrzeugschaden" ist ein Aggregat-Key, der in schaden_raw NICHT direkt aus
+        # betragOriginal gespeist wird (nur untergeordnete DB-Keys wie reparaturkosten) -
+        # damit waere schaden_gesamt=0 und der Test träfe nichts real (Review-Fund).
+        # "wertminderung" ist ein _EINFACHE_POS_KEYS-Key (klage_service.py ~:1600-1609):
+        # schaden_raw["wertminderung"] wird direkt aus betragOriginal gesetzt, schaden_gesamt
+        # damit real 1000,00 € -> ersatzfaehig real 500,00 €.
+        pos = [_position("wertminderung", "Wertminderung", betrag=0.0, betrag_original=1000.0)]
+        schaden = {"wertminderung": 1000.0}
+        akte = _akte_daten(pos, schaden)
         akte["klage_config"]["haftungsquote"] = 50
         akte["klage_config"]["haftungsquote_typ"] = "eigen"
-        # Zahlungen 1000 € > quotierter Anspruch 500 € → klagebetrag klemmt auf 0
+        # Zahlungen 1.000 € > quotierter Anspruch 500 € (1000 * 50 %) → klagebetrag klemmt auf 0
         xml = _document_xml(generiere_klageschrift(akte))
-        self.assertIn("1.000,00", xml)          # echte Zahlungssumme genannt
-        self.assertNotIn("Zahlungen in Höhe von 500,00", xml)  # nicht mehr die geschönte Differenz
+        self.assertIn("mithin 500,00", xml)                     # realer ersatzfähiger Betrag
+        self.assertIn("Zahlungen in Höhe von 1.000,00", xml)     # echte Zahlungssumme genannt
+        self.assertIn("vollständig ausgeglichen", xml)
+        self.assertNotIn("Zahlungen in Höhe von 500,00", xml)    # nicht mehr die geschönte Differenz
 
 
 class TestKW12AnlagenNummern(unittest.TestCase):
