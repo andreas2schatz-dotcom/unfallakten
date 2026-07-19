@@ -48,6 +48,33 @@ def _j(d, s=200): return jsonify(d), s
 def _err(msg, s=400): return jsonify({"fehler": msg}), s
 
 
+_GHPV_KUERZEL = ("GHPV", "GH", "GHV")
+
+
+def _ghpv_bereits_vorhanden(alle_bet: list, ghpv_wdm: str) -> bool:
+    """
+    True, wenn die gegnerische Haftpflichtversicherung bereits als Beklagte
+    in alle_bet steht. Kuerzel GHPV/GH/GHV zaehlt immer; ohne Kuerzel genuegt
+    Namensgleichheit oder Enthaltensein in beide Richtungen (WDM traegt oft
+    nur den Kurznamen, z.B. "ADAC" vs. Beteiligter "ADAC Autoversicherung AG").
+    Personen (mit Vornamen) zaehlen nie als Versicherung.
+    """
+    wdm = (ghpv_wdm or "").strip().lower()
+    for b in alle_bet:
+        if b.get("rolle_klage") != "beklagter":
+            continue
+        if (b.get("kuerzel") or "").upper() in _GHPV_KUERZEL:
+            return True
+        if (b.get("vorname") or "").strip():
+            continue
+        name = (b.get("firma") or b.get("name") or "").strip().lower()
+        if not name or not wdm:
+            continue
+        if name == wdm or wdm in name or name in wdm:
+            return True
+    return False
+
+
 def _rvg_anlagedatum(az: str, sqlite_erstellt_am: str = None) -> str:
     """Bestimmt das Anlagedatum für die RVG-Tabellenauswahl (Stichtag 01.06.2025).
 
@@ -976,13 +1003,7 @@ def hole_klage_daten(akte_id: str):
     # als separate Beklagte auswählen kann.
     _ghpv_wdm = (_wdm("varG-HV") or "").strip()
     if _ghpv_wdm:
-        _ghpv_wdm_lower = _ghpv_wdm.lower()
-        _hat_reinen_ghpv = any(
-            not (b.get("vorname") or "").strip()
-            and (b.get("firma") or b.get("name") or "").strip().lower() == _ghpv_wdm_lower
-            for b in alle_bet if b.get("rolle_klage") == "beklagter"
-        )
-        if not _hat_reinen_ghpv:
+        if not _ghpv_bereits_vorhanden(alle_bet, _ghpv_wdm):
             alle_bet.append({
                 "id":                -1,
                 "rolle":             "versicherung",
