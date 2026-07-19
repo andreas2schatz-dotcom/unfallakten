@@ -1017,7 +1017,7 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     # ── Zinsen ───────────────────────────────────────────────────────────────
     zinsen_ab     = cfg.get("zinsen_ab") or "verzug"
     verzugsdatum  = _fmt_datum(cfg.get("verzugsdatum") or "")
-    verzug_schreiben = _fmt_datum(cfg.get("verzug_schreiben_datum") or "") or verzugsdatum
+    verzug_schreiben = _fmt_datum(cfg.get("verzug_schreiben_datum") or "")
     zins_sachsch  = f"dem {verzugsdatum}" if zinsen_ab == "verzug" and verzugsdatum else "Rechtshängigkeit"
     zins_rvg      = "Rechtshängigkeit"
 
@@ -1566,11 +1566,13 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
         # geklemmt (max(0.0, ...) bei :1122). _zahlungen_anzeige waere hier arithmetisch
         # schöngerechnet (sie zeigt nur die Differenz bis 0, nicht die echte Zahlungssumme
         # fallb_zahlungen) - stattdessen die echte Summe nennen, gleiche Rundung wie :1119.
-        if klagebetrag == 0.0 and fallb_zahlungen > _ersatzfaehig:
+        _fallb_geklemmt = klagebetrag == 0.0 and fallb_zahlungen > _ersatzfaehig
+        if _fallb_geklemmt or _zahlungen_anzeige > 0:
             schaden_xml += _p("Die Beklagte hat folgende Zahlungen auf den Schaden geleistet:")
             if reg_tbl_xml:
                 schaden_xml += reg_tbl_xml
             schaden_xml += _lz()
+        if _fallb_geklemmt:
             schaden_xml += _p(
                 f"Von dem Gesamtschaden in Höhe von {_eur_str(schaden_gesamt)} sind unter "
                 f"Berücksichtigung der Mithaftungsquote von {_pct_str(100 - hq)} % {_pct_str(hq)} %, "
@@ -1579,10 +1581,6 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
                 f"damit vollständig ausgeglichen."
             )
         elif _zahlungen_anzeige > 0:
-            schaden_xml += _p("Die Beklagte hat folgende Zahlungen auf den Schaden geleistet:")
-            if reg_tbl_xml:
-                schaden_xml += reg_tbl_xml
-            schaden_xml += _lz()
             schaden_xml += _p(
                 f"Von dem Gesamtschaden in Höhe von {_eur_str(schaden_gesamt)} sind unter "
                 f"Berücksichtigung der Mithaftungsquote von {_pct_str(100 - hq)} % {_pct_str(hq)} %, "
