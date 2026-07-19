@@ -797,6 +797,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           entwurfGespeichertAm={entwurfGespeichertAm}
           entwurfFehler={entwurfFehler}
           entwurfLaeuft={entwurfLaeuft}
+          entwurfAenderungen={entwurfAenderungen}
+          onAenderungenGelesen={() => setEntwurfAenderungen([])}
         />
       )}
       {showSgAssistent && (() => {

@@ -2029,6 +2029,27 @@ export function EntwurfStatusLeiste({ dirty, gespeichertAm, fehler, laeuft, onSp
   );
 }
 
+export function EntwurfAenderungenBox({ aenderungen, onSchliessen }) {
+  if (!aenderungen || aenderungen.length === 0) return null;
+  return (
+    <div style={{ background: T.amberMid, border: `1px solid ${T.amber}`,
+      borderRadius: 8, padding: "0.75rem 1rem", margin: "0.75rem 1.5rem 0",
+      display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+      <div style={{ flex: 1 }}>
+        <b style={{ fontFamily: PLEX, fontSize: "0.85rem", color: T.amberText }}>Seit dem Entwurf geändert:</b>
+        <ul style={{ margin: "0.35rem 0 0", paddingLeft: "1.2rem" }}>
+          {aenderungen.map((a, i) => (
+            <li key={i} style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.amberText }}>{a}</li>
+          ))}
+        </ul>
+      </div>
+      <button onClick={onSchliessen} aria-label="✕"
+        style={{ background: "none", border: "none", cursor: "pointer",
+          fontSize: "1rem", lineHeight: 1, color: T.amberText }}>✕</button>
+    </div>
+  );
+}
+
 export function baueAntraegeText(opts) {
   const { positionen, mitSG, sgMind, beklagte, weiblich, zinsenAb, verzug,
           unfalldatum, mitFestSg, mitFestSach, hq = 100, hqTyp = "gegnerisch" } = opts;
@@ -2572,6 +2593,7 @@ export default function KlageWizard({
   laedt, onGenerieren, fehler,
   // Entwurf speichern
   onEntwurfSpeichern, entwurfDirty, entwurfGespeichertAm, entwurfFehler, entwurfLaeuft,
+  entwurfAenderungen, onAenderungenGelesen,
 }) {
   const backdropRef = useRef(null);
   const [zeigeSchliessenGuard, setZeigeSchliessenGuard] = useState(false);
@@ -2659,6 +2681,9 @@ export default function KlageWizard({
                 borderRadius: 6, lineHeight: 1, opacity: laedt ? 0.3 : 1,
               }}>✕</button>
           </div>
+
+          <EntwurfAenderungenBox aenderungen={entwurfAenderungen}
+            onSchliessen={onAenderungenGelesen} />
 
           {/* Body */}
           <div style={{ flex: 1, overflowY: "auto", padding: "1.5rem" }}>

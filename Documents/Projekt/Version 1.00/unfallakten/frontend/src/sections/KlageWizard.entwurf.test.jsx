@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { EntwurfStatusLeiste, SchliessenGuardDialog } from "./KlageWizard.jsx";
+import { EntwurfStatusLeiste, SchliessenGuardDialog, EntwurfAenderungenBox } from "./KlageWizard.jsx";
 
 describe("EntwurfStatusLeiste", () => {
   it("zeigt Speichern-Knopf und ruft onSpeichern", () => {
@@ -72,5 +72,25 @@ describe("SchliessenGuardDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: /Zurück zum Wizard/ }));
     expect(onZurueck).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe("EntwurfAenderungenBox", () => {
+  it("rendert nichts bei leerer Liste", () => {
+    const { container } = render(
+      <EntwurfAenderungenBox aenderungen={[]} onSchliessen={() => {}} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("listet Aenderungen und laesst sich schliessen", () => {
+    const onSchliessen = vi.fn();
+    render(<EntwurfAenderungenBox
+      aenderungen={["Neue Position: Standkosten", "Betrag geändert: Reparaturkosten (1200,50 € → 900,00 €)"]}
+      onSchliessen={onSchliessen} />);
+    expect(screen.getByText(/Seit dem Entwurf geändert/)).toBeInTheDocument();
+    expect(screen.getByText(/Neue Position: Standkosten/)).toBeInTheDocument();
+    expect(screen.getByText(/1200,50 € → 900,00 €/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /✕/ }));
+    expect(onSchliessen).toHaveBeenCalledTimes(1);
   });
 });
