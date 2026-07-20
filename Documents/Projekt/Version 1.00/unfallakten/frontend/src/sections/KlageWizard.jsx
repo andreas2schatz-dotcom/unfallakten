@@ -1087,7 +1087,7 @@ const EINLEITUNGS_VARIANTEN = [
 const EINLEITUNG_LETZT = (z, eur) =>
   `Schließlich kürzt die Beklagte${z} auch hier noch einen Betrag in Höhe von ${eur}.`;
 
-function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, onClose }) {
+export function EinwaendeAuswahl({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen }) {
   // IDs der tatsächlich gekürzten Positionen (aus Regulierungsschreiben)
   const aktiveIds = new Set(
     (abrechnungen || []).flatMap(ab =>
@@ -1167,6 +1167,93 @@ function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, 
   }
 
   return (
+    <div style={{
+      display: "flex", flexDirection: "column",
+      border: `1px solid ${T.borderSoft}`, borderRadius: 10,
+      background: T.white, maxHeight: 480, overflow: "hidden",
+    }}>
+      {/* Liste */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "1rem 1.25rem" }}>
+        {alleKats.map(kat => (
+          <div key={kat} style={{ marginBottom: "1.25rem" }}>
+            <div style={{ fontFamily: PLEX, fontSize: "0.68rem", fontWeight: 700,
+              color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.1em",
+              marginBottom: "0.5rem" }}>
+              {KATEGORIE_LABELS[kat] || kat}
+            </div>
+            {(gruppen[kat] || []).map(ka => (
+              <label key={ka.id} style={{
+                display: "flex", alignItems: "flex-start", gap: 10,
+                padding: "8px 10px", borderRadius: 8, cursor: "pointer",
+                border: `1px solid ${checked.has(ka.id) ? T.navy : T.borderSoft}`,
+                background: checked.has(ka.id) ? `${T.navy}06` : T.white,
+                marginBottom: 4, transition: "all 0.12s",
+              }}>
+                <input type="checkbox" checked={checked.has(ka.id)}
+                  onChange={() => toggle(ka.id)}
+                  style={{ accentColor: T.navy, marginTop: 3, cursor: "pointer",
+                    flexShrink: 0, width: 15, height: 15 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8,
+                    fontFamily: PLEX, fontSize: "0.875rem",
+                    fontWeight: checked.has(ka.id) ? 600 : 400,
+                    color: checked.has(ka.id) ? T.navy : T.text }}>
+                    {ka.bezeichnung}
+                    {aktiveIds.has(ka.id) && (
+                      <span style={{
+                        fontSize: "0.68rem", fontWeight: 700,
+                        background: `${T.accent}22`, color: "#8a5800",
+                        padding: "1px 7px", borderRadius: 10,
+                      }}>gekürzt</span>
+                    )}
+                  </div>
+                  {(ka.textbaustein || ka.standard_gegenargument) && (
+                    <div style={{ fontFamily: PLEX, fontSize: "0.75rem",
+                      color: T.textFaint, marginTop: 2, lineHeight: 1.55 }}>
+                      {(() => {
+                        const t = (ka.textbaustein || ka.standard_gegenargument).trim();
+                        return t.length > 200 ? t.slice(0, 200) + " …" : t;
+                      })()}
+                    </div>
+                  )}
+                </div>
+              </label>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div style={{
+        padding: "0.75rem 1.25rem",
+        borderTop: `1px solid ${T.borderSoft}`,
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        flexShrink: 0, background: T.offWhite,
+      }}>
+        <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.textMuted }}>
+          {checked.size} ausgewählt
+        </div>
+        <button onClick={uebernehmen}
+          style={{ padding: "8px 18px", borderRadius: 7, cursor: "pointer",
+            border: "none", background: T.navy,
+            fontFamily: PLEX, fontSize: "0.85rem", fontWeight: 700, color: "#fff" }}>
+          Text übernehmen
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, onClose }) {
+  const aktiveCount = new Set(
+    (abrechnungen || []).flatMap(ab =>
+      (ab.positionen || [])
+        .filter(p => p.kuerzungsart_id != null)
+        .map(p => Number(p.kuerzungsart_id))
+    )
+  ).size;
+
+  return (
     <div
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
       style={{
@@ -1196,9 +1283,9 @@ function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, 
               Einwände &amp; Kürzungen
             </div>
             <div style={{ fontFamily: PLEX, fontSize: "0.78rem", color: T.textMuted, marginTop: 3 }}>
-              {aktiveIds.size > 0
-                ? <><span style={{ color: T.accent, fontWeight: 600 }}>{aktiveIds.size}</span>
-                    {" "}Kürzung{aktiveIds.size !== 1 ? "en" : ""} aus Regulierungsschreiben vorausgewählt</>
+              {aktiveCount > 0
+                ? <><span style={{ color: T.accent, fontWeight: 600 }}>{aktiveCount}</span>
+                    {" "}Kürzung{aktiveCount !== 1 ? "en" : ""} aus Regulierungsschreiben vorausgewählt</>
                 : "Keine Kürzungen aus Regulierungsschreiben erfasst – manuelle Auswahl möglich"}
             </div>
           </div>
@@ -1210,80 +1297,28 @@ function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, 
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "1rem 1.25rem" }}>
-          {alleKats.map(kat => (
-            <div key={kat} style={{ marginBottom: "1.25rem" }}>
-              <div style={{ fontFamily: PLEX, fontSize: "0.68rem", fontWeight: 700,
-                color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.1em",
-                marginBottom: "0.5rem" }}>
-                {KATEGORIE_LABELS[kat] || kat}
-              </div>
-              {(gruppen[kat] || []).map(ka => (
-                <label key={ka.id} style={{
-                  display: "flex", alignItems: "flex-start", gap: 10,
-                  padding: "8px 10px", borderRadius: 8, cursor: "pointer",
-                  border: `1px solid ${checked.has(ka.id) ? T.navy : T.borderSoft}`,
-                  background: checked.has(ka.id) ? `${T.navy}06` : T.white,
-                  marginBottom: 4, transition: "all 0.12s",
-                }}>
-                  <input type="checkbox" checked={checked.has(ka.id)}
-                    onChange={() => toggle(ka.id)}
-                    style={{ accentColor: T.navy, marginTop: 3, cursor: "pointer",
-                      flexShrink: 0, width: 15, height: 15 }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8,
-                      fontFamily: PLEX, fontSize: "0.875rem",
-                      fontWeight: checked.has(ka.id) ? 600 : 400,
-                      color: checked.has(ka.id) ? T.navy : T.text }}>
-                      {ka.bezeichnung}
-                      {aktiveIds.has(ka.id) && (
-                        <span style={{
-                          fontSize: "0.68rem", fontWeight: 700,
-                          background: `${T.accent}22`, color: "#8a5800",
-                          padding: "1px 7px", borderRadius: 10,
-                        }}>gekürzt</span>
-                      )}
-                    </div>
-                    {(ka.textbaustein || ka.standard_gegenargument) && (
-                      <div style={{ fontFamily: PLEX, fontSize: "0.75rem",
-                        color: T.textFaint, marginTop: 2, lineHeight: 1.55 }}>
-                        {(() => {
-                          const t = (ka.textbaustein || ka.standard_gegenargument).trim();
-                          return t.length > 200 ? t.slice(0, 200) + " …" : t;
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                </label>
-              ))}
-            </div>
-          ))}
+        <div style={{ flex: 1, overflow: "hidden", padding: "1rem 1.25rem" }}>
+          <EinwaendeAuswahl
+            abrechnungen={abrechnungen}
+            kuerzungsarten={kuerzungsarten}
+            beklagte={beklagte}
+            onUebernehmen={onUebernehmen}
+          />
         </div>
 
         {/* Footer */}
         <div style={{
           padding: "0.75rem 1.25rem",
           borderTop: `1px solid ${T.borderSoft}`,
-          display: "flex", justifyContent: "space-between", alignItems: "center",
+          display: "flex", justifyContent: "flex-end", alignItems: "center",
           flexShrink: 0, background: T.offWhite, borderRadius: "0 0 14px 14px",
         }}>
-          <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.textMuted }}>
-            {checked.size} ausgewählt
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={onClose}
-              style={{ padding: "8px 16px", borderRadius: 7, cursor: "pointer",
-                border: `1.5px solid ${T.border}`, background: "#fff",
-                fontFamily: PLEX, fontSize: "0.85rem", color: T.text }}>
-              Abbrechen
-            </button>
-            <button onClick={uebernehmen}
-              style={{ padding: "8px 18px", borderRadius: 7, cursor: "pointer",
-                border: "none", background: T.navy,
-                fontFamily: PLEX, fontSize: "0.85rem", fontWeight: 700, color: "#fff" }}>
-              Text übernehmen →
-            </button>
-          </div>
+          <button onClick={onClose}
+            style={{ padding: "8px 16px", borderRadius: 7, cursor: "pointer",
+              border: `1.5px solid ${T.border}`, background: "#fff",
+              fontFamily: PLEX, fontSize: "0.85rem", color: T.text }}>
+            Schließen
+          </button>
         </div>
       </div>
     </div>
