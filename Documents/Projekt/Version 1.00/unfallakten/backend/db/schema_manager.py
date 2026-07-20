@@ -314,6 +314,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     60: "-- migration_60_personenschaden_krankenhaus_aufenthalt",  # Handled by _run_migration_60 (Schema-Drift-Fix)
     61: "-- migration_61_klage_entwurf",  # Handled by _run_migration_61 (Klage-Wizard Entwurf)
     62: "-- migration_62_firmen_vertreter",  # Handled by _run_migration_62 (globaler Firmen-Vertreter-Speicher)
+    63: "-- migration_63_beteiligte_vertreter",  # Handled by _run_migration_63 (Schema-Drift-Fix)
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -1105,6 +1106,38 @@ def _run_migration_62(conn: sqlite3.Connection) -> None:
     logger.info("Migration 62 abgeschlossen (Tabelle firmen_vertreter).")
 
 
+def _run_migration_63(conn: sqlite3.Connection) -> None:
+    """
+    Migration 63 - beteiligte.vertreter_name + vertreter_funktion (Schema-Drift-Fix).
+
+    Die Spalten standen im CREATE TABLE einer aelteren, nicht mehr genutzten
+    Kopie von schema_manager.py, fehlten aber in dieser aktiven Migrations-
+    Registry und damit sowohl auf frischen als auch auf Bestands-DBs. Folge:
+    POST /firmen/vertreter/speichern mit echter beteiligter_id warf 'no such
+    column' (siehe Commit 5e5b438b). Additiv, idempotent per PRAGMA
+    table_info. Explizites conn.commit() vor/nach ALTER
+    (feedback_migration_executescript).
+    """
+    spalten = {
+        r[1] for r in conn.execute("PRAGMA table_info(beteiligte)").fetchall()
+    }
+    conn.commit()
+    if "vertreter_name" not in spalten:
+        conn.execute("ALTER TABLE beteiligte ADD COLUMN vertreter_name TEXT")
+    if "vertreter_funktion" not in spalten:
+        conn.execute("ALTER TABLE beteiligte ADD COLUMN vertreter_funktion TEXT")
+    conn.commit()
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (?, ?)",
+        (63, "Migration 63 - beteiligte.vertreter_name/-funktion "
+             "(Schema-Drift-Fix)"),
+    )
+    logger.info(
+        "Migration 63 abgeschlossen (beteiligte.vertreter_name/-funktion).")
+
+
 def _run_migration_54(conn: sqlite3.Connection) -> None:
     """
     Migration 54 - intake_dokumente.textquelle erlaubt 'email_text'.
@@ -1522,6 +1555,8 @@ def run_migrations() -> None:
                 _run_migration_61(conn)
             elif version == 62:
                 _run_migration_62(conn)
+            elif version == 63:
+                _run_migration_63(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(

@@ -380,23 +380,41 @@ def suche_vertreter():
 def speichern():
     daten = request.get_json(silent=True) or {}
     bid   = daten.get("beteiligter_id")
+    firma = (daten.get("firma") or "").strip()
     vname = (daten.get("vertreter_name") or "").strip()
     vfunk = (daten.get("vertreter_funktion") or "").strip()
 
-    if not bid:
-        return _err("beteiligter_id erforderlich.")
+    try:
+        bid_int = int(bid)
+    except (TypeError, ValueError):
+        bid_int = 0
+    hat_echten_beteiligten = bid_int > 0
+
     if not vname:
         return _err("vertreter_name erforderlich.")
+    if not firma and not hat_echten_beteiligten:
+        return _err("firma oder beteiligter_id erforderlich.")
 
     try:
         from ..db.database import get_connection
+        from ..models.firmen_vertreter import upsert_firmen_vertreter
+        global_ok = False
+        bet_ok = False
         with get_connection() as conn:
-            conn.execute(
-                "UPDATE beteiligte SET vertreter_name=?, vertreter_funktion=? WHERE id=?",
-                (vname, vfunk, int(bid))
-            )
-        return _j({"ok": True, "beteiligter_id": bid,
-                   "vertreter_name": vname, "vertreter_funktion": vfunk})
+            if firma:
+                global_ok = upsert_firmen_vertreter(conn, firma, vname, vfunk)
+            if hat_echten_beteiligten:
+                cur = conn.execute(
+                    "UPDATE beteiligte SET vertreter_name=?, "
+                    "vertreter_funktion=? WHERE id=?",
+                    (vname, vfunk, bid_int),
+                )
+                bet_ok = cur.rowcount > 0
+        return _j({"ok": True,
+                   "global_gespeichert": global_ok,
+                   "beteiligter_gespeichert": bet_ok,
+                   "vertreter_name": vname,
+                   "vertreter_funktion": vfunk})
     except Exception as e:
         logger.error("Vertreter speichern: %s", e)
         return _err("Speichern fehlgeschlagen: " + str(e), 500)

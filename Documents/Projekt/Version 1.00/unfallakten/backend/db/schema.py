@@ -85,7 +85,9 @@ CREATE TABLE IF NOT EXISTS beteiligte (
     schaden_nr      TEXT,       -- Schadennummer bei der Versicherung
     iban            TEXT,       -- Für Auszahlungen
     notizen         TEXT,
-    gutachten_nr    TEXT        -- PORTAL-A2: Auftragsnummer aus Gutachten-Parse
+    gutachten_nr    TEXT,       -- PORTAL-A2: Auftragsnummer aus Gutachten-Parse
+    vertreter_name     TEXT,    -- Vertretungsberechtigtes Organ (fuer Klage-Rubrum)
+    vertreter_funktion TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_beteiligte_akte_id ON beteiligte(akte_id);
