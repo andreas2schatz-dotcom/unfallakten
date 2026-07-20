@@ -80,6 +80,14 @@ describe("firmenOhneVertreter", () => {
     ];
     expect(firmenOhneVertreter(beklagte).map(b => b.versicherung || b.firma)).toEqual(["HUK"]);
   });
+
+  it("schliesst natuerliche Personen mit versicherung aus (WDM-Anreicherung), Firmen bleiben drin", () => {
+    const beklagte = [
+      { vorname: "Max", name: "Mustermann", versicherung: "HUK", vertreter_name: "", checked: true },
+      { firma: "ADAC AG", checked: true },
+    ];
+    expect(firmenOhneVertreter(beklagte).map(b => b.versicherung || b.firma)).toEqual(["ADAC AG"]);
+  });
 });
 
 describe("schrittWarnung", () => {

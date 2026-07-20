@@ -1,6 +1,6 @@
 // Klage-Wizard UI-Fuehrung (Paket 2): reine Logik ohne React/API.
 
-import { kanonischeBeklagte } from "./parteiLogik.js";
+import { kanonischeBeklagte, istPersonPartei } from "./parteiLogik.js";
 
 function tokenisiere(text) {
   return String(text ?? "")
@@ -47,7 +47,7 @@ export function wortDiff(autoText, aktuellerText) {
 }
 
 export function firmenOhneVertreter(beklagte) {
-  return kanonischeBeklagte(beklagte).filter(b => (b.versicherung || b.firma) && !b.vertreter_name);
+  return kanonischeBeklagte(beklagte).filter(b => !istPersonPartei(b) && (b.versicherung || b.firma) && !b.vertreter_name);
 }
 
 export function schrittWarnung(nr, ctx) {

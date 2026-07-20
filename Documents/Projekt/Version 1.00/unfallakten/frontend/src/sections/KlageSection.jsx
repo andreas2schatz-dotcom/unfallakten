@@ -26,6 +26,7 @@ import {
   istFirmenPartei,
   parteiAnzeigeName,
   organBezeichnung,
+  firmaSpeicherKey,
 } from "./parteiLogik.js";
 
 export function sollAutoLookup(b, lookupCache) {
@@ -118,9 +119,13 @@ function ManuelleVertreterEingabe({ id, onSave }) {
 };
 
 
-function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertreterLookup, setToast, T }) {
+function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertreterLookup, setToast, T, beklagte }) {
   if (!vertreterModal) return null;
   const { id, name: firmaName, daten } = vertreterModal;
+  // Speicher-Schluessel muss dem Serializer entsprechen (firma||name, nie
+  // versicherung) — firmaName ist nur Anzeige-/Suchname und kann davon abweichen.
+  const b = (beklagte || []).find(x => x.id === id);
+  const firmaKey = firmaSpeicherKey(b) || firmaName;
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)",
       zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}
@@ -158,7 +163,7 @@ function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertrete
                     ));
                     // Dauerhaft in DB speichern
                     try {
-                      await apiFirmen.vertreterSpeichern(id, v.name, v.funktion, firmaName);
+                      await apiFirmen.vertreterSpeichern(id, v.name, v.funktion, firmaKey);
                     } catch(e) {
                       const msg = e?.status ? `HTTP ${e.status}: ${e.message}` : (e?.message || String(e));
                       setToast && setToast("Vertreter übernommen, aber nicht dauerhaft gespeichert: " + msg);
@@ -184,7 +189,7 @@ function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertrete
                 ? {...b, vertreter_name: name, vertreter_funktion: funk}
                 : b
               ));
-              apiFirmen.vertreterSpeichern(id, name, funk, firmaName).catch(e => {
+              apiFirmen.vertreterSpeichern(id, name, funk, firmaKey).catch(e => {
                 const msg = e?.status ? `HTTP ${e.status}: ${e.message}` : (e?.message || String(e));
                 setToast && setToast("Vertreter übernommen, aber nicht dauerhaft gespeichert: " + msg);
               });
@@ -719,7 +724,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     <div style={{ flex:1, overflowY:"auto", background:T.offWhite }}>
       <VertreterModal vertreterModal={vertreterModal} setVModal={setVModal}
         setBek={setBek} apiFirmen={apiFirmen} vertreterLookup={vertreterLookup}
-        setToast={setToast} T={T} />
+        setToast={setToast} T={T} beklagte={beklagte} />
       {entwurfDialog && (
         <KlageEntwurfDialog
           typ={entwurfDialog.typ}

@@ -36,3 +36,10 @@ export function organBezeichnung(firmenname) {
 export function kanonischeBeklagte(beklagte) {
   return (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked !== false);
 }
+
+// Bildet den Speicher-Schluessel exakt wie der Klage-Serializer (firma || name,
+// nie versicherung) — Schreiben und Lesen des globalen Firmen-Vertreter-Caches
+// muessen denselben Schluessel verwenden.
+export function firmaSpeicherKey(b) {
+  return ((b && (b.firma || b.name)) || "").trim();
+}
