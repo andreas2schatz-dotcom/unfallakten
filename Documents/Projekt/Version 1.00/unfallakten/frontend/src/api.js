@@ -815,9 +815,9 @@ export const apiDistanz = {
 
 export const apiFirmen = {
   vertreter:         (name) => request(`/firmen/vertreter?name=${encodeURIComponent(name)}`),
-  vertreterSpeichern:(id, name, funk) => request('/firmen/vertreter/speichern', {
+  vertreterSpeichern:(id, name, funk, firma) => request('/firmen/vertreter/speichern', {
     method: 'POST',
-    body: JSON.stringify({ beteiligter_id: id, vertreter_name: name, vertreter_funktion: funk }),
+    body: JSON.stringify({ beteiligter_id: id, vertreter_name: name, vertreter_funktion: funk, firma }),
   }),
 };
 

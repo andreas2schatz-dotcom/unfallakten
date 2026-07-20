@@ -120,7 +120,7 @@ function ManuelleVertreterEingabe({ id, onSave }) {
 
 function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertreterLookup, setToast, T }) {
   if (!vertreterModal) return null;
-  const { id, name, daten } = vertreterModal;
+  const { id, name: firmaName, daten } = vertreterModal;
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)",
       zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}
@@ -130,7 +130,7 @@ function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertrete
         onClick={e => e.stopPropagation()}>
         <h3 style={{ fontFamily:"'Figtree',sans-serif", fontSize:"1rem",
           fontWeight:700, margin:"0 0 0.5rem", color:T.navy }}>
-          Vertreter-Lookup: {name}
+          Vertreter-Lookup: {firmaName}
         </h3>
         {daten?.rechtsform && (
           <div style={{ fontSize:"0.85rem", color:T.textMuted, marginBottom:"0.75rem" }}>
@@ -158,7 +158,7 @@ function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertrete
                     ));
                     // Dauerhaft in DB speichern
                     try {
-                      await apiFirmen.vertreterSpeichern(id, v.name, v.funktion);
+                      await apiFirmen.vertreterSpeichern(id, v.name, v.funktion, firmaName);
                     } catch(e) {
                       const msg = e?.status ? `HTTP ${e.status}: ${e.message}` : (e?.message || String(e));
                       setToast && setToast("Vertreter übernommen, aber nicht dauerhaft gespeichert: " + msg);
@@ -184,7 +184,7 @@ function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertrete
                 ? {...b, vertreter_name: name, vertreter_funktion: funk}
                 : b
               ));
-              apiFirmen.vertreterSpeichern(id, name, funk).catch(e => {
+              apiFirmen.vertreterSpeichern(id, name, funk, firmaName).catch(e => {
                 const msg = e?.status ? `HTTP ${e.status}: ${e.message}` : (e?.message || String(e));
                 setToast && setToast("Vertreter übernommen, aber nicht dauerhaft gespeichert: " + msg);
               });
