@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { DiffAnsicht, EditorMitDiff, TextVeraltetBadge, StepVerzug, StepAntraege, buildVerzugAutoText } from "./KlageWizard.jsx";
+import { DiffAnsicht, EditorMitDiff, TextVeraltetBadge, StepVerzug, StepAntraege, StepGebuehren, buildVerzugAutoText } from "./KlageWizard.jsx";
 
 describe("DiffAnsicht", () => {
   it("markiert Ergaenzungen gruen und Streichungen durchgestrichen", () => {
@@ -73,5 +73,20 @@ describe("Diff-Integration", () => {
     expect(buttons.length).toBeGreaterThanOrEqual(1);
     fireEvent.click(buttons[0]);
     expect(screen.getAllByTestId("diff-ansicht")[0].textContent).toContain("Automatik Fassung");
+  });
+
+  it("StepGebuehren unterdrückt den Umschalter, solange rvgGesamt > 0 aber gebuehrenText noch leer ist", () => {
+    render(<StepGebuehren
+      swAusserg={0}
+      rvgAussergData={{ gesamt: 500 }} onRvgAussergData={() => {}}
+      rvgAussergOv=""        onRvgAussergOv={() => {}}
+      rvgBereitsGezahlt=""   onRvgBereitsGezahlt={() => {}}
+      gebuehrenText=""       onGebuehrenText={() => {}}
+      beklagte={[]}          weiblich={false}
+      zinsenAb="rechtshaengigkeit" verzug=""
+      antraegeText=""        onAntraegeText={() => {}}
+      gespeichertGb={null}   onGespeichertGb={() => {}}
+    />);
+    expect(screen.queryByText(/Änderungen anzeigen/)).toBeNull();
   });
 });

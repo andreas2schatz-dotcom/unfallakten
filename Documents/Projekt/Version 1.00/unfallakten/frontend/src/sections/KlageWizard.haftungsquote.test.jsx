@@ -181,6 +181,24 @@ describe("StepRw – KW-03 Step-7-Fallauswahl Gegnerisch/Eigen", () => {
     expect(text).toContain("bestritten");
     expect(text).not.toContain("wurde entsprechend gekürzt");
   });
+
+  it("'Text neu generieren' ruft onEinwaendeReset auf (verwirft veralteten Einwaende-Block aus Schritt 8)", () => {
+    const onEinwaendeReset = vi.fn();
+    render(<StepRw {...BASIS_PROPS} onEinwaendeReset={onEinwaendeReset} />);
+
+    fireEvent.click(screen.getByText(/Text neu generieren/i));
+
+    expect(onEinwaendeReset).toHaveBeenCalled();
+  });
+
+  it("Umschalten der Fallauswahl ruft onEinwaendeReset auf (verwirft veralteten Einwaende-Block aus Schritt 8)", () => {
+    const onEinwaendeReset = vi.fn();
+    render(<StepRw {...BASIS_PROPS} onEinwaendeReset={onEinwaendeReset} />);
+
+    fireEvent.click(screen.getByText(/Eigene Quote/i));
+
+    expect(onEinwaendeReset).toHaveBeenCalled();
+  });
 });
 
 describe("StepSchaden – KW-03 Klagebetrag-Badge mit Haftungsquote", () => {

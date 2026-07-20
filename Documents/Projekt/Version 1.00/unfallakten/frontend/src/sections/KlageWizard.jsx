@@ -460,7 +460,7 @@ function DokumentCard({ text, warnung, editText, onEditText }) {
 export function DiffAnsicht({ autoText, aktuellerText }) {
   const segmente = wortDiff(autoText, aktuellerText);
   const stil = {
-    neu:    { background: "#e2f3e2", color: "#1e6b1e", borderRadius: 3, padding: "0 2px" },
+    neu:    { background: "#e2f3e2", color: "#1e6b1e", borderRadius: 3, padding: "0 2px", textDecoration: "underline" },
     weg:    { background: "#fbe3e3", color: "#a03030", textDecoration: "line-through", borderRadius: 3, padding: "0 2px" },
     gleich: {},
   };
@@ -1311,16 +1311,18 @@ export function EinwaendeAuswahl({ abrechnungen, kuerzungsarten, beklagte, onUeb
 
 export function StepRw({ hq, onHq, hqTyp = "gegnerisch", onHqTyp, hb, onHb, abrechnungen, weiblich,
                   rwText, onRwText, beklagte,
-                  onKiHaftung, kiLaedt }) {
+                  onKiHaftung, kiLaedt, onEinwaendeReset }) {
   const gesamtReg = (abrechnungen || []).reduce((s, ab) => s + (parseFloat(ab.gesamt_reguliert) || 0), 0);
 
   function neuGenerieren() {
     onRwText(buildRwVorschau(hb, hq, gesamtReg, weiblich, hqTyp, beklagte));
+    onEinwaendeReset && onEinwaendeReset();
   }
 
   function fallauswaehlen(neuerTyp) {
     onHqTyp(neuerTyp);
     onRwText(buildRwVorschau(hb, hq, gesamtReg, weiblich, neuerTyp, beklagte));
+    onEinwaendeReset && onEinwaendeReset();
   }
 
   return (
@@ -2534,7 +2536,7 @@ export function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
         </button>
       </div>
 
-      <EditorMitDiff autoText={rvgGesamt > 0 ? baueGebuehrenAntrag() : gebuehrenText}
+      <EditorMitDiff autoText={rvgGesamt > 0 && gebuehrenText ? baueGebuehrenAntrag() : gebuehrenText}
         text={gebuehrenText}
         onText={val => { onGebuehrenManuell(true); onGebuehrenText(val); }} />
     </div>
@@ -2826,6 +2828,7 @@ export default function KlageWizard({
                 rwText={wizardRwText}     onRwText={onWizardRwText}
                 beklagte={beklagte}
                 onKiHaftung={onKiHaftung} kiLaedt={kiLaedt}
+                onEinwaendeReset={() => onWizardEinwaendeBlock("")}
               />
             )}
 

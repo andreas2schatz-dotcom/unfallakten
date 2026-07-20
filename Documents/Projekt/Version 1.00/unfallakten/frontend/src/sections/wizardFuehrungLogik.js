@@ -57,7 +57,7 @@ export function schrittWarnung(nr, ctx) {
   if (nr === 2) {
     const ohne = firmenOhneVertreter(ctx.beklagte);
     if (ohne.length > 0) {
-      const namen = ohne.map(b => b.versicherung || b.firma || b.name).join(", ");
+      const namen = ohne.map(b => b.versicherung || b.firma).join(", ");
       return `Vertreter fehlt: ${namen} — Lookup in der Parteien-Karte.`;
     }
   }
