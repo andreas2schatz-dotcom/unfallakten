@@ -24,6 +24,7 @@ import { apiGebuehren } from "../api.js";
 import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
 import { formatGespeichertAm } from "./klageEntwurfLogik.js";
 import { istPersonPartei, parteiAnzeigeName, organBezeichnung, kanonischeBeklagte } from "./parteiLogik.js";
+import { schrittStatus } from "./wizardFuehrungLogik.js";
 export { kanonischeBeklagte };
 
 // ── Konstanten ─────────────────────────────────────────────────────────────────
@@ -316,35 +317,39 @@ export function kannSpringen(ziel, step, ctx) {
   return true;
 }
 
-export function Fortschrittsbalken({ step, maxStep, onStepChange, springenErlaubt }) {
+export function Fortschrittsbalken({ step, maxStep, onStepChange, springenErlaubt, statusFuer }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: "1.5rem" }}>
       {STEPS.map((s, i) => {
-        const aktiv     = s.nr === step;
-        const erledigt  = s.nr < step;
+        const status    = statusFuer ? statusFuer(s.nr)
+                          : { zustand: s.nr === step ? "aktiv" : s.nr < step ? "erledigt" : "offen", warnung: null };
+        const aktiv     = status.zustand === "aktiv";
+        const warnung   = status.zustand === "warnung";
+        const erledigt  = status.zustand === "erledigt";
         const klickbar  = s.nr <= maxStep && s.nr !== step && (!springenErlaubt || springenErlaubt(s.nr));
         return (
           <React.Fragment key={s.nr}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, minWidth: 0 }}>
               <div
                 onClick={klickbar ? () => onStepChange(s.nr) : undefined}
+                title={status.warnung || undefined}
                 style={{
                   width: 32, height: 32, borderRadius: "50%",
-                  background: erledigt ? T.navy : aktiv ? T.accent : T.surface,
-                  border: `2px solid ${erledigt ? T.navy : aktiv ? T.accent : T.border}`,
+                  background: warnung ? `${T.amber}18` : erledigt ? T.navy : aktiv ? T.accent : T.surface,
+                  border: `2px solid ${warnung ? T.amber : erledigt ? T.navy : aktiv ? T.accent : T.border}`,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontFamily: MONO, fontSize: "0.8rem", fontWeight: 700,
-                  color: (erledigt || aktiv) ? "#fff" : T.textMuted,
+                  color: warnung ? T.amberText : (erledigt || aktiv) ? "#fff" : T.textMuted,
                   transition: "all 0.25s",
                   boxShadow: aktiv ? `0 0 0 4px ${T.accent}28` : "none",
                   flexShrink: 0,
                   cursor: klickbar ? "pointer" : "default",
                 }}>
-                {erledigt ? "✓" : s.nr}
+                {warnung ? "⚠" : erledigt ? "✓" : s.nr}
               </div>
               <div style={{
                 fontFamily: PLEX, fontSize: "0.72rem", fontWeight: aktiv ? 700 : 400,
-                color: aktiv ? T.accent : erledigt ? T.navy : T.textMuted,
+                color: aktiv ? T.accent : warnung ? T.amberText : erledigt ? T.navy : T.textMuted,
                 marginTop: 5, textAlign: "center", whiteSpace: "nowrap",
                 overflow: "hidden", width: "100%",
                 transition: "color 0.25s",
@@ -355,7 +360,7 @@ export function Fortschrittsbalken({ step, maxStep, onStepChange, springenErlaub
             {i < STEPS.length - 1 && (
               <div style={{
                 height: 2, flex: 1, marginBottom: 16,
-                background: erledigt ? T.navy : T.borderSoft,
+                background: (erledigt || warnung) ? T.navy : T.borderSoft,
                 transition: "background 0.25s",
               }} />
             )}
@@ -2574,6 +2579,10 @@ export default function KlageWizard({
     hq: wizardHq, hqTyp: wizardHqTyp,
   };
   const antraegeVeraltet = wizardAntraegeManuell && antraegeBasis(antraegeOpts) !== wizardAntraegeBasis;
+  const hatPlatzhalter = komponiereAntraege(wizardAntraegeText, wizardGebuehrenText)
+    .includes(ANTRAEGE_PLACEHOLDER);
+  const statusCtx = { step, maxStep: wizardMaxStep, gerichtBestaetigt, positionen,
+    beklagte, antraegeVeraltet, hatPlatzhalter };
   const antraegeNeuGenerieren = () => {
     onAntraegeText(baueAntraegeText(antraegeOpts));
     onAntraegeBasis(antraegeBasis(antraegeOpts));
@@ -2643,7 +2652,8 @@ export default function KlageWizard({
           {/* Body */}
           <div style={{ flex: 1, overflowY: "auto", padding: "1.5rem" }}>
             <Fortschrittsbalken step={step} maxStep={wizardMaxStep} onStepChange={onStepChange}
-              springenErlaubt={(nr) => kannSpringen(nr, step, { gerichtBestaetigt, positionen })} />
+              springenErlaubt={(nr) => kannSpringen(nr, step, { gerichtBestaetigt, positionen })}
+              statusFuer={(nr) => schrittStatus(nr, statusCtx)} />
 
             <AntraegeSync step={step} opts={antraegeOpts}
               antraegeText={wizardAntraegeText} manuell={wizardAntraegeManuell}
