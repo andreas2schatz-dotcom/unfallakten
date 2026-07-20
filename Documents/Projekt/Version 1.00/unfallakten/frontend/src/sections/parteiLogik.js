@@ -32,3 +32,7 @@ export function organBezeichnung(firmenname) {
   if (/(\bAG\b|\bSE\b|KGAA)/.test(n)) return "den Vorstand";
   return "den gesetzlichen Vertreter";
 }
+
+export function kanonischeBeklagte(beklagte) {
+  return (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked !== false);
+}

@@ -1,5 +1,7 @@
 // Klage-Wizard UI-Fuehrung (Paket 2): reine Logik ohne React/API.
 
+import { kanonischeBeklagte } from "./parteiLogik.js";
+
 function tokenisiere(text) {
   return String(text ?? "")
     .split(/(\n)/)
@@ -42,4 +44,38 @@ export function wortDiff(autoText, aktuellerText) {
   while (i < n) { roh.push({ typ: "weg", token: a[i] }); i++; }
   while (j < m) { roh.push({ typ: "neu", token: b[j] }); j++; }
   return fasseZusammen(roh);
+}
+
+export function firmenOhneVertreter(beklagte) {
+  return kanonischeBeklagte(beklagte).filter(b => (b.versicherung || b.firma) && !b.vertreter_name);
+}
+
+export function schrittWarnung(nr, ctx) {
+  if (nr === 1 && !ctx.gerichtBestaetigt) {
+    return "Gericht nicht bestätigt — in Schritt 1 bestätigen.";
+  }
+  if (nr === 2) {
+    const ohne = firmenOhneVertreter(ctx.beklagte);
+    if (ohne.length > 0) {
+      const namen = ohne.map(b => b.versicherung || b.firma || b.name).join(", ");
+      return `Vertreter fehlt: ${namen} — Lookup in der Parteien-Karte.`;
+    }
+  }
+  if (nr === 5 && !(ctx.positionen || []).some(p => p.checked)) {
+    return "Keine Schadenposition ausgewählt.";
+  }
+  if (nr === 6) {
+    const teile = [];
+    if (ctx.antraegeVeraltet) teile.push("Antragstext veraltet — in Schritt 6 neu generieren.");
+    if (ctx.hatPlatzhalter) teile.push("RVG-Platzhalter noch im Antragstext — Schritt 10 (Gebühren) aufrufen.");
+    if (teile.length) return teile.join(" ");
+  }
+  return null;
+}
+
+export function schrittStatus(nr, ctx) {
+  if (nr === ctx.step) return { zustand: "aktiv", warnung: schrittWarnung(nr, ctx) };
+  if (nr > ctx.maxStep) return { zustand: "offen", warnung: null };
+  const warnung = schrittWarnung(nr, ctx);
+  return warnung ? { zustand: "warnung", warnung } : { zustand: "erledigt", warnung: null };
 }

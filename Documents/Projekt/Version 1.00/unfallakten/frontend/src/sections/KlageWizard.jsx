@@ -22,7 +22,8 @@ import { KLAGE_KEY_MAP } from "../config/klagePositionKeys.js";
 import { apiGebuehren } from "../api.js";
 import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
 import { formatGespeichertAm } from "./klageEntwurfLogik.js";
-import { istPersonPartei, parteiAnzeigeName, organBezeichnung } from "./parteiLogik.js";
+import { istPersonPartei, parteiAnzeigeName, organBezeichnung, kanonischeBeklagte } from "./parteiLogik.js";
+export { kanonischeBeklagte };
 
 // ── Konstanten ─────────────────────────────────────────────────────────────────
 
@@ -49,10 +50,6 @@ export function anredeNorm(anrede) {
   if (a === "1" || a === "herr" || a === "herrn") return "herr";
   if (a === "2" || a === "frau") return "frau";
   return "";
-}
-
-export function kanonischeBeklagte(beklagte) {
-  return (beklagte || []).filter(b => b.rolle_klage !== "klaeger" && b.checked !== false);
 }
 
 export function beklagtenGrammatik(beklagte) {
