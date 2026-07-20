@@ -75,6 +75,30 @@ def _ghpv_bereits_vorhanden(alle_bet: list, ghpv_wdm: str) -> bool:
     return False
 
 
+def _wende_globalen_vertreter_an(conn, alle_bet):
+    """
+    Fuellt Vertreter aus dem globalen firmen_vertreter-Speicher, wenn der
+    Beklagte selbst keinen traegt. Nur fuer Organisationen (leerer vorname);
+    Schluessel ist firma bzw. name -- NICHT versicherung (die traegt bei
+    natuerlichen Personen den Haftpflichtversicherer, nicht die Partei selbst).
+    """
+    from ..models.firmen_vertreter import hole_firmen_vertreter
+    for b in alle_bet:
+        if b.get("rolle_klage") != "beklagter":
+            continue
+        if (b.get("vertreter_name") or "").strip():
+            continue
+        if (b.get("vorname") or "").strip():
+            continue
+        key = (b.get("firma") or b.get("name") or "").strip()
+        if not key:
+            continue
+        treffer = hole_firmen_vertreter(conn, key)
+        if treffer:
+            b["vertreter_name"] = treffer["vertreter_name"]
+            b["vertreter_funktion"] = treffer["vertreter_funktion"]
+
+
 def _rvg_anlagedatum(az: str, sqlite_erstellt_am: str = None) -> str:
     """Bestimmt das Anlagedatum für die RVG-Tabellenauswahl (Stichtag 01.06.2025).
 
@@ -1023,6 +1047,8 @@ def hole_klage_daten(akte_id: str):
                 "rolle_klage":       "beklagter",
                 "vorschlag_beklagter": True,
             })
+
+    _wende_globalen_vertreter_an(conn, alle_bet)
 
     # ── Verzugsdatum bestimmen ────────────────────────────────────────────────
     verzug_datum = None
