@@ -1048,7 +1048,8 @@ def hole_klage_daten(akte_id: str):
                 "vorschlag_beklagter": True,
             })
 
-    _wende_globalen_vertreter_an(conn, alle_bet)
+    with get_connection() as conn:
+        _wende_globalen_vertreter_an(conn, alle_bet)
 
     # ── Verzugsdatum bestimmen ────────────────────────────────────────────────
     verzug_datum = None
