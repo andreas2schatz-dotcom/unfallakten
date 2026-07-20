@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import {
-  StepRw,
+  EinwaendeAuswahl,
   StepZusammenfassung,
   StepGebuehren,
   ersetzeMandantDurchKlaeger,
@@ -15,64 +15,15 @@ vi.mock("../api.js", () => ({
   },
 }));
 
-// ── KW-40 Punkt 1: einwandeUebernehmen ersetzt statt haengt an ─────────────────
-
-describe("StepRw – KW-40 Einwaende-Uebernahme ersetzt statt anzuhaengen", () => {
-  const BASIS_PROPS = {
-    hq: 100, onHq: vi.fn(),
-    hqTyp: "gegnerisch", onHqTyp: vi.fn(),
-    hb: "", onHb: vi.fn(),
-    abrechnungen: [], weiblich: false,
-    kuerzungsarten: [
-      { id: 1, bezeichnung: "SV-Kosten", kategorie: "technisch_gutachten", textbaustein: "SV-Text" },
-      { id: 2, bezeichnung: "Fahrzeugschaden-Kuerzung", kategorie: "fahrzeugschaden", textbaustein: "FZ-Text" },
-    ],
-    beklagte: [],
-    onKiHaftung: vi.fn(), kiLaedt: false,
-  };
-
-  function uebernehmenMitAuswahl(bezeichnung) {
-    fireEvent.click(screen.getByRole("button", { name: /Kürzungen & Einwände/i }));
-    fireEvent.click(screen.getByText(bezeichnung));
-    fireEvent.click(screen.getByRole("button", { name: /Text übernehmen/i }));
-  }
-
-  it("ersetzt den zuvor eingefuegten Block bei erneutem Uebernehmen (statt anzuhaengen)", () => {
-    const onRwText = vi.fn();
-    const { rerender } = render(<StepRw {...BASIS_PROPS} rwText="" onRwText={onRwText} />);
-
-    uebernehmenMitAuswahl("SV-Kosten");
-    expect(onRwText).toHaveBeenCalledTimes(1);
-    const block1 = onRwText.mock.calls[0][0];
-    expect(block1).toContain("SV-Kosten");
-
-    rerender(<StepRw {...BASIS_PROPS} rwText={block1} onRwText={onRwText} />);
-    uebernehmenMitAuswahl("Fahrzeugschaden-Kuerzung");
-
-    expect(onRwText).toHaveBeenCalledTimes(2);
-    const ergebnis = onRwText.mock.calls[1][0];
-    expect(ergebnis).toContain("Fahrzeugschaden-Kuerzung");
-    expect(ergebnis).not.toContain("SV-Kosten");
-  });
-
-  it("haengt an, wenn der zuvor eingefuegte Block nicht mehr im Text enthalten ist (Nutzer-Edit)", () => {
-    const onRwText = vi.fn();
-    const { rerender } = render(<StepRw {...BASIS_PROPS} rwText="" onRwText={onRwText} />);
-
-    uebernehmenMitAuswahl("SV-Kosten");
-
-    rerender(<StepRw {...BASIS_PROPS} rwText="Individuell bearbeiteter Text" onRwText={onRwText} />);
-    uebernehmenMitAuswahl("Fahrzeugschaden-Kuerzung");
-
-    const ergebnis = onRwText.mock.calls[1][0];
-    expect(ergebnis.startsWith("Individuell bearbeiteter Text\n\n")).toBe(true);
-    expect(ergebnis).toContain("Fahrzeugschaden-Kuerzung");
-  });
-});
+// ── KW-40 Punkt 1: Einwaende-Uebernahme ersetzt statt haengt an ────────────────
+// Hinweis: Die Uebernahme-/Ersetzen-Logik ist mit dem eigenen Schritt 8 von StepRw
+// nach StepEinwaende gewandert. Die replace-vs-append-Assertions leben jetzt in
+// KlageWizard.einwaende.test.jsx (describe "StepEinwaende").
 
 // ── KW-40 Punkt 2: Kuerzungssumme klemmt negative Abzuege ──────────────────────
+// Der Klemm-Schlusssatz (Math.max(0, …)) sitzt in EinwaendeAuswahl; hier direkt geprueft.
 
-describe("StepRw – KW-40 Kuerzungssumme klemmt negative Abzuege", () => {
+describe("EinwaendeAuswahl – KW-40 Kuerzungssumme klemmt negative Abzuege", () => {
   const abrechnungen = [
     {
       positionen: [
@@ -88,17 +39,14 @@ describe("StepRw – KW-40 Kuerzungssumme klemmt negative Abzuege", () => {
   ];
 
   it("reguliert > gefordert senkt die Kuerzungssumme nicht", () => {
-    const onRwText = vi.fn();
-    render(<StepRw hq={100} onHq={vi.fn()} hqTyp="gegnerisch" onHqTyp={vi.fn()}
-      hb="" onHb={vi.fn()} abrechnungen={abrechnungen} weiblich={false}
-      rwText="" onRwText={onRwText} kuerzungsarten={kuerzungsarten} beklagte={[]}
-      onKiHaftung={vi.fn()} kiLaedt={false} />);
+    const onUebernehmen = vi.fn();
+    render(<EinwaendeAuswahl abrechnungen={abrechnungen} kuerzungsarten={kuerzungsarten}
+      beklagte={[]} onUebernehmen={onUebernehmen} />);
 
     // Beide Kuerzungsarten sind bereits aus dem Regulierungsschreiben vorausgewaehlt (aktiveIds)
-    fireEvent.click(screen.getByRole("button", { name: /Kürzungen & Einwände/i }));
     fireEvent.click(screen.getByRole("button", { name: /Text übernehmen/i }));
 
-    const text = onRwText.mock.calls[0][0];
+    const text = onUebernehmen.mock.calls[0][0];
     // Nur die echte Kuerzung (150,00 €) darf im Schlusssatz stehen, nicht 100,00 € (150 + (-50))
     expect(text).toContain("150,00");
     expect(text).not.toMatch(/100,00\s?€/);

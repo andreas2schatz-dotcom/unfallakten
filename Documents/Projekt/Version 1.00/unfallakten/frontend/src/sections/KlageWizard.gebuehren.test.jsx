@@ -13,7 +13,7 @@ vi.mock("../api.js", () => ({
 
 const ANTRAEGE_MIT_PLATZHALTER =
   "1. Die Beklagte wird verurteilt, an den Kläger 1.000,00 € zu zahlen.\n\n" +
-  "2. [Außergerichtliche Anwaltsgebühren – wird in Schritt 9 ergänzt]";
+  "2. [Außergerichtliche Anwaltsgebühren – wird in Schritt 10 ergänzt]";
 
 const BEKLAGTE_EINZEL = [{ id: 1, name: "Muster", rolle_klage: "beklagter", checked: true }];
 

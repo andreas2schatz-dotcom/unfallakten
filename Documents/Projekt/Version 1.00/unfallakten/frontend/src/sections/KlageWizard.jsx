@@ -1,7 +1,7 @@
 /**
  * KlageWizard.jsx – PRD-24b / PRD-26
  * ─────────────────────────────────────────────────────────────────
- * 10-Step Modal-Wizard für die Klageschrift-Generierung.
+ * 11-Step Modal-Wizard für die Klageschrift-Generierung.
  *
  * Step  1: Gericht             – Zuständiges Gericht auswählen + bestätigen
  * Step  2: Rubrum              – Parteien-Übersicht (read-only)
@@ -9,10 +9,11 @@
  * Step  4: Unfallhergang       – Schilderung, auto-Ersatz Mandant→Kläger
  * Step  5: Schadenpositionen   – Checkboxen + Personenschaden
  * Step  6: Klageanträge        – Auto-Text + Feststellungsanträge
- * Step  7: Rechtl. Würdigung   – Dynamischer Textbaustein + Einwände
- * Step  8: Verzug & Kosten     – Gerichtl. RVG + editierbare Vorschau
- * Step  9: Außergerichtl. Geb. – RVG außergerichtl. SW + Gebührenantrag
- * Step 10: Zusammenfassung     – Abschließende Prüfung + Generieren
+ * Step  7: Rechtl. Würdigung   – Quote + Begründung + Vorschau der Grundhaftung
+ * Step  8: Einwände            – Kürzungen der Versicherung + finaler Würdigungstext
+ * Step  9: Verzug & Kosten     – Gerichtl. RVG + editierbare Vorschau
+ * Step 10: Außergerichtl. Geb. – RVG außergerichtl. SW + Gebührenantrag
+ * Step 11: Zusammenfassung     – Abschließende Prüfung + Generieren
  */
 
 import React, { useEffect, useRef, useState } from "react";
@@ -35,9 +36,10 @@ const STEPS = [
   { nr: 5,  label: "Schaden"   },
   { nr: 6,  label: "Anträge"   },
   { nr: 7,  label: "Würdigung" },
-  { nr: 8,  label: "Verzug"    },
-  { nr: 9,  label: "Gebühren"  },
-  { nr: 10, label: "Generieren"},
+  { nr: 8,  label: "Einwände"  },
+  { nr: 9,  label: "Verzug"    },
+  { nr: 10, label: "Gebühren"  },
+  { nr: 11, label: "Generieren"},
 ];
 
 const PLEX = "'Figtree',sans-serif";
@@ -426,13 +428,16 @@ function DokumentCard({ text, warnung, editText, onEditText }) {
           color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.1em",
           marginBottom: "0.75rem" }}>
           Vorschau Klageschrift
-          <span style={{ fontWeight: 400, marginLeft: 8, textTransform: "none", letterSpacing: 0 }}>
-            (editierbar)
-          </span>
+          {onEditText && (
+            <span style={{ fontWeight: 400, marginLeft: 8, textTransform: "none", letterSpacing: 0 }}>
+              (editierbar)
+            </span>
+          )}
         </div>
         <textarea
           value={editText !== undefined ? (editText || "") : (text || "")}
           onChange={e => onEditText && onEditText(e.target.value)}
+          readOnly={!onEditText}
           placeholder="Kein Text für diesen Fall."
           style={{
             flex: 1, minHeight: 320,
@@ -1244,95 +1249,12 @@ export function EinwaendeAuswahl({ abrechnungen, kuerzungsarten, beklagte, onUeb
   );
 }
 
-function EinwandePanel({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, onClose }) {
-  const aktiveCount = new Set(
-    (abrechnungen || []).flatMap(ab =>
-      (ab.positionen || [])
-        .filter(p => p.kuerzungsart_id != null)
-        .map(p => Number(p.kuerzungsart_id))
-    )
-  ).size;
-
-  return (
-    <div
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-      style={{
-        position: "fixed", inset: 0,
-        background: "rgba(10,20,50,0.45)",
-        zIndex: 9100,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "1rem",
-      }}>
-      <div style={{
-        background: "#fff", borderRadius: 14,
-        width: "100%", maxWidth: 660, maxHeight: "82vh",
-        display: "flex", flexDirection: "column",
-        boxShadow: "0 24px 70px rgba(0,0,0,0.32)",
-        animation: "slideUp 0.2s cubic-bezier(0.16,1,0.3,1)",
-      }}>
-
-        {/* Header */}
-        <div style={{
-          padding: "1rem 1.25rem 0.875rem",
-          borderBottom: `1px solid ${T.borderSoft}`,
-          display: "flex", alignItems: "flex-start", justifyContent: "space-between",
-          flexShrink: 0,
-        }}>
-          <div>
-            <div style={{ fontFamily: PLEX, fontSize: "1rem", fontWeight: 700, color: T.navy }}>
-              Einwände &amp; Kürzungen
-            </div>
-            <div style={{ fontFamily: PLEX, fontSize: "0.78rem", color: T.textMuted, marginTop: 3 }}>
-              {aktiveCount > 0
-                ? <><span style={{ color: T.accent, fontWeight: 600 }}>{aktiveCount}</span>
-                    {" "}Kürzung{aktiveCount !== 1 ? "en" : ""} aus Regulierungsschreiben vorausgewählt</>
-                : "Keine Kürzungen aus Regulierungsschreiben erfasst – manuelle Auswahl möglich"}
-            </div>
-          </div>
-          <button onClick={onClose}
-            style={{ background: "none", border: "none", cursor: "pointer",
-              fontSize: "1.2rem", color: T.textMuted, padding: "2px 6px", lineHeight: 1 }}>
-            ✕
-          </button>
-        </div>
-
-        {/* Body */}
-        <div style={{ flex: 1, overflow: "hidden", padding: "1rem 1.25rem" }}>
-          <EinwaendeAuswahl
-            abrechnungen={abrechnungen}
-            kuerzungsarten={kuerzungsarten}
-            beklagte={beklagte}
-            onUebernehmen={onUebernehmen}
-          />
-        </div>
-
-        {/* Footer */}
-        <div style={{
-          padding: "0.75rem 1.25rem",
-          borderTop: `1px solid ${T.borderSoft}`,
-          display: "flex", justifyContent: "flex-end", alignItems: "center",
-          flexShrink: 0, background: T.offWhite, borderRadius: "0 0 14px 14px",
-        }}>
-          <button onClick={onClose}
-            style={{ padding: "8px 16px", borderRadius: 7, cursor: "pointer",
-              border: `1.5px solid ${T.border}`, background: "#fff",
-              fontFamily: PLEX, fontSize: "0.85rem", color: T.text }}>
-            Schließen
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Step 5: Rechtliche Würdigung ───────────────────────────────────────────────
+// ── Step 7: Rechtliche Würdigung ───────────────────────────────────────────────
 
 export function StepRw({ hq, onHq, hqTyp = "gegnerisch", onHqTyp, hb, onHb, abrechnungen, weiblich,
-                  rwText, onRwText, kuerzungsarten, beklagte,
+                  rwText, onRwText, beklagte,
                   onKiHaftung, kiLaedt }) {
   const gesamtReg = (abrechnungen || []).reduce((s, ab) => s + (parseFloat(ab.gesamt_reguliert) || 0), 0);
-  const [einwandeOffen, setEinwandeOffen] = useState(false);
-  const einwaendeEingefuegtRef = useRef(null);
 
   function neuGenerieren() {
     onRwText(buildRwVorschau(hb, hq, gesamtReg, weiblich, hqTyp, beklagte));
@@ -1343,29 +1265,7 @@ export function StepRw({ hq, onHq, hqTyp = "gegnerisch", onHqTyp, hb, onHb, abre
     onRwText(buildRwVorschau(hb, hq, gesamtReg, weiblich, neuerTyp, beklagte));
   }
 
-  function einwandeUebernehmen(generierterText) {
-    setEinwandeOffen(false);
-    if (!generierterText) return;
-    const vorherigerBlock = einwaendeEingefuegtRef.current;
-    if (vorherigerBlock && rwText && rwText.includes(vorherigerBlock)) {
-      onRwText(rwText.replace(vorherigerBlock, generierterText));
-    } else {
-      onRwText((rwText ? rwText + "\n\n" : "") + generierterText);
-    }
-    einwaendeEingefuegtRef.current = generierterText;
-  }
-
   return (
-    <>
-    {einwandeOffen && (
-      <EinwandePanel
-        abrechnungen={abrechnungen}
-        kuerzungsarten={kuerzungsarten || []}
-        beklagte={beklagte}
-        onUebernehmen={einwandeUebernehmen}
-        onClose={() => setEinwandeOffen(false)}
-      />
-    )}
     <div style={{ display: "flex", gap: "1.5rem", alignItems: "stretch" }}>
       <div style={{ flex: "0 0 240px", display: "flex", flexDirection: "column", gap: "0.9rem" }}>
         <AbschnittLabel text="Eingaben" />
@@ -1486,42 +1386,59 @@ export function StepRw({ hq, onHq, hqTyp = "gegnerisch", onHqTyp, hb, onHb, abre
           ) : "✦ KI-Vorschlag generieren"}
         </button>
 
-        <button onClick={() => setEinwandeOffen(true)}
-          style={{
-            padding: "9px 12px", borderRadius: 8, cursor: "pointer",
-            border: `1.5px solid ${T.accent}`, background: `${T.accent}10`,
-            fontFamily: PLEX, fontSize: "0.85rem", fontWeight: 600, color: "#8a5800",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-          }}>
-          ⚔ Kürzungen &amp; Einwände
-          {(abrechnungen || []).flatMap(ab =>
-            (ab.positionen || []).filter(p => p.kuerzungsart_id != null)
-          ).length > 0 && (
-            <span style={{
-              background: T.accent, color: "#fff", fontSize: "0.68rem", fontWeight: 700,
-              padding: "1px 6px", borderRadius: 10,
-            }}>
-              {new Set((abrechnungen || []).flatMap(ab =>
-                (ab.positionen || [])
-                  .filter(p => p.kuerzungsart_id != null)
-                  .map(p => p.kuerzungsart_id)
-              )).size}
-            </span>
-          )}
-        </button>
-
         <div style={{ fontFamily: PLEX, fontSize: "0.72rem", color: T.textFaint, marginTop: "auto" }}>
-          Text erscheint unter „3.) Rechtliche Würdigung". Rechts direkt editierbar.
+          Vorschau der Grundhaftung. Einwände und Feinschliff folgen in Schritt 8 — dort ist der Text editierbar.
         </div>
       </div>
 
-      <DokumentCard editText={rwText} onEditText={onRwText} />
+      <DokumentCard text={rwText} />
     </div>
-    </>
   );
 }
 
-// ── Step 6: Verzug & Kosten ────────────────────────────────────────────────────
+// ── Step 8: Einwände ───────────────────────────────────────────────────────────
+
+export function StepEinwaende({ abrechnungen, kuerzungsarten, beklagte,
+                                rwText, onRwText,
+                                einwaendeBlock, onEinwaendeBlock,
+                                grundhaftungsText }) {
+  const erfasst = (abrechnungen || []).some(ab =>
+    (ab.positionen || []).some(p => p.kuerzungsart_id != null));
+
+  function uebernehmen(neuerText) {
+    if (!neuerText) return;
+    if (einwaendeBlock && rwText && rwText.includes(einwaendeBlock)) {
+      onRwText(rwText.replace(einwaendeBlock, neuerText));
+    } else {
+      onRwText((rwText ? rwText + "\n\n" : "") + neuerText);
+    }
+    onEinwaendeBlock(neuerText);
+  }
+
+  return (
+    <div style={{ display: "flex", gap: "1.5rem", alignItems: "stretch" }}>
+      <div style={{ flex: "0 0 340px", display: "flex", flexDirection: "column", gap: "0.9rem" }}>
+        <AbschnittLabel text="Kürzungen & Einwände" />
+        {erfasst ? (
+          <EinwaendeAuswahl abrechnungen={abrechnungen} kuerzungsarten={kuerzungsarten}
+            beklagte={beklagte} onUebernehmen={uebernehmen} />
+        ) : (
+          <div style={{ background: T.surface, border: `1px solid ${T.borderSoft}`,
+            borderRadius: 8, padding: "0.9rem 1rem",
+            fontFamily: PLEX, fontSize: "0.85rem", color: T.textMuted, lineHeight: 1.6 }}>
+            Keine Kürzungen der Versicherung erfasst. Sie können direkt mit „Weiter" fortfahren.
+          </div>
+        )}
+        <div style={{ fontFamily: PLEX, fontSize: "0.72rem", color: T.textFaint, marginTop: "auto" }}>
+          Rechts steht der vollständige Text der rechtlichen Würdigung — hier finalisieren.
+        </div>
+      </div>
+      <DokumentCard editText={rwText} onEditText={onRwText} />
+    </div>
+  );
+}
+
+// ── Step 9: Verzug & Kosten ────────────────────────────────────────────────────
 
 export function buildVerzugAutoText(dokDatum, eintrittDatum) {
   const vDat = fmtDatumDe(eintrittDatum);
@@ -1798,7 +1715,7 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
           {hatPlatzhalter && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: T.red,
             padding: "7px 12px", background: `${T.red}10`, borderRadius: 7, marginBottom: 6 }}>
             ⚠ Der Antragstext enthält noch den Platzhalter für die außergerichtlichen Anwaltsgebühren.
-            Bitte Schritt 9 (Gebühren) aufrufen, damit der RVG-Antrag eingesetzt wird.
+            Bitte Schritt 10 (Gebühren) aufrufen, damit der RVG-Antrag eingesetzt wird.
           </div>}
           {keinGericht && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: T.red,
             padding: "7px 12px", background: `${T.red}10`, borderRadius: 7, marginBottom: 6 }}>
@@ -1978,7 +1895,7 @@ function StepGericht({ gericht, setGericht, gerichtSuche, setGSuche,
 // ── Step 6: Klageanträge ───────────────────────────────────────────────────────
 
 const ALPHABET = "abcdefghijklmnopqrstuvwxyz";
-export const ANTRAEGE_PLACEHOLDER = "[Außergerichtliche Anwaltsgebühren – wird in Schritt 9 ergänzt]";
+export const ANTRAEGE_PLACEHOLDER = "[Außergerichtliche Anwaltsgebühren – wird in Schritt 10 ergänzt]";
 
 export function komponiereAntraege(antraegeText, gebuehrenText) {
   if (!antraegeText || !gebuehrenText) return antraegeText;
@@ -2222,13 +2139,13 @@ export function StepAntraege({ positionen, mitSG, sgMind, beklagte, weiblich,
           <div style={{ background: `${T.amber}12`, border: `1px solid ${T.amber}50`,
             borderRadius: 7, padding: "0.5rem 0.75rem",
             fontFamily: PLEX, fontSize: "0.76rem", color: T.amberText }}>
-            ⏳ RVG-Antrag: Platzhalter aktiv – wird in Schritt 9 ersetzt.
+            ⏳ RVG-Antrag: Platzhalter aktiv – wird in Schritt 10 ersetzt.
           </div>
         ) : (
           <div style={{ background: `${T.green}10`, border: `1px solid ${T.green}40`,
             borderRadius: 7, padding: "0.5rem 0.75rem",
             fontFamily: PLEX, fontSize: "0.76rem", color: T.green }}>
-            ✓ RVG-Antrag eingefügt (Schritt 9).
+            ✓ RVG-Antrag eingefügt (Schritt 10).
           </div>
         )}
       </div>
@@ -2605,6 +2522,7 @@ export default function KlageWizard({
   wizardHq, onWizardHq, wizardHqTyp, onWizardHqTyp, wizardHb, onWizardHb,
   wizardRwText, onWizardRwText, kuerzungsarten,
   onKiHaftung, kiLaedt,
+  wizardEinwaendeBlock, onWizardEinwaendeBlock,
   // Step 8 (Verzug)
   wizardVerzugText, onWizardVerzugText,
   wizardVerzugDatum, onWizardVerzugDatum,
@@ -2645,6 +2563,9 @@ export default function KlageWizard({
   const klaegerObj = beklagte?.find(b => b.rolle_klage === "klaeger");
   const klaeger    = (klaegerObj?.anrede || "").toLowerCase() === "frau" ? "Die Klägerin" : "Der Kläger";
   const weiblich   = klaeger.startsWith("Die");
+
+  const gesamtReg = (abrechnungen || []).reduce((s, ab) => s + (parseFloat(ab.gesamt_reguliert) || 0), 0);
+  const grundhaftungsText = buildRwVorschau(wizardHb, wizardHq, gesamtReg, weiblich, wizardHqTyp, beklagte);
 
   const antraegeOpts = {
     positionen, mitSG, sgMind, beklagte, weiblich,
@@ -2812,13 +2733,24 @@ export default function KlageWizard({
                 abrechnungen={abrechnungen}
                 weiblich={weiblich}
                 rwText={wizardRwText}     onRwText={onWizardRwText}
-                kuerzungsarten={kuerzungsarten}
                 beklagte={beklagte}
                 onKiHaftung={onKiHaftung} kiLaedt={kiLaedt}
               />
             )}
 
             {step === 8 && (
+              <StepEinwaende
+                abrechnungen={abrechnungen}
+                kuerzungsarten={kuerzungsarten}
+                beklagte={beklagte}
+                rwText={wizardRwText}       onRwText={onWizardRwText}
+                einwaendeBlock={wizardEinwaendeBlock}
+                onEinwaendeBlock={onWizardEinwaendeBlock}
+                grundhaftungsText={grundhaftungsText}
+              />
+            )}
+
+            {step === 9 && (
               <StepVerzug
                 zinsenAb={zinsenAb}
                 weiblich={weiblich}
@@ -2835,7 +2767,7 @@ export default function KlageWizard({
               />
             )}
 
-            {step === 9 && (
+            {step === 10 && (
               <StepGebuehren
                 swAusserg={swAusserg}
                 rvgAussergData={wizardRvgAussergData} onRvgAussergData={onRvgAussergData}
@@ -2851,7 +2783,7 @@ export default function KlageWizard({
               />
             )}
 
-            {step === 10 && (
+            {step === 11 && (
               <StepZusammenfassung
                 gericht={gericht}           beklagte={beklagte}
                 positionen={positionen}     mitSG={mitSG}          sgMind={sgMind}

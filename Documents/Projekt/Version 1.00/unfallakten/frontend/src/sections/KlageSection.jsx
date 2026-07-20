@@ -240,6 +240,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [auslandsunfall, setAuslandsunfall] = useState(false);
   const [wizardUnfallText, setWizardUnfallText] = useState("");
   const [wizardRwText, setWizardRwText]         = useState("");
+  const [wizardEinwaendeBlock, setWizardEinwaendeBlock] = useState("");
   const [wizardVerzugText, setWizardVerzugText]       = useState("");
   const [wizardVerzugDatum, setWizardVerzugDatum]     = useState("");
   const [wizardVerzugDokDatum, setWizardVerzugDokDatum] = useState("");
@@ -392,9 +393,9 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     })();
   }, [swAussergEffektiv]);
 
-  // Step 9: RVG auf außergerichtl. Streitwert berechnen wenn Step 9 erreicht
+  // Step 10: RVG auf außergerichtl. Streitwert berechnen wenn Step 10 erreicht
   useEffect(() => {
-    if (!wizardOffen || wizardStep !== 9 || wizardRvgAussergData) return;
+    if (!wizardOffen || wizardStep !== 10 || wizardRvgAussergData) return;
     (async () => {
       try {
         const res = await apiKlage.rvgBerechnen(akteId, { streitwert: swAussergEffektiv });
@@ -505,6 +506,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setWizardHqTyp("gegnerisch");
     setWizardHb(hb);
     setWizardRwText(buildRwVorschau(hb, hq, gesReg, weiblich, "gegnerisch", beklagte));
+    setWizardEinwaendeBlock("");
 
     const dok = wizardVerzugDokDatum || "";
     const ein = wizardVerzugDatum || "";
@@ -776,15 +778,17 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           wizardHb={wizardHb}           onWizardHb={setWizardHb}
           wizardRwText={wizardRwText}   onWizardRwText={setWizardRwText}
           kuerzungsarten={daten?.kuerzungsarten || []}
+          wizardEinwaendeBlock={wizardEinwaendeBlock}
+          onWizardEinwaendeBlock={setWizardEinwaendeBlock}
           onKiHaftung={handleKiHaftung} kiLaedt={kiLaedt}
-          // Step 8: Verzug
+          // Step 9: Verzug
           wizardVerzugText={wizardVerzugText}         onWizardVerzugText={setWizardVerzugText}
           wizardVerzugDatum={wizardVerzugDatum}       onWizardVerzugDatum={setWizardVerzugDatum}
           wizardVerzugDokDatum={wizardVerzugDokDatum} onWizardVerzugDokDatum={setWizardVerzugDokDatum}
           wizardVerzugManuell={wizardVerzugManuell}   onWizardVerzugManuell={setWizardVerzugManuell}
           verzugDokListe={verzugDokListe}
           verzugDokId={verzugDokId}                   onVerzugDokId={waehleVerzugDok}
-          // Step 9: Außergerichtl. Gebühren
+          // Step 10: Außergerichtl. Gebühren
           swAusserg={swAussergEffektiv}
           wizardRvgAussergData={wizardRvgAussergData}       onRvgAussergData={setWizardRvgAussergData}
           wizardRvgAussergOv={wizardRvgAussergOv}           onRvgAussergOv={setWizardRvgAussergOv}
