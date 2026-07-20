@@ -1,12 +1,38 @@
 # Projektstatus – Momentaufnahme
 
-**Generiert:** 2026-05-02 · **Zuletzt aktualisiert:** 2026-06-12  
-**Schema-Version:** 42  
-**Test-Suite:** 552 Tests gesammelt · 276 grün · 260 rot · 16 Errors (Details: Abschnitt 3)
+**Generiert:** 2026-05-02 · **Zuletzt aktualisiert:** 2026-07-20  
+**Schema-Version:** 61 (Migrationen laufend, siehe Deploy-Warnungen)
+
+> ⚠️ **Abschnitte 1–3 unten sind Stand 2026-06-12 (Schema 42) und veraltet** — nur als grobe Modul-Übersicht lesen. Aktuelle Arbeit: `docs/TODO.md` · Umsetzungs-Historie: `docs/CHANGELOG.md` · Entscheidungen: `docs/DECISIONS.md`.
+
+---
+
+## 0. Betrieb & Deploy-Warnungen (aktuell, 2026-07-20)
+
+### ⚠️ Prod-Bestands-DBs: mutmaßliche Schema-Drift vor Go-Live prüfen
+Auf der Dev-DB fehlten Spalten trotz korrekter `schema_version` — Prod-Bestands-DBs sind vermutlich ebenso betroffen. Vor dem Kollegen-/Prod-Rollout prüfen und ggf. per `ALTER TABLE` nachziehen (jeweils Backup zuerst):
+- `beteiligte.vertreter_name` / `beteiligte.vertreter_funktion` (Migration 23) — Dev am 2026-07-20 nachgezogen (Backup `…bak_20260720_vertreter_drift`).
+- `personenschaden.krankenhaus_aufenthalt` (Migration 60) — Dev am 2026-07-16 nachgezogen.
+
+### ⚠️ Migrations-Reihenfolge beim Deploy
+Additive Migrationen (56, 57, 59, 60 …) **müssen auf dem Prod-Volume (`/app/data`) angewandt sein, BEVOR** der neue App-Code startet — sonst wirft jedes UPDATE `no such column` und alle Dokumente landen in `pipeline_fehler`. Vor jeder Migration Volume-Backup. Bei Gunicorn (4 Worker) Migration einmal vorab laufen lassen (Worker-Race).
+
+### ⚠️ Reloader-Migrations-Trap (nur Dev)
+Der Flask-Reloader stempelt neue Migrationen mitten im inkrementellen Edit über den `else`-Kommentar-Fallback (Version gesetzt, Spalte fehlt). Aktive Dev-DB = Docker-Volume `dev-data` (`/app/data`), NICHT `backend/data/`. Migration atomar in EINEM Edit schreiben. Betroffen waren u. a. Mig 54/55/58/60.
+
+### Prod-Rollout intake-stufe1 — bewusst vertagt
+Git-Teil erledigt (2026-07-15): `intake-stufe1` → `main` per FF gemergt + gepusht, Backup-Tag `pre-rollout-main-20260715`. Deployment vertagt (kein Prod-Host, Go-Live später). Maßgebliches Runbook: `docs/ROLLOUT-intake-stufe1-prod.md` — Migration 49→61 einmal vorab, Prod-Backup zuerst, Schema-Verifikation auf v61 vor App-Start. Beim Cutover `EREIGNISMODELL_EINGEFUEHRT_AM` auf das echte Datum setzen.
+
+### ⚠️ `main` ungepusht
+`main` ist >110 Commits vor `origin` und ungepusht (Verlust-/Backup-Risiko). Vor der nächsten Implementierung pushen. **Achtung:** Git-Wurzel liegt im Home-Verzeichnis (`C:\Users\HAL9000`) — NIE `git add -A` aus Home; Guardrail-`.gitignore` beachten.
+
+### Backup
+`scripts/backup.sh` (SQLite `.backup`, nicht `cp`), stündlich + täglich via Cron in `docker-compose.prod.yml`. `/data`-Mount muss **read-write** sein (WAL braucht `-shm`-Schreibzugriff, sonst „unable to open database file"). Guard-Test `test_modul6.py::TestBackupInfra`.
 
 ---
 
 ## 1. Funktioniert stabil
+*(Stand 2026-06-12, Schema 42 — veraltet, siehe Hinweis oben)*
 
 Vollständig implementierte Module mit Tests oder nachgewiesenem Laufzeit-Einsatz.
 

@@ -1,0 +1,230 @@
+# Changelog – Unfallakten-Verwaltungssystem
+
+> Archiv der Umsetzungs-Protokolle (was wurde wann gebaut, Branch/Commits, Besonderheiten).
+> **Keine Pflichtlektüre** — nur bei Bedarf nachschlagen.
+> Aktuelle Arbeit: `docs/TODO.md` · Entscheidungen mit Begründung: `docs/DECISIONS.md` · Deploy/Betrieb: `docs/STATE.md`.
+> Neueste Einträge oben.
+
+---
+
+## 2026-07-20 — Klage-Wizard Paket 2: UI-Führung
+
+Branch `klage-wizard-ui-fuehrung`, 14 Commits `65f657bc..22ae53a3`, **noch NICHT in `main` gemergt**.
+Spec `docs/superpowers/specs/2026-07-19-klage-wizard-ui-fuehrung-design.md` · Plan `docs/superpowers/plans/2026-07-19-klage-wizard-ui-fuehrung.md`. Subagent-Driven (9 Tasks + Fix-Welle + Test-Nachzug), Whole-Branch-Review (Opus): Ready to merge, keine Critical/Important.
+
+- Status-Symbole (✓/⚠/●) im Fortschrittsbalken; Einwände als eigener Schritt (10→11 Schritte, Schnell-Durchlauf ohne Kürzungen möglich); Inline-Wort-Diff „Änderungen anzeigen".
+- Neu: reine Logik `frontend/src/sections/wizardFuehrungLogik.js` (`wortDiff` LCS, `schrittStatus`/`schrittWarnung`/`firmenOhneVertreter`); Komponenten `DiffAnsicht`/`EditorMitDiff`/`StepEinwaende`/`EinwaendeAuswahl`.
+- `ENTWURF_FORMAT_VERSION` 1→2 (Alt-Entwürfe → „Neu beginnen").
+- Endabnahme: Frontend-Suite **314/314** (45 Dateien) + Build grün.
+
+**Browser-Nachtest RA Schatz 2026-07-20 → 3 Punkte, auf demselben Branch behoben:**
+(a) Schließen-Dialog als klare Messagebox „Verwerfen & schließen" / „Speichern & schließen" / „Zurück".
+(b+c) Vertreter-Lookup direkt im Wizard (Knopf an Firmen ohne Vertreter in Schritt 2 + Schritt 11, öffnet das bestehende Modal über dem Wizard) statt „schließen → Lookup → neu öffnen" (`00e3f820`); stille Vertreter-Speicherfehler jetzt als Toast (`5e5b438b`).
+**Root-Cause-Fund dabei:** `beteiligte.vertreter_name`/`vertreter_funktion` (Migration 23) fehlten auf der Dev-DB trotz `schema_version=61` → Dev-DB per ALTER nachgezogen (Backup `…bak_20260720_vertreter_drift`). Deploy-Konsequenz siehe STATE.md.
+
+**Offen** (→ nächster Schritt in TODO.md): Für Akten **ohne** SQLite-Beteiligte (z. B. 828/24 — Versicherung als synthetischer § 115-VVG-Beklagter `id -1`) kann der Vertreter nicht per `UPDATE beteiligte WHERE id=?` persistiert werden → globaler Firmen-Vertreter-Speicher nötig.
+
+---
+
+## 2026-07-19 — Klage-Wizard Paket 1: Entwurf speichern
+
+**Umgesetzt + in `main` gemergt.** Expliziter Speichern-Knopf, Schließen-Guard, Fortsetzen-Dialog, Positions-Abgleich mit Hinweis; Tabelle `klage_entwurf` (JSON + `format_version`, Migration 61), Endpoints `GET/PUT/DELETE /klage/entwurf`.
+Subagent-Driven (9 Tasks) + Final-Review (READY): 2 Review-Fixes (`suche_gerichte`-Splice `4b9b4bc8`; frischer Wizard nicht „ungespeichert" `22654940`). FF-Merge `715126d2..22654940` (11 Commits, Branch gelöscht).
+Endabnahme: Backend voller Lauf **204f/1098p/18s + 24 Subtests** (Alt-Cluster, null neue), neue Tests `test_migration_61.py` (4) + `test_klage_entwurf.py` (8) grün; Frontend **251** Vitest + Build grün.
+Spec `docs/superpowers/specs/2026-07-19-klage-wizard-entwurf-speichern-design.md` · Plan `docs/superpowers/plans/2026-07-19-klage-wizard-entwurf-speichern.md`.
+
+**Nachtest-Bugfixes (Akte 828/24 — vier ALT-Bugs seit April, nicht vom Entwurf-Feature; Branch `klage-beklagte-dubletten-fix`, 4 Commits, TDD):**
+1. `fd9b7af3` Versicherung doppelt als Beklagte — synthetischer GHPV-Eintrag trotz echtem GHPV-Beteiligten (WDM-Kurzname „ADAC" ≠ „ADAC Autoversicherung AG"); jetzt `_ghpv_bereits_vorhanden` (Kürzel GHPV/GH/GHV zählt immer, sonst Namens-Containment).
+2. `bf1c3a35` Wizard-Rubrum zeigte den Fahrer als Versicherung + pauschal „vertreten durch den Vorstand"; Parteien-Karte verlor Lookup-Button/Vertreter-Warnung → neues Modul `parteiLogik.js` für `StepRubrum` + Karte.
+3. `d36c61a1` Vertreter-Lookup: HTML-Entities wurden gelöscht statt dekodiert (Umlaute weg), GF-Treffer bei AGs → `_extrahiere_vertreter` pure + Rechtsform-Widerspruchs-Filter.
+4. `07cb5bbf` Lookup übernahm Organe fremder/Sammel-Impressen → `_seite_passt_zur_firma` + blockbezogene Extraktion. Live-Probe „ADAC Autoversicherung AG" → korrekt „Vorstand: Stefan Daehne".
+5. `9384184c` Expliziter Lookup-Klick zeigte dauerhaft den still vorgefetchten Sitzungs-Cache → Klick sucht jetzt immer frisch, Cache nur für den stillen Vorab-Lookup.
+Tests: 8 GHPV + 22 Parser + 12 parteiLogik/Rubrum-Vitest; 178 firmen+klage-Backend grün, Frontend 267 + Build grün.
+
+---
+
+## 2026-07-19 — PRD-33: Klage-Wizard Feintuning KOMPLETT (40 Bugs KW-01–KW-40, Sessions 1–6)
+
+Ist-Analyse (2026-07-17): Multi-Agent-Code-Research → 40 Bugs KW-01–KW-40 + 11 Verbesserungen V1–V11, Tracking `docs/BUGFIX_KLAGE_WIZARD.md`. DOCX-Direkttest-Muster `test_klage_service_docx.py`. Grundsatzentscheidungen → DECISIONS.md.
+
+- **Session 1** (2026-07-17, Branch `klage-wizard-fixes`, in main `578c93e0`): KW-23 Platzhalter-Guard Step 10 (`a6711c2d`) vor KW-01; KW-01 Merge-Lücke (`antraege_override`/`mit_feststellung_sg`/`mit_feststellung_sach` erreichen `klage_cfg`, `e668f50f`+`f239a1fe`); KW-02 RVG-Faktor nicht ins Euro-Override-Feld (`b1c1fbfb`); KW-14 `klage_generiert`-Ereignis trägt Positionen (`d42f09eb`). Backend 204f/965p, Frontend 97/97.
+- **Session 2** (2026-07-17, Branch `klage-wizard-fixes-s2`): KW-03 Quote-Fälle A/B (BE+FE), KW-04 eine Rechenquelle + DOCX-Direkttest, KW-05 Eigentum/§1006, KW-07 SG-Ausschluss, KW-11 Unkostenpauschale, KW-39 vorgezogen. Backend 204f/1000p null neue, Frontend 122 + Build.
+- **Session 3** (2026-07-18, Branch `klage-wizard-fixes-s3`, in main `d856a8d4`): KW-06 + KW-15–21 als V3-Partei-Grammatik-Cluster (BE-Helfer `_anrede_norm`/`_ist_maennliche_privatperson`/`_beklagten_grammatik`/`_beklagten_rolle`/`_vertreter_suffix`/`_rechtsform_klasse` + FE `kanonischeBeklagte`/`beklagtenGrammatik`/`versichererSuffix`). Backend 204f/1044p, Frontend 141 + Build.
+- **Session 4** (2026-07-18, Branch `klage-wizard-fixes-s4`, 9 Commits `36ca8ec6..2076e83e`, in main `ec53900b`): KW-09/10/12/13/08 + KW-35. **V5** Datumsvertrag (`_fmt_datum`/FE-Port `fmtDatumDe`), **KW-10** Verzugseintritt ≠ Schreibdatum (cfg `verzug_schreiben_datum`; Eintritt-Default Schreibdatum+14 Tage), **KW-08** Legacy-Generieren-Button entfernt, **KW-35** RVG-Fallback `_rvg_anlagedatum`, **V6/KW-13** „RVG gerichtlich"-Duplikat entfernt, **V4/KW-12** `AnlagenZaehler` (fortlaufende K-Nummern). Backend 204f/1056p, Frontend 159 + Build.
+- **Session 5** (2026-07-18, Branch `klage-wizard-fixes-s5`, 8 Commits `6752215e..e3c1ab68`, in main `c003e962`): KW-22/24–29 als **V7**. Manuell-Flags (`wizardSachverhaltManuell`/`wizardGebuehrenManuell`/`wizardAntraegeManuell`), `antraegeBasis`-Fingerprint + `AntraegeSync` + `TextVeraltetBadge`, `komponiereAntraege` statt Einbrennen, `kannSpringen` kumulativ, Gericht-Persistenz, Verzugsdok-Datum aus `forderung_positionen`, stiller Vertreter-Lookup. Plan `docs/superpowers/plans/2026-07-18-prd33-s5-wizard-state-ux.md`. Backend 204f/1059p, Frontend 198 + Build.
+- **Session 6** (2026-07-19, Branch `klage-wizard-fixes-s6`, 15 Commits `c003e962..81706b67`, in main `68ba3e49`): KW-30–34/36–38/40 + **V10**. Bedingte Segmente `unfall_seg`/`ereignis_seg`, zeilenweiser Sachverhalt-Parser, laufender Abschnittszähler `_abschnitt_kopf` (nummerierter Verzug), RVG-0-Suppression + Fall-B-Klemmsatz, `_round2_half_up` (FE half-up vs. BE banker's angeglichen), zentrale Registry `frontend/src/config/klagePositionKeys.js` + Contract-Tests, 10 tote Symbole raus, `<w:tab/>`-Runs, GHPV/Label-Fixes. **V10 Golden-File-Matrix** (`TestV10RenderSmoke` + `TestV10Matrix` 24 Kombinationen) als Regressionsschutz. Backend 204f/1086p + 24 Subtests, Frontend 223 + Build.
+
+**PRD-33 KOMPLETT:** alle 40 KW-Bugs behoben oder mit Begründung als entfallen dokumentiert. FF-Merges nach Freigabe RA Schatz 2026-07-19.
+
+---
+
+## 2026-07-16 — Rausch-Absender automatisch aussortieren + Papierkorb
+
+Aus Topic „Filterregeln für die Review-Queue", im Brainstorming zugespitzt: wertloses Rauschen auf `info@` gar nicht erst in die Queue lassen.
+Spec `docs/superpowers/specs/2026-07-16-rausch-absender-auto-aussortieren-design.md` · Plan `…/plans/2026-07-16-rausch-absender-auto-aussortieren.md`. 7 Commits `f0ca50ac..49f53f1e` (Subagent-Driven, TDD, Opus-Whole-Branch-Review + Fix-Wave + Re-Review), per FF in `main` (`49f53f1e`).
+
+- YAML-Registry `backend/registry/rausch_absender.yaml` (fail-loud, eager beim App-Start) mappt Absender-Domain→Policy; reine Funktion `backend/intake/rausch_regel.py::policy_fuer_domain`. Placetel→`nur_body` (Fax-PDF bleibt), beA→`komplett`.
+- `adapter_imap.verarbeite_email` ruft `backend/intake/verwerfen.py::auto_verwerfen` (Soft-Delete, `verworfen_von=NULL`, `grund='rauschen'`); `_VERWERFBARE_STATUS` enthält `laeuft` (Worker-Race-Fix).
+- Papierkorb: `GET /intake/papierkorb` + `POST …/wiederherstellen`, Queue⇄Papierkorb-Toggle in `ReviewQueueView`. Keine Migration.
+- Backend 204f/961p, Frontend 91 + Build. **DEV-Smoke ✅** (verify-Skill, rückstandsfrei).
+
+---
+
+## 2026-07-16 — Bugfix: AZ-Normalisierung + Personenschaden-Schema-Drift
+
+Commit `991095e1` auf `main`. systematic-debugging + TDD. Fund: Unfallbogen freigegeben, Reiter Unfalldetails leer.
+- (a) `AktenLiveSuche` nahm die RA-MICRO-Anzeigeform mit SB-Kürzel (`670/26AS`) als Speicherschlüssel → Phantom-Akte. Fix: `t.az_roh`; `post_freigabe` normalisiert `akte_az` via `_basis_az`. Daten `670/26AS`→`670/26` repariert.
+- (b) `personenschaden.krankenhaus_aufenthalt` fehlte in Bestands-DBs (Schema-Drift) → stiller Datenverlust via Best-Effort-Swallow. **Migration 60** (additiv/idempotent). Deploy-Konsequenz siehe STATE.md.
+
+---
+
+## 2026-07-15 — PRD-37: Dokumentenbezeichnung vorschlagen + Feld
+
+Regelbasiert vorgeschlagene, editierbare Dokumentenbezeichnung im Review + in der E-Akte.
+Spec `docs/superpowers/specs/2026-07-15-dokumentenbezeichnung-design.md` · Plan `…/plans/2026-07-15-dokumentenbezeichnung.md`. 13 Commits `12b31f14..b19decb8` (Subagent-Driven, TDD, Opus-Final-Review READY), per FF in `main` (`b19decb8`).
+- Reine Funktion `backend/services/dokument_bezeichnung.py::baue_bezeichnung` → `«Label» «Aussteller» vom «Datum» («Betrag»)`; Sonderfall `sonstiges` = „Schreiben"/„E-Mail".
+- Je Klassen-YAML `label` + `bezeichnung_felder`; `hole_detail` liefert `bezeichnung`+`bezeichnung_vorschlag`; `PATCH /intake/dokument/<id>/bezeichnung`; Freigabe schreibt nach `dokumente.bezeichnung`; E-Akte nachträglich editierbar.
+- **Migration 59** (additiv/nullable/idempotent). Deploy-Konsequenz siehe STATE.md. Frontend 88 + Build, Backend zero neue Failures.
+
+---
+
+## 2026-07-15 — PDF-Splitting im Review-UI (Option C)
+
+Mehrseitige Sammel-PDFs im Review-Dialog entlang Seitengrenzen auftrennen, bevor freigegeben wird.
+Spec `docs/superpowers/specs/2026-07-15-pdf-splitting-review-design.md` · Plan `…/plans/2026-07-15-pdf-splitting-review.md`. 7 Commits `f7b5191b..e3492e9d` (Subagent-Driven, TDD), in `main` `c093ad70`/gepusht.
+- **Ansatz A:** Teile = neue Intake-Dokumente (`queue_status='neu'` → Worker klassifiziert), Original soft-deleted + verlinkt via `aufgeteilt_aus_id`; Zustellungs-Signale vererbt.
+- **Migration 58** (`intake_dokumente.aufgeteilt_aus_id`), `backend/intake/split_service.py` (PyMuPDF), Endpoints `/split`+`/seiten`+`/thumbnail`+Guard, Frontend `splitLogik.js`+`SplitDialog.jsx`.
+- Abschluss-Review (Opus) READY TO MERGE. **DEV-E2E-Smoke ✅** (Reloader-Trap Mig 58 auf DEV gefunden+gefixt).
+
+---
+
+## 2026-07-15 — Prod-Rollout intake-stufe1 (Git-Teil)
+
+`intake-stufe1` → `main` per Fast-Forward gemergt (`a06aaae5`, 201 Commits) + beide Branches nach origin gepusht; Backup-Tag `pre-rollout-main-20260715` (alter main `e8313486`, lokal+remote); Home-Repo-Guardrail angelegt.
+**Prod-Deployment bewusst vertagt** (Nutzer 2026-07-15) — Details/Runbook siehe STATE.md.
+
+---
+
+## 2026-07-14 — Fragebogen-Feld-Übernahme bei Freigabe (Folge aus BUG-01)
+
+Branch `intake-stufe1`, Commits `362a0895..367f44de` (10 Commits). Subagent-Driven (7 Tasks, TDD), Abschluss-Review Opus READY WITH FOLLOW-UPS.
+Spec `docs/superpowers/specs/2026-07-14-fragebogen-feld-uebernahme-design.md` · Plan `…/plans/2026-07-14-fragebogen-feld-uebernahme.md`.
+- Freigabe-Dialog zeigt geparste Felder als editierbare Vorschau; nur leere Aktenfelder werden übernommen, abweichende überschreibbar. Abschnitts-Checkboxen + Auto-Collapse.
+- Service `backend/services/fragebogen_uebernahme.py` (eigene Transaktion je Abschnitt); `GET /intake/dokument/<id>/fragebogen-vorschau`, Übernahme in `post_freigabe` (Best-Effort). Frontend `FragebogenUebernahme`.
+- Voraussetzung mitgefixt: Text-Dokument-Freigabe (ohne Arbeitskopie) via `_sichere_text_arbeitskopie`. Keine Migration.
+- Guards `test_s19_intake_write_guard.py` + `test_s19d_e2e_no_intake_writes.py` bleiben grün; `uebernehme` in die Guard-Whitelist verboten aufgenommen (nur `post_freigabe` erlaubt, Commit `29285840`).
+- **Smoke-Test in DEV ✅** (13 Felder geschrieben, rückstandsfrei). Nebenbefund: Reloader-Migrations-Trap `llm_degradiert` fehlte → per ALTER nachgezogen.
+
+---
+
+## 2026-07-14 — Pipeline-Qualität N-03 + N-04
+
+- **N-03 Retry-Differenzierung + Degradations-Hinweis** (Commits `7142b73b..ad7fcfe9`, Subagent-Driven, Whole-Branch-Review READY). Spec/Plan `…2026-07-14-n03-retry-differenzierung*`. `klassifiziere_fehler(meldung)` → timeout (Backoff) / ressourcendruck (+900s, kein Zähler) / reproduzierbar (sofort `pipeline_fehler`). `extrahiere_felder` liefert `llm_status`; **Migration 57** `intake_dokumente.llm_degradiert`; Frontend `DegradationBadge` „nur Regex". „Arbeitskopie fehlt" ist jetzt reproduzierbar → kein Retry. Backend 204f/846p, Frontend 60.
+- **N-04 Seiten-Triage vor OCR** (Commits `e806c281..e8d3fca1`, Subagent-Driven, READY nach 1 Fix). Spec/Plan `…2026-07-14-n04-seiten-triage*`. Triage über **Textabdeckung** (Flächenanteil Wort-Boxen) statt Wortzahl → robust gegen Fotoseiten. `_ocr_seite` Tesseract-zuerst → `text_abdeckung`/`ist_bildseite` → GLM nur auf Textseiten. Migrationsfrei (`SeitenText.ist_bildseite`, `parse_json.bildseiten_anzahl`). Frontend `BildseitenBadge`. Backend 204f/857p, Frontend 62. **SDD-Lehre:** nach Signaturänderung volle Suite, nicht nur Golden-Subset (Critical `TestBug12OcrLinear` gebrochen → Fix `e8d3fca1`).
+
+---
+
+## 2026-07-13 — Bugfix-Reihe BUG-01–30 (Intake-Pipeline v7) + N-01/N-02/N-06 + N-09/N-10 + Druckbutton
+
+Code-Review 2026-07-12 fand 30 Bugs (Multi-Agent, `docs/BUGFIX_INTAKE_V7.md`). Alle behoben (TDD), Branch `intake-stufe1`, nicht gepusht.
+- **P0 (BUG-01–04)** `6c858aa1` — stiller Datenverlust unter `INTAKE_REVIEW_PFLICHT` geschlossen (Fragebogen→Queue, Anhang-Fehler, Upload-Ziel-Akte, Alt-Mail-Fallback).
+- **P1 (BUG-05–07)** `b6826d91` — Betrags-Korrektheit (`_feld_zu_zahl` nutzt `parse_betrag`, kein 100×-Fehler), Freigabe-Guards (409), `_anker_dokument_id` filtert per `akte_az`.
+- **P2 (BUG-08–13)** `7b95be7a` — RA-MICRO-only-Akte on-demand in SQLite, Fristablauf-Job ohne Write-Lock, Scheduler-Loopback-Lease (`scheduler_lease.py`), Upload-Validierung 422, OCR pro Seite via `first_page`/`last_page`, Migration 50 ohne executescript.
+- **P3 (BUG-14–19)** `88271a6a` — Signal-Vererbung an Anhänge, E-Akte-Key `az`, KFZ-Umlaut-Muster, Kurz-Body-Schwelle weg, Queue-Sortierung.
+- **P4 (BUG-20–30)** `8bac957f`/`1f469367`/`f175fe2c`/`b9254e09`/`b822cfa8` — `hole_queue` per `json_extract`+JOIN, AZ-Norm-Helper, IMAP-Config-Dedup, Poll-Abbruch bei Unmount u. a. Frontend 48 grün.
+- **N-01 + N-06** `c5a46c13` — N-01 Wörterbuch-Check → OCR-Fallback bei korruptem Font-Encoding (`_WOERTERBUCH`/`woerterbuch_quote`); N-06 Seitenauswahl (Seite 1 + letzte + Regex- + Tabellen-Seiten) via `llm_text`-Param, Regex bleibt auf Volltext.
+- **N-02** `34b50e63` (Mig `94c18ea1`) — OCR-Qualitätsmetriken (**Migration 56** `ocr_ratio_salat`+`ocr_quote_woerter`), `dokument_ocr_qualitaet` (Schlechteste-Seite auf Finaltext), Frontend `OcrBadge`.
+- **N-09 + N-10 + Druckbutton** — N-09 `busy_timeout=30000`-PRAGMA (verify+harden, `timeout=30` setzte es ohnehin); N-10 Backup repariert (`scripts/backup.sh`, SQLite `.backup` statt `cp`, stündlich) — **Fund:** `.backup` läuft NICHT von `:ro`-Mount (WAL braucht `-shm`-Schreibzugriff) → `/data` auf read-write; Guard `TestBackupInfra`. Druckbutton `druckZiel(detail, pdfSrc)`, Frontend 52.
+
+---
+
+## 2026-07-12 — P1.5e: Review-Freigabe schreibt Ereignisse für alle Klassen
+
+Branch `intake-stufe1`, Commits `6863f918..a0c50f6a`. Spec/Plan `…2026-07-11-p15e-freigabe-ereignisse*`. Subagent-Driven (5 Tasks, TDD). Grundsatzentscheidungen → DECISIONS.md.
+- Registry `backend/registry/klasse_ereignistyp.yaml` (7 Klassen → eingehender Ereignistyp) + fail-loud Loader-Feld.
+- Helper `eingehende_ereignisse.erzeuge_aus_freigabe()` — Positionen nur bei `gutachten_eingegangen`/`rechnung_eingegangen`, sonst Fakt-Ereignis; `herkunft='freigabe'`, Best-Effort, Doppelerfassungs-Guard.
+- `post_freigabe` schleift über bestätigte `kandidaten_ereignisse`; Gutachten-Sonderfall entfernt; `_anker_dokument_id` liefert stabile dokument_id. Serverseitiger `eingehend`-Guard (Defence-in-depth).
+- Frontend: `default_ereignistyp` belegt das Dropdown vor. Keine Migration. Backend 204f/732p, Frontend 41.
+- **Follow-up** `74400131`: Polling-Tick überschrieb offene Dialog-Eingaben → `naechsterFormState(detail, {skipFormReset})`. Frontend 44.
+
+---
+
+## 2026-07-10 — P1.7 (UI Positionsmodell) + Text-Pfad + N-08/N-07
+
+- **P1.7** (UI-Umsetzung Positionsmodell): `AbleitungBadge.jsx` (Wissensgrenze „nach Aktenlage, letztes Ereignis vom …", technisch erzwungen); Backend `has_unbestaetigt` + Registry-Metadaten; `PositionsDashboard` in `UebersichtSection.jsx` (Datenquelle ausschließlich `GET /akten/<az>/positionen/status`, Toggle getrennt/aggregiert, WDM-Kennzeichnung); Ereignisliste-Endpoint; `DokumentAktionsmenue.jsx` (Kebab je PDF-Zeile). Vitest-Setup (vitest+jsdom+testing-library) eingeführt. 36 Tests. (DetailPanel-State-Reset via `key={aktivId}`, `d4c9cda`.)
+- **Text-Pfad für Intake-Pipeline** (6 Commits `e73ab003..e2b5815a`). Spec/Plan `…2026-07-10-text-pfad-intake*`. Text-Zweig in `verarbeite_dokument` (`_synth_seite`, `payload_typ='text'`, `textquelle='email_text'`); `hole_detail` liefert `payload_typ`+`eltern_email`; Frontend `TextVorschau`+`EmailKontextBox`+`gruppiereQueue`. **Migration 54** (`textquelle`-CHECK erlaubt `email_text`). Backfill 51 Text-Dokumente (`scripts/backfill_textpfad.py`).
+- **N-08** Baseline „Sekunden pro Freigabe": **Migration 55** (`review_geoeffnet_am`), `sekunden_bis_freigabe` als `korrektur_log`-Zeile.
+- **N-07** Bestandsakten-Hinweis (Ersatz für zurückgestelltes P1.8): `positionsstatus_service.berechne_historie_hinweis()` + `EREIGNISMODELL_EINGEFUEHRT_AM` (env, Default `2026-07-09` — beim Prod-Cutover setzen). Frontend-Hinweisbox in `PositionsDashboard.jsx`.
+
+---
+
+## 2026-07-09 — Intake-Refactoring: S1.9 + Positionsmodell P1.1–P1.6
+
+**Großprojekt Pipeline v7 + Positionsmodell.** Maßgebliche Dokumente: `freigabe.md`, `PIPELINE-REFACTORING-PLAN.md`, `POSITIONSMODELL-PLAN.md` (Projekt-Root). Arbeitsbranch `intake-stufe1`.
+
+- **S1.9a–d** — `INTAKE_REVIEW_PFLICHT` (Default True) macht die Review-Freigabe zum einzigen Schreibweg in Akten-Tabellen (Grundsatz → DECISIONS.md). **Migration 49** (`email_import_log.ausgeblendet`). Alt-Pfade (Anhang-Auto-Registrierung, Upload-Route, E-Akte-Import, `_ergaenze_*`) hinter dem Flag stillgelegt; Guard-Test `test_s19_intake_write_guard.py` als Rollback-Anker + `test_s19d_e2e_no_intake_writes.py`.
+- **P1.1** — Registries `positionsarten.yaml`/`ereignistypen.yaml`/`aktionen.yaml` + fail-loud Loader `positionsmodell_registry.py` mit Konsistenzchecks.
+- **P1.2** — **Migration 51** `ereignisse` / `ereignis_positionen` / `position_ereignis_cache` (K-M1 UNIQUE). `ereignis_service.schreibe_ereignis()` einziger Schreibpunkt; `rebuild_cache()`; AST-Guard-Test blockiert Fremd-Writes.
+- **P1.3** — `positionsstatus_service.leite_positionsstatus_ab()` (liest nur `position_ereignis_cache.status='aktuell'`); Blueprint `positionen_routes.py` (`/positionen/status`, `/aktionen`).
+- **P1.4** — `ausgehende_ereignisse.erzeuge()` an 5 Generierungs-Stellen (word_service, gebuehren_word, klage_routes, sta_routes, stellungnahme_routes).
+- **P1.5a–d** — vier Bestätigungswege (`eingehende_ereignisse.py`): ReguWizard→`abrechnung_eingegangen`, Beleg→`rechnung_eingegangen`, Gutachten→`gutachten_eingegangen` (K-M2a positionsscharfe Ersetzung), WDM→`abrechnung_eingegangen` (unbestätigt, `herkunft='wdm'`). Registry `rechnungstyp_mapping.yaml`.
+- **P1.6** — System-Ereignisse via APScheduler. **Migration 52** (`todos.fristablauf_ereignis_id`). `fristablauf_service.verarbeite_faellige_todos()`, cron-Job täglich 03:15, Endpoint `/system/fristablauf/manual`.
+
+**P1.8 (Backfill) ZURÜCKGESTELLT** (Entscheidung RA Schatz 2026-07-13, forward-only) → siehe DECISIONS.md. Prompt archiviert: `handover/naechste_session_P1_8_prompt.md`.
+
+---
+
+## 2026-07-08 — Bugfixing-Session (Testsuite-Sanierung)
+
+Branch `intake-stufe1`. Baseline 294f/385p/26e → **211f/524p/0e/18s** (−83 failures, −26 errors).
+- `a6fb6f4` Test-Stub-Kontamination in `test_prd23b.py` entfernt (Modul-Ebenen-`sys.modules`-Stub kontaminierte Reihenfolge); Guard `test_prd23b_kontamination.py`.
+- `12d78c5` `TestKlassifiziereEakteDok` an Listen-Signatur angepasst; SV-Domain-Tests korrigiert.
+- `9ffcbe6` `conftest.py` setzt `FLASK_SECRET_KEY` vor Collection.
+- `746f731` `test_modul6.py` `TestBackupScript` entfernt, Gitignore-Erwartungen aktualisiert.
+- `70c77c4` **Migration 50** legt `unfalldetails`-Tabelle nachträglich an (Root-Cause: `CREATE TABLE unfalldetails` fehlte im Schema-Manager → Mig 28 SKIPPED → `POST /klage/generieren` crashte 500). Handover `handover/2026-07-08-datenmodell-bugs-unfalldetails-cleanup.md`.
+- `d5916d3` `cleanup_abrechnungen.py` DB_PATH-Default gefixt.
+- `6572abf` `test_portal_sync.py` Fixture um `gutachten_nr`.
+- `e7bdad9` Auth-Bootstrap in `conftest.py` (`JWT_SECRET_KEY`+`ADMIN_*`).
+- `9fcdcb5` nginx.conf Config-Bugs + self-signed Zertifikat lokal.
+
+**Offen (Alt-Cluster, kein Blocker):** Testsuite-Modernisierung `test_modul3/4/7` (~150 Failures, kein 1-Zeilen-Fix, eigenes Ticket); `test_prd23b.py`/`test_modul8.py` Alt-Failures; kleinere `test_migration_46`/`test_sv_portal`/`test_modul1`.
+
+---
+
+## Ältere abgeschlossene PRDs (Kurz-Index)
+
+Detail in den jeweiligen Session-Handovers (`handover/`, `session_handover_v38–v56.md`) und der Git-Historie.
+
+| PRD / Feature | Beschreibung |
+|---|---|
+| PRD-01 (Basis) | To-Do-System + Header-Widget |
+| PRD-02 | Textbaustein-Feld Kürzungsarten |
+| PRD-03 K-01–K-15 | Klageschrift-Formatierung |
+| PRD-04 / 04b | Dokumentenklassen + Dispatcher + Registry; Feedback-Loop |
+| PRD-14 | SSOT Abrechnungsart |
+| PRD-15 | WDM Auto-Load |
+| PRD-16 | Tab-Reihenfolge als Workflow-Ablauf |
+| PRD-18 | Phasen-Strip (UebersichtSection) |
+| PRD-20 | App.jsx Refactoring (26 Dateien) |
+| PRD-21 Ph. 1–3a | E-Akte Auto-Import |
+| PRD-22a/b/c/d | Gutachten-Reiter; Regulierung+Löschen; Mandanten-Fragebogen; E-Mail-Import-UI |
+| PRD-23a/b | Schadenposition-Belege; Rechnungs-Parser (59 Tests) |
+| PRD-24 | Aktivlegitimation + Klage-Wizard A–D |
+| PRD-25a/b | Automatische Fristen; Action-Dashboard |
+| PRD-26 | Klage-Wizard 10-Step (Umbau) |
+| PRD-27 | ReguWizard – Stellungnahme-Wizard |
+| PRD-28 | Gebührenassistent Nr. 2300 VV RVG + Kostennote DOCX |
+| PRD-29b | E-Akte E-Brief-Filter via Schlagwort |
+| PRD-30 | OCR + SSE-Streaming (pytesseract, pdf2image) |
+| PRD-31 (KI) | KI-Parsing Gutachten (Shadow-Mode, Konflikt-Dialog) |
+| PRD-32 Ph. 1 | Rechnungstypen-Subklassen im Classifier |
+| PRD-34 | Inbox-Pattern Dokumente-Kachel |
+| PRD-35 | Klage-Wizard Bug-Fixes (5 Bugs) |
+| PRD-36 (a–d) | Code-Konsolidierung (`_helpers.py`, `utils/datum.py`, `models/beteiligte.py`) |
+| PRD-US01/02/05/06 | RA-Micro Heartbeat; IMAP Auto-Polling (Schema-43); E-Akte Hover-Vorschau; Health-Dashboard |
+| PRD-US19 | RA-Micro DMS Integration (read-only) |
+| B-08 / B-09 | Netto/Brutto bei Vorsteuer; Gegenstandswert |
+| Regulierungs-Workflow Option B | 5 Phasen, Legacy deprecated, Delete-Bug v14c |
+| KI-Parsing Regulierungsschreiben | Qwen Shadow-Mode, Modell-Switcher, Few-Shot |
+| Action Board Global + OnboardingHub | ActionBoardView, OnboardingHub (7 Kacheln) |
+| E-Mail-Workflow Redesign | EmailDetailView, UA-Ordner, Migration 42/44 |

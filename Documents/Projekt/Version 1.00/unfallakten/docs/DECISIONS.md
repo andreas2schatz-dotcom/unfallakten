@@ -285,3 +285,122 @@ for _key in ("rvg_ausserg", "rvg_ausserg_override", "rvg_bereits_gezahlt"):
 **Alternative:** Separater `init`-Befehl oder Setup-Wizard.
 
 **Konsequenz:** Hardcoded Fallback-Passwort `Kanzlei2024!` ist in `app.py` im Klartext sichtbar. In Produktionsumgebungen ohne `.env`-Override ist das die tatsächliche Zugangsdaten.
+
+---
+
+## Intake-Pipeline v7 + Positionsmodell
+
+### Review-Freigabe ist der einzige Schreibweg in Akten-Tabellen (`INTAKE_REVIEW_PFLICHT`)
+
+**Entscheidung:** Feature-Flag `INTAKE_REVIEW_PFLICHT` (Default True). Eingehende Dokumente (E-Mail-Anhänge, Uploads, E-Akte-Import, Fragebögen) erzeugen nur noch `intake_dokumente`+`zustellungen`. Der einzige Weg, in `dokumente`/`beteiligte`/`unfalldetails`/`personenschaden`/`schadenpositionen` zu schreiben, ist die menschliche Freigabe in der Review-Queue (via `output_adapter`, S1.8). Alt-Pfade laufen nur bei `INTAKE_REVIEW_PFLICHT=false`.
+
+**Grund:** Auto-Import hat wiederholt still falsche/unvollständige Daten in Akten geschrieben (Best-Effort-Swallow verdeckte Fehler). Ein Mensch soll jedes Dokument sehen, bevor es die Akte verändert.
+
+**Alternative:** Auto-Import mit Konfidenzschwelle beibehalten und nur Grenzfälle in die Queue geben.
+
+**Konsequenz:** Guard-Tests (`test_s19_intake_write_guard.py` AST + `test_s19d_e2e_no_intake_writes.py`) fixieren die Whitelist zulässiger Schreiber; jeder neue Direktschreiber schlägt an. Das Flag bleibt als Rollback-Anker bestehen. (2026-07-09, S1.9)
+
+---
+
+### Positionsmodell forward-only — kein Backfill aus dem Bestand (P1.8)
+
+**Entscheidung:** Der Backfill synthetischer Ereignisse aus Altbeständen (P1.8) wird NICHT durchgeführt. Neue Vorgänge bekommen eine saubere Ereignis-Historie; Altakten zeigen den ehrlichen N-07-Hinweis („Eskalationsvorschläge erst ab [Einführungsdatum] verlässlich").
+
+**Grund:** RA Schatz (2026-07-13) — Sorge vor „vielen unbearbeiteten Ereignissen in der Oberfläche" bei Altakten. Der Backfill hätte die Review-Queue ohnehin nicht befüllt (die liest `intake_dokumente`, Backfill schreibt nur `ereignisse`); die Alt-Historie wäre je Akte im Positions-Dashboard erschienen.
+
+**Alternative:** Vollständiger idempotenter Backfill (`herkunft='backfill'`, filterbar) oder begrenzter Backfill nur für aktive Akten mit Dry-Run-Report.
+
+**Konsequenz:** Der N-07-Hinweis verschwindet automatisch, falls je nachbackfillt wird. Prompt archiviert: `handover/naechste_session_P1_8_prompt.md`. (2026-07-13)
+
+---
+
+### Ereignis-Buchung bei Freigabe: Dropdown steuert, nur echte Beträge (P1.5e)
+
+**Entscheidung:** (1) Die Dropdown-Auswahl im Freigabe-Dialog steuert, welches Ereignis gebucht wird; die Registry (`klasse_ereignistyp.yaml`) liefert nur die Vorbelegung je Klasse — nicht hartkodiert, nicht in den Einstellungen. (2) Es werden nur echte Beträge gebucht; fehlen sie, wird das Ereignis als reiner Fakt gebucht (erfüllt die Checkliste, erfindet keine Zahlen).
+
+**Grund:** RA Schatz — der Mensch entscheidet bei der Freigabe, das System soll keine Beträge erfinden.
+
+**Alternative:** Ereignistyp je Klasse fest verdrahten; fehlende Beträge schätzen.
+
+**Konsequenz:** Serverseitiger `eingehend`-Guard verwirft bestätigte Typen, die kein eingehender Ereignistyp sind (Defence-in-depth). (2026-07-12)
+
+---
+
+### WDM-Import ist ein unbestätigtes Ereignis (PF-08)
+
+**Entscheidung:** WDM-Daten aus RA-MICRO werden als `abrechnung_eingegangen` mit `dokument_id=NULL`, `herkunft='wdm'` gebucht und in der UI als unbestätigt gekennzeichnet (`has_unbestaetigt`, gestrichelter Rand + WDM-Chip).
+
+**Grund:** WDM ist inhaltlich eine Abrechnung, aber ohne zugrundeliegendes Dokument — die Herkunft muss sichtbar bleiben, damit niemand sie mit einer belegten Abrechnung verwechselt.
+
+**Alternative:** WDM wie eine dokumentbelegte Abrechnung behandeln.
+
+**Konsequenz:** Der Doppelerfassungs-Guard greift bei WDM nicht (dokument_id=NULL); Mehrfach-Import verhindert der Alt-Pfad per HTTP 409. (2026-07-09)
+
+---
+
+### Seiten-Triage über Textabdeckung, nicht Wortzahl (N-04)
+
+**Entscheidung:** Ob eine Seite als Bildseite gilt (und OCR/GLM übersprungen wird), entscheidet die **Textabdeckung** = Flächenanteil der Tesseract-Wort-Boxen an der Seitenfläche, nicht die reine Wortzahl.
+
+**Grund:** Fotoseiten mit Bildunterschrift haben viele Wörter, aber nur ein schmales Textband → niedrige Abdeckung. Die Wortzahl-Heuristik hätte sie fälschlich als Textseiten behandelt (Einwand im Brainstorming).
+
+**Alternative:** Schwellwert auf Wortzahl je Seite.
+
+**Konsequenz:** Migrationsfrei (`SeitenText.ist_bildseite`, `parse_json.bildseiten_anzahl`). Unter `GLM_OCR_ENABLED=false` spart die Triage noch keine Aufrufe (Tesseract läuft ohnehin), nur die Markierung ist sichtbar. (2026-07-14)
+
+---
+
+## Klage-Wizard (PRD-33)
+
+### Haftungsquote = zwei Fälle A/B
+
+**Entscheidung:** Der Klage-Wizard behandelt die Haftungsquote in zwei getrennten Fällen: **Fall A** (gegnerische Quote) = reine Darstellung, keine Kürzung der Forderung; **Fall B** (eigene Quote) = die Forderung wird quotiert, und zwar **erst quotieren, dann Zahlungen abziehen** (nicht umgekehrt). Fall B erhält einen eigenen Klemmsatz („Die Beklagte …").
+
+**Grund:** RA Schatz (2026-07-17) — juristisch korrekte Reihenfolge; die beiden Fälle bedeuten rechnerisch Verschiedenes.
+
+**Alternative:** Eine einheitliche Quotenlogik für beide Richtungen.
+
+**Konsequenz:** BE und FE müssen dieselbe Rundung verwenden — FE half-up vs. BE banker's wurde in Session 6 via `_round2_half_up` angeglichen. 0-€-Hauptantrag-Randfall bleibt note-only. (2026-07-17)
+
+### Keine gerichtliche Gebührenberechnung
+
+**Entscheidung:** Der Wizard berechnet keine gerichtlichen Gebühren. Der gerichtliche Streitwert wird ausschließlich als Gegenstandswert-Angabe geführt; RVG-Berechnung bleibt außergerichtlich (Nr. 2300 VV RVG).
+
+**Grund:** RA Schatz (2026-07-17) — gerichtliche Gebühren setzt das Gericht fest; eine eigene Berechnung wäre fehleranfällig und überflüssig.
+
+**Alternative:** Vollständige gerichtliche Gebührentabelle im Wizard.
+
+**Konsequenz:** Das „RVG gerichtlich"-Duplikat samt `rvgOverride`/cfg-`rvg` wurde entfernt (KW-13/V6). Der Legacy-Generieren-Button entfällt ebenfalls — der Wizard ist der einzige Weg zur Klageschrift. (2026-07-17)
+
+---
+
+## Dokumentenbezeichnung: regelbasiert statt LLM (PRD-37 vs. PRD-38)
+
+**Entscheidung:** Dokumentbezeichnungen werden regelbasiert erzeugt (`baue_bezeichnung` → `«Label» «Aussteller» vom «Datum» («Betrag»)`). Die LLM-Variante (PRD-38) wird nicht gebaut; falls im Betrieb nötig, nur eng für Klasse `sonstiges`.
+
+**Grund:** RA Schatz (2026-07-15) — die Regel deckt klassifizierte Dokumente vorhersehbar ab; ein LLM brächte nur Kosten/Latenz/Nichtdeterminismus. Vorhersehbare Titel sind im Kanzleialltag angenehmer als stilistisch schwankende. Zudem ist KI in Stufe 1 ohnehin aus (`LLM_ENABLED=false`).
+
+**Alternative:** LLM-generierte Titel für alle Dokumente.
+
+**Konsequenz:** PRD-38 bleibt zurückgestellt; erst mit PRD-37 im Alltag arbeiten. (2026-07-15)
+
+---
+
+## Rausch-Absender: per-Dokument-Policy, kein SPF/DKIM-Gate
+
+**Entscheidung:** Wertloses Rauschen auf `info@` wird beim Eingang automatisch verworfen — gesteuert durch eine YAML-Registry `rausch_absender.yaml` (Absender-Domain → Policy `nur_body`/`komplett`), per-Dokument angewandt (Placetel: Body verwerfen, Fax-PDF bleibt; beA: Body + Anhänge weg).
+
+**Grund:** RA Schatz/Brainstorming (2026-07-16) — das reale Bedürfnis ist nicht ein generischer Filter, sondern konkretes bekanntes Rauschen gar nicht erst in die Queue zu lassen.
+
+**Alternative:** Generische Filter-Chips, Betreff-Muster („Fax von … auf …"), SPF/DKIM-Gate.
+
+**Konsequenz:** Bewusst nicht gebaut: Betreff-Muster, SPF/DKIM, Filter-Chips. Soft-Delete (`verworfen_von=NULL`=System) mit Papierkorb + Wiederherstellen. (2026-07-16)
+
+---
+
+## Bewusst vertagt (kein Handlungsbedarf)
+
+- **Prod-Rollout intake-stufe1** — Git-Teil erledigt (2026-07-15), Deployment vertagt (kein Prod-Host, Go-Live später). Runbook + Deploy-Reihenfolge in STATE.md.
+- **N-05** (kooperatives Yielding + Teilergebnisse) — bewusst zurückgestellt.
+- **P1.8** (Backfill) — siehe oben, forward-only.
+- **PRD-38** (Dokumentenbezeichnung per LLM) — siehe oben.
