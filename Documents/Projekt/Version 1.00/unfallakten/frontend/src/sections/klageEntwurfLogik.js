@@ -2,7 +2,7 @@
 // ENTWURF_FORMAT_VERSION bei jedem Umbau des Entwurf-Schemas hochzaehlen --
 // alte Entwuerfe bieten dann im Oeffnen-Dialog nur noch "Neu beginnen".
 
-export const ENTWURF_FORMAT_VERSION = 1;
+export const ENTWURF_FORMAT_VERSION = 2;
 
 export function serialisiereEntwurf(s) {
   return {
@@ -16,6 +16,7 @@ export function serialisiereEntwurf(s) {
     wizardSachverhaltManuell: !!s.wizardSachverhaltManuell,
     wizardUnfallText: s.wizardUnfallText,
     wizardRwText: s.wizardRwText,
+    wizardEinwaendeBlock: s.wizardEinwaendeBlock ?? "",
     wizardVerzugText: s.wizardVerzugText,
     wizardVerzugManuell: !!s.wizardVerzugManuell,
     wizardVerzugDatum: s.wizardVerzugDatum,

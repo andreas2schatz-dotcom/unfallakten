@@ -10,7 +10,7 @@ describe("KlageEntwurfDialog", () => {
       step={7} onFortsetzen={onFortsetzen} onNeuBeginnen={onNeuBeginnen}
       onAbbrechen={() => {}} />);
     expect(screen.getByText(/Entwurf vom 19\.07\., 14:32/)).toBeInTheDocument();
-    expect(screen.getByText(/Schritt 7 von 10/)).toBeInTheDocument();
+    expect(screen.getByText(/Schritt 7 von 11/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Fortsetzen/ }));
     expect(onFortsetzen).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: /Neu beginnen/ }));

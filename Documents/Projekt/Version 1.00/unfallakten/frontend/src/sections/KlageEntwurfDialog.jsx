@@ -13,7 +13,7 @@ export default function KlageEntwurfDialog({
             <h3 style={{ margin: "0 0 0.5rem" }}>Gespeicherter Entwurf gefunden</h3>
             <p>
               Entwurf vom {formatGespeichertAm(gespeichertAm)}{" "}
-              (Schritt {step} von 10) — fortsetzen oder neu beginnen?
+              (Schritt {step} von 11) — fortsetzen oder neu beginnen?
             </p>
           </>
         ) : (

@@ -568,6 +568,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setWizardSachverhaltManuell(!!e.wizardSachverhaltManuell);
     setWizardUnfallText(e.wizardUnfallText ?? "");
     setWizardRwText(e.wizardRwText ?? "");
+    setWizardEinwaendeBlock(e.wizardEinwaendeBlock ?? "");
     setWizardVerzugText(e.wizardVerzugText ?? "");
     setWizardVerzugManuell(!!e.wizardVerzugManuell);
     setWizardVerzugDatum(e.wizardVerzugDatum ?? "");
@@ -599,7 +600,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const aktuellerEntwurf = () => serialisiereEntwurf({
     wizardStep, wizardMaxStep, aktLegTyp, aktLegFreigabe, aktLegDatum,
     auslandsunfall, wizardSachverhaltText, wizardSachverhaltManuell,
-    wizardUnfallText, wizardRwText, wizardVerzugText, wizardVerzugManuell,
+    wizardUnfallText, wizardRwText, wizardEinwaendeBlock, wizardVerzugText, wizardVerzugManuell,
     wizardVerzugDatum, wizardVerzugDokDatum, wizardAntraegeText,
     wizardAntraegeManuell, wizardAntraegeBasis, wizardGebuehrenText,
     wizardGebuehrenManuell, wizardPos, wizardMitSG, wizardSGMind,

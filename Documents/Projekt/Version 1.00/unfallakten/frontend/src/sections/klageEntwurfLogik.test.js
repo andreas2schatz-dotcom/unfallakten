@@ -71,6 +71,25 @@ describe("parseEntwurf", () => {
     expect(parseEntwurf({ ...gueltig, entwurf_json: '"nur-string"' }).ok).toBe(false);
     expect(parseEntwurf(null).ok).toBe(false);
   });
+
+  it("lehnt Alt-Entwuerfe mit format_version 1 ab", () => {
+    const row = { entwurf_json: JSON.stringify({ wizardStep: 5 }), format_version: 1 };
+    expect(parseEntwurf(row)).toEqual({ ok: false });
+  });
+});
+
+describe("ENTWURF_FORMAT_VERSION", () => {
+  it("ist 2 (Paket-2-Schrittumbau)", () => {
+    expect(ENTWURF_FORMAT_VERSION).toBe(2);
+  });
+});
+
+describe("serialisiereEntwurf wizardEinwaendeBlock", () => {
+  it("enthaelt wizardEinwaendeBlock", () => {
+    const e = serialisiereEntwurf({ wizardEinwaendeBlock: "a) Stundenverrechnungssatz …" });
+    expect(e.wizardEinwaendeBlock).toBe("a) Stundenverrechnungssatz …");
+    expect(serialisiereEntwurf({}).wizardEinwaendeBlock).toBe("");
+  });
 });
 
 describe("reconcilePositionen", () => {
