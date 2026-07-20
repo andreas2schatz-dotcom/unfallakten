@@ -23,8 +23,8 @@ Der Flask-Reloader stempelt neue Migrationen mitten im inkrementellen Edit über
 ### Prod-Rollout intake-stufe1 — bewusst vertagt
 Git-Teil erledigt (2026-07-15): `intake-stufe1` → `main` per FF gemergt + gepusht, Backup-Tag `pre-rollout-main-20260715`. Deployment vertagt (kein Prod-Host, Go-Live später). Maßgebliches Runbook: `docs/ROLLOUT-intake-stufe1-prod.md` — Migration 49→61 einmal vorab, Prod-Backup zuerst, Schema-Verifikation auf v61 vor App-Start. Beim Cutover `EREIGNISMODELL_EINGEFUEHRT_AM` auf das echte Datum setzen.
 
-### ⚠️ `main` ungepusht
-`main` ist >110 Commits vor `origin` und ungepusht (Verlust-/Backup-Risiko). Vor der nächsten Implementierung pushen. **Achtung:** Git-Wurzel liegt im Home-Verzeichnis (`C:\Users\HAL9000`) — NIE `git add -A` aus Home; Guardrail-`.gitignore` beachten.
+### Git-Push-Stand (2026-07-20)
+`main` ist mit `origin/main` synchron (gesichert). Der Feature-Branch `klage-wizard-ui-fuehrung` (Paket 2 UI-Führung + Doku-Umschichtung) ist ebenfalls nach `origin` gepusht und mit Upstream verbunden — bis zum Merge in main läuft die Arbeit dort. **Achtung:** Git-Wurzel liegt im Home-Verzeichnis (`C:\Users\HAL9000`) — NIE `git add -A` aus Home; Guardrail-`.gitignore` beachten.
 
 ### Backup
 `scripts/backup.sh` (SQLite `.backup`, nicht `cp`), stündlich + täglich via Cron in `docker-compose.prod.yml`. `/data`-Mount muss **read-write** sein (WAL braucht `-shm`-Schreibzugriff, sonst „unable to open database file"). Guard-Test `test_modul6.py::TestBackupInfra`.
