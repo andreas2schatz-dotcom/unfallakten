@@ -1,7 +1,7 @@
 # Projektstatus – Momentaufnahme
 
 **Generiert:** 2026-05-02 · **Zuletzt aktualisiert:** 2026-07-20  
-**Schema-Version:** 61 (Migrationen laufend, siehe Deploy-Warnungen)
+**Schema-Version:** 63 (Migrationen laufend, siehe Deploy-Warnungen)
 
 > ⚠️ **Abschnitte 1–3 unten sind Stand 2026-06-12 (Schema 42) und veraltet** — nur als grobe Modul-Übersicht lesen. Aktuelle Arbeit: `docs/TODO.md` · Umsetzungs-Historie: `docs/CHANGELOG.md` · Entscheidungen: `docs/DECISIONS.md`.
 
@@ -11,7 +11,8 @@
 
 ### ⚠️ Prod-Bestands-DBs: mutmaßliche Schema-Drift vor Go-Live prüfen
 Auf der Dev-DB fehlten Spalten trotz korrekter `schema_version` — Prod-Bestands-DBs sind vermutlich ebenso betroffen. Vor dem Kollegen-/Prod-Rollout prüfen und ggf. per `ALTER TABLE` nachziehen (jeweils Backup zuerst):
-- `beteiligte.vertreter_name` / `beteiligte.vertreter_funktion` (Migration 23) — Dev am 2026-07-20 nachgezogen (Backup `…bak_20260720_vertreter_drift`).
+- `beteiligte.vertreter_name` / `beteiligte.vertreter_funktion` — Drift (fehlten in aktiver Registry trotz „Migration 23") jetzt **forward-only per Migration 63 behoben** (idempotenter `ALTER`, additiv in `schema.py`-Basis-CREATE nachgezogen). Bestands-DBs bekommen die Spalten beim Migrationslauf automatisch; kein manueller `ALTER` mehr nötig.
+- **NEU `firmen_vertreter` (Migration 62)** — globaler Firmen-Vertreter-Speicher, existiert **nur per Migration** (nicht in `schema.py`-Basis). Bestands-Prod-DB MUSS Migration 62+63 laufen lassen, bevor der Klage-Wizard-Code startet (sonst wirft `POST /firmen/vertreter/speichern` bzw. der Klage-Serializer `no such table`/`no such column`).
 - `personenschaden.krankenhaus_aufenthalt` (Migration 60) — Dev am 2026-07-16 nachgezogen.
 
 ### ⚠️ Migrations-Reihenfolge beim Deploy
