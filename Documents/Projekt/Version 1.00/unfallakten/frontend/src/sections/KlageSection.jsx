@@ -118,7 +118,7 @@ function ManuelleVertreterEingabe({ id, onSave }) {
 };
 
 
-function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertreterLookup, T }) {
+function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertreterLookup, setToast, T }) {
   if (!vertreterModal) return null;
   const { id, name, daten } = vertreterModal;
   return (
@@ -160,7 +160,8 @@ function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertrete
                     try {
                       await apiFirmen.vertreterSpeichern(id, v.name, v.funktion);
                     } catch(e) {
-                      // Hintergrundspeicherung – kein toast nötig
+                      const msg = e?.status ? `HTTP ${e.status}: ${e.message}` : (e?.message || String(e));
+                      setToast && setToast("Vertreter übernommen, aber nicht dauerhaft gespeichert: " + msg);
                     }
                     setVModal(null);
                   }}
@@ -183,7 +184,10 @@ function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertrete
                 ? {...b, vertreter_name: name, vertreter_funktion: funk}
                 : b
               ));
-              apiFirmen.vertreterSpeichern(id, name, funk).catch(() => {});
+              apiFirmen.vertreterSpeichern(id, name, funk).catch(e => {
+                const msg = e?.status ? `HTTP ${e.status}: ${e.message}` : (e?.message || String(e));
+                setToast && setToast("Vertreter übernommen, aber nicht dauerhaft gespeichert: " + msg);
+              });
               setVModal(null);
             }}/>
           </div>
@@ -714,7 +718,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   return (
     <div style={{ flex:1, overflowY:"auto", background:T.offWhite }}>
       <VertreterModal vertreterModal={vertreterModal} setVModal={setVModal}
-        setBek={setBek} apiFirmen={apiFirmen} vertreterLookup={vertreterLookup} T={T} />
+        setBek={setBek} apiFirmen={apiFirmen} vertreterLookup={vertreterLookup}
+        setToast={setToast} T={T} />
       {entwurfDialog && (
         <KlageEntwurfDialog
           typ={entwurfDialog.typ}
