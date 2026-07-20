@@ -779,10 +779,11 @@ export function StepAktLeg({
         </button>
       </div>
 
-      <DokumentCard
+      <EditorMitDiff
+        autoText={buildAuto()}
         warnung={brauchtFreigabe && aktLegFreigabe === "ungeklaert"}
-        editText={sachverhaltText}
-        onEditText={val => { onSachverhaltManuell(true); onSachverhaltText(val); }}
+        text={sachverhaltText}
+        onText={val => { onSachverhaltManuell(true); onSachverhaltText(val); }}
       />
     </div>
   );
@@ -822,6 +823,8 @@ function StepUnfall({ schilderungOriginal, klaeger, unfalltextEdit, onUnfalltext
     ["der Mandantin",                   "der Klägerin"],
     ...(!weiblich ? [["Mandantin", "Klägerin"]] : []),
   ];
+
+  const autoText = ersetzeMandantDurchKlaeger(schilderungOriginal || "", weiblich);
 
   return (
     <div style={{ display: "flex", gap: "1.5rem", alignItems: "stretch" }}>
@@ -876,7 +879,7 @@ function StepUnfall({ schilderungOriginal, klaeger, unfalltextEdit, onUnfalltext
         </div>
       </div>
 
-      <DokumentCard editText={unfalltextEdit} onEditText={onUnfalltextEdit} />
+      <EditorMitDiff autoText={autoText} text={unfalltextEdit} onText={onUnfalltextEdit} />
     </div>
   );
 }
@@ -1470,6 +1473,8 @@ export function StepEinwaende({ abrechnungen, kuerzungsarten, beklagte,
     onEinwaendeBlock(neuerText);
   }
 
+  const autoText = einwaendeBlock ? `${grundhaftungsText}\n\n${einwaendeBlock}` : grundhaftungsText;
+
   return (
     <div style={{ display: "flex", gap: "1.5rem", alignItems: "stretch" }}>
       <div style={{ flex: "0 0 340px", display: "flex", flexDirection: "column", gap: "0.9rem" }}>
@@ -1488,7 +1493,7 @@ export function StepEinwaende({ abrechnungen, kuerzungsarten, beklagte,
           Rechts steht der vollständige Text der rechtlichen Würdigung — hier finalisieren.
         </div>
       </div>
-      <DokumentCard editText={rwText} onEditText={onRwText} />
+      <EditorMitDiff autoText={autoText} text={rwText} onText={onRwText} />
     </div>
   );
 }
@@ -1681,7 +1686,9 @@ export function StepVerzug({ zinsenAb, weiblich,
         </button>
       </div>
 
-      <DokumentCard editText={wizardVerzugText} onEditText={val => { onManuelleBearbeitung(true); onWizardVerzugText(val); }} />
+      <EditorMitDiff autoText={buildVerzugAutoText(wizardVerzugDokDatum, wizardVerzugDatum)}
+        text={wizardVerzugText}
+        onText={val => { onManuelleBearbeitung(true); onWizardVerzugText(val); }} />
     </div>
   );
 }
@@ -1695,6 +1702,7 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
                                laedt, onGenerieren, fehler,
                                lgGrenzwert, swAusserg, antraegeText, gebuehrenText,
                                antraegeVeraltet, onAntraegeNeuGenerieren, onAntraegeBehalten,
+                               antraegeAuto,
                                unfallort, unfalldatum,
                                hq = 100, hqTyp = "gegnerisch" }) {
   const klagebetrag  = berechneKlagebetrag(positionen, hq, hqTyp);
@@ -1735,7 +1743,8 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
   return (
     <div>
       <TextVeraltetBadge sichtbar={antraegeVeraltet}
-        onNeuGenerieren={onAntraegeNeuGenerieren} onBehalten={onAntraegeBehalten} />
+        onNeuGenerieren={onAntraegeNeuGenerieren} onBehalten={onAntraegeBehalten}
+        autoText={antraegeAuto} aktuellerText={antraegeText} />
       <div style={{ background: T.surface, borderRadius: 10, padding: "1rem 1.25rem",
         marginBottom: "1.25rem", border: `1px solid ${T.border}` }}>
         <div style={{ fontFamily: PLEX, fontSize: "0.72rem", fontWeight: 700,
@@ -2145,7 +2154,7 @@ export function StepAntraege({ positionen, mitSG, sgMind, beklagte, weiblich,
                         zinsenAb, verzug, unfalldatum,
                         mitFestSg, onMitFestSg, mitFestSach, onMitFestSach,
                         antraegeText, onAntraegeText, onAntraegeManuell, gebuehrenText,
-                        antraegeVeraltet, onNeuGenerieren, onBehalten,
+                        antraegeVeraltet, onNeuGenerieren, onBehalten, antraegeAuto,
                         hq = 100, hqTyp = "gegnerisch" }) {
   const klagebetrag   = berechneKlagebetrag(positionen, hq, hqTyp);
   const sgGesamt      = mitSG && sgMind > 0 ? klagebetrag + sgMind : klagebetrag;
@@ -2223,9 +2232,10 @@ export function StepAntraege({ positionen, mitSG, sgMind, beklagte, weiblich,
       </div>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <TextVeraltetBadge sichtbar={antraegeVeraltet} onNeuGenerieren={onNeuGenerieren} onBehalten={onBehalten} />
-        <DokumentCard editText={antraegeText}
-          onEditText={val => { onAntraegeManuell(true); onAntraegeText(val); }} />
+        <TextVeraltetBadge sichtbar={antraegeVeraltet} onNeuGenerieren={onNeuGenerieren} onBehalten={onBehalten}
+          autoText={antraegeAuto} aktuellerText={antraegeText} />
+        <EditorMitDiff autoText={antraegeAuto} text={antraegeText}
+          onText={val => { onAntraegeManuell(true); onAntraegeText(val); }} />
       </div>
     </div>
   );
@@ -2524,7 +2534,9 @@ export function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
         </button>
       </div>
 
-      <DokumentCard editText={gebuehrenText} onEditText={val => { onGebuehrenManuell(true); onGebuehrenText(val); }} />
+      <EditorMitDiff autoText={rvgGesamt > 0 ? baueGebuehrenAntrag() : gebuehrenText}
+        text={gebuehrenText}
+        onText={val => { onGebuehrenManuell(true); onGebuehrenText(val); }} />
     </div>
   );
 }
@@ -2646,6 +2658,7 @@ export default function KlageWizard({
     hq: wizardHq, hqTyp: wizardHqTyp,
   };
   const antraegeVeraltet = wizardAntraegeManuell && antraegeBasis(antraegeOpts) !== wizardAntraegeBasis;
+  const antraegeAuto = baueAntraegeText(antraegeOpts);
   const hatPlatzhalter = komponiereAntraege(wizardAntraegeText, wizardGebuehrenText)
     .includes(ANTRAEGE_PLACEHOLDER);
   const statusCtx = { step, maxStep: wizardMaxStep, gerichtBestaetigt, positionen,
@@ -2796,6 +2809,7 @@ export default function KlageWizard({
                 onAntraegeManuell={onAntraegeManuell}
                 gebuehrenText={wizardGebuehrenText}
                 antraegeVeraltet={antraegeVeraltet}
+                antraegeAuto={antraegeAuto}
                 onNeuGenerieren={antraegeNeuGenerieren}
                 onBehalten={antraegeBehalten}
                 hq={wizardHq}             hqTyp={wizardHqTyp}
@@ -2873,6 +2887,7 @@ export default function KlageWizard({
                 antraegeText={wizardAntraegeText}
                 gebuehrenText={wizardGebuehrenText}
                 antraegeVeraltet={antraegeVeraltet}
+                antraegeAuto={antraegeAuto}
                 onAntraegeNeuGenerieren={antraegeNeuGenerieren}
                 onAntraegeBehalten={antraegeBehalten}
                 unfallort={unfallort}       unfalldatum={unfalldatum}

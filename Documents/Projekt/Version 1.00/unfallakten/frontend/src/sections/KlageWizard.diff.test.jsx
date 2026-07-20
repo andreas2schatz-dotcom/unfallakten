@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { DiffAnsicht, EditorMitDiff, TextVeraltetBadge } from "./KlageWizard.jsx";
+import { DiffAnsicht, EditorMitDiff, TextVeraltetBadge, StepVerzug, StepAntraege, buildVerzugAutoText } from "./KlageWizard.jsx";
 
 describe("DiffAnsicht", () => {
   it("markiert Ergaenzungen gruen und Streichungen durchgestrichen", () => {
@@ -46,5 +46,32 @@ describe("TextVeraltetBadge mit Diff-Link", () => {
       autoText="Alt" aktuellerText="Neu" />);
     fireEvent.click(screen.getByText(/Änderungen anzeigen/));
     expect(screen.getByTestId("diff-ansicht")).toBeTruthy();
+  });
+});
+
+describe("Diff-Integration", () => {
+  it("StepVerzug zeigt Umschalter bei manuell geaendertem Text", () => {
+    const auto = buildVerzugAutoText("2026-05-01", "2026-05-15");
+    render(<StepVerzug zinsenAb="verzug" weiblich={false}
+      wizardVerzugDatum="2026-05-15" onWizardVerzugDatum={() => {}}
+      wizardVerzugDokDatum="2026-05-01" onWizardVerzugDokDatum={() => {}}
+      wizardVerzugText={auto + " Zusatz."} onWizardVerzugText={() => {}}
+      manuelleBearbeitung onManuelleBearbeitung={() => {}}
+      verzugDokListe={[]} verzugDokId={null} onVerzugDokId={() => {}} />);
+    fireEvent.click(screen.getByText(/Änderungen anzeigen/));
+    expect(screen.getByTestId("diff-ansicht").textContent).toContain("Zusatz.");
+  });
+
+  it("StepAntraege reicht antraegeAuto an Badge und Editor durch", () => {
+    render(<StepAntraege positionen={[]} mitSG={false} sgMind={0} beklagte={[]} weiblich={false}
+      zinsenAb="rechtshaengigkeit" verzug="" unfalldatum=""
+      mitFestSg={false} onMitFestSg={() => {}} mitFestSach={false} onMitFestSach={() => {}}
+      antraegeText="Manuell geaendert" onAntraegeText={() => {}} onAntraegeManuell={() => {}}
+      gebuehrenText="" antraegeVeraltet antraegeAuto="Automatik Fassung"
+      onNeuGenerieren={() => {}} onBehalten={() => {}} />);
+    const buttons = screen.getAllByText(/Änderungen anzeigen/);
+    expect(buttons.length).toBeGreaterThanOrEqual(1);
+    fireEvent.click(buttons[0]);
+    expect(screen.getAllByTestId("diff-ansicht")[0].textContent).toContain("Automatik Fassung");
   });
 });
