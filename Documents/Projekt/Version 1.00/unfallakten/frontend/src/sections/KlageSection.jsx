@@ -734,6 +734,8 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           step={wizardStep}          onStepChange={setWizardStep}
           onClose={() => setWizardOffen(false)}
           wizardMaxStep={wizardMaxStep} onMaxStep={setWizardMaxStep}
+          onVertreterLookup={(id, name) => lookupVertreter(id, name)}
+          vertreterLookup={vertreterLookup}
           // Step 1: Gericht
           gericht={gericht}             setGericht={setGericht}
           gerichtSuche={gerichtSuche}   setGSuche={setGSuche}

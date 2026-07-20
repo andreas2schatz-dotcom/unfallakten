@@ -535,7 +535,7 @@ function _schadenNrBereinigt(raw) {
   return raw.replace(/^Schadennummer:\s*/i, "").trim();
 }
 
-export function StepRubrum({ beklagte, onClose }) {
+export function StepRubrum({ beklagte, onClose, onVertreterLookup, vertreterLookup }) {
   // checked=null → wie checked=true behandeln (Word-Verhalten: default True)
   const klaeger   = (beklagte || []).filter(b => b.rolle_klage === "klaeger");
   const beklagteG = kanonischeBeklagte(beklagte);
@@ -543,7 +543,7 @@ export function StepRubrum({ beklagte, onClose }) {
   const mehrereB  = beklagteG.length > 1;
 
   // Eine Rubrum-Zeile: Text links, Rolle rechts (wie im Word-Dokument)
-  function RubrumZeile({ links, rolle, warn }) {
+  function RubrumZeile({ links, rolle, warn, onLookup, lookupLaeuft }) {
     return (
       <div style={{ marginBottom: "0.4rem" }}>
         <div style={{
@@ -557,13 +557,24 @@ export function StepRubrum({ beklagte, onClose }) {
           }}>– {rolle} –</span>
         </div>
         {warn && (
-          <div style={{ fontSize: "0.78rem", color: T.amber, marginTop: 2 }}>
-            ⚠ Vertreter fehlt –{" "}
-            <button onClick={() => { if (onClose) onClose(); setTimeout(() => document.getElementById("karte-parteien")?.scrollIntoView({ behavior: "smooth" }), 150); }}
-              style={{ background: "none", border: "none", padding: 0, cursor: "pointer",
-                color: T.amber, fontFamily: PLEX, fontSize: "0.78rem", textDecoration: "underline", fontWeight: 600 }}>
-              jetzt nachtragen →
-            </button>
+          <div style={{ fontSize: "0.78rem", color: T.amber, marginTop: 2,
+            display: "flex", alignItems: "center", gap: 8 }}>
+            <span>⚠ Vertreter fehlt</span>
+            {onLookup ? (
+              <button onClick={onLookup} disabled={lookupLaeuft}
+                title="Vertretung online nachschlagen – ohne den Wizard zu verlassen"
+                style={{ background: "#fff", border: `1px solid ${T.amber}`, borderRadius: 5,
+                  padding: "1px 8px", cursor: lookupLaeuft ? "wait" : "pointer",
+                  color: T.amberText, fontFamily: PLEX, fontSize: "0.78rem", fontWeight: 600 }}>
+                {lookupLaeuft ? "⟳ sucht …" : "🔍 Lookup"}
+              </button>
+            ) : (
+              <button onClick={() => { if (onClose) onClose(); setTimeout(() => document.getElementById("karte-parteien")?.scrollIntoView({ behavior: "smooth" }), 150); }}
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer",
+                  color: T.amber, fontFamily: PLEX, fontSize: "0.78rem", textDecoration: "underline", fontWeight: 600 }}>
+                jetzt nachtragen →
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -647,7 +658,9 @@ export function StepRubrum({ beklagte, onClose }) {
           const warn       = ist_firma && !b.vertreter_name;
           const maennlich  = istPerson && anredeNorm(b.anrede) === "herr";
           return <RubrumZeile key={b.id || i} links={zeile}
-            rolle={`Beklagte${maennlich ? "r" : ""}${nr_suffix}`} warn={warn} />;
+            rolle={`Beklagte${maennlich ? "r" : ""}${nr_suffix}`} warn={warn}
+            onLookup={warn && onVertreterLookup ? () => onVertreterLookup(b.id, name) : undefined}
+            lookupLaeuft={!!(vertreterLookup && vertreterLookup[b.id]?.laden)} />;
         })}
       </div>
     </div>
@@ -1705,6 +1718,7 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
                                lgGrenzwert, swAusserg, antraegeText, gebuehrenText,
                                antraegeVeraltet, onAntraegeNeuGenerieren, onAntraegeBehalten,
                                antraegeAuto,
+                               onVertreterLookup, vertreterLookup,
                                unfallort, unfalldatum,
                                hq = 100, hqTyp = "gegnerisch" }) {
   const klagebetrag  = berechneKlagebetrag(positionen, hq, hqTyp);
@@ -1796,8 +1810,26 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
             ⚠ Keine Beklagten ausgewählt – bitte im Parteien-Bereich mindestens einen Beklagten anhaken.
           </div>}
           {firmenOhneVertreter.length > 0 && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: T.red,
-            padding: "7px 12px", background: `${T.red}10`, borderRadius: 7, marginBottom: 6 }}>
-            ⚠ Firmen ohne Vertreter: {firmenOhneVertreter.map(b => b.versicherung || b.firma).join(", ")}
+            padding: "7px 12px", background: `${T.red}10`, borderRadius: 7, marginBottom: 6,
+            display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <span>⚠ Firmen ohne Vertreter:</span>
+            {firmenOhneVertreter.map((b, i) => {
+              const fname = b.versicherung || b.firma;
+              return (
+                <span key={b.id || i} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <strong>{fname}</strong>
+                  {onVertreterLookup && (
+                    <button onClick={() => onVertreterLookup(b.id, fname)}
+                      disabled={!!(vertreterLookup && vertreterLookup[b.id]?.laden)}
+                      title="Vertretung online nachschlagen – ohne den Wizard zu verlassen"
+                      style={{ background: "#fff", border: `1px solid ${T.red}`, borderRadius: 5,
+                        padding: "1px 8px", cursor: "pointer", fontSize: "0.76rem", fontWeight: 600, color: T.red }}>
+                      {vertreterLookup && vertreterLookup[b.id]?.laden ? "⟳ sucht …" : "🔍 Lookup"}
+                    </button>
+                  )}
+                </span>
+              );
+            })}
           </div>}
           {aktLegFreigabe === "ungeklaert" && <div style={{ fontFamily: PLEX, fontSize: "0.82rem", color: T.amber,
             padding: "7px 12px", background: `${T.amber}12`, borderRadius: 7, marginBottom: 6 }}>
@@ -2552,19 +2584,35 @@ export function SchliessenGuardDialog({ onEntwurfSpeichern, onClose, onZurueck }
     if (ok) onClose();
     else onZurueck();
   };
+  const knopf = {
+    padding: "9px 16px", borderRadius: 8, cursor: laeuft ? "wait" : "pointer",
+    fontFamily: PLEX, fontSize: "0.875rem", fontWeight: 600,
+  };
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
-      display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200 }}>
-      <div style={{ background: "#fff", borderRadius: "10px", padding: "1.5rem",
-        maxWidth: "24rem", width: "90%", boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}>
-        <h3 style={{ margin: "0 0 0.5rem" }}>Ungespeicherte Änderungen</h3>
-        <p>Der Entwurf wurde seit der letzten Speicherung geändert.</p>
+      display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9500 }}>
+      <div style={{ background: "#fff", borderRadius: 12, padding: "1.75rem",
+        maxWidth: "27rem", width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+        <h3 style={{ margin: "0 0 0.6rem", fontFamily: PLEX, fontSize: "1.1rem",
+          fontWeight: 700, color: T.navy }}>
+          Wizard schließen?
+        </h3>
+        <p style={{ margin: 0, fontFamily: PLEX, fontSize: "0.9rem", color: T.text, lineHeight: 1.55 }}>
+          Es gibt <strong>ungespeicherte Änderungen</strong> am Entwurf. Beim Schließen ohne
+          Speichern gehen diese verloren.
+        </p>
         <div style={{ display: "flex", gap: "0.6rem", justifyContent: "flex-end",
-          marginTop: "1rem", flexWrap: "wrap" }}>
-          <button onClick={onZurueck} disabled={laeuft}>Zurück zum Wizard</button>
-          <button onClick={onClose} disabled={laeuft}>Verwerfen</button>
+          marginTop: "1.5rem", flexWrap: "wrap" }}>
+          <button onClick={onZurueck} disabled={laeuft}
+            style={{ ...knopf, border: `1.5px solid ${T.border}`, background: "#fff", color: T.text }}>
+            Zurück zum Wizard
+          </button>
+          <button onClick={onClose} disabled={laeuft}
+            style={{ ...knopf, border: `1.5px solid ${T.red}`, background: "#fff", color: T.red }}>
+            Verwerfen &amp; schließen
+          </button>
           <button onClick={speichernUndSchliessen} disabled={laeuft}
-            style={{ fontWeight: 600 }}>
+            style={{ ...knopf, border: "none", background: T.navy, color: "#fff" }}>
             💾 Speichern &amp; schließen
           </button>
         </div>
@@ -2627,6 +2675,7 @@ export default function KlageWizard({
   // Shared
   beklagte, zinsenAb,
   lgGrenzwert,
+  onVertreterLookup, vertreterLookup,
   // Generieren
   laedt, onGenerieren, fehler,
   // Entwurf speichern
@@ -2754,7 +2803,8 @@ export default function KlageWizard({
             )}
 
             {step === 2 && (
-              <StepRubrum beklagte={beklagte} onClose={onClose} />
+              <StepRubrum beklagte={beklagte} onClose={onClose}
+                onVertreterLookup={onVertreterLookup} vertreterLookup={vertreterLookup} />
             )}
 
             {step === 3 && (
@@ -2893,6 +2943,7 @@ export default function KlageWizard({
                 antraegeAuto={antraegeAuto}
                 onAntraegeNeuGenerieren={antraegeNeuGenerieren}
                 onAntraegeBehalten={antraegeBehalten}
+                onVertreterLookup={onVertreterLookup} vertreterLookup={vertreterLookup}
                 unfallort={unfallort}       unfalldatum={unfalldatum}
                 hq={wizardHq}               hqTyp={wizardHqTyp}
               />
