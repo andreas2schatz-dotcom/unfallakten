@@ -199,6 +199,19 @@ describe("StepRw – KW-03 Step-7-Fallauswahl Gegnerisch/Eigen", () => {
 
     expect(onEinwaendeReset).toHaveBeenCalled();
   });
+
+  it("ruft onEinwaendeReset NICHT auf, solange keine explizite Neu-generieren-Aktion erfolgt (reines Rendern + Haftungsbegründung bearbeiten)", () => {
+    const onEinwaendeReset = vi.fn();
+    render(<StepRw {...BASIS_PROPS} onEinwaendeReset={onEinwaendeReset} />);
+
+    expect(onEinwaendeReset).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByPlaceholderText(/Rotlichtverstoß/i), {
+      target: { value: "Vorfahrtsverstoß" },
+    });
+
+    expect(onEinwaendeReset).not.toHaveBeenCalled();
+  });
 });
 
 describe("StepSchaden – KW-03 Klagebetrag-Badge mit Haftungsquote", () => {

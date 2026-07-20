@@ -11,6 +11,15 @@ describe("DiffAnsicht", () => {
     expect(typen).toEqual(["weg", "neu", "gleich", "neu"]);
     expect(spans[0].style.textDecoration).toContain("line-through");
   });
+
+  it("markiert Ergaenzungen zusaetzlich unterstrichen (a11y-Hinweis, Fix 3)", () => {
+    render(<DiffAnsicht autoText="Der Beklagte zahlt" aktuellerText="Die Beklagte zahlt sofort" />);
+    const box = screen.getByTestId("diff-ansicht");
+    const spans = [...box.querySelectorAll("span[data-difftyp]")];
+    const neuSpan = spans.find(s => s.dataset.difftyp === "neu");
+    expect(neuSpan).toBeTruthy();
+    expect(neuSpan.style.textDecoration).toContain("underline");
+  });
 });
 
 describe("EditorMitDiff", () => {
