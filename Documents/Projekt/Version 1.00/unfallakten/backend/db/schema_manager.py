@@ -313,6 +313,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     59: "-- migration_59_dokument_bezeichnung",  # Handled by _run_migration_59 (PRD-37 Dokumentenbezeichnung)
     60: "-- migration_60_personenschaden_krankenhaus_aufenthalt",  # Handled by _run_migration_60 (Schema-Drift-Fix)
     61: "-- migration_61_klage_entwurf",  # Handled by _run_migration_61 (Klage-Wizard Entwurf)
+    62: "-- migration_62_firmen_vertreter",  # Handled by _run_migration_62 (globaler Firmen-Vertreter-Speicher)
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -1076,6 +1077,34 @@ def _run_migration_61(conn: sqlite3.Connection) -> None:
     logger.info("Migration 61 abgeschlossen (Tabelle klage_entwurf).")
 
 
+def _run_migration_62(conn: sqlite3.Connection) -> None:
+    """
+    Migration 62 - Neue Tabelle firmen_vertreter (globaler Firmen-Vertreter-Speicher).
+
+    Vertreter (Organe) je Firmenname zentral, damit RA-MICRO-/synthetische
+    Beklagte ohne beteiligte-Zeile ihren Vertreter aktenuebergreifend behalten.
+    firma_norm = lower + Whitespace-Kollaps (Rechtsform NICHT gestrippt). Kein
+    executescript, explizite Commits um DDL (Reloader-Falle).
+    """
+    conn.commit()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS firmen_vertreter (
+            firma_norm         TEXT PRIMARY KEY,
+            firma_anzeige      TEXT,
+            vertreter_name     TEXT NOT NULL,
+            vertreter_funktion TEXT,
+            aktualisiert_am    TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        )
+    """)
+    conn.commit()
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (?, ?)",
+        (62, "Migration 62 - Tabelle firmen_vertreter (globaler Vertreter-Speicher)"),
+    )
+    logger.info("Migration 62 abgeschlossen (Tabelle firmen_vertreter).")
+
+
 def _run_migration_54(conn: sqlite3.Connection) -> None:
     """
     Migration 54 - intake_dokumente.textquelle erlaubt 'email_text'.
@@ -1491,6 +1520,8 @@ def run_migrations() -> None:
                 _run_migration_60(conn)
             elif version == 61:
                 _run_migration_61(conn)
+            elif version == 62:
+                _run_migration_62(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
