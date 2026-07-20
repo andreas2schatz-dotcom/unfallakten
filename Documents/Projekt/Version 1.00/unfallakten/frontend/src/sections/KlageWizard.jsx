@@ -24,7 +24,7 @@ import { apiGebuehren } from "../api.js";
 import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
 import { formatGespeichertAm } from "./klageEntwurfLogik.js";
 import { istPersonPartei, parteiAnzeigeName, organBezeichnung, kanonischeBeklagte } from "./parteiLogik.js";
-import { schrittStatus } from "./wizardFuehrungLogik.js";
+import { wortDiff, schrittStatus } from "./wizardFuehrungLogik.js";
 export { kanonischeBeklagte };
 
 // ── Konstanten ─────────────────────────────────────────────────────────────────
@@ -453,6 +453,56 @@ function DokumentCard({ text, warnung, editText, onEditText }) {
           }}
         />
       </div>
+    </div>
+  );
+}
+
+export function DiffAnsicht({ autoText, aktuellerText }) {
+  const segmente = wortDiff(autoText, aktuellerText);
+  const stil = {
+    neu:    { background: "#e2f3e2", color: "#1e6b1e", borderRadius: 3, padding: "0 2px" },
+    weg:    { background: "#fbe3e3", color: "#a03030", textDecoration: "line-through", borderRadius: 3, padding: "0 2px" },
+    gleich: {},
+  };
+  return (
+    <div style={{
+      flex: 1, background: "#fdfcf7", border: "1px solid #e8e4d4", borderRadius: 10,
+      padding: "1.25rem", minHeight: 200, overflowY: "auto",
+      fontFamily: MONO, fontSize: "0.825rem", color: "#2d2a1e", lineHeight: 1.7,
+    }} data-testid="diff-ansicht">
+      <div style={{ fontFamily: PLEX, fontSize: "0.68rem", color: T.textMuted, marginBottom: "0.75rem" }}>
+        grün = Ihre Fassung ergänzt · rot durchgestrichen = im Automatik-Text, bei Ihnen entfallen
+      </div>
+      <div style={{ whiteSpace: "pre-wrap" }}>
+        {segmente.map((s, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && !s.text.startsWith("\n") && " "}
+            <span data-difftyp={s.typ} style={stil[s.typ]}>{s.text}</span>
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function EditorMitDiff({ autoText, text, onText, warnung }) {
+  const [zeigeDiff, setZeigeDiff] = useState(false);
+  const geaendert = (text ?? "") !== (autoText ?? "");
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      {geaendert && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+          <button onClick={() => setZeigeDiff(v => !v)}
+            style={{ padding: "4px 10px", borderRadius: 6, cursor: "pointer",
+              border: `1.5px solid ${T.border}`, background: "#fff",
+              fontFamily: PLEX, fontSize: "0.76rem", fontWeight: 600, color: T.navy }}>
+            {zeigeDiff ? "✎ Bearbeiten" : "⇄ Änderungen anzeigen"}
+          </button>
+        </div>
+      )}
+      {zeigeDiff && geaendert
+        ? <DiffAnsicht autoText={autoText} aktuellerText={text} />
+        : <DokumentCard warnung={warnung} editText={text} onEditText={onText} />}
     </div>
   );
 }
@@ -1938,27 +1988,44 @@ export function AntraegeSync({ step, opts, antraegeText, manuell, basisStand, on
   return null;
 }
 
-export function TextVeraltetBadge({ sichtbar, onNeuGenerieren, onBehalten }) {
+export function TextVeraltetBadge({ sichtbar, onNeuGenerieren, onBehalten, autoText, aktuellerText }) {
+  const [zeigeDiff, setZeigeDiff] = useState(false);
   if (!sichtbar) return null;
+  const mitDiff = autoText !== undefined && aktuellerText !== undefined;
   return (
-    <div style={{ background: `${T.amber}12`, border: `1px solid ${T.amber}50`,
-      borderRadius: 7, padding: "0.5rem 0.75rem", marginBottom: "0.75rem",
-      display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-      <span style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.amberText, flex: 1 }}>
-        ⚠ Text veraltet – Eingaben haben sich geändert.
-      </span>
-      <button onClick={onNeuGenerieren}
-        style={{ padding: "5px 10px", borderRadius: 6, cursor: "pointer",
-          border: `1.5px solid ${T.navy}`, background: "#fff",
-          fontFamily: PLEX, fontSize: "0.78rem", fontWeight: 600, color: T.navy }}>
-        ↻ Neu generieren
-      </button>
-      <button onClick={onBehalten}
-        style={{ padding: "5px 10px", borderRadius: 6, cursor: "pointer",
-          border: `1.5px solid ${T.border}`, background: "#fff",
-          fontFamily: PLEX, fontSize: "0.78rem", fontWeight: 600, color: T.textMuted }}>
-        Behalten
-      </button>
+    <div style={{ marginBottom: "0.75rem" }}>
+      <div style={{ background: `${T.amber}12`, border: `1px solid ${T.amber}50`,
+        borderRadius: 7, padding: "0.5rem 0.75rem",
+        display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <span style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.amberText, flex: 1 }}>
+          ⚠ Text veraltet – Eingaben haben sich geändert.
+        </span>
+        {mitDiff && (
+          <button onClick={() => setZeigeDiff(v => !v)}
+            style={{ padding: "5px 10px", borderRadius: 6, cursor: "pointer",
+              border: `1.5px solid ${T.border}`, background: "#fff",
+              fontFamily: PLEX, fontSize: "0.78rem", fontWeight: 600, color: T.navy }}>
+            {zeigeDiff ? "✎ Ausblenden" : "⇄ Änderungen anzeigen"}
+          </button>
+        )}
+        <button onClick={onNeuGenerieren}
+          style={{ padding: "5px 10px", borderRadius: 6, cursor: "pointer",
+            border: `1.5px solid ${T.navy}`, background: "#fff",
+            fontFamily: PLEX, fontSize: "0.78rem", fontWeight: 600, color: T.navy }}>
+          ↻ Neu generieren
+        </button>
+        <button onClick={onBehalten}
+          style={{ padding: "5px 10px", borderRadius: 6, cursor: "pointer",
+            border: `1.5px solid ${T.border}`, background: "#fff",
+            fontFamily: PLEX, fontSize: "0.78rem", fontWeight: 600, color: T.textMuted }}>
+          Behalten
+        </button>
+      </div>
+      {mitDiff && zeigeDiff && (
+        <div style={{ marginTop: 6, display: "flex" }}>
+          <DiffAnsicht autoText={autoText} aktuellerText={aktuellerText} />
+        </div>
+      )}
     </div>
   );
 }
