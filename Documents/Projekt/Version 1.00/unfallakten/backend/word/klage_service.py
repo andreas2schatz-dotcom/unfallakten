@@ -1857,6 +1857,24 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     return _render_docx(_VORLAGE, dok["replacements"], ooxml_blocks, dok["unterschrift"])
 
 
+def baue_klage_vorschau(akte_daten: dict) -> dict:
+    """Wortgenaue Text-Vorschau der Klageschrift, abschnittsweise (kein DB-Write)."""
+    dok = _baue_klage_dokument(akte_daten)
+    abschnitte = []
+    for a in dok["abschnitte"]:
+        text = ooxml_zu_text(a.xml)
+        if not text.strip():
+            continue
+        abschnitte.append({
+            "key":          a.key,
+            "titel":        a.titel,
+            "text":         text,
+            "editierbar":   a.editierbar,
+            "override_feld": a.override_feld,
+        })
+    return {"abschnitte": abschnitte}
+
+
 def _fmt_datum(iso: str) -> str:
     """
     Wandelt Datum in deutsches Format DD.MM.YYYY.

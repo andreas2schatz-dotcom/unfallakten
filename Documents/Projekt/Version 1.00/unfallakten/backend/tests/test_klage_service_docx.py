@@ -20,7 +20,10 @@ import zipfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from backend.word.klage_service import generiere_klageschrift, berechne_rvg, _beweis
+from backend.word.klage_service import (
+    generiere_klageschrift, berechne_rvg, _beweis, baue_klage_vorschau,
+)
+from backend.word.klage_bloecke import ooxml_zu_text
 
 
 def _position(key, label, betrag, betrag_original=None, checked=True):
@@ -1134,6 +1137,39 @@ class TestV10Matrix(unittest.TestCase):
                             # RVG-Betrag ist bei betrag=3000 nie auf 0 geklemmt -> der
                             # VK-Abschnitt (KW-34) bleibt in jeder Kombination vorhanden.
                             self.assertRegex(xml, r"\d+\.\)\s*Vorgerichtliche Rechtsanwaltsgebühren")
+
+
+class TestBaueKlageVorschau(unittest.TestCase):
+    def _akte(self):
+        akte = _akte_daten([_position("fahrzeugschaden", "Fahrzeugschaden", 3000.0)])
+        akte["klage_config"]["verzugsdatum"] = "2026-05-04"
+        return akte
+
+    def test_liefert_abschnitte_in_reihenfolge(self):
+        res = baue_klage_vorschau(self._akte())
+        keys = [a["key"] for a in res["abschnitte"]]
+        self.assertIn("sachverhalt", keys)
+        self.assertIn("verzug", keys)
+        self.assertLess(keys.index("sachverhalt"), keys.index("verzug"))
+
+    def test_editierbar_und_override_feld_gesetzt(self):
+        res = baue_klage_vorschau(self._akte())
+        by_key = {a["key"]: a for a in res["abschnitte"]}
+        self.assertTrue(by_key["sachverhalt"]["editierbar"])
+        self.assertEqual(by_key["sachverhalt"]["override_feld"], "sachverhalt_override")
+        self.assertFalse(by_key["gericht"]["editierbar"])
+        self.assertIsNone(by_key["gericht"]["override_feld"])
+
+    def test_text_ist_klartext_ohne_xml(self):
+        res = baue_klage_vorschau(self._akte())
+        for a in res["abschnitte"]:
+            self.assertNotIn("<w:", a["text"])
+            self.assertNotIn("{{", a["text"])
+
+    def test_kein_db_write_reine_funktion(self):
+        # baue_klage_vorschau arbeitet nur auf dem uebergebenen dict
+        res = baue_klage_vorschau(self._akte())
+        self.assertTrue(res["abschnitte"])
 
 
 if __name__ == "__main__":
