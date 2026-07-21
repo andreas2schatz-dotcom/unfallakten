@@ -11,8 +11,8 @@
 Empfohlene Reihenfolge 1→2→3→4 (3+4 teilen sich den Textaufbau-Umbau/V11 — bei der Planung abstimmen). Je Paket vor Umsetzung `superpowers:writing-plans` auf die Spec.
 
 1. **Entwurf speichern** — ✅ umgesetzt + in `main` (2026-07-19). Detail → CHANGELOG.
-2. **UI-Führung** — ✅ umgesetzt (Branch `klage-wizard-ui-fuehrung`), **noch NICHT gemergt**. Browser-Nachtest + 3 Fixes erledigt. **Offene Merge-Entscheidung:** Paket 2 jetzt mergen oder zusammen mit dem Firmen-Vertreter-Fix (siehe nächster Schritt). Detail → CHANGELOG.
-3. **Gesamtvorschau** — offen. Wortgenaue Server-Text-Vorschau (`POST /klage/vorschau`), abschnittsweise inline bearbeitbar in Schritt 11; kein PDF/LibreOffice. Spec: `docs/superpowers/specs/2026-07-19-klage-wizard-gesamtvorschau-design.md`.
+2. **UI-Führung** — ✅ umgesetzt + in **lokales `main`** gemergt (mit Firmen-Vertreter-Paket, nicht gepusht). Browser-Nachtest im Büro offen. Detail → CHANGELOG.
+3. **Gesamtvorschau** — ✅ umgesetzt (Branch `klage-gesamtvorschau`, in **lokales `main`** gemergt, nicht gepusht; Branch behalten). Wortgenaue Server-Text-Vorschau (`POST /klage/vorschau`), abschnittsweise inline bearbeitbar in Schritt 11 (4 Freitext-Overrides), Single-Source aus `_baue_klage_dokument` (DOCX byte-identisch, V10 grün). **Offen (Büro): Browser-E2E** — Vorschau erzeugen → Sachverhalt bearbeiten → Übernehmen (neuer Text sichtbar) → Als Word generieren (geänderter Text im DOCX). Spec: `docs/superpowers/specs/2026-07-19-klage-wizard-gesamtvorschau-design.md`.
 4. **Standardtexte pflegbar (V11)** — offen. Baustein-Registry (YAML, fail-loud) + Override-Tabelle, Einstellungs-Karte mit Platzhalter-Chips + Live-Vorschau; Fall-B „Die Beklagte" hartcodiert mitbeheben. Spec: `docs/superpowers/specs/2026-07-19-klage-wizard-standardtexte-design.md`.
 
 ---
@@ -69,6 +69,7 @@ Empfohlene Reihenfolge 1→2→3→4 (3+4 teilen sich den Textaufbau-Umbau/V11 �
 
 | Datum | Feature |
 |---|---|
+| 2026-07-21 | Klage-Wizard Paket 3: Gesamtvorschau (Server-Text-Vorschau + Inline-Edit, Single-Source; lokal main, Browser-E2E offen) |
 | 2026-07-21 | Globaler Firmen-Vertreter-Speicher (Tabelle `firmen_vertreter`, aktenübergreifende Vertreter-Zuordnung) |
 | 2026-07-20 | Klage-Wizard Paket 2: UI-Führung (umgesetzt, noch nicht gemergt) |
 | 2026-07-19 | Klage-Wizard Paket 1: Entwurf speichern (in main) |
