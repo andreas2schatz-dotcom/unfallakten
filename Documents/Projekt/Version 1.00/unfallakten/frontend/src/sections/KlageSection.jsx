@@ -668,37 +668,58 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     }
   };
 
+  // ── cfg/overrides für Generieren + Gesamtvorschau (einzige Quelle) ─────
+  const baueCfgUndOverrides = () => ({
+    cfg: {
+      gericht,
+      beklagte:               beklagte.filter(b => b.rolle_klage === "klaeger" || b.checked),
+      positionen:             wizardPos,
+      mit_schmerzensgeld:     wizardMitSG,
+      schmerzensgeld_mindest: wizardMitSG ? wizardSGMind : 0,
+      verzugsdatum:           zinsenAb === "verzug" ? (wizardVerzugDatum || null) : null,
+      verzug_schreiben_datum: wizardVerzugDokDatum || null,
+      zinsen_ab:              zinsenAb,
+      haftungsquote:          wizardHq,
+      haftungsquote_typ:      wizardHqTyp,
+    },
+    overrides: {
+      aktivlegitimation_typ:      aktLegTyp,
+      aktivlegitimation_freigabe: aktLegFreigabe,
+      aktivlegitimation_datum:    aktLegDatum || null,
+      sachverhalt_override:       wizardSachverhaltText || null,
+      schilderung:                wizardUnfallText || null,
+      rw_text_override:           wizardRwText     || null,
+      verzug_text_override:       wizardVerzugText || null,
+      mit_feststellung_sg:        wizardMitFestSg,
+      mit_feststellung_sach:      wizardMitFestSach,
+      antraege_override:          komponiereAntraege(wizardAntraegeText, wizardGebuehrenText) || null,
+      rvg_ausserg:                wizardRvgAussergData,
+      rvg_ausserg_override:       baueRvgAussergOverride(wizardRvgAussergOv),
+      rvg_bereits_gezahlt:        wizardRvgBereitsGezahlt ? parseFloat(wizardRvgBereitsGezahlt) : null,
+    },
+  });
+
+  // ── Inline-Edit aus der Gesamtvorschau in den Wizard-State zurückschreiben ─
+  const onVorschauEdit = (overrideFeld, text) => {
+    const map = {
+      sachverhalt_override: [setWizardSachverhaltText, setWizardSachverhaltManuell],
+      schilderung:          [setWizardUnfallText,      null],
+      rw_text_override:     [setWizardRwText,          null],
+      verzug_text_override: [setWizardVerzugText,      setWizardVerzugManuell],
+    };
+    const eintrag = map[overrideFeld];
+    if (!eintrag) return;
+    const [setText, setManuell] = eintrag;
+    setText(text);
+    if (setManuell) setManuell(true);
+  };
+
   // ── Wizard generieren – mit Overrides ─────────────────────────────────
   const wizardGenerieren = async () => {
     setGenLaedt(true); setFehler("");
     try {
-      const overrides = {
-        aktivlegitimation_typ:             aktLegTyp,
-        aktivlegitimation_freigabe:        aktLegFreigabe,
-        aktivlegitimation_datum:           aktLegDatum || null,
-        sachverhalt_override:              wizardSachverhaltText || null,
-        schilderung:                       wizardUnfallText || null,
-        rw_text_override:                  wizardRwText     || null,
-        verzug_text_override:              wizardVerzugText || null,
-        mit_feststellung_sg:               wizardMitFestSg,
-        mit_feststellung_sach:             wizardMitFestSach,
-        antraege_override:                 komponiereAntraege(wizardAntraegeText, wizardGebuehrenText) || null,
-        rvg_ausserg:                       wizardRvgAussergData,
-        rvg_ausserg_override:              baueRvgAussergOverride(wizardRvgAussergOv),
-        rvg_bereits_gezahlt:               wizardRvgBereitsGezahlt ? parseFloat(wizardRvgBereitsGezahlt) : null,
-      };
-      await apiKlage.generieren(akteId, {
-        gericht,
-        beklagte:               beklagte.filter(b => b.rolle_klage === "klaeger" || b.checked),
-        positionen:             wizardPos,
-        mit_schmerzensgeld:     wizardMitSG,
-        schmerzensgeld_mindest: wizardMitSG ? wizardSGMind : 0,
-        verzugsdatum:           zinsenAb === "verzug" ? (wizardVerzugDatum || null) : null,
-        verzug_schreiben_datum: wizardVerzugDokDatum || null,
-        zinsen_ab:              zinsenAb,
-        haftungsquote:          wizardHq,
-        haftungsquote_typ:      wizardHqTyp,
-      }, overrides);
+      const { cfg, overrides } = baueCfgUndOverrides();
+      await apiKlage.generieren(akteId, cfg, overrides);
       setToast("Klageschrift heruntergeladen.");
       await speichereEntwurf();
       setWizardOffen(false);
@@ -818,6 +839,10 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           laedt={generiert_laedt}
           onGenerieren={wizardGenerieren}
           fehler={fehler}
+          // Gesamtvorschau (Schritt 11)
+          akteId={akteId}
+          vorschauCfgFn={baueCfgUndOverrides}
+          onVorschauEdit={onVorschauEdit}
           // Entwurf speichern
           onEntwurfSpeichern={speichereEntwurf}
           entwurfDirty={entwurfDirty}

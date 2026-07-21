@@ -25,6 +25,7 @@ import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
 import { formatGespeichertAm } from "./klageEntwurfLogik.js";
 import { istPersonPartei, parteiAnzeigeName, organBezeichnung, kanonischeBeklagte } from "./parteiLogik.js";
 import { wortDiff, schrittStatus, firmenOhneVertreter as ermittleFirmenOhneVertreter } from "./wizardFuehrungLogik.js";
+import { KlageGesamtvorschau } from "./KlageGesamtvorschau.jsx";
 export { kanonischeBeklagte };
 
 // ── Konstanten ─────────────────────────────────────────────────────────────────
@@ -1715,6 +1716,7 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
                                aktLegTyp, aktLegFreigabe,
                                zinsenAb, wizardVerzugDatum,
                                laedt, onGenerieren, fehler,
+                               akteId, vorschauCfgFn, onVorschauEdit,
                                lgGrenzwert, swAusserg, antraegeText, gebuehrenText,
                                antraegeVeraltet, onAntraegeNeuGenerieren, onAntraegeBehalten,
                                antraegeAuto,
@@ -1852,6 +1854,23 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
         <div style={{ fontFamily: PLEX, fontSize: "0.85rem", color: T.red,
           padding: "8px 12px", background: `${T.red}10`, borderRadius: 7, marginBottom: "1rem" }}>
           {fehler}
+        </div>
+      )}
+
+      {akteId && vorschauCfgFn && (
+        <div style={{ marginBottom: "1rem", padding: "1rem 1.25rem",
+          background: T.surface, borderRadius: 10, border: `1px solid ${T.border}` }}>
+          <div style={{ fontFamily: PLEX, fontSize: "0.72rem", fontWeight: 700,
+            color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.1em",
+            marginBottom: "0.75rem" }}>
+            Gesamtvorschau
+          </div>
+          <KlageGesamtvorschau
+            akteId={akteId}
+            cfg={vorschauCfgFn().cfg}
+            overrides={vorschauCfgFn().overrides}
+            onEditAbschnitt={onVorschauEdit}
+          />
         </div>
       )}
 
@@ -2676,6 +2695,8 @@ export default function KlageWizard({
   onVertreterLookup, vertreterLookup,
   // Generieren
   laedt, onGenerieren, fehler,
+  // Gesamtvorschau (Schritt 11)
+  akteId, vorschauCfgFn, onVorschauEdit,
   // Entwurf speichern
   onEntwurfSpeichern, entwurfDirty, entwurfGespeichertAm, entwurfFehler, entwurfLaeuft,
   entwurfAenderungen, onAenderungenGelesen,
@@ -2934,6 +2955,8 @@ export default function KlageWizard({
                 zinsenAb={zinsenAb}         wizardVerzugDatum={wizardVerzugDatum}
                 laedt={laedt}               onGenerieren={onGenerieren}
                 fehler={fehler}
+                akteId={akteId}             vorschauCfgFn={vorschauCfgFn}
+                onVorschauEdit={onVorschauEdit}
                 lgGrenzwert={lgGrenzwert}   swAusserg={swAusserg}
                 antraegeText={wizardAntraegeText}
                 gebuehrenText={wizardGebuehrenText}
