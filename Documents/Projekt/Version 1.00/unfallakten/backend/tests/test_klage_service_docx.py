@@ -1171,6 +1171,29 @@ class TestBaueKlageVorschau(unittest.TestCase):
         res = baue_klage_vorschau(self._akte())
         self.assertTrue(res["abschnitte"])
 
+    def test_vorschau_text_ist_teilmenge_des_docx(self):
+        for mit_sg in (False, True):
+            for ov in (False, True):
+                with self.subTest(sg=mit_sg, overrides=ov):
+                    akte = _akte_daten(
+                        [_position("fahrzeugschaden", "Fahrzeugschaden", 3000.0)],
+                        mit_schmerzensgeld=mit_sg,
+                        schmerzensgeld_mindest=2000.0 if mit_sg else 0.0,
+                    )
+                    akte["klage_config"]["verzugsdatum"] = "2026-05-04"
+                    if ov:
+                        akte["unfalldetails"]["sachverhalt_override"] = (
+                            "Ein frei getippter Sachverhalt.\n\nBEWEIS: Zeugnis Meier"
+                        )
+                    vorschau = baue_klage_vorschau(akte)
+                    doc_text = ooxml_zu_text(_document_xml(generiere_klageschrift(akte)))
+                    for ab in vorschau["abschnitte"]:
+                        for zeile in ab["text"].split("\n"):
+                            z = zeile.strip()
+                            if z:
+                                self.assertIn(z, doc_text,
+                                    f"Abschnitt {ab['key']}: Zeile nicht im DOCX: {z!r}")
+
 
 if __name__ == "__main__":
     unittest.main()
