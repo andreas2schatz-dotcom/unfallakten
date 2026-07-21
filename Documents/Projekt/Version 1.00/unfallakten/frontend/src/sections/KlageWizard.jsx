@@ -24,7 +24,7 @@ import { apiGebuehren } from "../api.js";
 import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
 import { formatGespeichertAm } from "./klageEntwurfLogik.js";
 import { istPersonPartei, parteiAnzeigeName, organBezeichnung, kanonischeBeklagte } from "./parteiLogik.js";
-import { wortDiff, schrittStatus } from "./wizardFuehrungLogik.js";
+import { wortDiff, schrittStatus, firmenOhneVertreter as ermittleFirmenOhneVertreter } from "./wizardFuehrungLogik.js";
 export { kanonischeBeklagte };
 
 // ── Konstanten ─────────────────────────────────────────────────────────────────
@@ -1729,9 +1729,7 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
   const klaeger     = beklagte?.filter(b => b.rolle_klage === "klaeger") || [];
   const beklagteG   = kanonischeBeklagte(beklagte);
 
-  const firmenOhneVertreter = beklagteG.filter(b =>
-    (b.versicherung || b.firma) && !b.vertreter_name
-  );
+  const firmenOhneVertreter = ermittleFirmenOhneVertreter(beklagte);
   const keinPositionen = positionen.filter(p => p.checked).length === 0;
   const keinGericht    = !gericht;
   const keineBeklagten = beklagteG.length === 0;

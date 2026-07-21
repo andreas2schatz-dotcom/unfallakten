@@ -79,6 +79,51 @@ describe("StepZusammenfassung – KW-19 Generieren-Sperre bei 0 Beklagten", () =
   });
 });
 
+describe("StepZusammenfassung – Vertreter-Sperre schließt natürliche Personen aus", () => {
+  it("natürliche Person mit versicherung (WDM-Anreicherung) sperrt NICHT und erscheint nicht unter 'Firmen ohne Vertreter'", () => {
+    const props = {
+      ...BASIS_PROPS,
+      beklagte: [
+        { id: 1, vorname: "Max", name: "Mustermann", versicherung: "ADAC",
+          rolle_klage: "beklagter", checked: true },
+      ],
+      antraegeText: ANTRAEGE_OHNE_PLATZHALTER,
+    };
+    render(<StepZusammenfassung {...props} />);
+    expect(screen.queryByText(/Firmen ohne Vertreter/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Als Word generieren/i })).not.toBeDisabled();
+  });
+
+  it("Firma ohne Vertreter (kein Vorname) sperrt weiterhin und wird gelistet", () => {
+    const props = {
+      ...BASIS_PROPS,
+      beklagte: [
+        { id: 1, name: "ADAC Autoversicherung AG", firma: "ADAC Autoversicherung AG",
+          rolle_klage: "beklagter", checked: true },
+      ],
+      antraegeText: ANTRAEGE_OHNE_PLATZHALTER,
+    };
+    render(<StepZusammenfassung {...props} />);
+    expect(screen.getByText(/Firmen ohne Vertreter/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Als Word generieren/i })).toBeDisabled();
+  });
+
+  it("Firma MIT Vertreter sperrt nicht", () => {
+    const props = {
+      ...BASIS_PROPS,
+      beklagte: [
+        { id: 1, name: "ADAC Autoversicherung AG", firma: "ADAC Autoversicherung AG",
+          vertreter_name: "Stefan Daehne", vertreter_funktion: "Vorstand",
+          rolle_klage: "beklagter", checked: true },
+      ],
+      antraegeText: ANTRAEGE_OHNE_PLATZHALTER,
+    };
+    render(<StepZusammenfassung {...props} />);
+    expect(screen.queryByText(/Firmen ohne Vertreter/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Als Word generieren/i })).not.toBeDisabled();
+  });
+});
+
 describe("StepZusammenfassung – KW-13 RVG-gerichtlich-Duplikat entfernt", () => {
   it("zeigt gerichtlichen Streitwert als Zahl statt 'RVG gerichtlich'", () => {
     render(<StepZusammenfassung {...BASIS_PROPS} />);
