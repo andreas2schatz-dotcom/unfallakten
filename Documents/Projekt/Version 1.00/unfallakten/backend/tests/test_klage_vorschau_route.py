@@ -115,6 +115,32 @@ class TestKlageVorschauRoute(unittest.TestCase):
         self.assertIn("sachverhalt", keys)
         self.assertTrue(any(a["editierbar"] for a in data["abschnitte"]))
 
+    def test_schlussformel_zeigt_sachbearbeiter_statt_kanzlei_fallback(self):
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            conn.execute("UPDATE unfallakte SET sachbearbeiter = 'AS' WHERE az = '44/22'")
+        body = {"klage_config": {
+            "beklagte": [
+                {"rolle_klage": "klaeger", "vorname": "Max", "name": "Mustermann",
+                 "anschrift": "Musterstr. 1", "plz": "63067", "ort": "Offenbach",
+                 "anrede": "1"},
+                {"rolle_klage": "beklagter", "versicherung": "Test-Versicherung AG",
+                 "anschrift": "Teststr. 2", "plz": "12345", "ort": "Teststadt"},
+            ],
+            "positionen": [{"key": "fahrzeugschaden", "label": "Fahrzeugschaden",
+                            "betrag": 3000.0, "betragOriginal": 3000.0, "checked": True}],
+        }}
+        resp = self.client.post(
+            "/akten/44/22/klage/vorschau",
+            data=json.dumps(body), content_type="application/json",
+            headers=self.headers,
+        )
+        self.assertEqual(resp.status_code, 200, resp.get_json())
+        schluss = next(a for a in resp.get_json()["abschnitte"] if a["key"] == "schlussformel")
+        self.assertIn("Andreas Schatz", schluss["text"])
+        self.assertIn("Rechtsanwalt", schluss["text"])
+        self.assertNotIn("Kanzlei Koch, Schatz & Kollegen", schluss["text"])
+
     def test_unbekannte_akte_404(self):
         resp = self.client.post(
             "/akten/999-99/klage/vorschau",

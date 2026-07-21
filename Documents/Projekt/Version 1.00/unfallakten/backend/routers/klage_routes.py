@@ -1367,6 +1367,7 @@ def _baue_klage_akte_daten(akte, body: dict) -> dict:
             "haftungsquote": akte.haftungsquote,
             "erstellt_am":  akte.erstellt_am,
             "rvg_anlagedatum": _rvg_anlagedatum(az, akte.erstellt_am),
+            "sachbearbeiter": getattr(akte, "sachbearbeiter", "") or "",
         },
         "mandant":      mandant,
         "kanzlei":      KANZLEI_INFO,
