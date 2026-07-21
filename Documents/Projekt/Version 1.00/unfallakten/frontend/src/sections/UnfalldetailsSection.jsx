@@ -1,10 +1,35 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
 import { Card, CardHead, Btn, Toast } from "../components/common.jsx";
+import { fmtDatumDe } from "../config/utils.js";
 import {
   apiKlage,
 } from "../api.js";
+
+function datumZuIso(de) {
+  const m = (de || "").match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  return m ? `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` : "";
+}
+function isoZuDatum(iso) {
+  if (!iso) return "";
+  const [y, mo, d] = iso.split("-");
+  return `${d}.${mo}.${y}`;
+}
+function pruefeUnfalldatum(de) {
+  if (!de) return "";
+  const m = de.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!m) return "Kein gültiges Datum (TT.MM.JJJJ)";
+  const [, dd, mm, jjjj] = m;
+  const t = +dd, mo = +mm, j = +jjjj;
+  const dt = new Date(j, mo - 1, t);
+  if (dt.getFullYear() !== j || dt.getMonth() !== mo - 1 || dt.getDate() !== t)
+    return "Kein gültiges Datum";
+  const heute = new Date();
+  heute.setHours(0, 0, 0, 0);
+  if (dt > heute) return "Datum liegt in der Zukunft";
+  return "";
+}
 
 function UnfalldetailsSection({ akteId }) {
   const [daten, setDaten] = useState(null);
@@ -23,10 +48,13 @@ function UnfalldetailsSection({ akteId }) {
     unfalldatum:"",
   };
   const [form, setForm] = useState(leer);
+  const [datumFehler, setDatumFehler] = useState("");
+  const pickerRef = useRef(null);
 
   const _applyUd = (ud) => {
     if (!ud) return;
     setForm({ ...leer, ...ud, vorsteuerabzug: !!ud.vorsteuerabzug });
+    setDatumFehler(pruefeUnfalldatum(fmtDatumDe(ud.unfalldatum || "")));
     if (ud._wdm_vorhanden) {
       setWdmInfo({
         verzugab:   ud._wdm_verzugab    || "",
@@ -69,6 +97,18 @@ function UnfalldetailsSection({ akteId }) {
 
   const upd = (k, v) => setForm(p => ({...p, [k]: v}));
 
+  const datumTippen = (v) => { setDatumFehler(""); upd("unfalldatum", v); };
+  const datumBlur = () => {
+    const norm = fmtDatumDe(form.unfalldatum);
+    upd("unfalldatum", norm);
+    setDatumFehler(pruefeUnfalldatum(norm));
+  };
+  const datumAusKalender = (iso) => {
+    const de = isoZuDatum(iso);
+    upd("unfalldatum", de);
+    setDatumFehler(pruefeUnfalldatum(de));
+  };
+
   const speichern = async () => {
     setSpeichert(true);
     try {
@@ -85,6 +125,16 @@ function UnfalldetailsSection({ akteId }) {
   const taS = { ...inS, minHeight:120, resize:"vertical" };
   const lbS = { display:"block", fontFamily:"'Figtree',sans-serif",
     fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:4 };
+  const calBtnStyle = { padding:"6px 9px", borderRadius:7, cursor:"pointer",
+    border:`1px solid ${T.border}`, background:T.white, color:T.textMuted,
+    display:"flex", alignItems:"center", flexShrink:0 };
+  const CalIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1" y="3" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.4"/>
+      <path d="M1 7h14" stroke="currentColor" strokeWidth="1.4"/>
+      <path d="M5 1v3M11 1v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+    </svg>
+  );
 
 
   if (laedt) return <div style={{ padding:"2rem", textAlign:"center", color:T.textFaint,
@@ -122,10 +172,29 @@ function UnfalldetailsSection({ akteId }) {
           <CardHead title="Unfallschilderung" />
           <div style={{ padding:"1rem 1.25rem" }}>
             <label style={lbS}>Unfalldatum</label>
-            <input type="text" value={form.unfalldatum || ""}
-              onChange={e => upd("unfalldatum", e.target.value)}
-              placeholder="TT.MM.JJJJ"
-              style={{ ...inS, maxWidth:200, marginBottom:"1rem" }}/>
+            <div style={{ display:"flex", gap:6, alignItems:"center", position:"relative",
+              maxWidth:240, marginBottom: datumFehler ? 4 : "1rem" }}>
+              <input type="text" value={form.unfalldatum || ""}
+                onChange={e => datumTippen(e.target.value)}
+                onBlur={datumBlur}
+                placeholder="TT.MM.JJJJ"
+                style={{ ...inS, borderColor: datumFehler ? T.red : T.border }}/>
+              <button type="button" onClick={() => pickerRef.current?.showPicker?.()}
+                title="Kalender öffnen" style={calBtnStyle}>
+                <CalIcon />
+              </button>
+              <input ref={pickerRef} type="date"
+                value={datumZuIso(form.unfalldatum)}
+                onChange={e => datumAusKalender(e.target.value)}
+                style={{ position:"absolute", opacity:0, pointerEvents:"none", width:0, height:0, right:0 }}
+                tabIndex={-1}/>
+            </div>
+            {datumFehler && (
+              <div style={{ color:T.redText, fontFamily:"'Figtree',sans-serif",
+                fontSize:"0.78rem", marginBottom:"1rem" }}>
+                {datumFehler}
+              </div>
+            )}
             <label style={lbS}>Schilderung des Unfallhergangs</label>
             <textarea value={form.schilderung} onChange={e => upd("schilderung", e.target.value)}
               placeholder="Der Kläger befuhr die … in Richtung … Als an der dortigen Kreuzung …"
