@@ -1742,6 +1742,8 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
   const aktLegLabel = { eigentum: "Eigentum", finanziert: "Finanziert", geleast: "Geleast" }[aktLegTyp] || aktLegTyp;
   const freigabeLabel = { freigabe: "Freigabeerklärung", bedingungen: "Aus Bedingungen", ungeklaert: "⚠ Ungeklärt" }[aktLegFreigabe] || "";
 
+  const vorschauDaten = (akteId && vorschauCfgFn) ? vorschauCfgFn() : null;
+
   function ZeileZusammenfassung({ icon, label, wert, warn }) {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 10,
@@ -1867,8 +1869,8 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
           </div>
           <KlageGesamtvorschau
             akteId={akteId}
-            cfg={vorschauCfgFn().cfg}
-            overrides={vorschauCfgFn().overrides}
+            cfg={vorschauDaten.cfg}
+            overrides={vorschauDaten.overrides}
             onEditAbschnitt={onVorschauEdit}
           />
         </div>

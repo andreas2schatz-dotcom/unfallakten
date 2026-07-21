@@ -859,10 +859,10 @@ def _baue_regulierungs_tbl_xml(reg_agg: dict, ungebunden: float = 0.0, body_widt
 
 def _baue_klage_dokument(akte_daten: dict) -> dict:
     """
-    Generiert die Klageschrift als DOCX-Bytes.
+    Baut alle Klage-Abschnitte auf und gibt sie strukturiert als dict zurueck.
     Nutzt klagevorlage.docx mit sauberen Platzhaltern –
     identisches System wie forderungsschreiben_wv.py.
-    Baut alle Abschnitte auf und gibt sie strukturiert zurueck (geteilt von DOCX- und Vorschau-Pfad).
+    Geteilt von DOCX- und Vorschau-Pfad.
     """
     if not _VORLAGE.exists():
         raise FileNotFoundError(

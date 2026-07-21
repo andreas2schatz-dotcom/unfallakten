@@ -52,4 +52,16 @@ describe('KlageGesamtvorschau', () => {
     await waitFor(() =>
       expect(onEdit).toHaveBeenCalledWith('sachverhalt_override', 'Neu getippter Sachverhalt.'));
   });
+
+  it('zeigt nach Uebernehmen sofort den neuen Text (kein Stale-Reload)', async () => {
+    render(<KlageGesamtvorschau akteId="55/26" cfg={{}} overrides={{}} onEditAbschnitt={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /Vorschau erzeugen/i }));
+    await waitFor(() => screen.getByText('Der Beklagte fuhr auf.'));
+    fireEvent.click(screen.getByRole('button', { name: /Bearbeiten/i }));
+    const ta = screen.getByRole('textbox');
+    fireEvent.change(ta, { target: { value: 'Neu getippter Sachverhalt.' } });
+    fireEvent.click(screen.getByRole('button', { name: /Übernehmen/i }));
+    await waitFor(() => expect(screen.getByText('Neu getippter Sachverhalt.')).toBeInTheDocument());
+    expect(screen.queryByText('Der Beklagte fuhr auf.')).not.toBeInTheDocument();
+  });
 });

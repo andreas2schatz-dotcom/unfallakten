@@ -25,10 +25,10 @@ export function KlageGesamtvorschau({ akteId, cfg, overrides, onEditAbschnitt })
     setEditText(ab.text);
   }
 
-  async function speichereEdit(ab) {
+  function speichereEdit(ab) {
     onEditAbschnitt(ab.override_feld, editText);
+    setAbschnitte(prev => prev.map(x => x.key === ab.key ? { ...x, text: editText } : x));
     setEditKey(null);
-    await laden();
   }
 
   return (

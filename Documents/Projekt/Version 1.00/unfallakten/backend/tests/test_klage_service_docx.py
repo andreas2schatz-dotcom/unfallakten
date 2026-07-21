@@ -10,6 +10,7 @@ Werte konnten sich widersprechen.
 Testmuster: generiere_klageschrift() wird echt aufgerufen (kein Mock), das
 DOCX-Ergebnis per zipfile entpackt und word/document.xml als Text geprueft.
 """
+import inspect
 import io
 import json
 import os
@@ -1167,9 +1168,14 @@ class TestBaueKlageVorschau(unittest.TestCase):
             self.assertNotIn("{{", a["text"])
 
     def test_kein_db_write_reine_funktion(self):
-        # baue_klage_vorschau arbeitet nur auf dem uebergebenen dict
-        res = baue_klage_vorschau(self._akte())
-        self.assertTrue(res["abschnitte"])
+        # baue_klage_vorschau nimmt keine DB-Verbindung entgegen und liefert bei
+        # gleichem Input zweimal dasselbe Ergebnis (keine versteckten Seiteneffekte).
+        params = list(inspect.signature(baue_klage_vorschau).parameters)
+        self.assertEqual(params, ["akte_daten"])
+        akte = self._akte()
+        res1 = baue_klage_vorschau(akte)
+        res2 = baue_klage_vorschau(akte)
+        self.assertEqual(res1, res2)
 
     def test_vorschau_text_ist_teilmenge_des_docx(self):
         for mit_sg in (False, True):
