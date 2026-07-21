@@ -316,6 +316,14 @@ export const apiKlage = {
                                        method: 'POST', body: JSON.stringify({ profil }) }),
   sgText:          (az, body)     => request(`/akten/${az}/klage/sg-text`, {
                                        method: 'POST', body: JSON.stringify(body) }),
+  vorschau: (az, klagenConfig, overrides = null) => request(`/akten/${az}/klage/vorschau`, {
+    method: 'POST',
+    body: JSON.stringify(
+      overrides !== null
+        ? { klage_config: klagenConfig, overrides }
+        : { klage_config: klagenConfig }
+    ),
+  }),
   generieren: async (az, klagenConfig, overrides = null) => {
     const token = tokenStore.getAccess();
     const reqBody = { klage_config: klagenConfig, in_db: true };
