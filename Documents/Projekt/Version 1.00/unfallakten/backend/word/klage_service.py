@@ -31,6 +31,7 @@ from typing import Optional
 from ..models.schaden import berechne_abrechnungsart
 # PRD-29: Gemeinsamer Schmerzensgeld-Textbaustein
 from .sg_text_builder import baue_sg_abschnitt
+from .klage_bloecke import Abschnitt, ooxml_zu_text
 
 logger = logging.getLogger(__name__)
 
@@ -856,11 +857,12 @@ def _baue_regulierungs_tbl_xml(reg_agg: dict, ungebunden: float = 0.0, body_widt
     return xml, gesamt
 
 
-def generiere_klageschrift(akte_daten: dict) -> bytes:
+def _baue_klage_dokument(akte_daten: dict) -> dict:
     """
     Generiert die Klageschrift als DOCX-Bytes.
     Nutzt klagevorlage.docx mit sauberen Platzhaltern –
     identisches System wie forderungsschreiben_wv.py.
+    Baut alle Abschnitte auf und gibt sie strukturiert zurueck (geteilt von DOCX- und Vorschau-Pfad).
     """
     if not _VORLAGE.exists():
         raise FileNotFoundError(
@@ -1822,27 +1824,37 @@ def generiere_klageschrift(akte_daten: dict) -> bytes:
     sl_xml += _psl(sb_titel)
 
     # ════════════════════════════════════════════════════════════════════════
-    # ZUSAMMENFÜHREN UND RENDERN
+    # ABSCHNITTE ZUSAMMENSTELLEN
     # ════════════════════════════════════════════════════════════════════════
-    ooxml_blocks = {
-        "{{AKTENZEICHEN}}":           az_xml,
-        "{{DATUM}}":                  datum_xml,
-        "{{GERICHT_ADRESSE}}":        gericht_adresse_xml,
-        "{{KLAEGER_BLOCK}}":          klaeger_xml,
-        "{{HPV_BLOCK}}":              hpv_xml,
-        "{{ANTRAEGE}}":               antraege_xml,
-        "{{EINLEITUNG}}":             einleitung_xml,
-        "{{AKTIVLEGITIMATION}}":      aktivleg_xml,
-        "{{UNFALLHERGANG}}":          unfall_xml,
-        "{{SCHADEN}}":                schaden_xml,
-        "{{RECHTLICHE_WUERDIGUNG}}":  rw_xml,
-        "{{SCHMERZENSGELD}}":         sg_xml,
-        "{{VERZUG}}":                 verzug_xml,
-        "{{VORGERICHTLICHE_KOSTEN}}": vk_xml,
-        "{{SCHLUSSFORMEL}}":          sl_xml,
+    abschnitte = [
+        Abschnitt("aktenzeichen",      "Aktenzeichen",             "{{AKTENZEICHEN}}",           az_xml,               False, None),
+        Abschnitt("datum",             "Datum",                    "{{DATUM}}",                  datum_xml,            False, None),
+        Abschnitt("gericht",           "Gericht",                  "{{GERICHT_ADRESSE}}",        gericht_adresse_xml,  False, None),
+        Abschnitt("klaeger",           "Kläger (Rubrum)",          "{{KLAEGER_BLOCK}}",          klaeger_xml,          False, None),
+        Abschnitt("beklagte",          "Beklagte (Rubrum)",        "{{HPV_BLOCK}}",              hpv_xml,              False, None),
+        Abschnitt("antraege",          "Anträge",                  "{{ANTRAEGE}}",               antraege_xml,         False, None),
+        Abschnitt("sachverhalt",       "Sachverhalt",              "{{EINLEITUNG}}",             einleitung_xml,       True,  "sachverhalt_override"),
+        Abschnitt("aktivlegitimation", "Aktivlegitimation",        "{{AKTIVLEGITIMATION}}",      aktivleg_xml,         False, None),
+        Abschnitt("unfallhergang",     "Unfallhergang",            "{{UNFALLHERGANG}}",          unfall_xml,           True,  "schilderung"),
+        Abschnitt("schaden",           "Schadenaufstellung",       "{{SCHADEN}}",                schaden_xml,          False, None),
+        Abschnitt("wuerdigung",        "Rechtliche Würdigung",     "{{RECHTLICHE_WUERDIGUNG}}",  rw_xml,               True,  "rw_text_override"),
+        Abschnitt("schmerzensgeld",    "Schmerzensgeld",           "{{SCHMERZENSGELD}}",         sg_xml,               False, None),
+        Abschnitt("verzug",            "Verzug",                   "{{VERZUG}}",                 verzug_xml,           True,  "verzug_text_override"),
+        Abschnitt("vorger_kosten",     "Vorgerichtliche Kosten",   "{{VORGERICHTLICHE_KOSTEN}}", vk_xml,               False, None),
+        Abschnitt("schlussformel",     "Schlussformel",            "{{SCHLUSSFORMEL}}",          sl_xml,               False, None),
+    ]
+    return {
+        "replacements": replacements,
+        "unterschrift": unterschrift,
+        "abschnitte":   abschnitte,
     }
 
-    return _render_docx(_VORLAGE, replacements, ooxml_blocks, unterschrift)
+
+def generiere_klageschrift(akte_daten: dict) -> bytes:
+    """Generiert die Klageschrift als DOCX-Bytes (Vorlage + Platzhalter)."""
+    dok = _baue_klage_dokument(akte_daten)
+    ooxml_blocks = {a.platzhalter: a.xml for a in dok["abschnitte"]}
+    return _render_docx(_VORLAGE, dok["replacements"], ooxml_blocks, dok["unterschrift"])
 
 
 def _fmt_datum(iso: str) -> str:
