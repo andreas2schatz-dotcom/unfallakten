@@ -9,6 +9,7 @@ REST-Endpunkte für das Klage-Modul.
   PUT  /akten/<az>/klage/gericht         Gewähltes Gericht in SQLite speichern
   POST /akten/<az>/klage/rvg-berechnen   RVG-Vorschau berechnen
   POST /akten/<az>/klage/generieren      Klageschrift generieren + speichern
+  POST /akten/<az>/klage/vorschau        Text-Vorschau der Klageschrift (kein DB-Write)
 """
 
 import dataclasses
@@ -27,7 +28,7 @@ from ..db.database import get_connection
 from ._helpers import pruefe_akte as _pruefe_akte
 from ..models.schaden import hole_schadenpositionen, hole_regulierungen_by_akte
 from ..models.dokument import registriere_dokument
-from ..word.klage_service import berechne_rvg, generiere_klageschrift, berechne_fahrzeugschaden
+from ..word.klage_service import berechne_rvg, generiere_klageschrift, berechne_fahrzeugschaden, baue_klage_vorschau
 from ..word.word_service import KANZLEI_INFO, _lade_beteiligte_aus_ramicro
 from ..word.forderungsschreiben_wv import _grammatik_vars, _netto_oder_brutto
 from ..word.stellungnahme_service import ersetze_platzhalter
@@ -1229,19 +1230,7 @@ def rvg_berechnen(akte_id: str):
 
 # ── Klageschrift generieren ───────────────────────────────────────────────────
 
-@klage_bp.route("/generieren", methods=["POST"])
-@login_erforderlich
-def generiere_klage(akte_id: str):
-    """
-    POST /akten/<az>/klage/generieren
-    Body: { klage_config: { beklagte, positionen, mit_schmerzensgeld,
-                             schmerzensgeld_mindest, verzugsdatum, zinsen_ab } }
-    """
-    akte = hole_akte_by_id(akte_id)
-    if not akte:
-        return _err(f"Akte {akte_id} nicht gefunden.", 404)
-
-    body = request.get_json(silent=True) or {}
+def _baue_klage_akte_daten(akte, body: dict) -> dict:
     klage_cfg = body.get("klage_config") or {}
 
     # PRD-24: Wizard-Overrides auslesen (explizit, keine Mehrdeutigkeit)
@@ -1446,6 +1435,25 @@ def generiere_klage(akte_id: str):
         ).fetchone()
     akte_daten["personenschaden"] = dict(ps_row) if ps_row else {}
 
+    return akte_daten
+
+
+@klage_bp.route("/generieren", methods=["POST"])
+@login_erforderlich
+def generiere_klage(akte_id: str):
+    """
+    POST /akten/<az>/klage/generieren
+    Body: { klage_config: { beklagte, positionen, mit_schmerzensgeld,
+                             schmerzensgeld_mindest, verzugsdatum, zinsen_ab } }
+    """
+    akte = hole_akte_by_id(akte_id)
+    if not akte:
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+
+    body = request.get_json(silent=True) or {}
+    akte_daten = _baue_klage_akte_daten(akte, body)
+    az = akte.aktenzeichen
+
     try:
         doc_bytes = generiere_klageschrift(akte_daten)
     except FileNotFoundError as e:
@@ -1514,6 +1522,27 @@ def generiere_klage(akte_id: str):
         as_attachment=True,
         download_name=dateiname,
     )
+
+
+@klage_bp.route("/vorschau", methods=["POST"])
+@login_erforderlich
+def vorschau_klage(akte_id: str):
+    """POST /akten/<az>/klage/vorschau — strukturierte Text-Vorschau, kein DB-Write."""
+    akte = hole_akte_by_id(akte_id)
+    if not akte:
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    body = request.get_json(silent=True) or {}
+    akte_daten = _baue_klage_akte_daten(akte, body)
+    try:
+        return jsonify(baue_klage_vorschau(akte_daten))
+    except FileNotFoundError as e:
+        return _err(str(e), 501)
+    except ValueError as e:
+        logger.warning("Klage-Vorschau abgelehnt (422): %s", e)
+        return _err(str(e), 422)
+    except Exception as e:
+        logger.error("Klage-Vorschau fehlgeschlagen: %s", e, exc_info=True)
+        return _err(f"Fehler bei der Vorschau: {e}", 500)
 
 
 # ── Gericht in Akte speichern ─────────────────────────────────────────────────
