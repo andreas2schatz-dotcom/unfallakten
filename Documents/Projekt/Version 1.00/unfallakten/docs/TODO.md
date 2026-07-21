@@ -15,11 +15,6 @@ Empfohlene Reihenfolge 1→2→3→4 (3+4 teilen sich den Textaufbau-Umbau/V11 �
 3. **Gesamtvorschau** — offen. Wortgenaue Server-Text-Vorschau (`POST /klage/vorschau`), abschnittsweise inline bearbeitbar in Schritt 11; kein PDF/LibreOffice. Spec: `docs/superpowers/specs/2026-07-19-klage-wizard-gesamtvorschau-design.md`.
 4. **Standardtexte pflegbar (V11)** — offen. Baustein-Registry (YAML, fail-loud) + Override-Tabelle, Einstellungs-Karte mit Platzhalter-Chips + Live-Vorschau; Fall-B „Die Beklagte" hartcodiert mitbeheben. Spec: `docs/superpowers/specs/2026-07-19-klage-wizard-standardtexte-design.md`.
 
-### ➡️ Nächster Schritt (festgelegt 2026-07-20): Globaler Firmen-Vertreter-Speicher
-Offener Punkt aus dem Paket-2-Nachtest. Vertreter zentral je Firmenname speichern (neue Tabelle `firmen_vertreter`, Migration ~62) und beim Beklagten-Aufbau nachschlagen — löst die synthetische § 115-VVG-Versicherung (ohne SQLite-Zeile, z. B. Akte 828/24) und merkt Organe aktenübergreifend. Per-Beteiligter-Vertreter behält Vorrang, KEIN Auto-Apply, RA-MICRO read-only.
-- Vollständiger Plan + Touchpoints + TDD-Schritte: `handover/naechste_session_firmen-vertreter-global.md`
-- Läuft auf Branch `klage-wizard-ui-fuehrung` (oder Folge-Branch). Start mit `superpowers:writing-plans`.
-
 ---
 
 ## 📋 Backlog (nach Priorität)
@@ -74,6 +69,7 @@ Offener Punkt aus dem Paket-2-Nachtest. Vertreter zentral je Firmenname speicher
 
 | Datum | Feature |
 |---|---|
+| 2026-07-21 | Globaler Firmen-Vertreter-Speicher (Tabelle `firmen_vertreter`, aktenübergreifende Vertreter-Zuordnung) |
 | 2026-07-20 | Klage-Wizard Paket 2: UI-Führung (umgesetzt, noch nicht gemergt) |
 | 2026-07-19 | Klage-Wizard Paket 1: Entwurf speichern (in main) |
 | 2026-07-19 | PRD-33 Klage-Wizard Feintuning KOMPLETT (40 Bugs KW-01–40, S1–6) |
