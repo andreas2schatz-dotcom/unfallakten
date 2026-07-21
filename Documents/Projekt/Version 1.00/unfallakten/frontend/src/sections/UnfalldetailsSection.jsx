@@ -20,6 +20,7 @@ function UnfalldetailsSection({ akteId }) {
     ermittlungsakte_az:"", ermittlungsakte_behoerde:"", ermittlungsakte_ort:"",
     fahrer_mandant:"", fahrer_gegner:"",
     vorsteuerabzug: false, haftungsquote: 100, haftungsbegruendung:"",
+    unfalldatum:"",
   };
   const [form, setForm] = useState(leer);
 
@@ -120,6 +121,11 @@ function UnfalldetailsSection({ akteId }) {
         <Card>
           <CardHead title="Unfallschilderung" />
           <div style={{ padding:"1rem 1.25rem" }}>
+            <label style={lbS}>Unfalldatum</label>
+            <input type="text" value={form.unfalldatum || ""}
+              onChange={e => upd("unfalldatum", e.target.value)}
+              placeholder="TT.MM.JJJJ"
+              style={{ ...inS, maxWidth:200, marginBottom:"1rem" }}/>
             <label style={lbS}>Schilderung des Unfallhergangs</label>
             <textarea value={form.schilderung} onChange={e => upd("schilderung", e.target.value)}
               placeholder="Der Kläger befuhr die … in Richtung … Als an der dortigen Kreuzung …"

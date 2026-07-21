@@ -327,9 +327,12 @@ def hole_unfalldetails(akte_id: str):
                 pass
         return sqlite_daten.get("haftungsquote") or 100.0
 
+    _utag = _wdm("varU-TAG")
     merged = {
         # Aus SQLite (eigene Werte haben Vorrang)
         **sqlite_daten,
+        # Unfalldatum lebt in unfallakte; WDM (varU-TAG) fuellt leere/force_wdm.
+        "unfalldatum": _utag if (force_wdm and _utag) else (akte.unfalldatum or _utag),
         # WDM-Prefills für leere Felder
         "schilderung":            merge("schilderung", "varSCHILD"),
         "zeuge_1":                merge("zeuge_1", "varZ1"),
@@ -394,7 +397,17 @@ def speichere_unfalldetails(akte_id: str):
     except (TypeError, ValueError):
         felder["haftungsquote"] = 100.0
 
+    # Unfalldatum gehoert zu unfallakte (die unfalldetails-Tabelle hat keine
+    # Datums-Spalte) und wird nur geschrieben, wenn der Client das Feld schickt.
+    unfalldatum = (d.get("unfalldatum") or "").strip()
+
     with get_connection() as conn:
+        if "unfalldatum" in d:
+            conn.execute(
+                "UPDATE unfallakte SET unfalldatum = ? WHERE az = ?",
+                (unfalldatum, az)
+            )
+
         existing = conn.execute(
             "SELECT id FROM unfalldetails WHERE akte_id = ?", (az,)
         ).fetchone()
@@ -407,8 +420,11 @@ def speichere_unfalldetails(akte_id: str):
                 (*felder.values(), az)
             )
         else:
-            cols = ["akte_id"] + list(felder.keys())
-            vals = [az] + list(felder.values())
+            # None-Werte beim Neuanlegen weglassen, damit NOT-NULL-Spalten mit
+            # DEFAULT (aktivlegitimation_typ/-freigabe) ihren Vorgabewert bekommen.
+            insert_felder = {k: v for k, v in felder.items() if v is not None}
+            cols = ["akte_id"] + list(insert_felder.keys())
+            vals = [az] + list(insert_felder.values())
             conn.execute(
                 f"INSERT INTO unfalldetails ({', '.join(cols)}) VALUES ({', '.join(['?']*len(vals))})",
                 vals
@@ -418,7 +434,10 @@ def speichere_unfalldetails(akte_id: str):
             "SELECT * FROM unfalldetails WHERE akte_id = ?", (az,)
         ).fetchone()
 
-    return _j({"unfalldetails": dict(row) if row else None})
+    result = dict(row) if row else {}
+    if "unfalldatum" in d:
+        result["unfalldatum"] = unfalldatum
+    return _j({"unfalldetails": result})
 
 
 # ── Klage-Daten laden ─────────────────────────────────────────────────────────
