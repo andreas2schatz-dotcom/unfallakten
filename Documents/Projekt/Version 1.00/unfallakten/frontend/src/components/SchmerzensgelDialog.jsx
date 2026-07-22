@@ -243,7 +243,7 @@ export default function SchmerzensgelDialog({ az, kl_nom, onClose, onUebernehmen
         background: T.surface, borderRadius: 12, boxShadow: "0 8px 40px rgba(0,0,0,0.35)",
         width: "100%", maxWidth: 640, maxHeight: "90vh",
         display: "flex", flexDirection: "column",
-        fontFamily: "'Figtree',sans-serif",
+        fontFamily: T.fontBody,
       }}>
 
         {/* Header */}
@@ -555,7 +555,7 @@ export default function SchmerzensgelDialog({ az, kl_nom, onClose, onUebernehmen
                     width: "100%", padding: "0.6rem 0.75rem",
                     border: `1px solid ${sgText ? T.navy : T.border}`,
                     borderRadius: 6, fontSize: "0.82rem", resize: "vertical",
-                    fontFamily: "'Figtree',sans-serif", lineHeight: 1.5,
+                    fontFamily: T.fontBody, lineHeight: 1.5,
                     background: T.surface, color: T.text,
                     boxSizing: "border-box",
                   }}

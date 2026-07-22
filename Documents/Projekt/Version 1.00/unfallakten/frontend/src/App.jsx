@@ -60,7 +60,7 @@ function QuickAkteSearch({ onOpenAkte }) {
 
   return (
     <div ref={containerRef} style={{ padding:"0 0.5rem 0.5rem", position:"relative" }}>
-      <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem", fontWeight:600, color:"rgba(255,255,255,0.35)", letterSpacing:"0.12em", textTransform:"uppercase", padding:"6px 6px 4px" }}>
+      <div style={{ fontFamily:T.fontBody, fontSize:"0.72rem", fontWeight:600, color:"rgba(255,255,255,0.35)", letterSpacing:"0.12em", textTransform:"uppercase", padding:"6px 6px 4px" }}>
         Schnellaufruf
       </div>
       <div style={{ position:"relative" }}>
@@ -70,7 +70,7 @@ function QuickAkteSearch({ onOpenAkte }) {
           onKeyDown={onKey}
           onFocus={() => { if (items.length > 0) setOpen(true); }}
           placeholder="Az. / Name …"
-          style={{ width:"100%", boxSizing:"border-box", padding:"7px 10px 7px 30px", background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.13)", borderRadius:7, color:"rgba(255,255,255,0.85)", fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem", outline:"none" }}
+          style={{ width:"100%", boxSizing:"border-box", padding:"7px 10px 7px 30px", background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.13)", borderRadius:7, color:"rgba(255,255,255,0.85)", fontFamily:T.fontBody, fontSize:"0.855rem", outline:"none" }}
         />
         <span style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)", fontSize:"0.8rem", color:"rgba(255,255,255,0.35)", pointerEvents:"none" }}>🔍</span>
       </div>
@@ -79,7 +79,7 @@ function QuickAkteSearch({ onOpenAkte }) {
           {items.slice(0, 6).map((a, i) => (
             <div key={i}
               onMouseDown={() => select(a)}
-              style={{ padding:"7px 10px", cursor:"pointer", fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem", borderBottom: i < Math.min(items.length, 6) - 1 ? "1px solid #f0f0f0" : "none" }}
+              style={{ padding:"7px 10px", cursor:"pointer", fontFamily:T.fontBody, fontSize:"0.855rem", borderBottom: i < Math.min(items.length, 6) - 1 ? "1px solid #f0f0f0" : "none" }}
               onMouseEnter={e => e.currentTarget.style.background="#f5f1ec"}
               onMouseLeave={e => e.currentTarget.style.background="transparent"}>
               <span style={{ fontWeight:600, fontFamily:"ui-monospace,monospace", fontSize:"0.82rem" }}>{a.az}</span>
@@ -188,7 +188,7 @@ function AppShell({ user, onLogout }) {
     <div style={{ height:"100vh", display:"flex", flexDirection:"column", overflow:"hidden" }}>
       <TopNav user={user} onLogout={handleLogout} backendOnline={online} />
       {systemStatus?.ramicro?.ok === false && (
-        <div style={{ background:"#c0392b", color:"white", padding:"7px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0, fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}>
+        <div style={{ background:"#c0392b", color:"white", padding:"7px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0, fontFamily:T.fontBody, fontSize:"0.875rem" }}>
           <span>
             ⚠ <strong>RA-Micro nicht erreichbar</strong>
             {systemStatus.ramicro.letzter_sync_vor_s != null && (
@@ -202,7 +202,7 @@ function AppShell({ user, onLogout }) {
           </span>
           <button
             onClick={() => { setActive("einstellungen"); setPendingEinstellungenTab("system_status"); }}
-            style={{ background:"rgba(255,255,255,0.25)", color:"white", border:"none", borderRadius:4, padding:"4px 12px", cursor:"pointer", fontSize:"0.825rem", fontFamily:"'Figtree',sans-serif" }}>
+            style={{ background:"rgba(255,255,255,0.25)", color:"white", border:"none", borderRadius:4, padding:"4px 12px", cursor:"pointer", fontSize:"0.825rem", fontFamily:T.fontBody }}>
             → System-Status öffnen
           </button>
         </div>
@@ -221,7 +221,7 @@ function AppShell({ user, onLogout }) {
 
           {/* Navigationseinträge */}
           <div style={{ padding:"0.6rem 0.5rem", flex:1 }}>
-            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem", fontWeight:600, color:"rgba(255,255,255,0.35)", letterSpacing:"0.12em", textTransform:"uppercase", padding:"8px 10px 4px" }}>
+            <div style={{ fontFamily:T.fontBody, fontSize:"0.72rem", fontWeight:600, color:"rgba(255,255,255,0.35)", letterSpacing:"0.12em", textTransform:"uppercase", padding:"8px 10px 4px" }}>
               Navigation
             </div>
             {navItems.map(item => {
@@ -231,7 +231,7 @@ function AppShell({ user, onLogout }) {
                   style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"flex-start", gap:10, padding:"9px 12px", borderRadius:7, border:"none", cursor:"pointer",
                     background:isA?T.accentTrim:"transparent",
                     color: T.white,
-                    fontFamily:"'Figtree',sans-serif", fontSize:"1rem",
+                    fontFamily:T.fontBody, fontSize:"1rem",
                     fontWeight:isA?600:400, textAlign:"left", transition:"all 0.12s", marginBottom:2,
                     ...(isA ? { boxShadow:`inset 2px 0 0 ${T.accent}` } : {}) }}
                   onMouseEnter={e => { if (!isA) e.currentTarget.style.background="rgba(255,255,255,0.06)"; }}
@@ -246,7 +246,7 @@ function AppShell({ user, onLogout }) {
             {tabs.filter(t => t.id.startsWith("akte-")).length > 0 && (
               <>
                 <div style={{ margin:"8px 10px", borderTop:"1px solid rgba(255,255,255,0.08)" }} />
-                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem", fontWeight:600, color:"rgba(255,255,255,0.35)", letterSpacing:"0.12em", textTransform:"uppercase", padding:"4px 10px 4px" }}>
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.72rem", fontWeight:600, color:"rgba(255,255,255,0.35)", letterSpacing:"0.12em", textTransform:"uppercase", padding:"4px 10px 4px" }}>
                   Offene Akten
                 </div>
                 {tabs.filter(t => t.id.startsWith("akte-")).map(t => {
@@ -276,7 +276,7 @@ function AppShell({ user, onLogout }) {
           </div>
 
           {/* User-Info unten */}
-          <div style={{ padding:"0.75rem 0.75rem", borderTop:"1px solid rgba(255,255,255,0.08)", fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", color:"rgba(255,255,255,0.45)" }}>
+          <div style={{ padding:"0.75rem 0.75rem", borderTop:"1px solid rgba(255,255,255,0.08)", fontFamily:T.fontBody, fontSize:"0.78rem", color:"rgba(255,255,255,0.45)" }}>
             <div style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user?.name}</div>
           </div>
         </div>

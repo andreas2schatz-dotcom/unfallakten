@@ -44,7 +44,7 @@ const STEPS = [
   { nr: 11, label: "Generieren"},
 ];
 
-const PLEX = "'Figtree',sans-serif";
+const PLEX = T.fontBody;
 const MONO = "ui-monospace,monospace";
 
 // ── Hilfsfunktionen ────────────────────────────────────────────────────────────

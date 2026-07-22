@@ -531,7 +531,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
   const fmtField = (v) => v ? new Intl.NumberFormat("de-DE", { minimumFractionDigits:2, maximumFractionDigits:2 }).format(v) : "";
 
   const rowStyle   = { display:"grid", gridTemplateColumns:"220px 1fr auto", alignItems:"center", gap:"0.75rem", padding:"0.55rem 0", borderBottom:`1px solid ${T.borderSoft}` };
-  const labelStyle = { fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem", fontWeight:600, color:T.textMid, letterSpacing:"0.02em" };
+  const labelStyle = { fontFamily:T.fontBody, fontSize:"0.895rem", fontWeight:600, color:T.textMid, letterSpacing:"0.02em" };
 
   const renderEuroInput = (fieldKey, { abzug=false, extraValue, onExtraChange } = {}) => {
     const isExtra = extraValue !== undefined;
@@ -597,7 +597,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
             display:"flex", flexDirection:"column", overflow:"hidden" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
               padding:"12px 20px", borderBottom:`1px solid ${T.border}`, background:T.surface }}>
-              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem", fontWeight:600, color:T.navy }}>
+              <span style={{ fontFamily:T.fontBody, fontSize:"0.9rem", fontWeight:600, color:T.navy }}>
                 📄 Beleg-Vorschau
               </span>
               <button onClick={() => setBelegVorschau(null)}
@@ -625,7 +625,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
             boxShadow:"0 16px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
               padding:"12px 18px", borderBottom:`1px solid ${T.border}` }}>
-              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem", fontWeight:600, color:T.navy }}>
+              <span style={{ fontFamily:T.fontBody, fontSize:"0.9rem", fontWeight:600, color:T.navy }}>
                 📄 Beleg-Vorschau
               </span>
               <button onClick={() => setBelegVorschau(null)}
@@ -655,7 +655,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
             boxShadow:"0 20px 60px rgba(0,0,0,0.3)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
               padding:"12px 20px", borderBottom:`1px solid ${T.border}`, background:T.surface }}>
-              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem", fontWeight:600, color:T.navy }}>
+              <span style={{ fontFamily:T.fontBody, fontSize:"0.9rem", fontWeight:600, color:T.navy }}>
                 📎 Rechnungsvorschlag – {SCHADEN_F.find(sf => sf.k === kandidatView)?.l || kandidatView}
               </span>
               <button onClick={() => setKandidatView(null)}
@@ -710,7 +710,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                 ) : kandidatVorschauUrl ? (
                   <iframe src={kandidatVorschauUrl} style={{ width:"100%", height:"100%", border:"none" }} title="Rechnung" />
                 ) : (
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100%", color:T.textFaint, fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem" }}>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100%", color:T.textFaint, fontFamily:T.fontBody, fontSize:"0.9rem" }}>
                     Keine Vorschau verfügbar
                   </div>
                 )}
@@ -728,7 +728,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
         ].map(tab => (
           <button key={tab.id} onClick={() => setSchadenTab(tab.id)} style={{
             padding:"9px 22px", border:"none", background:"none", cursor:"pointer",
-            fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem",
+            fontFamily:T.fontBody, fontSize:"0.935rem",
             fontWeight: schadenTab===tab.id ? 700 : 500,
             color:      schadenTab===tab.id ? T.navy : T.textMuted,
             borderBottom: schadenTab===tab.id ? `3px solid ${T.navy}` : "3px solid transparent",
@@ -746,7 +746,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
       {zeige130Hinweis && (
         <div style={{ background:T.amberBg, border:"1.5px solid #f59e0b", borderRadius:9,
           padding:"0.75rem 1.1rem", marginBottom:"1rem", display:"flex", gap:10, alignItems:"flex-start",
-          fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.amberText }}>
+          fontFamily:T.fontBody, fontSize:"0.875rem", color:T.amberText }}>
           <span style={{ fontSize:"1.1rem", flexShrink:0 }}>⚠️</span>
           <div>
             <strong>Möglicher 130%-Fall:</strong> Die Reparaturrechnung ({new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(_cbRepRN)})
@@ -760,7 +760,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
       {/* ── Auto-WDM Ladeindikator ──────────────────────────────────────── */}
       {wdmLaden && (
         <Card>
-          <div style={{ padding:"0.8rem 1.4rem", display:"flex", alignItems:"center", gap:10, fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:"#6b21a8" }}>
+          <div style={{ padding:"0.8rem 1.4rem", display:"flex", alignItems:"center", gap:10, fontFamily:T.fontBody, fontSize:"0.875rem", color:"#6b21a8" }}>
             <span style={{ animation:"spin 0.8s linear infinite", display:"inline-block" }}>⟳</span>
             Schadenpositionen aus RA-Micro werden geladen…
           </div>
@@ -772,7 +772,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
         <Card>
           <div style={{ padding:"1rem 1.4rem" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.75rem" }}>
-              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem", fontWeight:700, color:"#6b21a8" }}>
+              <div style={{ fontFamily:T.fontBody, fontSize:"0.9rem", fontWeight:700, color:"#6b21a8" }}>
                 📊 {wdmSchadenDaten.felder_gefunden} Schadenpositionen aus RA-Micro
                 {(wdmSchadenDaten.extras_gefunden||0) > 0 && ` + ${wdmSchadenDaten.extras_gefunden} sonstige Schäden`}
               </div>
@@ -1001,10 +1001,10 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
             <div style={{ marginBottom:"1rem", padding:"10px 14px", background:T.greenBg, border:`1px solid ${T.green}33`, borderRadius:8, display:"flex", alignItems:"center", gap:10 }}>
               <span style={{ color:T.green, fontSize:"1.1rem", flexShrink:0 }}>📄</span>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", fontWeight:600, color:T.green }}>
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.875rem", fontWeight:600, color:T.green }}>
                   {gutachtenDoks.length === 1 ? "Gutachten erfasst" : `${gutachtenDoks.length} Gutachten erfasst`}
                 </div>
-                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textMuted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.82rem", color:T.textMuted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                   {gutachtenDoks.map(g => g.dateiname).join(", ")}
                 </div>
               </div>
@@ -1018,7 +1018,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
           {/* Feste Positionen */}
           <div style={{ marginBottom:"0.5rem" }}>
             <div style={{ overflowX:"auto" }}>
-              <table style={{ width:"100%", borderCollapse:"collapse", fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontFamily:T.fontBody, fontSize:"0.875rem" }}>
                 <thead>
                   <tr style={{ background:T.navy }}>
                     {["Position","Betrag","Beleg"].map((h,i) => (
@@ -1049,7 +1049,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                         const chipBg    = isHigh ? (T.green+"18") : (T.amber+"15");
                         const chipBord  = chipColor + "66";
                         const baseStyle = {
-                          fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600,
+                          fontFamily:T.fontBody, fontSize:"0.75rem", fontWeight:600,
                           cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
                           color:chipColor, background:chipBg,
                           display:"flex", alignItems:"center",
@@ -1095,7 +1095,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                       })()}
                     </div>
                     {f.k==="sonstiges" && (
-                      <input placeholder="Beschreibung" value={form.sonstiges_beschr||""} onChange={e => { setForm(p => ({...p,sonstiges_beschr:e.target.value})); setChg(true); }} style={{ marginTop:4, width:"100%", maxWidth:220, padding:"5px 8px", border:`1px solid ${T.border}`, borderRadius:6, fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem", color:T.textMid, background:T.surface, outline:"none", boxSizing:"border-box" }} />
+                      <input placeholder="Beschreibung" value={form.sonstiges_beschr||""} onChange={e => { setForm(p => ({...p,sonstiges_beschr:e.target.value})); setChg(true); }} style={{ marginTop:4, width:"100%", maxWidth:220, padding:"5px 8px", border:`1px solid ${T.border}`, borderRadius:6, fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMid, background:T.surface, outline:"none", boxSizing:"border-box" }} />
                     )}
                   </td>
                   <td style={{ padding:"6px 12px", textAlign:"right" }}>
@@ -1105,7 +1105,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                         {beleg.betrag_aus_beleg > 0 && beleg.betrag_aus_beleg !== (form[f.k]||0) && (
                           <button onClick={() => { setForm(p => ({...p, [f.k]: beleg.betrag_aus_beleg})); setChg(true); setToast(`${fmtEuro(beleg.betrag_aus_beleg)} übernommen.`); }}
                             title={`${fmtEuro(beleg.betrag_aus_beleg)} aus Beleg übernehmen`}
-                            style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem", fontWeight:600,
+                            style={{ fontFamily:T.fontBody, fontSize:"0.72rem", fontWeight:600,
                               color:T.blue, background:T.blueBg, border:`1px solid ${T.blue}33`,
                               borderRadius:5, padding:"2px 6px", cursor:"pointer", whiteSpace:"nowrap" }}>
                             ← {fmtEuro(beleg.betrag_aus_beleg)}
@@ -1118,7 +1118,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                           onMouseEnter={e => e.currentTarget.style.opacity = "0.7"}
                           onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
                           <span style={{ fontSize:"0.9rem", flexShrink:0 }}>📄</span>
-                          <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", color:T.blue,
+                          <span style={{ fontFamily:T.fontBody, fontSize:"0.75rem", color:T.blue,
                             overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                             {beleg.dateiname || "Beleg"}
                           </span>
@@ -1135,7 +1135,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                       <div style={{ position:"relative" }}>
                         <button onClick={() => setBelegZuordnen(istZuordnen ? null : f.k)}
                           title="Beleg zuordnen"
-                          style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem",
+                          style={{ fontFamily:T.fontBody, fontSize:"0.72rem",
                             color:T.textFaint, background:"none", border:`1px dashed ${T.border}`,
                             borderRadius:5, padding:"2px 7px", cursor:"pointer",
                             opacity:0.5, transition:"opacity 0.15s" }}
@@ -1154,7 +1154,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                                   style={{ display:"flex", alignItems:"center", gap:8, width:"100%",
                                     padding:"7px 12px", background:"transparent", border:"none",
                                     borderBottom:`1px solid ${T.borderSoft}`, cursor:"pointer",
-                                    fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem",
+                                    fontFamily:T.fontBody, fontSize:"0.82rem",
                                     color:T.text, textAlign:"left" }}
                                   onMouseEnter={e => e.currentTarget.style.background = T.surface}
                                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
@@ -1163,7 +1163,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                                   <span style={{ fontSize:"0.72rem", color:T.textFaint, flexShrink:0 }}>{d.quelle === "eakte" ? "E-Akte" : ""}</span>
                                 </button>
                               )) : (
-                                <div style={{ padding:"14px 16px", color:T.textFaint, fontFamily:"'Figtree',sans-serif", fontSize:"0.84rem", textAlign:"center" }}>
+                                <div style={{ padding:"14px 16px", color:T.textFaint, fontFamily:T.fontBody, fontSize:"0.84rem", textAlign:"center" }}>
                                   Keine PDFs vorhanden. Bitte zuerst ein Dokument hochladen oder aus der E-Akte importieren.
                                 </div>
                               )}
@@ -1194,7 +1194,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                     : `${API_BASE}/akten/${akteId}/dokumente/${k.dok_id}/datei`;
                   return (
                     <div key={i} style={{ display:"flex", alignItems:"center", gap:8, padding:"3px 0", borderTop: i>0 ? `1px solid ${T.borderSoft}` : "none" }}>
-                      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.text, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      <span style={{ fontFamily:T.fontBody, fontSize:"0.82rem", color:T.text, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                         {k.dateiname || "Dokument"}
                       </span>
                       <span style={{ fontSize:"0.72rem", color:chipColor, fontWeight:600, flexShrink:0 }}>
@@ -1223,7 +1223,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                 <div style={{ fontSize:"0.8rem", fontWeight:600, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:6 }}>
                   Sonstige Schäden
                 </div>
-                <table style={{ width:"100%", borderCollapse:"collapse", fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}>
+                <table style={{ width:"100%", borderCollapse:"collapse", fontFamily:T.fontBody, fontSize:"0.875rem" }}>
                   <thead>
                     <tr style={{ background:T.surface, borderBottom:`1px solid ${T.border}` }}>
                       {["Bezeichnung","Netto (€)","MwSt (€)","Brutto (€)",""].map((h,i) => (
@@ -1238,7 +1238,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                           <input
                             value={e.label||""}
                             onChange={ev => { const upd = extras.map(x => x.id===e.id ? {...x,label:ev.target.value} : x); setExtras(upd); setForm(p=>({...p,_extras:upd})); setChg(true); }}
-                            style={{ width:"100%", border:"none", background:"transparent", outline:"none", fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.text }}
+                            style={{ width:"100%", border:"none", background:"transparent", outline:"none", fontFamily:T.fontBody, fontSize:"0.875rem", color:T.text }}
                           />
                         </td>
                         <td style={{ padding:"8px 12px", textAlign:"right" }}>
@@ -1288,7 +1288,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                         <td style={{ padding:"8px 12px" }}>
                           <input autoFocus value={newLabel} onChange={e=>setNewLabel(e.target.value)}
                             placeholder="Bezeichnung"
-                            style={{ width:"100%", border:`1px solid ${T.accent}`, borderRadius:4, padding:"3px 6px", fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", outline:"none" }} />
+                            style={{ width:"100%", border:`1px solid ${T.accent}`, borderRadius:4, padding:"3px 6px", fontFamily:T.fontBody, fontSize:"0.875rem", outline:"none" }} />
                         </td>
                         <td style={{ padding:"8px 12px" }}>
                           <input value={newBetrag} onChange={e=>setNewBetrag(e.target.value)} placeholder="0,00"
@@ -1325,7 +1325,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
           {/* Button: Sonstigen Schaden hinzufügen – Eingabe läuft jetzt inline in der Tabelle oben */}
           {!showAdd && (
             <button onClick={() => setShowAdd(true)}
-              style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 12px", background:"none", border:`1.5px dashed ${T.border}`, borderRadius:8, cursor:"pointer", fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem", color:T.textMuted, marginTop:"0.5rem", transition:"all 0.15s" }}
+              style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 12px", background:"none", border:`1.5px dashed ${T.border}`, borderRadius:8, cursor:"pointer", fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMuted, marginTop:"0.5rem", transition:"all 0.15s" }}
               onMouseEnter={ev => { ev.currentTarget.style.borderColor=T.navy; ev.currentTarget.style.color=T.navy; }}
               onMouseLeave={ev => { ev.currentTarget.style.borderColor=T.border; ev.currentTarget.style.color=T.textMuted; }}>
               {Ic.plus} Sonstigen Schaden hinzufügen
@@ -1340,11 +1340,11 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
               { l:"Quelle",                   v:null,             c:T.text,  bg:T.surface   },
             ].map((s, i) => (
               <div key={i} style={{ background:s.bg, borderRadius:10, padding:"0.85rem 1rem", border:`1px solid ${T.border}` }}>
-                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem", color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:6 }}>{s.l}</div>
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.815rem", color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:6 }}>{s.l}</div>
                 {i < 2 ? (
-                  <div style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1.625rem", fontWeight:700, color:s.c }}>{s.v}</div>
+                  <div style={{ fontFamily:T.fontDisplay, fontSize:"1.625rem", fontWeight:700, color:s.c }}>{s.v}</div>
                 ) : (
-                  <select value={form.quelle||"manuell"} onChange={e => { setForm(p => ({...p,quelle:e.target.value})); setChg(true); }} style={{ padding:"5px 8px", border:`1px solid ${T.border}`, borderRadius:6, fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem", color:T.text, background:T.white, cursor:"pointer", outline:"none" }}>
+                  <select value={form.quelle||"manuell"} onChange={e => { setForm(p => ({...p,quelle:e.target.value})); setChg(true); }} style={{ padding:"5px 8px", border:`1px solid ${T.border}`, borderRadius:6, fontFamily:T.fontBody, fontSize:"0.955rem", color:T.text, background:T.white, cursor:"pointer", outline:"none" }}>
                     <option value="manuell">Manuell</option>
                     <option value="gutachten_pdf">Gutachten (PDF)</option>
                     <option value="abrechnung_pdf">Abrechnung (PDF)</option>
@@ -1359,7 +1359,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
             <div style={{ marginTop:"1rem", padding:"0.7rem 1rem",
               background:"#f0f9ff", border:"1.5px solid #38bdf8", borderRadius:9,
               display:"flex", alignItems:"flex-start", gap:10,
-              fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:"#0369a1" }}>
+              fontFamily:T.fontBody, fontSize:"0.875rem", color:"#0369a1" }}>
               <span style={{ flexShrink:0, fontSize:"1rem" }}>🔍</span>
               <div style={{ flex:1 }}>
                 <strong>Vorschlag: {
@@ -1378,11 +1378,11 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
           )}
           <div style={{ marginTop:"1rem", display:"flex", alignItems:"center", gap:12,
             padding:"0.75rem 1rem", background:T.surface, borderRadius:9, border:`1px solid ${T.border}` }}>
-            <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+            <span style={{ fontFamily:T.fontBody, fontSize:"0.875rem",
               fontWeight:600, color:T.textMid, minWidth:130 }}>Abrechnungsart</span>
             <select value={form.abrechnungsart||""} onChange={e => { setForm(p=>({...p,abrechnungsart:e.target.value})); setChg(true); setArtVorschlag(null); }}
               style={{ padding:"6px 10px", border:`1.5px solid ${T.border}`, borderRadius:7,
-                fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem", color:T.text,
+                fontFamily:T.fontBody, fontSize:"0.895rem", color:T.text,
                 background:T.white, cursor:"pointer", outline:"none", minWidth:180 }}>
               <option value="">— nicht gesetzt —</option>
               <option value="fiktiv">Fiktive Abrechnung (Gutachten, netto)</option>
@@ -1601,7 +1601,7 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
   const SuchPanel = ({ rolle }) => (
     <div style={{ gridColumn:"1/-1", marginTop:"0.5rem", padding:"0.9rem 1rem",
       background:T.blueBg, border:`1.5px solid ${T.blue}44`, borderRadius:8 }}>
-      <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", fontWeight:700,
+      <div style={{ fontFamily:T.fontBody, fontSize:"0.82rem", fontWeight:700,
         color:T.navy, marginBottom:"0.6rem" }}>
         🔍 {ROLLEN_LABEL[rolle]} aus RA-Micro suchen
       </div>
@@ -1610,7 +1610,7 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
           onKeyDown={e=>{ if(e.key==="Enter") suchStarten(); }}
           placeholder="Name oder Adressnummer, dann Enter…" autoFocus
           style={{ flex:1, padding:"7px 10px", border:`1.5px solid ${T.border}`,
-            borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+            borderRadius:7, fontFamily:T.fontBody, fontSize:"0.875rem",
             background:T.white, outline:"none" }} />
         <Btn size="sm" variant="secondary" onClick={suchStarten} disabled={sucheLaden}>
           {sucheLaden ? "⟳" : "Suchen"}
@@ -1628,9 +1628,9 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
                 background: gewaehlt?.adressnr===e.adressnr ? T.blueBg : "transparent",
                 display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div>
-                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.875rem",
                   fontWeight:600, color:T.text }}>{e.name}</div>
-                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.78rem",
                   color:T.textMuted }}>
                   {[e.strasse, e.plz&&e.ort ? `${e.plz} ${e.ort}` : e.ort].filter(Boolean).join(" · ")}
                 </div>
@@ -1642,26 +1642,26 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
         </div>
       )}
       {sucheQ.length >= 2 && !sucheLaden && sucheErg.length === 0 && (
-        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem",
+        <div style={{ fontFamily:T.fontBody, fontSize:"0.82rem",
           color:T.textMuted, marginBottom:"0.5rem" }}>Keine Treffer in RA-Micro.</div>
       )}
 
       {gewaehlt && (
         <div style={{ padding:"0.6rem 0.8rem", background:T.surface, borderRadius:7,
           border:`1.5px solid ${T.blue}55`, marginBottom:"0.6rem" }}>
-          <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+          <div style={{ fontFamily:T.fontBody, fontSize:"0.875rem",
             fontWeight:700, color:T.navy }}>
             ✓ {gewaehlt.name}
             <span style={{ fontWeight:400, color:T.textFaint, marginLeft:6 }}>#{gewaehlt.adressnr}</span>
           </div>
-          <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", color:T.textMuted }}>
+          <div style={{ fontFamily:T.fontBody, fontSize:"0.8rem", color:T.textMuted }}>
             {[gewaehlt.strasse, gewaehlt.plz&&gewaehlt.ort ? `${gewaehlt.plz} ${gewaehlt.ort}` : gewaehlt.ort, gewaehlt.telefon ? `☎ ${gewaehlt.telefon}` : ""].filter(Boolean).join(" · ")}
           </div>
           <input value={neueNotizen} onChange={e=>setNeueNotizen(e.target.value)}
             placeholder="Notiz (z.B. '10 Sitzungen', 'Hausarzt')"
             style={{ marginTop:5, width:"100%", padding:"4px 7px",
               border:`1px solid ${T.border}`, borderRadius:5,
-              fontFamily:"'Figtree',sans-serif", fontSize:"0.84rem",
+              fontFamily:T.fontBody, fontSize:"0.84rem",
               background:T.white, outline:"none", boxSizing:"border-box" }} />
         </div>
       )}
@@ -1683,7 +1683,7 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
             background:T.white, border:`1px solid ${T.border}`, borderRadius:7 }}>
             <span style={{ fontSize:"1rem", flexShrink:0, marginTop:1 }}>{ROLLEN_ICON[rolle]}</span>
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+              <div style={{ fontFamily:T.fontBody, fontSize:"0.875rem",
                 fontWeight:600, color:T.text, display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
                 {b.name || <em style={{color:T.textFaint,fontWeight:400}}>Keine Adresse</em>}
                 <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.72rem",
@@ -1692,12 +1692,12 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
                   background: b.quelle==="wdm" ? "#f0fdf4" : "#f0f9ff",
                   color: b.quelle==="wdm" ? "#16a34a" : "#0369a1",
                   border:`1px solid ${b.quelle==="wdm" ? T.greenLight : "#bae6fd"}`,
-                  fontFamily:"'Figtree',sans-serif", fontWeight:600 }}>
+                  fontFamily:T.fontBody, fontWeight:600 }}>
                   {b.quelle?.toUpperCase()}
                 </span>
               </div>
               {(b.strasse||b.ort) && (
-                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.79rem",
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.79rem",
                   color:T.textMuted, marginTop:1 }}>
                   {[b.strasse, b.plz&&b.ort ? `${b.plz} ${b.ort}` : b.ort, b.telefon ? `☎ ${b.telefon}` : ""].filter(Boolean).join(" · ")}
                 </div>
@@ -1707,7 +1707,7 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
                 onBlur={e => notizAktualisieren(b, e.target.value)}
                 style={{ marginTop:3, width:"100%", border:"none",
                   borderBottom:`1px dashed ${T.border}`, background:"transparent", outline:"none",
-                  fontFamily:"'Figtree',sans-serif", fontSize:"0.79rem",
+                  fontFamily:T.fontBody, fontSize:"0.79rem",
                   color:T.textMuted, padding:"1px 0" }} />
             </div>
             <button onClick={() => beteiligterLoeschen(b)} title="Entfernen"
@@ -1727,7 +1727,7 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
   return (
     <>
       {betLaden && (
-        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+        <div style={{ fontFamily:T.fontBody, fontSize:"0.875rem",
           color:"#6b21a8", padding:"0.5rem 0", display:"flex", alignItems:"center", gap:8 }}>
           <span style={{ animation:"spin 0.8s linear infinite", display:"inline-block" }}>⟳</span>
           Lade Beteiligte aus RA-Micro…
@@ -1740,12 +1740,12 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
           padding:"0.85rem 1.1rem", display:"flex", alignItems:"flex-start", gap:10 }}>
           <span style={{ fontSize:"1.1rem", flexShrink:0 }}>📋</span>
           <div style={{ flex:1 }}>
-            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+            <div style={{ fontFamily:T.fontBody, fontSize:"0.875rem",
               fontWeight:700, color:"#6b21a8", marginBottom:4 }}>
               RA-Micro WDM: {wdmPsDaten.felder_gefunden} Felder
               {wdmPsDaten.adressen_gefunden > 0 && ` + ${wdmPsDaten.adressen_gefunden} Beteiligte`} gefunden
             </div>
-            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem",
+            <div style={{ fontFamily:T.fontBody, fontSize:"0.82rem",
               color:"#7c3aed", display:"flex", flexWrap:"wrap", gap:"0.3rem 1rem" }}>
               {Object.entries(wdmPsDaten.textfelder || {}).map(([k,v]) => (
                 <span key={k}>
@@ -1762,13 +1762,13 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
           <div style={{ display:"flex", flexDirection:"column", gap:6, flexShrink:0 }}>
             <button onClick={uebernehmeWdmPs}
               style={{ padding:"5px 12px", background:"#7c3aed", color:"#fff",
-                border:"none", borderRadius:6, fontFamily:"'Figtree',sans-serif",
+                border:"none", borderRadius:6, fontFamily:T.fontBody,
                 fontSize:"0.82rem", fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
               ↓ Alle übernehmen
             </button>
             <button onClick={() => setWdmPsDaten(null)}
               style={{ padding:"4px 12px", background:"transparent", color:"#6b21a8",
-                border:"1px solid #a78bfa", borderRadius:6, fontFamily:"'Figtree',sans-serif",
+                border:"1px solid #a78bfa", borderRadius:6, fontFamily:T.fontBody,
                 fontSize:"0.82rem", cursor:"pointer" }}>
               Verwerfen
             </button>
@@ -1815,7 +1815,7 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
               <PsLabel>Art und Umfang der Verletzungen</PsLabel>
               <textarea value={psForm.verletzungen_text||""} onChange={e=>psUpd("verletzungen_text",e.target.value)} rows={3}
                 style={{ width:"100%", padding:"7px 10px", border:`1.5px solid ${T.border}`, borderRadius:7,
-                  fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem", color:T.text,
+                  fontFamily:T.fontBody, fontSize:"0.895rem", color:T.text,
                   background:T.surface, outline:"none", resize:"vertical", boxSizing:"border-box" }} />
             </div>
 
@@ -1836,13 +1836,13 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
 
             {/* Ärzte */}
             <div style={{ gridColumn:"1/-1", marginBottom:"1rem" }}>
-              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:700,
+              <div style={{ fontFamily:T.fontBody, fontSize:"0.8rem", fontWeight:700,
                 color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.07em",
                 marginBottom:"0.5rem", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                 <span>🩺 Behandelnde Ärzte</span>
                 <button onClick={() => oeffneSuche("arzt")}
                   style={{ background:T.accentPale, border:`1px solid ${T.accent}`, borderRadius:6,
-                    padding:"3px 10px", fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
+                    padding:"3px 10px", fontFamily:T.fontBody, fontSize:"0.8rem",
                     fontWeight:600, color:T.navy, cursor:"pointer" }}>
                   + Arzt
                 </button>
@@ -1850,7 +1850,7 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
               <BeteiligtenListe rolle="arzt" />
               {sucheRolle === "arzt" && <SuchPanel rolle="arzt" />}
               {beteiligte.filter(b=>b.rolle==="arzt").length === 0 && sucheRolle !== "arzt" && (
-                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem",
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.82rem",
                   color:T.textFaint, padding:"0.4rem 0" }}>
                   Noch keine Ärzte erfasst.
                 </div>
@@ -1879,20 +1879,20 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
                 <PsLabel>Beschreibung der Dauerfolgen</PsLabel>
                 <textarea value={psForm.dauerfolgen_text||""} onChange={e=>psUpd("dauerfolgen_text",e.target.value)} rows={3}
                   style={{ width:"100%", padding:"6px 9px", border:`1.5px solid ${T.border}`, borderRadius:6,
-                    fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.text,
+                    fontFamily:T.fontBody, fontSize:"0.875rem", color:T.text,
                     background:T.surface, outline:"none", resize:"vertical", boxSizing:"border-box" }} />
               </div>
             </PsKlappSection>
 
             {/* Arbeitgeber */}
             <div style={{ gridColumn:"1/-1", marginBottom:"1rem" }}>
-              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:700,
+              <div style={{ fontFamily:T.fontBody, fontSize:"0.8rem", fontWeight:700,
                 color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.07em",
                 marginBottom:"0.5rem", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                 <span>🏢 Arbeitgeber</span>
                 <button onClick={() => oeffneSuche("arbeitgeber")}
                   style={{ background:T.accentPale, border:`1px solid ${T.accent}`, borderRadius:6,
-                    padding:"3px 10px", fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
+                    padding:"3px 10px", fontFamily:T.fontBody, fontSize:"0.8rem",
                     fontWeight:600, color:T.navy, cursor:"pointer" }}>
                   + Arbeitgeber
                 </button>
@@ -1907,13 +1907,13 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
 
             {/* Krankenkasse */}
             <div style={{ gridColumn:"1/-1", marginBottom:"1rem" }}>
-              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:700,
+              <div style={{ fontFamily:T.fontBody, fontSize:"0.8rem", fontWeight:700,
                 color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.07em",
                 marginBottom:"0.5rem", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                 <span>💊 Krankenkasse</span>
                 <button onClick={() => oeffneSuche("krankenkasse")}
                   style={{ background:T.accentPale, border:`1px solid ${T.accent}`, borderRadius:6,
-                    padding:"3px 10px", fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
+                    padding:"3px 10px", fontFamily:T.fontBody, fontSize:"0.8rem",
                     fontWeight:600, color:T.navy, cursor:"pointer" }}>
                   + Krankenkasse
                 </button>
@@ -1945,7 +1945,7 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
               <PsLabel>Interne Notizen</PsLabel>
               <textarea value={psForm.notizen||""} onChange={e=>psUpd("notizen",e.target.value)} rows={3}
                 style={{ width:"100%", padding:"7px 10px", border:`1.5px solid ${T.border}`, borderRadius:7,
-                  fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem", color:T.text,
+                  fontFamily:T.fontBody, fontSize:"0.895rem", color:T.text,
                   background:T.surface, outline:"none", resize:"vertical", boxSizing:"border-box" }} />
             </div>
           </div>
@@ -1982,7 +1982,7 @@ const DateInput = ({ value, onChange, placeholder = "TT.MM.JJJJ", style = {} }) 
       style={{
         width:"100%", padding:"6px 9px",
         border:`1.5px solid ${T.border}`, borderRadius:6,
-        fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+        fontFamily:T.fontBody, fontSize:"0.875rem",
         color: value ? T.text : T.textFaint,
         background:T.white, outline:"none", boxSizing:"border-box",
         cursor:"pointer",
@@ -1994,7 +1994,7 @@ const DateInput = ({ value, onChange, placeholder = "TT.MM.JJJJ", style = {} }) 
 
 
 const PsLabel = ({children}) => (
-  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", fontWeight:600,
+  <div style={{ fontFamily:T.fontBody, fontSize:"0.825rem", fontWeight:600,
     color:"#64748b", marginBottom:3, textTransform:"uppercase", letterSpacing:"0.05em" }}>
     {children}
   </div>
@@ -2003,7 +2003,7 @@ const PsLabel = ({children}) => (
 
 const PsSection = ({label, children}) => (
   <div style={{ marginBottom:"1.25rem" }}>
-    <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:700,
+    <div style={{ fontFamily:T.fontBody, fontSize:"0.8rem", fontWeight:700,
       color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.07em",
       marginBottom:"0.6rem", paddingBottom:"4px", borderBottom:`1px solid ${T.borderSoft}` }}>
       {label}
@@ -2022,7 +2022,7 @@ const PsRow = ({label, field, form, upd, type="text", placeholder=""}) => (
       <input type={type} value={form[field]||""} onChange={e=>upd(field, type==="number" ? (parseFloat(e.target.value)||0) : e.target.value)}
         placeholder={placeholder}
         style={{ width:"100%", padding:"6px 9px", border:`1.5px solid ${T.border}`, borderRadius:6,
-          fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.text,
+          fontFamily:T.fontBody, fontSize:"0.875rem", color:T.text,
           background:T.white, outline:"none", boxSizing:"border-box" }} />
     )}
   </div>
@@ -2035,7 +2035,7 @@ const PsCheckRow = ({label, field, form, upd}) => (
       background: form[field] ? T.navy : "transparent", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
       {form[field] ? <span style={{ color:"#fff", fontSize:11, lineHeight:1 }}>✓</span> : null}
     </div>
-    <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.textMid }}>{label}</span>
+    <span style={{ fontFamily:T.fontBody, fontSize:"0.875rem", color:T.textMid }}>{label}</span>
   </div>
 );
 
@@ -2061,7 +2061,7 @@ const PsKlappSection = ({label, field, form, upd, children, addLabel, onAdd}) =>
           display:"flex", alignItems:"center", justifyContent:"center" }}>
           {aktiv && <span style={{ color:"#fff", fontSize:12, lineHeight:1 }}>✓</span>}
         </div>
-        <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem",
+        <span style={{ fontFamily:T.fontBody, fontSize:"0.895rem",
           fontWeight:600, color: aktiv ? T.navy : T.textMid }}>
           {label}
         </span>
@@ -2069,7 +2069,7 @@ const PsKlappSection = ({label, field, form, upd, children, addLabel, onAdd}) =>
           {aktiv && onAdd && (
             <button onClick={e => { e.stopPropagation(); onAdd(); }}
               style={{ background:"#fefce8", border:"1px solid #fbbf24", borderRadius:6,
-                padding:"2px 9px", fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
+                padding:"2px 9px", fontFamily:T.fontBody, fontSize:"0.78rem",
                 fontWeight:600, color:T.amberText, cursor:"pointer" }}>
               {addLabel || "+ Beteiligter"}
             </button>

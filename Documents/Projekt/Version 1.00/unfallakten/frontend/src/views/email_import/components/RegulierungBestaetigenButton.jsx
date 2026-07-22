@@ -12,7 +12,7 @@ function RegulierungBestaetigenButton({ entry: e, onOpenAkte }) {
     return (
       <div style={{ display:"flex", alignItems:"center", gap:7, marginTop:8,
         background:T.greenBg, border:`1px solid ${T.green}33`,
-        borderRadius:7, padding:"6px 12px", fontFamily:"'Figtree',sans-serif",
+        borderRadius:7, padding:"6px 12px", fontFamily:T.fontBody,
         fontSize:"0.875rem", color:T.green }}>
         {Ic.check} Regulierung als Abrechnung übernommen
       </div>
@@ -41,7 +41,7 @@ function RegulierungBestaetigenButton({ entry: e, onOpenAkte }) {
       <button onClick={bestaetigen} disabled={laedt}
         style={{ display:"flex", alignItems:"center", gap:7, padding:"6px 14px",
           background: laedt ? T.navyMid : T.green, color:T.white,
-          border:"none", borderRadius:7, fontFamily:"'Figtree',sans-serif",
+          border:"none", borderRadius:7, fontFamily:T.fontBody,
           fontSize:"0.875rem", fontWeight:600,
           cursor: laedt ? "default" : "pointer", transition:"background 0.15s" }}>
         {laedt
@@ -51,7 +51,7 @@ function RegulierungBestaetigenButton({ entry: e, onOpenAkte }) {
           : <>📄 Als Regulierung übernehmen</>}
       </button>
       {fehler && (
-        <div style={{ marginTop:5, fontFamily:"'Figtree',sans-serif",
+        <div style={{ marginTop:5, fontFamily:T.fontBody,
           fontSize:"0.845rem", color:T.red }}>{fehler}</div>
       )}
     </div>

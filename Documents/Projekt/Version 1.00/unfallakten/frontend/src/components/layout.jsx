@@ -11,14 +11,14 @@ function TopNav({ user, onLogout, backendOnline }) {
       <div style={{ display:"flex", alignItems:"center", gap:10 }}>
         <div style={{ width:32, height:32, background:T.accent, borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center", color:T.navy }}>{Ic.logo}</div>
         <div>
-          <div style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1.025rem", color:T.white }}>Koch, Schatz &amp; Kollegen</div>
-          <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.745rem", color:"rgba(255,255,255,0.45)", letterSpacing:"0.1em", textTransform:"uppercase" }}>Unfallakten-System v1.0</div>
+          <div style={{ fontFamily:T.fontDisplay, fontSize:"1.025rem", color:T.white }}>Koch, Schatz &amp; Kollegen</div>
+          <div style={{ fontFamily:T.fontBody, fontSize:"0.745rem", color:"rgba(255,255,255,0.45)", letterSpacing:"0.1em", textTransform:"uppercase" }}>Unfallakten-System v1.0</div>
         </div>
       </div>
       <div style={{ flex:1 }} />
       <BackendBadge online={backendOnline} />
       <div style={{ position:"relative" }}>
-        <button onClick={() => setOpen(o => !o)} style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:8, padding:"6px 12px", cursor:"pointer", color:T.white, fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem" }}>
+        <button onClick={() => setOpen(o => !o)} style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:8, padding:"6px 12px", cursor:"pointer", color:T.white, fontFamily:T.fontBody, fontSize:"0.955rem" }}>
           <div style={{ width:26, height:26, background:T.accent, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", color:T.navy }}>{Ic.user}</div>
           <span style={{ maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.name}</span>
           <span style={{ fontSize:"0.755rem", background:T.accentTrim, color:T.accentLight, border:`1px solid rgba(160,107,74,0.35)`, padding:"1px 7px", borderRadius:10 }}>Admin</span>
@@ -29,7 +29,7 @@ function TopNav({ user, onLogout, backendOnline }) {
               <div style={{ fontSize:"0.945rem", fontWeight:600, color:T.text }}>{user.name}</div>
               <div style={{ fontSize:"0.855rem", color:T.textMuted }}>{user.email}</div>
             </div>
-            <button onClick={() => { setOpen(false); onLogout(); }} style={{ width:"100%", display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:"none", border:"none", cursor:"pointer", fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem", color:T.red }}>
+            <button onClick={() => { setOpen(false); onLogout(); }} style={{ width:"100%", display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:"none", border:"none", cursor:"pointer", fontFamily:T.fontBody, fontSize:"0.955rem", color:T.red }}>
               {Ic.logout} Abmelden
             </button>
           </div>
@@ -53,7 +53,7 @@ function TabBar({ tabs, active, onActivate, onClose }) {
 
   if (akteTabs.length === 0) return (
     <div style={{ height:38, background:T.navyDark, borderBottom:"1px solid rgba(160,107,74,0.12)", display:"flex", alignItems:"center", padding:"0 1.2rem" }}>
-      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", color:"rgba(255,255,255,0.25)", fontStyle:"italic" }}>Keine Akten geöffnet</span>
+      <span style={{ fontFamily:T.fontBody, fontSize:"0.8rem", color:"rgba(255,255,255,0.25)", fontStyle:"italic" }}>Keine Akten geöffnet</span>
     </div>
   );
 
@@ -69,7 +69,7 @@ function TabBar({ tabs, active, onActivate, onClose }) {
               onKeyDown={e => { if (e.key==="Enter"||e.key===" ") { e.preventDefault(); onActivate(tab.id); } }}
               style={{ display:"flex", alignItems:"center", gap:7, padding:"0 12px", minWidth:140, maxWidth:210, cursor:"pointer", background:isA?"rgba(255,255,255,0.07)":"transparent", borderRight:"1px solid rgba(255,255,255,0.06)", borderBottom:isA?`2px solid ${T.accent}`:"2px solid transparent", transition:"background 0.15s", flexShrink:0, userSelect:"none" }}>
               <span style={{ color:isA?T.accent:"rgba(255,255,255,0.38)", flexShrink:0, fontSize:"0.85rem" }}>{Ic.akte}</span>
-              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.885rem", fontWeight:isA?600:400, color:isA?T.white:"rgba(255,255,255,0.52)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>{tab.label}</span>
+              <span style={{ fontFamily:T.fontBody, fontSize:"0.885rem", fontWeight:isA?600:400, color:isA?T.white:"rgba(255,255,255,0.52)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>{tab.label}</span>
               {tab.status && <span style={{ width:6, height:6, borderRadius:"50%", background:STATUS_MAP[tab.status]?.color||"#888", flexShrink:0 }} />}
               {tab.aktion_erforderlich && (
                 <span title="Aktion erforderlich"

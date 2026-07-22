@@ -129,7 +129,7 @@ export default function StaDialog({ az, onClose }) {
         }}>
           <div>
             <div style={{
-              fontFamily: "'Bricolage Grotesque',sans-serif",
+              fontFamily: T.fontDisplay,
               fontSize: "1.05rem", fontWeight: 700, color: T.white,
             }}>
               Sachstandsanfrage
@@ -150,7 +150,7 @@ export default function StaDialog({ az, onClose }) {
         <div style={{ flex: 1, overflowY: "auto", padding: "1.25rem 1.4rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
 
           {loading && (
-            <div style={{ textAlign: "center", padding: "2rem", color: T.textMuted, fontFamily: "'Figtree',sans-serif" }}>
+            <div style={{ textAlign: "center", padding: "2rem", color: T.textMuted, fontFamily: T.fontBody }}>
               Analysiere Akte…
             </div>
           )}
@@ -165,10 +165,10 @@ export default function StaDialog({ az, onClose }) {
               }}>
                 {kontext.letztes_schreiben ? (
                   <>
-                    <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.875rem", color: T.white, fontWeight: 600 }}>
+                    <div style={{ fontFamily: T.fontBody, fontSize: "0.875rem", color: T.white, fontWeight: 600 }}>
                       Letztes Schreiben: {kontext.letztes_schreiben.typ_label} v. {kontext.letztes_schreiben.datum_fmt}
                     </div>
-                    <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.82rem", color: "rgba(255,255,255,0.5)", marginTop: 3 }}>
+                    <div style={{ fontFamily: T.fontBody, fontSize: "0.82rem", color: "rgba(255,255,255,0.5)", marginTop: 3 }}>
                       {kontext.tage_ohne_antwort > 0
                         ? `${kontext.tage_ohne_antwort} Tage ohne Antwort`
                         : "Kein offenes Schreiben"}
@@ -177,7 +177,7 @@ export default function StaDialog({ az, onClose }) {
                     </div>
                   </>
                 ) : (
-                  <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.875rem", color: "rgba(255,255,255,0.6)" }}>
+                  <div style={{ fontFamily: T.fontBody, fontSize: "0.875rem", color: "rgba(255,255,255,0.6)" }}>
                     Kein ausgehendes Schreiben gefunden – allgemeine Sachstandsanfrage
                   </div>
                 )}
@@ -185,7 +185,7 @@ export default function StaDialog({ az, onClose }) {
 
               {/* Stufen-Wähler */}
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.875rem", fontWeight: 600, color: T.text }}>
+                <span style={{ fontFamily: T.fontBody, fontSize: "0.875rem", fontWeight: 600, color: T.text }}>
                   Eskalationsstufe:
                 </span>
                 <button
@@ -195,7 +195,7 @@ export default function StaDialog({ az, onClose }) {
                     width: 32, height: 32, borderRadius: 7, border: `1.5px solid ${T.border}`,
                     background: "none", cursor: stufe <= 1 ? "not-allowed" : "pointer",
                     color: stufe <= 1 ? T.textFaint : T.text,
-                    fontFamily: "'Figtree',sans-serif", fontSize: "1.1rem", fontWeight: 700,
+                    fontFamily: T.fontBody, fontSize: "1.1rem", fontWeight: 700,
                     display: "flex", alignItems: "center", justifyContent: "center",
                   }}
                 >−</button>
@@ -207,10 +207,10 @@ export default function StaDialog({ az, onClose }) {
                   border: `1.5px solid ${stufeInfo.farbe}44`,
                 }}>
                   <div style={{ width: 8, height: 8, borderRadius: "50%", background: stufeInfo.farbe, flexShrink: 0 }} />
-                  <span style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.915rem", fontWeight: 700, color: stufeInfo.farbe }}>
+                  <span style={{ fontFamily: T.fontBody, fontSize: "0.915rem", fontWeight: 700, color: stufeInfo.farbe }}>
                     Stufe {stufe} – {stufeInfo.name}
                   </span>
-                  <span style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.8rem", color: T.textMuted, marginLeft: "auto", flexShrink: 0 }}>
+                  <span style={{ fontFamily: T.fontBody, fontSize: "0.8rem", color: T.textMuted, marginLeft: "auto", flexShrink: 0 }}>
                     {stufeInfo.frist}
                   </span>
                 </div>
@@ -221,12 +221,12 @@ export default function StaDialog({ az, onClose }) {
                     width: 32, height: 32, borderRadius: 7, border: `1.5px solid ${T.border}`,
                     background: "none", cursor: stufe >= 3 ? "not-allowed" : "pointer",
                     color: stufe >= 3 ? T.textFaint : T.text,
-                    fontFamily: "'Figtree',sans-serif", fontSize: "1.1rem", fontWeight: 700,
+                    fontFamily: T.fontBody, fontSize: "1.1rem", fontWeight: 700,
                     display: "flex", alignItems: "center", justifyContent: "center",
                   }}
                 >+</button>
                 {dirty && (
-                  <span style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.78rem", color: T.amber }}>
+                  <span style={{ fontFamily: T.fontBody, fontSize: "0.78rem", color: T.amber }}>
                     * bearbeitet
                   </span>
                 )}
@@ -240,16 +240,16 @@ export default function StaDialog({ az, onClose }) {
                   borderRadius: 8, padding: "0.7rem 1rem",
                   display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
                 }}>
-                  <span style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.875rem", color: T.text, flex: 1 }}>
+                  <span style={{ fontFamily: T.fontBody, fontSize: "0.875rem", color: T.text, flex: 1 }}>
                     Manuelle Änderungen verwerfen und Stufe {confirm.zielStufe} laden?
                   </span>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button onClick={() => setConfirm(null)}
-                      style={{ padding: "4px 12px", borderRadius: 6, border: `1px solid ${T.border}`, background: "none", cursor: "pointer", fontFamily: "'Figtree',sans-serif", fontSize: "0.845rem", color: T.text }}>
+                      style={{ padding: "4px 12px", borderRadius: 6, border: `1px solid ${T.border}`, background: "none", cursor: "pointer", fontFamily: T.fontBody, fontSize: "0.845rem", color: T.text }}>
                       Nein
                     </button>
                     <button onClick={bestaetigenUeberschreiben}
-                      style={{ padding: "4px 12px", borderRadius: 6, border: "none", background: T.amber, cursor: "pointer", fontFamily: "'Figtree',sans-serif", fontSize: "0.845rem", fontWeight: 600, color: "#fff" }}>
+                      style={{ padding: "4px 12px", borderRadius: 6, border: "none", background: T.amber, cursor: "pointer", fontFamily: T.fontBody, fontSize: "0.845rem", fontWeight: 600, color: "#fff" }}>
                       Ja, verwerfen
                     </button>
                   </div>
@@ -259,7 +259,7 @@ export default function StaDialog({ az, onClose }) {
               {/* Textfeld */}
               <div>
                 <label style={{
-                  display: "block", fontFamily: "'Figtree',sans-serif",
+                  display: "block", fontFamily: T.fontBody,
                   fontSize: "0.8rem", fontWeight: 600, color: T.textMuted,
                   textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6,
                 }}>
@@ -274,7 +274,7 @@ export default function StaDialog({ az, onClose }) {
                     width: "100%", boxSizing: "border-box",
                     padding: "0.75rem 1rem",
                     borderRadius: 8, border: `1.5px solid ${dirty ? (T.amber) + "88" : T.border}`,
-                    fontFamily: "'Figtree',sans-serif", fontSize: "0.9rem",
+                    fontFamily: T.fontBody, fontSize: "0.9rem",
                     lineHeight: 1.65, color: T.text,
                     background: T.surface,
                     resize: "vertical", outline: "none",
@@ -291,7 +291,7 @@ export default function StaDialog({ az, onClose }) {
               background: (T.red) + "15",
               border: `1px solid ${T.red}44`,
               borderRadius: 8, padding: "0.75rem 1rem",
-              fontFamily: "'Figtree',sans-serif", fontSize: "0.875rem",
+              fontFamily: T.fontBody, fontSize: "0.875rem",
               color: T.red,
             }}>
               ⚠ {fehler}
@@ -304,7 +304,7 @@ export default function StaDialog({ az, onClose }) {
               background: (T.green) + "18",
               border: `1px solid ${T.green}44`,
               borderRadius: 8, padding: "0.75rem 1rem",
-              fontFamily: "'Figtree',sans-serif", fontSize: "0.875rem",
+              fontFamily: T.fontBody, fontSize: "0.875rem",
               color: T.green, fontWeight: 600,
             }}>
               ✓ Sachstandsanfrage generiert · 2-Wochen-Todo angelegt · Fenster schließt…
@@ -323,7 +323,7 @@ export default function StaDialog({ az, onClose }) {
             padding: "8px 18px", borderRadius: 7,
             border: `1.5px solid ${T.border}`,
             background: "none", cursor: "pointer",
-            fontFamily: "'Figtree',sans-serif", fontSize: "0.9rem",
+            fontFamily: T.fontBody, fontSize: "0.9rem",
             color: T.textMuted,
           }}>
             Abbrechen
@@ -337,7 +337,7 @@ export default function StaDialog({ az, onClose }) {
                 ? T.textFaint
                 : T.accent,
               color: "#fff", cursor: (generating || loading || !brieftext.trim() || erfolg) ? "not-allowed" : "pointer",
-              fontFamily: "'Bricolage Grotesque',sans-serif",
+              fontFamily: T.fontDisplay,
               fontSize: "0.925rem", fontWeight: 700,
               display: "flex", alignItems: "center", gap: 7,
               transition: "background 0.15s",

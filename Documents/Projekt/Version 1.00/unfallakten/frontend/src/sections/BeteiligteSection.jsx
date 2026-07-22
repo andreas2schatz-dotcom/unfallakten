@@ -63,11 +63,11 @@ function BeteiligteSection({ beteiligte, dispatch, akteId }) {
       <Card>
         <CardHead title={`Beteiligte (${beteiligte.length})`} action={<Btn size="sm" onClick={() => { setEdit(null); setForm(empty); setPOpen(true); }}>{Ic.plus} Hinzufügen</Btn>} />
         {beteiligte.length === 0 ? (
-          <div style={{ padding:"2rem", textAlign:"center", fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", color:T.textFaint }}>Noch keine Beteiligten erfasst.</div>
+          <div style={{ padding:"2rem", textAlign:"center", fontFamily:T.fontBody, fontSize:"0.975rem", color:T.textFaint }}>Noch keine Beteiligten erfasst.</div>
         ) : (
           <div style={{ overflowX:"auto" }}>
             <table style={{ width:"100%", borderCollapse:"collapse" }}>
-              <thead><tr style={{ background:T.surface }}>{["Rolle","Name / Firma","Kontakt","KFZ","Versicherung",""].map(h => <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem", fontWeight:600, color:T.textMuted, letterSpacing:"0.06em", textTransform:"uppercase", borderBottom:`1px solid ${T.border}` }}>{h}</th>)}</tr></thead>
+              <thead><tr style={{ background:T.surface }}>{["Rolle","Name / Firma","Kontakt","KFZ","Versicherung",""].map(h => <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontFamily:T.fontBody, fontSize:"0.815rem", fontWeight:600, color:T.textMuted, letterSpacing:"0.06em", textTransform:"uppercase", borderBottom:`1px solid ${T.border}` }}>{h}</th>)}</tr></thead>
               <tbody>
                 {beteiligte.map((b, i) => {
                   const rc = ROLLEN_C[b.rolle] || ROLLEN_C.sonstiger;
@@ -79,20 +79,20 @@ function BeteiligteSection({ beteiligte, dispatch, akteId }) {
                         </span>
                       </td>
                       <td style={{ padding:"10px 14px" }}>
-                        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", fontWeight:600, color:T.navy }}>{b.name}{b.vorname ? ` ${b.vorname}` : ""}</div>
-                        {b.firma && <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.textMuted }}>{b.firma}</div>}
+                        <div style={{ fontFamily:T.fontBody, fontSize:"0.975rem", fontWeight:600, color:T.navy }}>{b.name}{b.vorname ? ` ${b.vorname}` : ""}</div>
+                        {b.firma && <div style={{ fontFamily:T.fontBody, fontSize:"0.875rem", color:T.textMuted }}>{b.firma}</div>}
                         {(b.anschrift||b.ort) && <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.825rem", color:T.textFaint }}>{b.anschrift}{b.plz?` · ${b.plz}`:""}{b.ort?` ${b.ort}`:""}</div>}
                       </td>
                       <td style={{ padding:"10px 14px" }}>
-                        {b.email && <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.925rem", color:T.textMid }}>{b.email}</div>}
+                        {b.email && <div style={{ fontFamily:T.fontBody, fontSize:"0.925rem", color:T.textMid }}>{b.email}</div>}
                         {b.telefon && <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.895rem", color:T.textFaint }}>{b.telefon}</div>}
                       </td>
                       <td style={{ padding:"10px 14px" }}>
                         {b.kfz && <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.945rem", fontWeight:600, color:T.text }}>{b.kfz}</div>}
-                        {b.kfz_typ && <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.865rem", color:T.textFaint }}>{b.kfz_typ}</div>}
+                        {b.kfz_typ && <div style={{ fontFamily:T.fontBody, fontSize:"0.865rem", color:T.textFaint }}>{b.kfz_typ}</div>}
                       </td>
                       <td style={{ padding:"10px 14px" }}>
-                        {b.versicherung && <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.945rem", color:T.textMid }}>{b.versicherung}</div>}
+                        {b.versicherung && <div style={{ fontFamily:T.fontBody, fontSize:"0.945rem", color:T.textMid }}>{b.versicherung}</div>}
                         {b.vers_nr && <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.845rem", color:T.textFaint }}>{b.vers_nr}</div>}
                         {b.schaden_nr && <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.845rem", color:T.textFaint }}>SN: {b.schaden_nr}</div>}
                       </td>
@@ -144,8 +144,8 @@ function BeteiligteSection({ beteiligte, dispatch, akteId }) {
           {F("iban","IBAN")}
           <hr style={{ border:"none", borderTop:`1px solid ${T.border}`, margin:"2px 0" }} />
           <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
-            <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", fontWeight:600, color:T.textMid, letterSpacing:"0.05em", textTransform:"uppercase" }}>Notizen</label>
-            <textarea value={form.notizen||""} onChange={e => setForm(p => ({...p,notizen:e.target.value}))} rows={3} style={{ padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", color:T.text, background:T.surface, outline:"none", resize:"vertical" }} onFocus={e => e.target.style.borderColor=T.accent} onBlur={e => e.target.style.borderColor=T.border} />
+            <label style={{ fontFamily:T.fontBody, fontSize:"0.825rem", fontWeight:600, color:T.textMid, letterSpacing:"0.05em", textTransform:"uppercase" }}>Notizen</label>
+            <textarea value={form.notizen||""} onChange={e => setForm(p => ({...p,notizen:e.target.value}))} rows={3} style={{ padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:T.fontBody, fontSize:"0.975rem", color:T.text, background:T.surface, outline:"none", resize:"vertical" }} onFocus={e => e.target.style.borderColor=T.accent} onBlur={e => e.target.style.borderColor=T.border} />
           </div>
           <div style={{ display:"flex", gap:8, paddingTop:4 }}>
             <Btn variant="primary" onClick={save} disabled={betSaving} style={{ flex:1 }}>

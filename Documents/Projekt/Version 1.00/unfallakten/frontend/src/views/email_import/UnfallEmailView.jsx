@@ -257,7 +257,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
       <div style={{ display:"flex", gap:10, alignItems:"center", justifyContent:"flex-end", marginBottom:"1.25rem", flexWrap:"wrap" }}>
         <div onClick={() => setShowKonfigDialog(true)}
           style={{ display:"flex", alignItems:"center", gap:7, background:T.white, border:`1px solid ${T.border}`,
-            borderRadius:8, padding:"7px 13px", fontFamily:"'Figtree',sans-serif",
+            borderRadius:8, padding:"7px 13px", fontFamily:T.fontBody,
             fontSize:"0.925rem", color:T.textMid, cursor:"pointer" }}>
           <span style={{ width:8, height:8, borderRadius:"50%", background: verbunden ? T.green : T.amber, display:"block",
             boxShadow: verbunden ? `0 0 0 3px ${T.green}22` : `0 0 0 3px ${T.amber}22` }}/>
@@ -267,7 +267,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
         <button onClick={startImport} disabled={importing}
           style={{ display:"flex", alignItems:"center", gap:8, padding:"9px 20px",
             background: importing ? T.navyMid : T.navy, color:T.white, border:"none",
-            borderRadius:8, fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem",
+            borderRadius:8, fontFamily:T.fontBody, fontSize:"0.975rem",
             fontWeight:600, cursor: importing ? "default" : "pointer",
             position:"relative", overflow:"hidden", minWidth:210 }}>
           {importing
@@ -284,7 +284,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
       {importResult && (
         <div style={{ background:T.greenBg, border:`1px solid ${T.green}33`, borderRadius:10,
           padding:"11px 16px", marginBottom:"1.1rem", display:"flex", alignItems:"center",
-          gap:12, fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem", color:T.green }}>
+          gap:12, fontFamily:T.fontBody, fontSize:"0.955rem", color:T.green }}>
           {Ic.check}
           <span><strong>{importResult.neu} neue E-Mails</strong> · {importResult.zugeordnet} zugeordnet · {importResult.anhaenge} Anhang</span>
           <button onClick={() => setResult(null)} aria-label="Meldung schließen" style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", color:T.green, display:"flex" }}>{Ic.x}</button>
@@ -301,9 +301,9 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
         ].map((k,i) => (
           <div key={i} style={{ background:k.c + "0d", borderRadius:10, padding:"0.75rem 1.1rem",
             border:`1.5px solid ${k.c}30`, minWidth:120 }}>
-            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:700,
+            <div style={{ fontFamily:T.fontBody, fontSize:"0.75rem", fontWeight:700,
               letterSpacing:"0.1em", textTransform:"uppercase", color:k.c, marginBottom:5, opacity:0.8 }}>{k.label}</div>
-            <div style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"2rem",
+            <div style={{ fontFamily:T.fontDisplay, fontSize:"2rem",
               fontWeight:800, color:k.c, lineHeight:1 }}>{k.v}</div>
           </div>
         ))}
@@ -329,7 +329,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
               display:"block", boxShadow:`0 0 0 3px ${T.amber}33`, flexShrink:0,
             }}/>
             <span style={{
-              fontFamily:"'Figtree',sans-serif", fontSize:"0.84rem",
+              fontFamily:T.fontBody, fontSize:"0.84rem",
               fontWeight:700, color:T.amber,
               textTransform:"uppercase", letterSpacing:"0.08em",
             }}>Aktionspflichtig</span>
@@ -354,7 +354,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
             }}>
               <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:"0.65rem" }}>
                 <span style={{
-                  fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
+                  fontFamily:T.fontBody, fontSize:"0.8rem",
                   fontWeight:700, color:T.textMid,
                   textTransform:"uppercase", letterSpacing:"0.07em",
                 }}>Nicht zugeordnet</span>
@@ -366,7 +366,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
               </div>
               {aktionNichtZugeordnet.length === 0 ? (
                 <div style={{
-                  fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem",
+                  fontFamily:T.fontBody, fontSize:"0.9rem",
                   color:T.textMuted, padding:"1.5rem", textAlign:"center",
                   background:T.white, border:`1px solid ${T.border}`, borderRadius:8,
                 }}>
@@ -398,7 +398,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
             <div style={{ padding:"1rem 1.1rem" }}>
               <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:"0.65rem" }}>
                 <span style={{
-                  fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
+                  fontFamily:T.fontBody, fontSize:"0.8rem",
                   fontWeight:700, color:T.textMid,
                   textTransform:"uppercase", letterSpacing:"0.07em",
                 }}>Fragebogen-Erstkontakt</span>
@@ -410,7 +410,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
               </div>
               {fragebogenListe.length === 0 ? (
                 <div style={{
-                  fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem",
+                  fontFamily:T.fontBody, fontSize:"0.9rem",
                   color:T.textMuted, padding:"1.5rem", textAlign:"center",
                   background:T.white, border:`1px solid ${T.border}`, borderRadius:8,
                 }}>
@@ -440,7 +440,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
           marginBottom:"1rem", flexWrap:"wrap",
         }}>
           <h2 style={{
-            fontFamily:"'Figtree',sans-serif", fontSize:"1rem",
+            fontFamily:T.fontBody, fontSize:"1rem",
             fontWeight:700, color:T.navy, margin:0,
           }}>
             {ansichtsModus === "stream" ? "E-Mail-Stream" : "Akten-Ansicht"}
@@ -492,7 +492,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
                       background: aktiv ? T.navy : T.white,
                       border:`1px solid ${aktiv ? T.navy : T.border}`,
                       borderRadius:20,
-                      fontFamily:"'Figtree',sans-serif",
+                      fontFamily:T.fontBody,
                       fontSize:"0.845rem", fontWeight: aktiv ? 600 : 400,
                       color: aktiv ? T.white : T.textMid,
                       cursor:"pointer",
@@ -521,7 +521,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
                   width:"100%", padding:"7px 30px 7px 30px",
                   border:`1.5px solid ${streamSuche ? T.navy : T.border}`,
                   borderRadius:8, outline:"none",
-                  fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem",
+                  fontFamily:T.fontBody, fontSize:"0.895rem",
                   color:T.text, background:T.white, boxSizing:"border-box",
                 }}
               />
@@ -572,12 +572,12 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
               <svg viewBox="0 0 24 24" fill="currentColor" style={{width:40,height:40}}><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
             </div>
             <h3 style={{
-              fontFamily:"'Bricolage Grotesque',sans-serif",
+              fontFamily:T.fontDisplay,
               fontSize:"1.2rem", fontWeight:700,
               color:T.navy, margin:"0 0 0.5rem",
             }}>Akten-Ansicht</h3>
             <p style={{
-              fontFamily:"'Figtree',sans-serif",
+              fontFamily:T.fontBody,
               fontSize:"0.955rem", color:T.textMuted,
               lineHeight:1.6, maxWidth:460, margin:"0 auto 1.25rem",
             }}>
@@ -590,7 +590,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
               textAlign:"left", maxWidth:380, margin:"0 auto",
             }}>
               <div style={{
-                fontFamily:"'Figtree',sans-serif",
+                fontFamily:T.fontBody,
                 fontSize:"0.8rem", fontWeight:600,
                 letterSpacing:"0.07em", textTransform:"uppercase",
                 color:T.textMuted, marginBottom:"0.6rem",
@@ -603,7 +603,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
               ].map((f, i) => (
                 <div key={i} style={{
                   display:"flex", gap:8, alignItems:"flex-start",
-                  fontFamily:"'Figtree',sans-serif",
+                  fontFamily:T.fontBody,
                   fontSize:"0.9rem", color:T.textMid, marginBottom:"0.4rem",
                 }}>
                   <span style={{ color:T.textFaint, flexShrink:0 }}>·</span>
@@ -616,7 +616,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
           <div style={{
             background:T.white, border:`1px solid ${T.border}`, borderRadius:10,
             padding:"3rem", textAlign:"center",
-            fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem", color:T.textMuted,
+            fontFamily:T.fontBody, fontSize:"0.955rem", color:T.textMuted,
           }}>
             {streamSuche
               ? `Keine Ergebnisse für „${streamSuche}"`

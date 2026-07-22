@@ -6,6 +6,8 @@ const T = {
   amber:   "#d97706", amberBg: "#fffbeb", amberBorder: "#fde68a",
   green:   "#16a34a", greenBg: "#f0fdf4", greenBorder:  "#86efac",
   purple:  "#7c3aed", purpleBg: "#f5f3ff", purpleBorder: "#c4b5fd",
+  fontDisplay: "var(--font-display)",
+  fontBody:    "var(--font-ui)",
 };
 
 export default function OnboardingHub({ az, beteiligte = [], schaden = {}, dokumente = [], aktivitaeten = [], onTabWechsel }) {
@@ -57,7 +59,7 @@ export default function OnboardingHub({ az, beteiligte = [], schaden = {}, dokum
         onMouseEnter={e => e.currentTarget.style.opacity = ".85"}
         onMouseLeave={e => e.currentTarget.style.opacity = "1"}
       >
-        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: col, fontFamily: "Bricolage Grotesque" }}>
+        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: col, fontFamily: T.fontDisplay }}>
           {k.ok ? "✓" : "○"} {k.label}
         </div>
         {k.optional && !k.ok && (
@@ -75,7 +77,7 @@ export default function OnboardingHub({ az, beteiligte = [], schaden = {}, dokum
       padding: "12px 16px",
     }}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
-        <span style={{ fontFamily: "Bricolage Grotesque", fontWeight: 700, color: T.navy, fontSize: "0.9rem" }}>
+        <span style={{ fontFamily: T.fontDisplay, fontWeight: 700, color: T.navy, fontSize: "0.9rem" }}>
           Onboarding — {erledigt} von 6 Bereichen vollständig
         </span>
         <button
@@ -84,7 +86,7 @@ export default function OnboardingHub({ az, beteiligte = [], schaden = {}, dokum
             marginLeft: "auto", background: "transparent",
             border: `1px solid ${T.amber}`, borderRadius: 4,
             padding: "3px 12px", color: T.amber,
-            cursor: "pointer", fontSize: "0.78rem", fontFamily: "Figtree",
+            cursor: "pointer", fontSize: "0.78rem", fontFamily: T.fontBody,
           }}
         >
           Zur normalen Ansicht →

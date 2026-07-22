@@ -24,7 +24,7 @@ function FragebogenErstkontaktKarte({ eintrag, onAlsBearbeitet }) {
       {/* Name + Badge */}
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"0.35rem" }}>
         <div style={{
-          fontFamily:"'Figtree',sans-serif", fontSize:"0.945rem",
+          fontFamily:T.fontBody, fontSize:"0.945rem",
           fontWeight:700, color:T.navy, flex:1, minWidth:0,
           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
         }}>
@@ -62,11 +62,11 @@ function FragebogenErstkontaktKarte({ eintrag, onAlsBearbeitet }) {
         )}
         {eintrag.schadentag && (
           <span style={{
-            fontFamily:"'Figtree',sans-serif", fontSize:"0.83rem", color:T.textMid,
+            fontFamily:T.fontBody, fontSize:"0.83rem", color:T.textMid,
           }}>Unfall: {eintrag.schadentag}</span>
         )}
         <span style={{
-          fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", color:T.textMuted,
+          fontFamily:T.fontBody, fontSize:"0.8rem", color:T.textMuted,
           marginLeft:"auto",
         }}>{datum}</span>
       </div>
@@ -77,7 +77,7 @@ function FragebogenErstkontaktKarte({ eintrag, onAlsBearbeitet }) {
           style={{
             padding:"5px 12px", background:"none",
             border:`1px solid ${T.border}`, borderRadius:6,
-            fontFamily:"'Figtree',sans-serif", fontSize:"0.84rem",
+            fontFamily:T.fontBody, fontSize:"0.84rem",
             color:T.textMid, cursor:laedt ? "default" : "pointer",
           }}>
           {laedt ? "…" : "Als bearbeitet"}
@@ -87,7 +87,7 @@ function FragebogenErstkontaktKarte({ eintrag, onAlsBearbeitet }) {
           style={{
             padding:"5px 12px",
             background:T.navy, border:"none", borderRadius:6,
-            fontFamily:"'Figtree',sans-serif", fontSize:"0.84rem",
+            fontFamily:T.fontBody, fontSize:"0.84rem",
             fontWeight:600, color:"rgba(255,255,255,0.35)",
             cursor:"not-allowed",
           }}>

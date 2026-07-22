@@ -252,7 +252,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
 
   const inputStyle = {
     width:"100%", padding:"7px 10px", border:`1px solid ${T.border}`,
-    borderRadius:7, fontFamily:"'Figtree',sans-serif",
+    borderRadius:7, fontFamily:T.fontBody,
     fontSize:"0.945rem", outline:"none", boxSizing:"border-box",
     background:T.white,
   };
@@ -262,7 +262,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
       {toast && <Toast msg={toast} onDone={() => setToast("")}/>}
       <div style={{ maxWidth:1000, margin:"0 auto", padding:"1.75rem" }}>
 
-        <h1 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"2rem",
+        <h1 style={{ fontFamily:T.fontDisplay, fontSize:"2rem",
           fontWeight:700, color:T.navy, margin:"0 0 1.5rem 0" }}>Einstellungen</h1>
 
         {/* Tab-Leiste */}
@@ -281,7 +281,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
           ].map(([id, label]) => (
             <button key={id} onClick={() => { setTab(id); setSuche(""); }}
               style={{ padding:"8px 18px", border:"none", background:"transparent",
-                fontFamily:"'Figtree',sans-serif", fontSize:"0.95rem", fontWeight:600,
+                fontFamily:T.fontBody, fontSize:"0.95rem", fontWeight:600,
                 color: tab===id ? T.navy : T.textMuted, cursor:"pointer",
                 borderBottom: tab===id ? `2px solid ${T.accent}` : "2px solid transparent",
                 marginBottom:-1 }}>
@@ -300,7 +300,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
 
         {/* IMAP Tab */}
         {tab === "imap" && (
-          <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem",
+          <div style={{ fontFamily:T.fontBody, fontSize:"0.955rem",
             color:T.textMuted, background:T.white, borderRadius:10, padding:"1.5rem",
             border:`1px solid ${T.border}` }}>
             <p style={{ margin:"0 0 0.75rem" }}>IMAP-Konfiguration ist in der <code>.env</code>-Datei hinterlegt.</p>
@@ -322,7 +322,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
 
             {/* Erklärung */}
             <div style={{ background:T.white, borderRadius:10, padding:"1rem 1.25rem",
-              border:`1px solid ${T.border}`, fontFamily:"'Figtree',sans-serif",
+              border:`1px solid ${T.border}`, fontFamily:T.fontBody,
               fontSize:"0.915rem", color:T.textMuted, lineHeight:1.6 }}>
               Diese Werte bestimmen die <strong style={{ color:T.text }}>Antwortfrist im Brieftext</strong> der
               Sachstandsanfrage je Eskalationsstufe. Der generierte Text wird beim nächsten Öffnen
@@ -344,15 +344,15 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                     {/* Stufen-Header */}
                     <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
                       <div style={{ width:10, height:10, borderRadius:"50%", background:farbe, flexShrink:0 }} />
-                      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem",
+                      <span style={{ fontFamily:T.fontBody, fontSize:"0.9rem",
                         fontWeight:700, color:T.text }}>{label}</span>
                     </div>
-                    <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
+                    <div style={{ fontFamily:T.fontBody, fontSize:"0.825rem",
                       color:T.textFaint, marginBottom:10, paddingLeft:20 }}>{desc}</div>
 
                     {/* Frist-Eingabe */}
                     <div style={{ display:"flex", alignItems:"center", gap:10, paddingLeft:20, marginBottom:12 }}>
-                      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+                      <span style={{ fontFamily:T.fontBody, fontSize:"0.875rem",
                         fontWeight:600, color:T.textMuted, minWidth:50 }}>Frist:</span>
                       <input
                         type="number" min={1} max={365}
@@ -361,7 +361,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                         style={{ ...inputStyle, width:80, textAlign:"center",
                           fontFamily:"ui-monospace,monospace", fontSize:"1rem", fontWeight:600 }}
                       />
-                      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.textMuted }}>
+                      <span style={{ fontFamily:T.fontBody, fontSize:"0.875rem", color:T.textMuted }}>
                         Tage
                       </span>
                     </div>
@@ -369,7 +369,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                     {/* Brieftext-Vorlage */}
                     <div style={{ paddingLeft:20 }}>
                       <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", marginBottom:5 }}>
-                        <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
+                        <label style={{ fontFamily:T.fontBody, fontSize:"0.8rem",
                           fontWeight:600, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.06em" }}>
                           Brieftext-Vorlage
                         </label>
@@ -384,7 +384,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                         value={fristen[textKey] ?? ""}
                         onChange={e => setFristen(p => ({ ...p, [textKey]: e.target.value }))}
                         style={{ ...inputStyle, resize:"vertical", lineHeight:1.6,
-                          fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}
+                          fontFamily:T.fontBody, fontSize:"0.875rem" }}
                       />
                     </div>
                   </div>
@@ -413,7 +413,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
             <Card>
               <CardHead title="Lernystem – Dokumentenklassifikation" />
               <div style={{ padding:"1rem 1.25rem", display:"flex", flexDirection:"column", gap:"0.85rem" }}>
-                <p style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem",
+                <p style={{ fontFamily:T.fontBody, fontSize:"0.895rem",
                   color:T.textMuted, lineHeight:1.6, margin:0 }}>
                   Jede manuelle Korrektur einer Dokumentenklasse wird als Trainingsdatensatz gespeichert.
                   Ab <strong style={{ color:T.text }}>50 Einträgen</strong> kann ein TF-IDF-Modell trainiert werden,
@@ -425,7 +425,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                     {/* Fortschrittsbalken */}
                     <div>
                       <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}>
-                        <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem",
+                        <span style={{ fontFamily:T.fontBody, fontSize:"0.855rem",
                           fontWeight:600, color:T.text }}>
                           Gesammelte Korrekturen
                         </span>
@@ -449,7 +449,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                       padding:"0.65rem 1rem", borderRadius:8,
                       background: training.bereit ? (T.green + "18") : (T.amber + "15"),
                       border: `1px solid ${training.bereit ? T.green : T.amber}44`,
-                      fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem",
+                      fontFamily:T.fontBody, fontSize:"0.855rem",
                       color: training.bereit ? T.green : T.amber, fontWeight:600,
                     }}>
                       {training.bereit
@@ -485,7 +485,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
 
             {/* Info */}
             <div style={{ background:T.white, borderRadius:10, padding:"1rem 1.25rem",
-              border:`1px solid ${T.border}`, fontFamily:"'Figtree',sans-serif",
+              border:`1px solid ${T.border}`, fontFamily:T.fontBody,
               fontSize:"0.915rem", color:T.textMuted, lineHeight:1.6 }}>
               Konfiguriert den KI-Vorschlag-Button im Klage-Wizard (Step 7 – Rechtliche Würdigung).
               API-Keys werden in der <code>.env</code>-Datei hinterlegt:
@@ -501,7 +501,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
               <div style={{ padding:"1rem 1.25rem", display:"flex", flexDirection:"column", gap:"1rem" }}>
 
                 <div>
-                  <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
+                  <label style={{ display:"block", fontFamily:T.fontBody,
                     fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:6 }}>
                     Aktives Modell
                   </label>
@@ -520,18 +520,18 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
 
                 <div>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:5 }}>
-                    <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
+                    <label style={{ fontFamily:T.fontBody, fontSize:"0.825rem",
                       fontWeight:600, color:T.textMuted }}>System-Prompt</label>
                   </div>
                   <textarea rows={5} value={ki.system_prompt}
                     onChange={e => setKi(p => ({ ...p, system_prompt: e.target.value }))}
                     style={{ ...inputStyle, resize:"vertical", lineHeight:1.6,
-                      fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }} />
+                      fontFamily:T.fontBody, fontSize:"0.875rem" }} />
                 </div>
 
                 <div>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:5 }}>
-                    <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
+                    <label style={{ fontFamily:T.fontBody, fontSize:"0.825rem",
                       fontWeight:600, color:T.textMuted }}>User-Prompt-Vorlage</label>
                     <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.755rem",
                       color:T.textFaint, background:T.offWhite, padding:"2px 8px",
@@ -542,7 +542,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                   <textarea rows={8} value={ki.user_prompt}
                     onChange={e => setKi(p => ({ ...p, user_prompt: e.target.value }))}
                     style={{ ...inputStyle, resize:"vertical", lineHeight:1.6,
-                      fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }} />
+                      fontFamily:T.fontBody, fontSize:"0.875rem" }} />
                 </div>
 
                 <div style={{ display:"flex", justifyContent:"flex-end", gap:10 }}>
@@ -609,7 +609,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                         transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.2)",
                       }} />
                     </div>
-                    <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem",
+                    <span style={{ fontFamily:T.fontBody, fontSize:"0.9rem",
                       fontWeight:600, color: llm.aktiviert ? T.green : T.textMuted }}>
                       {llm.aktiviert ? "Aktiv" : "Inaktiv"}
                     </span>
@@ -637,7 +637,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
 
                 {/* Modell-Auswahl */}
                 <div>
-                  <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
+                  <label style={{ display:"block", fontFamily:T.fontBody,
                     fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:6 }}>
                     Aktives Modell
                   </label>
@@ -672,7 +672,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                   </div>
                   {!llm.env_konfiguriert && (
                     <div style={{ marginTop:6, fontSize:"0.8rem", color:T.amber,
-                      fontFamily:"'Figtree',sans-serif" }}>
+                      fontFamily:T.fontBody }}>
                       ⚠ LLM_ENABLED=true fehlt in <code>.env</code> — Toggle ohne Wirkung.
                     </div>
                   )}
@@ -680,7 +680,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
 
                 {/* Verbindungstest */}
                 <div>
-                  <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
+                  <label style={{ display:"block", fontFamily:T.fontBody,
                     fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:6 }}>
                     Verbindungstest
                   </label>
@@ -711,7 +711,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                       background: llmTestAntwort.startsWith("Fehler") ? "#2a1500" : T.offWhite,
                       border:`1px solid ${llmTestAntwort.startsWith("Fehler") ? "rgba(245,158,11,0.3)" : T.border}`,
                       borderRadius:7, padding:"0.75rem 1rem",
-                      fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+                      fontFamily:T.fontBody, fontSize:"0.875rem",
                       color: llmTestAntwort.startsWith("Fehler") ? T.amber : T.text,
                       lineHeight:1.6, whiteSpace:"pre-wrap",
                     }}>
@@ -731,7 +731,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
           <div style={{ display:"flex", flexDirection:"column", gap:"1.25rem", maxWidth:520 }}>
 
             <div style={{ background:T.white, borderRadius:10, padding:"1rem 1.25rem",
-              border:`1px solid ${T.border}`, fontFamily:"'Figtree',sans-serif",
+              border:`1px solid ${T.border}`, fontFamily:T.fontBody,
               fontSize:"0.915rem", color:T.textMuted, lineHeight:1.6 }}>
               Legt fest, ab welchem Streitwert das <strong style={{ color:T.text }}>Landgericht</strong> zuständig ist.
               Im Klage-Wizard (Step 10) erscheint eine Warnung, wenn das gewählte Gericht ein Amtsgericht ist
@@ -747,11 +747,11 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
               <div style={{ padding:"1rem 1.25rem", display:"flex", flexDirection:"column", gap:"1rem" }}>
 
                 <div>
-                  <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
+                  <label style={{ display:"block", fontFamily:T.fontBody,
                     fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:6 }}>
                     LG-Zuständigkeitsgrenze (€)
                   </label>
-                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
+                  <div style={{ fontFamily:T.fontBody, fontSize:"0.8rem",
                     color:T.textFaint, marginBottom:8 }}>
                     Ab diesem Streitwert ist das Landgericht zuständig (§ 23 GVG / § 71 GVG)
                   </div>
@@ -763,7 +763,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                     style={{ ...inputStyle, width:160, textAlign:"right",
                       fontFamily:"ui-monospace,monospace", fontSize:"1rem", fontWeight:600 }}
                   />
-                  <span style={{ marginLeft:8, fontFamily:"'Figtree',sans-serif",
+                  <span style={{ marginLeft:8, fontFamily:T.fontBody,
                     fontSize:"0.875rem", color:T.textMuted }}>€</span>
                 </div>
 
@@ -800,7 +800,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
 
               {/* Neu-anlegen-Formular */}
               <div style={{ padding:"12px", borderBottom:`1px solid ${T.border}` }}>
-                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.8rem",
                   fontWeight:700, color:T.textMuted, marginBottom:6, textTransform:"uppercase",
                   letterSpacing:"0.06em" }}>Sachverständigen suchen</div>
                 <div ref={svSuchRef} style={{ position:"relative", marginBottom: svForm.vorschau || svForm.fehler ? 8 : 0 }}>
@@ -848,7 +848,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                                 cursor:"pointer" }}
                               onMouseEnter={e => e.currentTarget.style.background = "#eff6ff"}
                               onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem",
+                              <div style={{ fontFamily:T.fontBody, fontSize:"0.82rem",
                                 fontWeight:700, color:T.text }}>
                                 {sv.vorname} {sv.name}
                               </div>
@@ -860,20 +860,20 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                           ))}
                         </div>
                       ) : !svSuchLaedt ? (
-                        <div style={{ padding:"9px 10px", fontFamily:"'Figtree',sans-serif",
+                        <div style={{ padding:"9px 10px", fontFamily:T.fontBody,
                           fontSize:"0.8rem", color:T.textMuted }}>Keine Einträge gefunden.</div>
                       ) : null}
                     </div>
                   )}
                 </div>
                 {svForm.fehler && (
-                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
+                  <div style={{ fontFamily:T.fontBody, fontSize:"0.78rem",
                     color:T.red, marginBottom:6 }}>{svForm.fehler}</div>
                 )}
                 {svForm.vorschau && (
                   <div style={{ background:T.offWhite, border:`1px solid ${T.border}`,
                     borderRadius:6, padding:"7px 10px", marginBottom:8 }}>
-                    <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem",
+                    <div style={{ fontFamily:T.fontBody, fontSize:"0.82rem",
                       fontWeight:700, color:T.text }}>
                       {svForm.vorschau.vorname} {svForm.vorschau.name}
                     </div>
@@ -893,10 +893,10 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
               <div style={{ flex:1, overflowY:"auto" }}>
                 {svLaedt ? (
                   <div style={{ padding:"1.5rem", textAlign:"center", color:T.textFaint,
-                    fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}>Lade …</div>
+                    fontFamily:T.fontBody, fontSize:"0.875rem" }}>Lade …</div>
                 ) : svListe.length === 0 ? (
                   <div style={{ padding:"1.5rem", textAlign:"center", color:T.textFaint,
-                    fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}>
+                    fontFamily:T.fontBody, fontSize:"0.875rem" }}>
                     Noch keine SV-Accounts.<br/>Adressnummer eingeben um zu beginnen.
                   </div>
                 ) : svListe.map(sv => {
@@ -919,7 +919,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                         {(sv.vorname?.[0] || "")}{ (sv.name?.[0] || "")}
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem",
+                        <div style={{ fontFamily:T.fontBody, fontSize:"0.82rem",
                           fontWeight:700, color:T.text, whiteSpace:"nowrap",
                           overflow:"hidden", textOverflow:"ellipsis" }}>
                           {sv.vorname} {sv.name}
@@ -942,7 +942,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
               {!svAusgewaehlt ? (
                 <div style={{ flex:1, display:"flex", alignItems:"center",
                   justifyContent:"center", color:T.textFaint,
-                  fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem" }}>
+                  fontFamily:T.fontBody, fontSize:"0.9rem" }}>
                   ← SV aus der Liste auswählen
                 </div>
               ) : (() => {
@@ -966,7 +966,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                         {(sv.vorname?.[0]||"")}{(sv.name?.[0]||"")}
                       </div>
                       <div style={{ flex:1 }}>
-                        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"1rem",
+                        <div style={{ fontFamily:T.fontBody, fontSize:"1rem",
                           fontWeight:800, color:T.navy }}>
                           {sv.vorname} {sv.name}
                         </div>
@@ -982,7 +982,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                             ● {statusText}
                           </span>
                           {sv.einladung_gesendet_am && (
-                            <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.73rem",
+                            <span style={{ fontFamily:T.fontBody, fontSize:"0.73rem",
                               color:T.textFaint }}>
                               Eingeladen: {sv.einladung_gesendet_am.slice(0,10)}
                             </span>
@@ -1042,7 +1042,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                     {/* Akten-Liste */}
                     <div style={{ flex:1, overflowY:"auto", padding:"14px 18px" }}>
                       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
-                        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem",
+                        <div style={{ fontFamily:T.fontBody, fontSize:"0.75rem",
                           fontWeight:800, color:T.textMuted, textTransform:"uppercase",
                           letterSpacing:"0.07em", display:"flex", alignItems:"center", gap:6 }}>
                           Akten in RA-MICRO
@@ -1058,7 +1058,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                           const alleAn = svAkten.length > 0 && svAkten.every(a => a.portal_aktiv);
                           return (
                             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
+                              <span style={{ fontFamily:T.fontBody, fontSize:"0.78rem",
                                 color: alleAn ? "#22c55e" : T.textMuted, fontWeight:600 }}>
                                 {alleAn ? "Alle freigegeben" : "Alle sperren / freigeben"}
                               </span>
@@ -1087,10 +1087,10 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                       </div>
 
                       {svAktenLaedt ? (
-                        <div style={{ color:T.textFaint, fontFamily:"'Figtree',sans-serif",
+                        <div style={{ color:T.textFaint, fontFamily:T.fontBody,
                           fontSize:"0.875rem" }}>Lade …</div>
                       ) : svAkten.length === 0 ? (
-                        <div style={{ color:T.textFaint, fontFamily:"'Figtree',sans-serif",
+                        <div style={{ color:T.textFaint, fontFamily:T.fontBody,
                           fontSize:"0.875rem" }}>
                           Keine Akten in RA-MICRO gefunden.
                         </div>
@@ -1104,12 +1104,12 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                             fontSize:"0.8rem", fontWeight:700, color:T.navy, minWidth:75 }}>
                             {akte.az}
                           </div>
-                          <div style={{ flex:1, fontFamily:"'Figtree',sans-serif",
+                          <div style={{ flex:1, fontFamily:T.fontBody,
                             fontSize:"0.82rem", color: akte.im_system ? T.text : T.textFaint,
                             whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
                             {akte.kurzbezeichnung || "—"}
                           </div>
-                          <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.73rem",
+                          <div style={{ fontFamily:T.fontBody, fontSize:"0.73rem",
                             color:T.textFaint, flexShrink:0 }}>
                             {akte.unfalldatum || ""}
                           </div>
@@ -1133,7 +1133,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                               background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,.2)",
                               transition:"left 0.2s" }} />
                           </div>
-                          <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem",
+                          <div style={{ fontFamily:T.fontBody, fontSize:"0.72rem",
                             fontWeight:600, minWidth:45, flexShrink:0,
                             color: akte.portal_aktiv ? "#22c55e" : T.textFaint }}>
                             {akte.portal_aktiv ? "Sichtbar" : "Gesperrt"}
@@ -1145,7 +1145,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                     {/* Info-Leiste */}
                     <div style={{ padding:"8px 18px", background:"#eff6ff",
                       borderTop:`1px solid #bfdbfe`,
-                      fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
+                      fontFamily:T.fontBody, fontSize:"0.78rem",
                       color:"#1d4ed8", display:"flex", alignItems:"center", gap:6,
                       flexShrink:0 }}>
                       ℹ {sv.vorname} {sv.name} sieht aktuell{" "}
@@ -1201,11 +1201,11 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                   <div style={{ color: T.textMuted, fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", padding: "0.5rem 0 0.25rem" }}>E-Mail Polling</div>
 
                   <div style={{ background: T.surface, borderRadius: 8, padding: "0.75rem 1rem", marginBottom: 6, display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.875rem", fontWeight: 600, color: T.text, flexShrink: 0 }}>Intervall:</span>
+                    <span style={{ fontFamily: T.fontBody, fontSize: "0.875rem", fontWeight: 600, color: T.text, flexShrink: 0 }}>Intervall:</span>
                     <select
                       value={imapIntervall}
                       onChange={e => setImapIntervall(parseInt(e.target.value))}
-                      style={{ padding: "4px 8px", border: `1px solid ${T.border}`, borderRadius: 6, fontFamily: "'Figtree',sans-serif", fontSize: "0.875rem", background: T.white }}
+                      style={{ padding: "4px 8px", border: `1px solid ${T.border}`, borderRadius: 6, fontFamily: T.fontBody, fontSize: "0.875rem", background: T.white }}
                     >
                       {[5, 10, 15, 30].map(v => (
                         <option key={v} value={v}>{v} Minuten</option>
@@ -1237,10 +1237,10 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                       <div key={acc.account} style={{ background: T.surface, borderRadius: 8, padding: "0.65rem 1rem", marginBottom: 6, display: "flex", alignItems: "center", gap: 12 }}>
                         <span style={{ width: 10, height: 10, borderRadius: "50%", display: "inline-block", flexShrink: 0, background: dotFarbe }} />
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontFamily: "'Figtree',sans-serif", color: T.text, fontWeight: 600, fontSize: "0.875rem" }}>
+                          <div style={{ fontFamily: T.fontBody, color: T.text, fontWeight: 600, fontSize: "0.875rem" }}>
                             {acc.account}@anwalt-offenbach.de
                           </div>
-                          <div style={{ fontFamily: "'Figtree',sans-serif", color: T.textMuted, fontSize: "0.78rem" }}>
+                          <div style={{ fontFamily: T.fontBody, color: T.textMuted, fontSize: "0.78rem" }}>
                             {!acc.passwort_vorhanden
                               ? `EMAIL_PASSWORD_${acc.account.toUpperCase()} fehlt in .env`
                               : acc.letzter_lauf
@@ -1284,7 +1284,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                   })}
 
                   {!Array.isArray(sysStatus?.imap) && sysLaedt && (
-                    <div style={{ color: T.textFaint, fontFamily: "'Figtree',sans-serif", fontSize: "0.875rem", padding: "0.5rem 0" }}>
+                    <div style={{ color: T.textFaint, fontFamily: T.fontBody, fontSize: "0.875rem", padding: "0.5rem 0" }}>
                       Lade …
                     </div>
                   )}
@@ -1344,7 +1344,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
               <div style={{ padding:"1rem 1.25rem",
                 display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"0.75rem", alignItems:"end" }}>
                 <div>
-                  <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
+                  <label style={{ display:"block", fontFamily:T.fontBody,
                     fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:4 }}>
                     Name / Organisation *
                   </label>
@@ -1354,7 +1354,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                     style={inputStyle}/>
                 </div>
                 <div>
-                  <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
+                  <label style={{ display:"block", fontFamily:T.fontBody,
                     fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:4 }}>
                     E-Mail-Domain *
                   </label>
@@ -1364,7 +1364,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                     style={inputStyle}/>
                 </div>
                 <div>
-                  <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
+                  <label style={{ display:"block", fontFamily:T.fontBody,
                     fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:4 }}>
                     Kategorie
                   </label>
@@ -1376,7 +1376,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                 </div>
                 {neuForm.kategorie === "versicherung" && (<>
                   <div>
-                    <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
+                    <label style={{ display:"block", fontFamily:T.fontBody,
                       fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:4 }}>
                       Versicherer-Anzeigename
                     </label>
@@ -1386,7 +1386,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                       style={inputStyle}/>
                   </div>
                   <div>
-                    <label style={{ display:"block", fontFamily:"'Figtree',sans-serif",
+                    <label style={{ display:"block", fontFamily:T.fontBody,
                       fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:4 }}>
                       Kürzel
                     </label>
@@ -1419,7 +1419,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
               <input value={suche} onChange={e => setSuche(e.target.value)}
                 placeholder="Name, Domain oder Kürzel suchen …"
                 style={{ flex:1, border:"none", outline:"none", background:"transparent",
-                  fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem", color:T.text }}/>
+                  fontFamily:T.fontBody, fontSize:"0.935rem", color:T.text }}/>
               {suche && (
                 <button onClick={() => setSuche("")}
                   style={{ background:"none", border:"none", cursor:"pointer",
@@ -1432,10 +1432,10 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
               <CardHead title={`${gefiltertVorlagen.length} Einträge${suche ? ` (gefiltert)` : ""}`} />
               {laedt ? (
                 <div style={{ padding:"2rem", textAlign:"center", color:T.textFaint,
-                  fontFamily:"'Figtree',sans-serif" }}>Lade …</div>
+                  fontFamily:T.fontBody }}>Lade …</div>
               ) : gefiltertVorlagen.length === 0 ? (
                 <div style={{ padding:"2rem", textAlign:"center", color:T.textFaint,
-                  fontFamily:"'Figtree',sans-serif" }}>
+                  fontFamily:T.fontBody }}>
                   {suche ? "Keine Treffer." : "Noch keine Einträge."}
                 </div>
               ) : (
@@ -1464,7 +1464,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                             flexShrink:0 }}>{kat.label}</span>
                         )}
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontFamily:"'Figtree',sans-serif",
+                          <div style={{ fontFamily:T.fontBody,
                             fontSize:"0.935rem", fontWeight:600, color:T.text }}>
                             {v.versicherer_name || v.name}
                           </div>
@@ -1473,7 +1473,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                             <span style={{ fontFamily:"ui-monospace,monospace",
                               fontSize:"0.825rem", color:T.textMuted }}>@{v.domain}</span>
                             {v.versicherer_name && v.versicherer_name !== v.name && (
-                              <span style={{ fontFamily:"'Figtree',sans-serif",
+                              <span style={{ fontFamily:T.fontBody,
                                 fontSize:"0.815rem", color:T.textFaint }}>{v.name}</span>
                             )}
                           </div>
@@ -1481,7 +1481,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                         <button onClick={() => toggleAktiv(v)}
                           style={{ padding:"3px 10px", border:`1px solid ${T.border}`,
                             borderRadius:6, background:T.white, cursor:"pointer",
-                            fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem",
+                            fontFamily:T.fontBody, fontSize:"0.815rem",
                             color: v.aktiv ? T.green : T.textMuted, fontWeight:600,
                             flexShrink:0 }}>
                           {v.aktiv ? "✓ Aktiv" : "Inaktiv"}

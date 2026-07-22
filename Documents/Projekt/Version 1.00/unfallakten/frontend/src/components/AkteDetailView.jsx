@@ -269,15 +269,15 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted }) {
                   border:`1px solid ${T.accentTrim}`, display:"flex", alignItems:"center",
                   justifyContent:"center", color:T.white, flexShrink:0, marginTop:4 }}>{Ic.akte}</div>
                 <div>
-                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.7rem",
+                  <div style={{ fontFamily:T.fontBody, fontSize:"0.7rem",
                     color:T.accentLight, letterSpacing:"0.14em", textTransform:"uppercase",
                     lineHeight:1, fontWeight:600 }}>Aktenzeichen</div>
                   <div style={{ display:"flex", alignItems:"baseline", gap:12, flexWrap:"wrap" }}>
-                    <h1 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"2.2rem",
+                    <h1 style={{ fontFamily:T.fontDisplay, fontSize:"2.2rem",
                       fontWeight:800, color:T.white, margin:"2px 0 0", lineHeight:1.05,
                       letterSpacing:"-0.01em" }}>{akte.az}</h1>
                     {(kurz || lang) && (
-                      <span style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"2.2rem",
+                      <span style={{ fontFamily:T.fontDisplay, fontSize:"2.2rem",
                         fontWeight:400, color:"rgba(255,255,255,0.78)", whiteSpace:"nowrap",
                         letterSpacing:"-0.01em", lineHeight:1.05 }}>
                         {kurz}{kurz && lang ? " – " : ""}{lang}
@@ -285,7 +285,7 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted }) {
                     )}
                   </div>
                   {metaTeile.length > 0 && (
-                    <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.87rem",
+                    <div style={{ fontFamily:T.fontBody, fontSize:"0.87rem",
                       color:"rgba(255,255,255,0.60)", marginTop:3, letterSpacing:"0.03em" }}>
                       {metaTeile.join("  ·  ")}
                     </div>
@@ -312,9 +312,9 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted }) {
                   {s.divider && <div style={{ width:1, background:"rgba(255,255,255,0.12)",
                     alignSelf:"stretch", margin:"2px 6px" }} />}
                   <div style={{ textAlign:"center", padding:"0 6px" }}>
-                    <div style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1.25rem",
+                    <div style={{ fontFamily:T.fontDisplay, fontSize:"1.25rem",
                       fontWeight:800, color:s.farbe, lineHeight:1 }}>{s.v}</div>
-                    <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.7rem",
+                    <div style={{ fontFamily:T.fontBody, fontSize:"0.7rem",
                       color:"rgba(255,255,255,0.45)", marginTop:3, letterSpacing:"0.06em",
                       textTransform:"uppercase" }}>{s.l}</div>
                   </div>
@@ -342,7 +342,7 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted }) {
             }[stil];
             return (
               <button key={label} onClick={onClick} style={{
-                ...s, fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem", fontWeight:600,
+                ...s, fontFamily:T.fontBody, fontSize:"0.72rem", fontWeight:600,
                 padding:"4px 11px", borderRadius:6, cursor:"pointer",
                 display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap",
               }}>{label}</button>
@@ -356,7 +356,7 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted }) {
               onChange={(e) => handlePortalToggle(e.target.checked)}
               style={{ width:14, height:14, accentColor:T.accent, cursor:"pointer" }}
             />
-            <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem",
+            <span style={{ fontFamily:T.fontBody, fontSize:"0.72rem",
               color:"rgba(255,255,255,0.45)", letterSpacing:"0.04em" }}>
               Portal{akte?.portal_last_sync ? ` ↑${new Date(akte.portal_last_sync).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}` : ""}
             </span>
@@ -378,7 +378,7 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted }) {
               style={{ padding:"9px 17px", background:"transparent", border:"none",
                 borderBottom:sec===t.id?`2px solid ${T.accent}`:"2px solid transparent",
                 color:sec===t.id?T.white:"rgba(255,255,255,0.48)",
-                fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem",
+                fontFamily:T.fontBody, fontSize:"0.935rem",
                 fontWeight:sec===t.id?700:400, cursor:"pointer",
                 transition:"all 0.15s", whiteSpace:"nowrap", flexShrink:0,
                 display:"flex", alignItems:"center", gap:5 }}>

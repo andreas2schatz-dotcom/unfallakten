@@ -23,11 +23,11 @@ function EmailImportView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
 
         {/* Seitenheader */}
         <div style={{ marginBottom:"1.25rem" }}>
-          <h1 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"2rem",
+          <h1 style={{ fontFamily:T.fontDisplay, fontSize:"2rem",
             fontWeight:700, color:T.navy, margin:0 }}>
             E-Mail-Import
           </h1>
-          <p style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem",
+          <p style={{ fontFamily:T.fontBody, fontSize:"0.955rem",
             color:T.textMuted, marginTop:4, marginBottom:0 }}>
             Automatischer IMAP-Import · Dokumente · Eingang
           </p>

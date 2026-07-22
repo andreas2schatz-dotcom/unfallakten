@@ -111,7 +111,7 @@ export default function BussgeldEmailView({ onOpenAkte }) {
             <button onClick={startImport} disabled={importing}
               style={{ display:"flex", alignItems:"center", gap:8, padding:"9px 20px",
                 background: importing ? T.navyMid : T.navy, color:T.white, border:"none",
-                borderRadius:8, fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem",
+                borderRadius:8, fontFamily:T.fontBody, fontSize:"0.975rem",
                 fontWeight:600, cursor: importing ? "default" : "pointer",
                 position:"relative", overflow:"hidden", minWidth:210 }}>
               {importing
@@ -131,9 +131,9 @@ export default function BussgeldEmailView({ onOpenAkte }) {
             ].map((k,i) => (
               <div key={i} style={{ background:k.c + "0d", borderRadius:10, padding:"0.75rem 1.1rem",
                 border:`1.5px solid ${k.c}30`, minWidth:120 }}>
-                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:700,
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.75rem", fontWeight:700,
                   letterSpacing:"0.1em", textTransform:"uppercase", color:k.c, marginBottom:5, opacity:0.8 }}>{k.label}</div>
-                <div style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"2rem",
+                <div style={{ fontFamily:T.fontDisplay, fontSize:"2rem",
                   fontWeight:800, color:k.c, lineHeight:1 }}>{k.v}</div>
               </div>
             ))}
@@ -157,7 +157,7 @@ export default function BussgeldEmailView({ onOpenAkte }) {
           ) : log.length === 0 ? (
             <div style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:10,
               padding:"3rem", textAlign:"center",
-              fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem", color:T.textMuted }}>
+              fontFamily:T.fontBody, fontSize:"0.955rem", color:T.textMuted }}>
               Noch keine E-Mails importiert
             </div>
           ) : (

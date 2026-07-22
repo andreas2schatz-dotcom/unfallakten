@@ -151,7 +151,7 @@ function WiedervorlageView({ onOpenAkte }) {
         background:"#d1fae5", color:T.greenText,
         border:"1.5px solid #6ee7b7",
         borderRadius:20, padding:"3px 10px 3px 7px",
-        fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:600,
+        fontFamily:T.fontBody, fontSize:"0.8rem", fontWeight:600,
         whiteSpace:"nowrap",
       }}>
         <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -165,7 +165,7 @@ function WiedervorlageView({ onOpenAkte }) {
         background:"#fff1f2", color:"#9f1239",
         border:"1.5px solid #fca5a5",
         borderRadius:20, padding:"3px 10px 3px 7px",
-        fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:600,
+        fontFamily:T.fontBody, fontSize:"0.8rem", fontWeight:600,
         whiteSpace:"nowrap",
       }}>
         <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -186,7 +186,7 @@ function WiedervorlageView({ onOpenAkte }) {
         background: isOk ? "#f0fdf4" : isDeak ? T.amberBg : "#fff1f2",
         border: `1px solid ${isOk ? T.greenLight : isDeak ? "#fcd34d" : T.redLight}`,
         borderRadius:10, padding:"10px 16px", marginBottom:"1.25rem",
-        fontFamily:"'Figtree',sans-serif", fontSize:"0.885rem",
+        fontFamily:T.fontBody, fontSize:"0.885rem",
       }}>
         <span style={{ fontSize:"1.1rem" }}>{isOk ? "🟢" : isDeak ? "🟡" : "🔴"}</span>
         <span style={{ color: isOk ? T.greenText : isDeak ? T.amberText : "#9f1239", fontWeight:500 }}>
@@ -214,17 +214,17 @@ function WiedervorlageView({ onOpenAkte }) {
         {/* Header */}
         <div style={{ marginBottom:"1.5rem", display:"flex", alignItems:"flex-end", justifyContent:"space-between", flexWrap:"wrap", gap:12 }}>
           <div>
-            <h1 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"2.0rem", fontWeight:700, color:T.navy, margin:0 }}>
+            <h1 style={{ fontFamily:T.fontDisplay, fontSize:"2.0rem", fontWeight:700, color:T.navy, margin:0 }}>
               Wiedervorlage
             </h1>
-            <p style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem", color:T.textMuted, marginTop:4, margin:0 }}>
+            <p style={{ fontFamily:T.fontBody, fontSize:"0.955rem", color:T.textMuted, marginTop:4, margin:0 }}>
               Fällige Stellungnahmen Gegner · RA-Micro Integration
             </p>
           </div>
           <button onClick={lade} disabled={loading}
             style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px",
               background:T.navy, color:T.white, border:"none", borderRadius:8,
-              fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem", fontWeight:500, cursor:"pointer", opacity:loading?0.6:1 }}>
+              fontFamily:T.fontBody, fontSize:"0.9rem", fontWeight:500, cursor:"pointer", opacity:loading?0.6:1 }}>
             <span style={{ display:"inline-block", animation:loading?"spin 0.7s linear infinite":"none" }}>↻</span>
             Aktualisieren
           </button>
@@ -234,14 +234,14 @@ function WiedervorlageView({ onOpenAkte }) {
 
         {/* Filterzeile */}
         <div style={{ display:"flex", gap:10, marginBottom:"1.25rem", flexWrap:"wrap", alignItems:"center" }}>
-          <label style={{ display:"flex", alignItems:"center", gap:7, background:T.white, border:`1px solid ${T.border}`, borderRadius:8, padding:"7px 13px", cursor:"pointer", fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem", color:T.textMid, userSelect:"none" }}>
+          <label style={{ display:"flex", alignItems:"center", gap:7, background:T.white, border:`1px solid ${T.border}`, borderRadius:8, padding:"7px 13px", cursor:"pointer", fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMid, userSelect:"none" }}>
             <input type="checkbox" checked={filterHeute} onChange={e => {
                 setFilterHeute(e.target.checked);
                 if (e.target.checked) setFilterAlleWv(false);
               }} style={{ accentColor:T.navy, width:15, height:15 }} />
             Nur heute fällig
           </label>
-          <label style={{ display:"flex", alignItems:"center", gap:7, background:T.white, border:`1px solid ${T.border}`, borderRadius:8, padding:"7px 13px", cursor:"pointer", fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem", color:T.textMid, userSelect:"none" }}>
+          <label style={{ display:"flex", alignItems:"center", gap:7, background:T.white, border:`1px solid ${T.border}`, borderRadius:8, padding:"7px 13px", cursor:"pointer", fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMid, userSelect:"none" }}>
             <input type="checkbox" checked={filterAlleWv} onChange={e => {
                 setFilterAlleWv(e.target.checked);
                 if (e.target.checked) setFilterHeute(false);
@@ -250,23 +250,23 @@ function WiedervorlageView({ onOpenAkte }) {
           </label>
           {grundListe.length > 0 && (
             <select value={filterGrund} onChange={e => setFilterGrund(e.target.value)}
-              style={{ padding:"7px 13px", background:T.white, border:`1px solid ${T.border}`, borderRadius:8, fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem", color:T.textMid, cursor:"pointer", maxWidth:220 }}>
+              style={{ padding:"7px 13px", background:T.white, border:`1px solid ${T.border}`, borderRadius:8, fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMid, cursor:"pointer", maxWidth:220 }}>
               <option value="">Alle WV-Gründe</option>
               {grundListe.map(g => <option key={g} value={g}>{g}</option>)}
             </select>
           )}
           {sbListe.length > 0
             ? <select value={filterSb} onChange={e => setFilterSb(e.target.value)}
-                style={{ padding:"7px 13px", background:T.white, border:`1px solid ${T.border}`, borderRadius:8, fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem", color:T.textMid, cursor:"pointer" }}>
+                style={{ padding:"7px 13px", background:T.white, border:`1px solid ${T.border}`, borderRadius:8, fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMid, cursor:"pointer" }}>
                 <option value="">Alle Sachbearbeiter</option>
                 {sbListe.map(sb => <option key={sb} value={sb}>{sb}</option>)}
               </select>
             : <input value={filterSb} onChange={e => setFilterSb(e.target.value)}
                 placeholder="SB-Kürzel (z.B. AS)"
-                style={{ padding:"7px 13px", background:T.white, border:`1px solid ${T.border}`, borderRadius:8, fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem", color:T.textMid, width:160 }} />
+                style={{ padding:"7px 13px", background:T.white, border:`1px solid ${T.border}`, borderRadius:8, fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMid, width:160 }} />
           }
           {wvListe && (
-            <span style={{ marginLeft:"auto", fontFamily:"'Figtree',sans-serif", fontSize:"0.865rem", color:T.textMuted }}>
+            <span style={{ marginLeft:"auto", fontFamily:T.fontBody, fontSize:"0.865rem", color:T.textMuted }}>
               {wvGesamtAnzahl} Einträge
               {wvGesamtSeiten > 1 && <span> · Seite {wvSeiteKorr}/{wvGesamtSeiten}</span>}
               {anAusgewaehlt > 0 && <strong style={{ color:T.navy }}> · {anAusgewaehlt} ausgewählt</strong>}
@@ -277,21 +277,21 @@ function WiedervorlageView({ onOpenAkte }) {
         {/* Batch-Aktionsleiste */}
         {anAusgewaehlt > 0 && (
           <div style={{ display:"flex", alignItems:"center", gap:10, background:T.navy, borderRadius:10, padding:"11px 16px", marginBottom:"1.25rem", flexWrap:"wrap" }}>
-            <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem", color:T.white, fontWeight:500, flex:1 }}>
+            <span style={{ fontFamily:T.fontBody, fontSize:"0.9rem", color:T.white, fontWeight:500, flex:1 }}>
               {batchLaeuft && batchFortschritt.gesamt > 0
                 ? `Generiere ${batchFortschritt.aktuell} / ${batchFortschritt.gesamt} …`
                 : `${anAusgewaehlt} ausgewählt`}
             </span>
             <button onClick={batchEinzeln} disabled={batchLaeuft}
-              style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 15px", background:"rgba(255,255,255,0.12)", color:T.white, border:"1px solid rgba(255,255,255,0.25)", borderRadius:8, fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem", fontWeight:500, cursor:batchLaeuft?"default":"pointer", opacity:batchLaeuft?0.6:1 }}>
+              style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 15px", background:"rgba(255,255,255,0.12)", color:T.white, border:"1px solid rgba(255,255,255,0.25)", borderRadius:8, fontFamily:T.fontBody, fontSize:"0.9rem", fontWeight:500, cursor:batchLaeuft?"default":"pointer", opacity:batchLaeuft?0.6:1 }}>
               📄 Einzeln herunterladen
             </button>
             <button onClick={batchZip} disabled={batchLaeuft}
-              style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 15px", background:T.accent, color:T.navy, border:"none", borderRadius:8, fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem", fontWeight:600, cursor:batchLaeuft?"default":"pointer", opacity:batchLaeuft?0.6:1 }}>
+              style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 15px", background:T.accent, color:T.navy, border:"none", borderRadius:8, fontFamily:T.fontBody, fontSize:"0.9rem", fontWeight:600, cursor:batchLaeuft?"default":"pointer", opacity:batchLaeuft?0.6:1 }}>
               🗜 Als ZIP herunterladen
             </button>
             <button onClick={() => setAusgewaehlt(new Set())}
-              style={{ padding:"8px 10px", background:"transparent", color:"rgba(255,255,255,0.5)", border:"none", borderRadius:8, cursor:"pointer", fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem" }}>
+              style={{ padding:"8px 10px", background:"transparent", color:"rgba(255,255,255,0.5)", border:"none", borderRadius:8, cursor:"pointer", fontFamily:T.fontBody, fontSize:"0.9rem" }}>
               ✕
             </button>
           </div>
@@ -299,7 +299,7 @@ function WiedervorlageView({ onOpenAkte }) {
 
         {/* Hauptinhalt */}
         {loading ? (
-          <div style={{ display:"flex", justifyContent:"center", padding:"4rem", color:T.textMuted, fontFamily:"'Figtree',sans-serif" }}>
+          <div style={{ display:"flex", justifyContent:"center", padding:"4rem", color:T.textMuted, fontFamily:T.fontBody }}>
             <div style={{ textAlign:"center" }}>
               <div style={{ width:32, height:32, border:`3px solid ${T.border}`, borderTopColor:T.navy, borderRadius:"50%", animation:"spin 0.7s linear infinite", margin:"0 auto 12px" }} />
               Lädt Wiedervorlagen aus RA-Micro …
@@ -308,19 +308,19 @@ function WiedervorlageView({ onOpenAkte }) {
         ) : fehler ? (
           <div style={{ background:"#fff1f2", border:"1px solid #fca5a5", borderRadius:12, padding:"2rem", textAlign:"center" }}>
             <div style={{ fontSize:"2rem", marginBottom:8 }}>⚠️</div>
-            <div style={{ fontFamily:"'Figtree',sans-serif", fontWeight:600, color:"#9f1239", marginBottom:6 }}>RA-Micro nicht erreichbar</div>
-            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:"#6b7094" }}>{fehler}</div>
-            <button onClick={lade} style={{ marginTop:14, padding:"8px 18px", background:T.navy, color:T.white, border:"none", borderRadius:8, cursor:"pointer", fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem" }}>
+            <div style={{ fontFamily:T.fontBody, fontWeight:600, color:"#9f1239", marginBottom:6 }}>RA-Micro nicht erreichbar</div>
+            <div style={{ fontFamily:T.fontBody, fontSize:"0.875rem", color:"#6b7094" }}>{fehler}</div>
+            <button onClick={lade} style={{ marginTop:14, padding:"8px 18px", background:T.navy, color:T.white, border:"none", borderRadius:8, cursor:"pointer", fontFamily:T.fontBody, fontSize:"0.9rem" }}>
               Erneut versuchen
             </button>
           </div>
         ) : !wvListe || wvListe.length === 0 ? (
           <div style={{ background:T.white, borderRadius:12, border:`1px solid ${T.border}`, padding:"3rem", textAlign:"center" }}>
             <div style={{ fontSize:"2.5rem", marginBottom:12 }}>🎉</div>
-            <div style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1.2rem", fontWeight:700, color:T.navy, marginBottom:6 }}>
+            <div style={{ fontFamily:T.fontDisplay, fontSize:"1.2rem", fontWeight:700, color:T.navy, marginBottom:6 }}>
               Keine fälligen Wiedervorlagen
             </div>
-            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem", color:T.textMuted }}>
+            <div style={{ fontFamily:T.fontBody, fontSize:"0.9rem", color:T.textMuted }}>
               Keine offenen „Stellungnahme Gegner"-Wiedervorlagen{filterHeute ? " für heute" : ""}.
             </div>
           </div>
@@ -346,7 +346,7 @@ function WiedervorlageView({ onOpenAkte }) {
                     { label:"Adressat",      w:"200px"  },
                     { label:"Aktion",        w:"170px"  },
                   ].map(col => (
-                    <th key={col.label} style={{ padding:"11px 14px", textAlign:"left", fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:600, color:"rgba(255,255,255,0.75)", letterSpacing:"0.06em", textTransform:"uppercase", whiteSpace:"nowrap", ...(col.w ? { width:col.w } : {}) }}>
+                    <th key={col.label} style={{ padding:"11px 14px", textAlign:"left", fontFamily:T.fontBody, fontSize:"0.8rem", fontWeight:600, color:"rgba(255,255,255,0.75)", letterSpacing:"0.06em", textTransform:"uppercase", whiteSpace:"nowrap", ...(col.w ? { width:col.w } : {}) }}>
                       {col.label}
                     </th>
                   ))}
@@ -380,8 +380,8 @@ function WiedervorlageView({ onOpenAkte }) {
                         }}>
                           {wv.datum ? new Date(wv.datum + "T00:00:00").toLocaleDateString("de-DE") : "–"}
                         </span>
-                        {istUeberfaellig && <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.73rem", color:T.red, fontWeight:600 }}>überfällig</div>}
-                        {istHeute && <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.73rem", color:T.green, fontWeight:600 }}>heute</div>}
+                        {istUeberfaellig && <div style={{ fontFamily:T.fontBody, fontSize:"0.73rem", color:T.red, fontWeight:600 }}>überfällig</div>}
+                        {istHeute && <div style={{ fontFamily:T.fontBody, fontSize:"0.73rem", color:T.green, fontWeight:600 }}>heute</div>}
                       </td>
 
                       {/* Aktenzeichen – klickbar */}
@@ -394,12 +394,12 @@ function WiedervorlageView({ onOpenAkte }) {
 
                       {/* Aktenkurz- + Langbezeichnung */}
                       <td style={{ padding:"10px 14px", maxWidth:280 }}>
-                        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", fontWeight:600, color:T.textMid, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}
+                        <div style={{ fontFamily:T.fontBody, fontSize:"0.875rem", fontWeight:600, color:T.textMid, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}
                              title={wv.kurzbezeichnung}>
                           {wv.kurzbezeichnung || wv.mandant || "–"}
                         </div>
                         {wv.bezeichnung && (
-                          <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.795rem", fontWeight:400, color:T.textMuted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginTop:2 }}
+                          <div style={{ fontFamily:T.fontBody, fontSize:"0.795rem", fontWeight:400, color:T.textMuted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginTop:2 }}
                                title={wv.bezeichnung}>
                             {wv.bezeichnung}
                           </div>
@@ -414,7 +414,7 @@ function WiedervorlageView({ onOpenAkte }) {
                       </td>
 
                       {/* WV-Grund */}
-                      <td style={{ padding:"10px 14px", fontFamily:"'Figtree',sans-serif", fontSize:"0.835rem", color:T.textMuted, maxWidth:180, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={wv.grund}>
+                      <td style={{ padding:"10px 14px", fontFamily:T.fontBody, fontSize:"0.835rem", color:T.textMuted, maxWidth:180, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={wv.grund}>
                         {wv.grund || "–"}
                         {wv.bemerkung && <div style={{ fontSize:"0.775rem", color:T.textFaint }}>{wv.bemerkung}</div>}
                       </td>
@@ -436,7 +436,7 @@ function WiedervorlageView({ onOpenAkte }) {
                           style={{
                             width:"100%", padding:"5px 8px",
                             border:`1px solid ${T.border}`, borderRadius:6,
-                            fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem",
+                            fontFamily:T.fontBody, fontSize:"0.825rem",
                             color:T.text, background:T.white, cursor:"pointer",
                             maxWidth:190,
                           }}>
@@ -465,7 +465,7 @@ function WiedervorlageView({ onOpenAkte }) {
                             color:      istErstellt ? T.textMid : T.white,
                             border: istErstellt ? `1px solid ${T.border}` : "none",
                             borderRadius:8,
-                            fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", fontWeight:500,
+                            fontFamily:T.fontBody, fontSize:"0.875rem", fontWeight:500,
                             cursor: (istAmLaden || batchLaeuft) ? "default" : "pointer",
                             opacity: (istAmLaden || batchLaeuft) ? 0.65 : 1,
                             whiteSpace:"nowrap", transition:"all 0.15s",
@@ -487,11 +487,11 @@ function WiedervorlageView({ onOpenAkte }) {
             {wvGesamtSeiten > 1 && (
               <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, padding:"14px 16px", borderTop:`1px solid ${T.border}`, background:T.surface }}>
                 <button onClick={() => setWvSeite(1)} disabled={wvSeiteKorr === 1}
-                  style={{ padding:"5px 10px", background:"none", border:`1px solid ${T.border}`, borderRadius:6, cursor:wvSeiteKorr===1?"default":"pointer", color:T.textMid, fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem", opacity:wvSeiteKorr===1?0.4:1 }}>
+                  style={{ padding:"5px 10px", background:"none", border:`1px solid ${T.border}`, borderRadius:6, cursor:wvSeiteKorr===1?"default":"pointer", color:T.textMid, fontFamily:T.fontBody, fontSize:"0.85rem", opacity:wvSeiteKorr===1?0.4:1 }}>
                   «
                 </button>
                 <button onClick={() => setWvSeite(s => Math.max(1, s-1))} disabled={wvSeiteKorr === 1}
-                  style={{ padding:"5px 10px", background:"none", border:`1px solid ${T.border}`, borderRadius:6, cursor:wvSeiteKorr===1?"default":"pointer", color:T.textMid, fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem", opacity:wvSeiteKorr===1?0.4:1 }}>
+                  style={{ padding:"5px 10px", background:"none", border:`1px solid ${T.border}`, borderRadius:6, cursor:wvSeiteKorr===1?"default":"pointer", color:T.textMid, fontFamily:T.fontBody, fontSize:"0.85rem", opacity:wvSeiteKorr===1?0.4:1 }}>
                   ‹
                 </button>
                 {Array.from({ length: wvGesamtSeiten }, (_, i) => i + 1)
@@ -502,23 +502,23 @@ function WiedervorlageView({ onOpenAkte }) {
                     return acc;
                   }, [])
                   .map((p, i) => p === "..." ? (
-                    <span key={`e${i}`} style={{ padding:"5px 4px", color:T.textMuted, fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem" }}>…</span>
+                    <span key={`e${i}`} style={{ padding:"5px 4px", color:T.textMuted, fontFamily:T.fontBody, fontSize:"0.85rem" }}>…</span>
                   ) : (
                     <button key={p} onClick={() => setWvSeite(p)}
-                      style={{ padding:"5px 11px", background:p===wvSeiteKorr?T.navy:"none", border:`1px solid ${p===wvSeiteKorr?T.navy:T.border}`, borderRadius:6, cursor:"pointer", color:p===wvSeiteKorr?T.white:T.textMid, fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem", fontWeight:p===wvSeiteKorr?600:400 }}>
+                      style={{ padding:"5px 11px", background:p===wvSeiteKorr?T.navy:"none", border:`1px solid ${p===wvSeiteKorr?T.navy:T.border}`, borderRadius:6, cursor:"pointer", color:p===wvSeiteKorr?T.white:T.textMid, fontFamily:T.fontBody, fontSize:"0.85rem", fontWeight:p===wvSeiteKorr?600:400 }}>
                       {p}
                     </button>
                   ))
                 }
                 <button onClick={() => setWvSeite(s => Math.min(wvGesamtSeiten, s+1))} disabled={wvSeiteKorr === wvGesamtSeiten}
-                  style={{ padding:"5px 10px", background:"none", border:`1px solid ${T.border}`, borderRadius:6, cursor:wvSeiteKorr===wvGesamtSeiten?"default":"pointer", color:T.textMid, fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem", opacity:wvSeiteKorr===wvGesamtSeiten?0.4:1 }}>
+                  style={{ padding:"5px 10px", background:"none", border:`1px solid ${T.border}`, borderRadius:6, cursor:wvSeiteKorr===wvGesamtSeiten?"default":"pointer", color:T.textMid, fontFamily:T.fontBody, fontSize:"0.85rem", opacity:wvSeiteKorr===wvGesamtSeiten?0.4:1 }}>
                   ›
                 </button>
                 <button onClick={() => setWvSeite(wvGesamtSeiten)} disabled={wvSeiteKorr === wvGesamtSeiten}
-                  style={{ padding:"5px 10px", background:"none", border:`1px solid ${T.border}`, borderRadius:6, cursor:wvSeiteKorr===wvGesamtSeiten?"default":"pointer", color:T.textMid, fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem", opacity:wvSeiteKorr===wvGesamtSeiten?0.4:1 }}>
+                  style={{ padding:"5px 10px", background:"none", border:`1px solid ${T.border}`, borderRadius:6, cursor:wvSeiteKorr===wvGesamtSeiten?"default":"pointer", color:T.textMid, fontFamily:T.fontBody, fontSize:"0.85rem", opacity:wvSeiteKorr===wvGesamtSeiten?0.4:1 }}>
                   »
                 </button>
-                <span style={{ marginLeft:8, fontFamily:"'Figtree',sans-serif", fontSize:"0.84rem", color:T.textMuted }}>
+                <span style={{ marginLeft:8, fontFamily:T.fontBody, fontSize:"0.84rem", color:T.textMuted }}>
                   {(wvSeiteKorr-1)*WV_SEITE_GROESSE+1}–{Math.min(wvSeiteKorr*WV_SEITE_GROESSE, wvGesamtAnzahl)} von {wvGesamtAnzahl}
                 </span>
               </div>

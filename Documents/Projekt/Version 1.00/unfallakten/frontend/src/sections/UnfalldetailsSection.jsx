@@ -120,10 +120,10 @@ function UnfalldetailsSection({ akteId }) {
   };
 
   const inS = { width:"100%", padding:"7px 10px", border:`1px solid ${T.border}`,
-    borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem",
+    borderRadius:7, fontFamily:T.fontBody, fontSize:"0.935rem",
     outline:"none", background:T.white, boxSizing:"border-box" };
   const taS = { ...inS, minHeight:120, resize:"vertical" };
-  const lbS = { display:"block", fontFamily:"'Figtree',sans-serif",
+  const lbS = { display:"block", fontFamily:T.fontBody,
     fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:4 };
   const calBtnStyle = { padding:"6px 9px", borderRadius:7, cursor:"pointer",
     border:`1px solid ${T.border}`, background:T.white, color:T.textMuted,
@@ -138,7 +138,7 @@ function UnfalldetailsSection({ akteId }) {
 
 
   if (laedt) return <div style={{ padding:"2rem", textAlign:"center", color:T.textFaint,
-    fontFamily:"'Figtree',sans-serif" }}>Lade …</div>;
+    fontFamily:T.fontBody }}>Lade …</div>;
 
   return (
     <div style={{ flex:1, overflowY:"auto", background:T.offWhite }}>
@@ -149,7 +149,7 @@ function UnfalldetailsSection({ akteId }) {
         {/* WDM-Info-Banner */}
         {wdmInfo && (
           <div style={{ background:`${T.blue}10`, border:`1px solid ${T.blue}30`,
-            borderRadius:8, padding:"10px 14px", fontFamily:"'Figtree',sans-serif",
+            borderRadius:8, padding:"10px 14px", fontFamily:T.fontBody,
             fontSize:"0.875rem", color:T.blue, display:"flex", gap:8, alignItems:"flex-start" }}>
             <span style={{ flexShrink:0 }}>ℹ</span>
             <div>
@@ -190,7 +190,7 @@ function UnfalldetailsSection({ akteId }) {
                 tabIndex={-1}/>
             </div>
             {datumFehler && (
-              <div style={{ color:T.redText, fontFamily:"'Figtree',sans-serif",
+              <div style={{ color:T.redText, fontFamily:T.fontBody,
                 fontSize:"0.78rem", marginBottom:"1rem" }}>
                 {datumFehler}
               </div>
@@ -278,7 +278,7 @@ function UnfalldetailsSection({ akteId }) {
               <input type="checkbox" id="vst" checked={!!form.vorsteuerabzug}
                 onChange={e => upd("vorsteuerabzug", e.target.checked)}
                 style={{ width:16, height:16, cursor:"pointer" }}/>
-              <label htmlFor="vst" style={{ fontFamily:"'Figtree',sans-serif",
+              <label htmlFor="vst" style={{ fontFamily:T.fontBody,
                 fontSize:"0.935rem", cursor:"pointer", color:T.text }}>
                 Mandant ist vorsteuerabzugsberechtigt
               </label>

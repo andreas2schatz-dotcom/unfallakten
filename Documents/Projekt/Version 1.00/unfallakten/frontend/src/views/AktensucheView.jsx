@@ -60,7 +60,7 @@ function EakteHoverPopover({ az, anchor, daten, akteObj, onOpenAkte, onMouseEnte
       }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: "white",
           letterSpacing: "0.06em", textTransform: "uppercase",
-          fontFamily: "'Figtree',sans-serif" }}>
+          fontFamily: T.fontBody }}>
           E-Akte Vorschau
         </span>
         <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)",
@@ -72,17 +72,17 @@ function EakteHoverPopover({ az, anchor, daten, akteObj, onOpenAkte, onMouseEnte
       {/* Body */}
       {daten.loading ? (
         <div style={{ padding: "14px", textAlign: "center",
-          color: T.textFaint, fontFamily: "'Figtree',sans-serif", fontSize: 13 }}>
+          color: T.textFaint, fontFamily: T.fontBody, fontSize: 13 }}>
           Lädt …
         </div>
       ) : daten.error ? (
         <div style={{ padding: "12px 14px",
-          color: T.textMuted, fontFamily: "'Figtree',sans-serif", fontSize: 13 }}>
+          color: T.textMuted, fontFamily: T.fontBody, fontSize: 13 }}>
           {daten.error}
         </div>
       ) : daten.docs.length === 0 ? (
         <div style={{ padding: "12px 14px",
-          color: T.textMuted, fontFamily: "'Figtree',sans-serif", fontSize: 13 }}>
+          color: T.textMuted, fontFamily: T.fontBody, fontSize: 13 }}>
           Keine E-Akte-Dokumente vorhanden.
         </div>
       ) : (
@@ -107,19 +107,19 @@ function EakteHoverPopover({ az, anchor, daten, akteObj, onOpenAkte, onMouseEnte
                       background: badge.bg, color: badge.color,
                       borderRadius: 3, padding: "1px 5px",
                       textTransform: "uppercase", letterSpacing: "0.04em",
-                      whiteSpace: "nowrap", fontFamily: "'Figtree',sans-serif",
+                      whiteSpace: "nowrap", fontFamily: T.fontBody,
                     }}>
                       {badge.label}
                     </span>
                     <span style={{ fontSize: 10, color: T.textFaint,
-                      fontFamily: "'Figtree',sans-serif" }}>
+                      fontFamily: T.fontBody }}>
                       {datum}
                     </span>
                   </div>
                   <div style={{
                     fontSize: 12, color: T.textMid, fontWeight: 500,
                     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                    fontFamily: "'Figtree',sans-serif",
+                    fontFamily: T.fontBody,
                   }}>
                     {dok.anzeigename || dok.dateiname}
                   </div>
@@ -140,7 +140,7 @@ function EakteHoverPopover({ az, anchor, daten, akteObj, onOpenAkte, onMouseEnte
             style={{
               background: "none", border: "none", cursor: "pointer",
               fontSize: 11, color: T.accent, fontWeight: 600,
-              fontFamily: "'Figtree',sans-serif",
+              fontFamily: T.fontBody,
             }}>
             Alle Dokumente anzeigen →
           </button>
@@ -238,7 +238,7 @@ function AutocompleteInput({ value, onChange, onSearch, onOpenAkte, placeholder,
                     width: "100%", textAlign: "left", padding: "9px 14px",
                     background: "transparent", border: "none",
                     borderBottom: `1px solid ${T.borderSoft}`,
-                    cursor: "pointer", fontFamily: "'Figtree',sans-serif",
+                    cursor: "pointer", fontFamily: T.fontBody,
                     fontSize: "0.925rem", color: T.text,
                     display: "flex", alignItems: "center", gap: 10,
                   }}
@@ -256,7 +256,7 @@ function AutocompleteInput({ value, onChange, onSearch, onOpenAkte, placeholder,
               ))}
             </div>
           ) : !laedt ? (
-            <div style={{ padding: "11px 14px", fontFamily: "'Figtree',sans-serif",
+            <div style={{ padding: "11px 14px", fontFamily: T.fontBody,
               fontSize: "0.9rem", color: T.textMuted }}>
               Keine Akte gefunden für „{value}"
             </div>
@@ -264,7 +264,7 @@ function AutocompleteInput({ value, onChange, onSearch, onOpenAkte, placeholder,
         </div>
       )}
       {hint && (
-        <div style={{ marginTop: 5, fontFamily: "'Figtree',sans-serif",
+        <div style={{ marginTop: 5, fontFamily: T.fontBody,
           fontSize: "0.75rem", color: T.textFaint, lineHeight: 1.4 }}>
           {hint}
         </div>
@@ -316,7 +316,7 @@ function NeueAkteModal({ onClose, onAkteErstellt }) {
 
   const inp = (label, key, placeholder, hint, required) => (
     <div style={{ marginBottom: "1rem" }}>
-      <label style={{ display: "block", fontFamily: "'Figtree',sans-serif",
+      <label style={{ display: "block", fontFamily: T.fontBody,
         fontSize: "0.78rem", fontWeight: 600, color: T.textMid,
         letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 5 }}>
         {label}{required && <span style={{ color: T.red, marginLeft: 2 }}>*</span>}
@@ -327,15 +327,15 @@ function NeueAkteModal({ onClose, onAkteErstellt }) {
         onChange={e => set(key, e.target.value)}
         placeholder={placeholder}
         style={{ width: "100%", padding: "9px 11px", border: `1.5px solid ${fehler[key] ? T.red : T.border}`,
-          borderRadius: 7, fontFamily: "'Figtree',sans-serif", fontSize: "0.95rem",
+          borderRadius: 7, fontFamily: T.fontBody, fontSize: "0.95rem",
           color: T.text, background: T.white, outline: "none", boxSizing: "border-box" }}
         onFocus={e => e.target.style.borderColor = fehler[key] ? T.red : T.accent}
         onBlur={e  => e.target.style.borderColor = fehler[key] ? T.red : T.border}
       />
       {fehler[key] && <div style={{ marginTop: 4, fontSize: "0.78rem", color: T.red,
-        fontFamily: "'Figtree',sans-serif" }}>{fehler[key]}</div>}
+        fontFamily: T.fontBody }}>{fehler[key]}</div>}
       {hint && !fehler[key] && <div style={{ marginTop: 4, fontSize: "0.75rem",
-        color: T.textFaint, fontFamily: "'Figtree',sans-serif", lineHeight: 1.4 }}>{hint}</div>}
+        color: T.textFaint, fontFamily: T.fontBody, lineHeight: 1.4 }}>{hint}</div>}
     </div>
   );
 
@@ -348,7 +348,7 @@ function NeueAkteModal({ onClose, onAkteErstellt }) {
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
           marginBottom: "1.25rem" }}>
-          <h2 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: "1.25rem",
+          <h2 style={{ fontFamily: T.fontDisplay, fontSize: "1.25rem",
             fontWeight: 700, color: T.navy, margin: 0 }}>Neue Akte anlegen</h2>
           <button onClick={onClose} style={{ background: "none", border: "none",
             fontSize: "1.3rem", cursor: "pointer", color: T.textMuted, lineHeight: 1 }}>✕</button>
@@ -356,7 +356,7 @@ function NeueAkteModal({ onClose, onAkteErstellt }) {
 
         <div style={{ background: T.amberBg, border: `1px solid ${T.amber}44`,
           borderRadius: 8, padding: "9px 13px", marginBottom: "1.25rem",
-          fontFamily: "'Figtree',sans-serif", fontSize: "0.825rem", color: T.amber }}>
+          fontFamily: T.fontBody, fontSize: "0.825rem", color: T.amber }}>
           ℹ Das Aktenzeichen muss mit dem RA-Micro-AZ übereinstimmen (z.B. <code style={{ fontFamily: "ui-monospace,monospace" }}>42/26</code>).
         </div>
 
@@ -365,7 +365,7 @@ function NeueAkteModal({ onClose, onAkteErstellt }) {
         {inp("Unfallort", "unfallort", "Offenbach, Berliner Str. 12", null, false)}
 
         <div style={{ marginBottom: "1rem" }}>
-          <label style={{ display: "block", fontFamily: "'Figtree',sans-serif",
+          <label style={{ display: "block", fontFamily: T.fontBody,
             fontSize: "0.78rem", fontWeight: 600, color: T.textMid,
             letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 5 }}>
             Notizen
@@ -373,7 +373,7 @@ function NeueAkteModal({ onClose, onAkteErstellt }) {
           <textarea value={felder.notizen} onChange={e => set("notizen", e.target.value)}
             rows={2} placeholder="Erstnotiz (optional)"
             style={{ width: "100%", padding: "9px 11px", border: `1.5px solid ${T.border}`,
-              borderRadius: 7, fontFamily: "'Figtree',sans-serif", fontSize: "0.95rem",
+              borderRadius: 7, fontFamily: T.fontBody, fontSize: "0.95rem",
               color: T.text, background: T.white, outline: "none", boxSizing: "border-box",
               resize: "vertical" }}
             onFocus={e => e.target.style.borderColor = T.accent}
@@ -382,7 +382,7 @@ function NeueAkteModal({ onClose, onAkteErstellt }) {
 
         {fehler.allgemein && (
           <div style={{ background: T.redBg, border: `1px solid ${T.red}44`, borderRadius: 8,
-            padding: "9px 13px", marginBottom: "1rem", fontFamily: "'Figtree',sans-serif",
+            padding: "9px 13px", marginBottom: "1rem", fontFamily: T.fontBody,
             fontSize: "0.825rem", color: T.red }}>
             ⚠ {fehler.allgemein}
           </div>
@@ -507,7 +507,7 @@ function AktensucheView({ onOpenAkte }) {
   };
 
   const labelStyle = {
-    fontFamily: "'Figtree',sans-serif", fontSize: "0.78rem",
+    fontFamily: T.fontBody, fontSize: "0.78rem",
     fontWeight: 600, color: T.textMid, letterSpacing: "0.06em",
     textTransform: "uppercase", display: "block", marginBottom: 6,
   };
@@ -521,10 +521,10 @@ function AktensucheView({ onOpenAkte }) {
         padding: "1.1rem 1.75rem", flexShrink: 0,
         display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: "1.45rem", fontWeight: 700, color: T.navy, margin: "0 0 3px" }}>
+          <h1 style={{ fontFamily: T.fontDisplay, fontSize: "1.45rem", fontWeight: 700, color: T.navy, margin: "0 0 3px" }}>
             Aktensuche
           </h1>
-          <p style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.855rem", color: T.textMuted, margin: 0 }}>
+          <p style={{ fontFamily: T.fontBody, fontSize: "0.855rem", color: T.textMuted, margin: 0 }}>
             Direktsuche in der RA-Micro Datenbank · Alle aktiven Akten
           </p>
         </div>
@@ -581,14 +581,14 @@ function AktensucheView({ onOpenAkte }) {
             onKeyDown={e => e.key === "Enter" && suchen("tag")}
             style={{
               width: "100%", padding: "9px 11px", border: `1.5px solid ${T.border}`,
-              borderRadius: 7, fontFamily: "'Figtree',sans-serif", fontSize: "0.975rem",
+              borderRadius: 7, fontFamily: T.fontBody, fontSize: "0.975rem",
               color: T.text, background: T.white, outline: "none",
               boxSizing: "border-box", transition: "border-color 0.15s",
             }}
             onFocus={e => e.target.style.borderColor = T.accent}
             onBlur={e  => e.target.style.borderColor = T.border}
           />
-          <div style={{ marginTop: 5, fontFamily: "'Figtree',sans-serif",
+          <div style={{ marginTop: 5, fontFamily: T.fontBody,
             fontSize: "0.75rem", color: T.textFaint, lineHeight: 1.4 }}>
             Alle Unfälle an diesem Tag · WDM varU-TAG
           </div>
@@ -605,7 +605,7 @@ function AktensucheView({ onOpenAkte }) {
         <div style={{ margin: "0 1.75rem 0.75rem", padding: "9px 14px",
           background: ramicroAktiv ? T.redBg : T.amberBg,
           border: `1px solid ${ramicroAktiv ? T.red : T.amber}44`,
-          borderRadius: 8, fontFamily: "'Figtree',sans-serif",
+          borderRadius: 8, fontFamily: T.fontBody,
           fontSize: "0.855rem", color: ramicroAktiv ? T.red : T.amber }}>
           {ramicroAktiv ? "⚠" : "ℹ"} {fehler}
         </div>
@@ -615,7 +615,7 @@ function AktensucheView({ onOpenAkte }) {
       {treffer !== null && (
         <div style={{ flex: 1, overflowY: "auto", padding: "0 1.75rem 1.75rem" }}>
           {treffer.length === 0 && !fehler ? (
-            <div style={{ textAlign: "center", padding: "3rem 0", color: T.textFaint, fontFamily: "'Figtree',sans-serif" }}>
+            <div style={{ textAlign: "center", padding: "3rem 0", color: T.textFaint, fontFamily: T.fontBody }}>
               <div style={{ fontSize: "2.5rem", marginBottom: 8 }}>🗂</div>
               <div style={{ fontSize: "1rem" }}>Keine aktiven Akten gefunden</div>
               {suchmodus && <div style={{ fontSize: "0.85rem", marginTop: 4 }}>Suchmodus: {SUCHMODUS_LABEL[suchmodus]}</div>}
@@ -624,16 +624,16 @@ function AktensucheView({ onOpenAkte }) {
             <Card>
               <div style={{ padding: "0.65rem 1.4rem", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${T.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.82rem", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  <span style={{ fontFamily: T.fontBody, fontSize: "0.82rem", fontWeight: 600, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em" }}>
                     Ergebnisse
                   </span>
                   {suchmodus && (
-                    <span style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.78rem", background: T.accentPale, color: T.navy, border: `1px solid rgba(160,107,74,0.3)`, borderRadius: 10, padding: "1px 8px" }}>
+                    <span style={{ fontFamily: T.fontBody, fontSize: "0.78rem", background: T.accentPale, color: T.navy, border: `1px solid rgba(160,107,74,0.3)`, borderRadius: 10, padding: "1px 8px" }}>
                       {SUCHMODUS_LABEL[suchmodus]}
                     </span>
                   )}
                 </div>
-                <span style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.82rem", color: T.textFaint }}>
+                <span style={{ fontFamily: T.fontBody, fontSize: "0.82rem", color: T.textFaint }}>
                   {treffer.length} Treffer
                 </span>
               </div>
@@ -641,7 +641,7 @@ function AktensucheView({ onOpenAkte }) {
                 <thead>
                   <tr style={{ background: T.surface }}>
                     {["Aktenzeichen", "Bezeichnung", "Sachbearb.", ""].map((h, i) => (
-                      <th key={i} style={{ padding: "8px 14px", textAlign: "left", fontFamily: "'Figtree',sans-serif", fontSize: "0.78rem", fontWeight: 600, color: T.textMuted, letterSpacing: "0.06em", textTransform: "uppercase", borderBottom: `1px solid ${T.border}`, whiteSpace: "nowrap" }}>{h}</th>
+                      <th key={i} style={{ padding: "8px 14px", textAlign: "left", fontFamily: T.fontBody, fontSize: "0.78rem", fontWeight: 600, color: T.textMuted, letterSpacing: "0.06em", textTransform: "uppercase", borderBottom: `1px solid ${T.border}`, whiteSpace: "nowrap" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -658,12 +658,12 @@ function AktensucheView({ onOpenAkte }) {
                         </button>
                       </td>
                       <td style={{ padding: "10px 14px", maxWidth: 380 }}>
-                        <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.875rem", fontWeight: 600, color: T.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                        <div style={{ fontFamily: T.fontBody, fontSize: "0.875rem", fontWeight: 600, color: T.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                              title={t.kurzbezeichnung}>
                           {t.kurzbezeichnung || t.mandant || "–"}
                         </div>
                         {(t.bezeichnung || t.kennzeichen) && (
-                          <div style={{ fontFamily: "'Figtree',sans-serif", fontSize: "0.795rem", color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}
+                          <div style={{ fontFamily: T.fontBody, fontSize: "0.795rem", color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}
                                title={[t.bezeichnung, t.kennzeichen].filter(Boolean).join(" · ")}>
                             {t.bezeichnung}
                             {t.bezeichnung && t.kennzeichen && <span style={{ margin: "0 4px", color: T.textFaint }}>·</span>}
@@ -693,7 +693,7 @@ function AktensucheView({ onOpenAkte }) {
 
       {/* Leerzustand */}
       {treffer === null && !loading && (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", color: T.textFaint, fontFamily: "'Figtree',sans-serif", gap: 10 }}>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", color: T.textFaint, fontFamily: T.fontBody, gap: 10 }}>
           <div style={{ fontSize: "3rem" }}>🔍</div>
           <div style={{ fontSize: "1rem" }}>Suchfeld ausfüllen · Vorschläge erscheinen ab 2 Zeichen</div>
           <div style={{ fontSize: "0.83rem", color: T.textFaint, textAlign: "center", maxWidth: 380, lineHeight: 1.6 }}>

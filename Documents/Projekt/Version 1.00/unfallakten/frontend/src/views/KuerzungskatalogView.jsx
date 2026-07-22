@@ -129,7 +129,7 @@ function KuerzungskatalogSection() {
           {/* Formular */}
           {showForm && (
             <div style={{ margin:"0 1.4rem 1rem", background:T.accentPale, border:`1px solid ${T.accentTrim}`, borderRadius:10, padding:"1.1rem 1.25rem" }}>
-              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", fontWeight:600, color:T.navy, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"1rem" }}>
+              <div style={{ fontFamily:T.fontBody, fontSize:"0.875rem", fontWeight:600, color:T.navy, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"1rem" }}>
                 {editItem ? "Kürzungsart bearbeiten" : "Neue Kürzungsart"}
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:"0.9rem", marginBottom:"0.9rem" }}>
@@ -140,7 +140,7 @@ function KuerzungskatalogSection() {
                 <FieldInput label="Interner Hinweis" value={form.hinweis_intern} onChange={F("hinweis_intern")} placeholder="z.B. auch fiktiv" />
               </div>
               <div style={{ marginBottom:"0.9rem" }}>
-                <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", fontWeight:600, color:T.textMid, textTransform:"uppercase", letterSpacing:"0.05em", display:"block", marginBottom:4 }}>
+                <label style={{ fontFamily:T.fontBody, fontSize:"0.825rem", fontWeight:600, color:T.textMid, textTransform:"uppercase", letterSpacing:"0.05em", display:"block", marginBottom:4 }}>
                   Standard-Gegenargument
                 </label>
                 <textarea
@@ -148,13 +148,13 @@ function KuerzungskatalogSection() {
                   onChange={e => setForm(p => ({...p, standard_gegenargument: e.target.value}))}
                   rows={3}
                   placeholder="Bewährte Argumentation für den Klage-Generator …"
-                  style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.925rem", color:T.text, background:T.surface, outline:"none", resize:"vertical", lineHeight:1.5 }}
+                  style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:T.fontBody, fontSize:"0.925rem", color:T.text, background:T.surface, outline:"none", resize:"vertical", lineHeight:1.5 }}
                   onFocus={e => e.target.style.borderColor=T.accent}
                   onBlur={e => e.target.style.borderColor=T.border}
                 />
               </div>
               <div style={{ marginBottom:"0.9rem" }}>
-                <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", fontWeight:600, color:T.textMid, textTransform:"uppercase", letterSpacing:"0.05em", display:"block", marginBottom:4 }}>
+                <label style={{ fontFamily:T.fontBody, fontSize:"0.825rem", fontWeight:600, color:T.textMid, textTransform:"uppercase", letterSpacing:"0.05em", display:"block", marginBottom:4 }}>
                   Textbaustein Stellungnahme
                   <span style={{ fontWeight:400, textTransform:"none", fontSize:"0.78rem", color:T.textFaint, marginLeft:6 }}>
                     (ausführlicher Brieftext – wenn leer: Standard-Gegenargument wird verwendet)
@@ -165,7 +165,7 @@ function KuerzungskatalogSection() {
                   onChange={e => setForm(p => ({...p, textbaustein: e.target.value}))}
                   rows={5}
                   placeholder="Ausführlicher briefreifer Text für Stellungnahmen zum Abrechnungsschreiben …"
-                  style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.925rem", color:T.text, background:T.surface, outline:"none", resize:"vertical", lineHeight:1.5 }}
+                  style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:T.fontBody, fontSize:"0.925rem", color:T.text, background:T.surface, outline:"none", resize:"vertical", lineHeight:1.5 }}
                   onFocus={e => e.target.style.borderColor=T.accent}
                   onBlur={e => e.target.style.borderColor=T.border}
                 />
@@ -178,7 +178,7 @@ function KuerzungskatalogSection() {
                   onChange={e => setForm(p => ({...p, sv_stellungnahme_erforderlich: e.target.checked}))}
                   style={{ width:15, height:15, cursor:"pointer" }}
                 />
-                <label htmlFor="sv_flag" style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem", color:T.textMid, cursor:"pointer" }}>
+                <label htmlFor="sv_flag" style={{ fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMid, cursor:"pointer" }}>
                   SV-Stellungnahme erforderlich
                 </label>
               </div>
@@ -191,7 +191,7 @@ function KuerzungskatalogSection() {
 
           {/* Tabelle gruppiert nach Kategorie */}
           {loading ? (
-            <div style={{ padding:"2rem", textAlign:"center", color:T.textFaint, fontFamily:"'Figtree',sans-serif" }}>
+            <div style={{ padding:"2rem", textAlign:"center", color:T.textFaint, fontFamily:T.fontBody }}>
               <div>Lade Kürzungskatalog …</div>
               <div style={{ fontSize:"0.8rem", marginTop:6, color:T.textFaint }}>
                 Falls der Spinner nicht verschwindet:{" "}
@@ -211,12 +211,12 @@ function KuerzungskatalogSection() {
                       <span style={{ fontSize:"0.78rem", fontWeight:600, padding:"3px 10px", borderRadius:20, background:katCfg.bg, color:katCfg.color }}>
                         {katCfg.label}
                       </span>
-                      <span style={{ fontSize:"0.82rem", color:T.textFaint, fontFamily:"'Figtree',sans-serif" }}>
+                      <span style={{ fontSize:"0.82rem", color:T.textFaint, fontFamily:T.fontBody }}>
                         {eintraege.length} {eintraege.length === 1 ? "Eintrag" : "Einträge"}
                       </span>
                     </div>
                     {eintraege.length === 0 ? (
-                      <div style={{ padding:"0.75rem 1rem", border:`1px dashed ${T.border}`, borderRadius:8, fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.textFaint }}>
+                      <div style={{ padding:"0.75rem 1rem", border:`1px dashed ${T.border}`, borderRadius:8, fontFamily:T.fontBody, fontSize:"0.875rem", color:T.textFaint }}>
                         Keine Einträge in dieser Kategorie.
                       </div>
                     ) : (
@@ -228,7 +228,7 @@ function KuerzungskatalogSection() {
                             <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
                               <div style={{ flex:1 }}>
                                 <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:art.standard_gegenargument||art.hinweis_intern?4:0 }}>
-                                  <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem", fontWeight:600, color:art.aktiv?T.text:T.textFaint }}>
+                                  <span style={{ fontFamily:T.fontBody, fontSize:"0.935rem", fontWeight:600, color:art.aktiv?T.text:T.textFaint }}>
                                     {art.bezeichnung}
                                   </span>
                                   {art.sv_stellungnahme_erforderlich && (
@@ -258,7 +258,7 @@ function KuerzungskatalogSection() {
                                   </div>
                                 )}
                                 {art.standard_gegenargument && (
-                                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem", color:T.textMuted, lineHeight:1.5, marginBottom:art.hinweis_intern?3:0 }}>
+                                  <div style={{ fontFamily:T.fontBody, fontSize:"0.855rem", color:T.textMuted, lineHeight:1.5, marginBottom:art.hinweis_intern?3:0 }}>
                                     {art.standard_gegenargument}
                                   </div>
                                 )}
@@ -270,7 +270,7 @@ function KuerzungskatalogSection() {
                                   </div>
                                 )}
                                 {art.hinweis_intern && (
-                                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.amber, fontStyle:"italic" }}>
+                                  <div style={{ fontFamily:T.fontBody, fontSize:"0.82rem", color:T.amber, fontStyle:"italic" }}>
                                     Hinweis: {art.hinweis_intern}
                                   </div>
                                 )}

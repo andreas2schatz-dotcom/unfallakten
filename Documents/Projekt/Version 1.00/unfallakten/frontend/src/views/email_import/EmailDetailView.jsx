@@ -96,7 +96,7 @@ function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert, onG
           display:"flex", alignItems:"center", gap:10, flexWrap:"wrap", flexShrink:0 }}>
           <button onClick={onBack}
             style={{ display:"flex", alignItems:"center", gap:5, background:"none",
-              border:"none", cursor:"pointer", fontFamily:"'Figtree',sans-serif",
+              border:"none", cursor:"pointer", fontFamily:T.fontBody,
               fontSize:"0.895rem", color:T.textMid, padding:"4px 0" }}>
             ← Zurück zum Stream
           </button>
@@ -104,24 +104,24 @@ function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert, onG
             <button onClick={() => setLoeschBestaetigen(true)}
               style={{ display:"flex", alignItems:"center", gap:4, background:"none",
                 border:`1px solid ${T.border}`, borderRadius:6, cursor:"pointer",
-                fontFamily:"'Figtree',sans-serif", fontSize:"0.835rem",
+                fontFamily:T.fontBody, fontSize:"0.835rem",
                 color:T.textMuted, padding:"4px 9px" }}>
               🗑 Löschen
             </button>
           ) : (
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.835rem", color:T.red }}>
+              <span style={{ fontFamily:T.fontBody, fontSize:"0.835rem", color:T.red }}>
                 Wirklich löschen?
               </span>
               <button onClick={handleLoeschen} disabled={loeschtGerade}
                 style={{ background:T.red, color:T.white, border:"none", borderRadius:5,
-                  padding:"3px 10px", fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem",
+                  padding:"3px 10px", fontFamily:T.fontBody, fontSize:"0.815rem",
                   fontWeight:600, cursor:"pointer" }}>
                 {loeschtGerade ? "…" : "Ja"}
               </button>
               <button onClick={() => setLoeschBestaetigen(false)}
                 style={{ background:"none", border:`1px solid ${T.border}`, borderRadius:5,
-                  padding:"3px 9px", fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem",
+                  padding:"3px 9px", fontFamily:T.fontBody, fontSize:"0.815rem",
                   color:T.textMid, cursor:"pointer" }}>
                 Abbrechen
               </button>
@@ -131,7 +131,7 @@ function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert, onG
             <button onClick={() => onOpenAkte(lokalerEintrag)}
               style={{ display:"flex", alignItems:"center", gap:5, background:"none",
                 border:`1px solid ${T.navy}`, borderRadius:6, cursor:"pointer",
-                fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem",
+                fontFamily:T.fontBody, fontSize:"0.855rem",
                 color:T.navy, padding:"4px 10px", marginLeft:"auto" }}>
               {Ic.akte} Akte {lokalerEintrag.akte_az} öffnen
             </button>
@@ -140,7 +140,7 @@ function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert, onG
 
         {/* Betreff */}
         <div style={{ padding:"1.25rem 1.25rem 0.75rem",
-          fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1.1rem",
+          fontFamily:T.fontDisplay, fontSize:"1.1rem",
           fontWeight:700, color:T.navy, lineHeight:1.3 }}>
           {lokalerEintrag.betreff || <span style={{ color:T.textMuted, fontStyle:"italic" }}>(kein Betreff)</span>}
         </div>
@@ -154,9 +154,9 @@ function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert, onG
             ["Typ",   et ? et.label : "Sonstiges"],
           ].map(([l, v]) => (
             <div key={l} style={{ display:"flex", gap:10, alignItems:"baseline" }}>
-              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem",
+              <span style={{ fontFamily:T.fontBody, fontSize:"0.815rem",
                 color:T.textMuted, width:44, flexShrink:0 }}>{l}</span>
-              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem",
+              <span style={{ fontFamily:T.fontBody, fontSize:"0.895rem",
                 color: l === "Akte" && lokalerEintrag.akte_az ? T.green : T.text,
                 fontWeight: l === "Akte" && lokalerEintrag.akte_az ? 600 : 400 }}>{v}</span>
             </div>
@@ -168,12 +168,12 @@ function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert, onG
         {/* Anhänge */}
         {(lokalerEintrag.anhaenge_anzahl || 0) > 0 && (
           <div style={{ padding:"0.85rem 1.25rem" }}>
-            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", fontWeight:700,
+            <div style={{ fontFamily:T.fontBody, fontSize:"0.78rem", fontWeight:700,
               color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:8 }}>
               Anhänge ({lokalerEintrag.anhaenge_anzahl})
             </div>
             {metaLaedt ? (
-              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.textMuted }}>Lade …</div>
+              <div style={{ fontFamily:T.fontBody, fontSize:"0.875rem", color:T.textMuted }}>Lade …</div>
             ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
                 {(meta?.anhaenge || []).map(anh => {
@@ -187,11 +187,11 @@ function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert, onG
                         borderRadius:7, padding:"6px 10px", cursor:"pointer" }}
                       onClick={() => oeffneAnhangVorschau(anh)}>
                       <span style={{ color: isPdf ? T.red : T.blue, display:"flex", flexShrink:0 }}>{isPdf ? Ic.pdf : Ic.attach}</span>
-                      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+                      <span style={{ fontFamily:T.fontBody, fontSize:"0.875rem",
                         color:T.text, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                         {anh.name || `Anhang ${anh.index + 1}`}
                       </span>
-                      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
+                      <span style={{ fontFamily:T.fontBody, fontSize:"0.8rem",
                         color: istAktiv ? T.accent : T.textMuted, flexShrink:0 }}>
                         {istAktiv ? "▼ Vorschau" : "▶ Vorschau"}
                       </span>
@@ -210,11 +210,11 @@ function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert, onG
           {lokalerEintrag.akte_az && !lokalerEintrag.in_akte_importiert ? (
             <div style={{ background:T.greenBg, border:`1.5px solid ${T.green}44`,
               borderRadius:9, padding:"0.85rem 1rem" }}>
-              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+              <div style={{ fontFamily:T.fontBody, fontSize:"0.875rem",
                 fontWeight:700, color:T.green, marginBottom:4 }}>
                 📥 In Akte {lokalerEintrag.akte_az} importieren?
               </div>
-              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.835rem",
+              <div style={{ fontFamily:T.fontBody, fontSize:"0.835rem",
                 color:T.textMid, marginBottom:10 }}>
                 {(lokalerEintrag.anhaenge_anzahl || 0) > 0
                   ? `${lokalerEintrag.anhaenge_anzahl} Anhang${lokalerEintrag.anhaenge_anzahl > 1 ? "hänge" : ""} + E-Mail-Text`
@@ -230,12 +230,12 @@ function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert, onG
             <div style={{ display:"flex", alignItems:"center", gap:7,
               background:T.greenBg, border:`1px solid ${T.green}33`,
               borderRadius:7, padding:"8px 12px",
-              fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", color:T.green }}>
+              fontFamily:T.fontBody, fontSize:"0.875rem", color:T.green }}>
               {Ic.check}
               <span>In Akte importiert{lokalerEintrag.in_akte_importiert_am ? ` · ${lokalerEintrag.in_akte_importiert_am}` : ""}</span>
             </div>
           ) : (
-            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+            <div style={{ fontFamily:T.fontBody, fontSize:"0.875rem",
               color:T.textMuted, fontStyle:"italic" }}>
               E-Mail noch keiner Akte zugeordnet
             </div>
@@ -248,7 +248,7 @@ function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert, onG
         {aktiverIdx !== null ? (
           vorschauLaedt ? (
             <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center",
-              fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem", color:T.textMuted }}>
+              fontFamily:T.fontBody, fontSize:"0.955rem", color:T.textMuted }}>
               <div style={{ width:20, height:20, border:`2px solid ${T.border}`,
                 borderTopColor:T.navy, borderRadius:"50%", animation:"spin 0.7s linear infinite",
                 marginRight:10 }} />
@@ -258,7 +258,7 @@ function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert, onG
             <>
               <div style={{ padding:"8px 14px", borderBottom:`1px solid ${T.border}`,
                 display:"flex", alignItems:"center", gap:10, flexShrink:0,
-                background:T.white, fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}>
+                background:T.white, fontFamily:T.fontBody, fontSize:"0.875rem" }}>
                 <span style={{ color:T.textMid }}>
                   {(meta?.anhaenge || []).find(a => a.index === aktiverIdx)?.name || `Anhang ${aktiverIdx + 1}`}
                 </span>
@@ -266,7 +266,7 @@ function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert, onG
                     (meta?.anhaenge || []).find(a => a.index === aktiverIdx)?.name || "anhang")}
                   style={{ marginLeft:"auto", background:"none", border:`1px solid ${T.border}`,
                     borderRadius:5, padding:"3px 10px", cursor:"pointer",
-                    fontFamily:"'Figtree',sans-serif", fontSize:"0.835rem", color:T.textMid }}>
+                    fontFamily:T.fontBody, fontSize:"0.835rem", color:T.textMid }}>
                   ↗ Vollbild
                 </button>
               </div>
@@ -275,20 +275,20 @@ function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert, onG
             </>
           ) : (
             <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center",
-              fontFamily:"'Figtree',sans-serif", fontSize:"0.955rem", color:T.red }}>
+              fontFamily:T.fontBody, fontSize:"0.955rem", color:T.red }}>
               Anhang konnte nicht geladen werden.
             </div>
           )
         ) : (
           <div style={{ flex:1, overflowY:"auto", padding:"1.5rem" }}>
-            <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", fontWeight:700,
+            <div style={{ fontFamily:T.fontBody, fontSize:"0.78rem", fontWeight:700,
               color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:10 }}>
               E-Mail-Text
             </div>
             {metaLaedt ? (
-              <div style={{ color:T.textMuted, fontSize:"0.895rem", fontFamily:"'Figtree',sans-serif" }}>Lade …</div>
+              <div style={{ color:T.textMuted, fontSize:"0.895rem", fontFamily:T.fontBody }}>Lade …</div>
             ) : (
-              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem",
+              <div style={{ fontFamily:T.fontBody, fontSize:"0.895rem",
                 color:T.textMid, whiteSpace:"pre-wrap", lineHeight:1.6 }}>
                 {meta?.body_text || <span style={{ color:T.textMuted, fontStyle:"italic" }}>(kein Text)</span>}
               </div>

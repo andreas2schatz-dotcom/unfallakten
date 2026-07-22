@@ -720,7 +720,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
             {uploading ? (
               <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
                 <div style={{ width:32, height:32, border:`3px solid ${T.accentTrim}`, borderTopColor:T.accent, borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
-                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", color:T.textMuted }}>Hochladen und analysieren …</div>
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.975rem", color:T.textMuted }}>Hochladen und analysieren …</div>
                 {uploadProgress > 0 && uploadProgress < 100 && (
                   <div style={{ width:200 }}>
                     <div style={{ height:4, background:T.border, borderRadius:4, overflow:"hidden" }}>
@@ -733,8 +733,8 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
             ) : (
               <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}>
                 <span style={{ color:dragging?T.accent:T.textFaint }}>{Ic.upload}</span>
-                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"1.025rem", fontWeight:600, color:dragging?T.accent:T.textMid }}>Datei hier ablegen oder klicken</div>
-                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.905rem", color:T.textFaint }}>PDF, DOCX, JPG, PNG · max. 20 MB · PDFs werden automatisch geparst</div>
+                <div style={{ fontFamily:T.fontBody, fontSize:"1.025rem", fontWeight:600, color:dragging?T.accent:T.textMid }}>Datei hier ablegen oder klicken</div>
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.905rem", color:T.textFaint }}>PDF, DOCX, JPG, PNG · max. 20 MB · PDFs werden automatisch geparst</div>
               </div>
             )}
           </div>
@@ -779,7 +779,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                   transition:"background 0.4s" }}>
 
                   {/* Positions-Label */}
-                  <div style={{ width:178, flexShrink:0, fontFamily:"'Figtree',sans-serif", fontSize:"0.845rem",
+                  <div style={{ width:178, flexShrink:0, fontFamily:T.fontBody, fontSize:"0.845rem",
                     fontWeight:500, color: beleg ? T.text : kand ? T.textMid : T.textFaint }}>
                     {f.l}
                   </div>
@@ -793,7 +793,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                         onMouseEnter={e => e.currentTarget.querySelector("span").style.textDecoration="underline"}
                         onMouseLeave={e => e.currentTarget.querySelector("span").style.textDecoration="none"}>
                         <span style={{ color:T.red, fontSize:"0.9rem", flexShrink:0 }}>📄</span>
-                        <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.blue,
+                        <span style={{ fontFamily:T.fontBody, fontSize:"0.82rem", color:T.blue,
                           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                           {beleg.dateiname}
                         </span>
@@ -834,7 +834,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                       <span style={{ width:7, height:7, borderRadius:"50%", flexShrink:0,
                         background: isHigh ? T.green : T.amber }} />
                       {/* Dateiname */}
-                      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", color:T.textMid,
+                      <span style={{ fontFamily:T.fontBody, fontSize:"0.8rem", color:T.textMid,
                         overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1, minWidth:0 }}
                         title={kand.dateiname}>
                         {kand.dateiname || kand.lieferant || "Dokument"}
@@ -851,7 +851,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                             disabled={isLoading}
                             style={{ padding:"3px 10px", borderRadius:5, border:"none",
                               background: isLoading ? T.textFaint : T.accent,
-                              color:T.white, fontFamily:"'Figtree',sans-serif",
+                              color:T.white, fontFamily:T.fontBody,
                               fontSize:"0.78rem", fontWeight:600,
                               cursor: isLoading ? "not-allowed" : "pointer", flexShrink:0,
                               transition:"background 0.12s" }}>
@@ -865,7 +865,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                             type="number" step="0.01" min="0" placeholder="Betrag €"
                             value={inlineBetrag[f.k] || ""}
                             onChange={e => setInlineBetrag(p => ({ ...p, [f.k]: e.target.value }))}
-                            style={{ width:88, fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
+                            style={{ width:88, fontFamily:T.fontBody, fontSize:"0.78rem",
                               padding:"3px 7px", border:`1px solid ${T.border}`, borderRadius:5,
                               outline:"none", color:T.text, background:T.surface, flexShrink:0 }}
                           />
@@ -874,7 +874,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                             disabled={isLoading || !(parseFloat(inlineBetrag[f.k]) > 0)}
                             style={{ padding:"3px 10px", borderRadius:5, border:"none",
                               background: T.accent, color:T.white,
-                              fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", fontWeight:600,
+                              fontFamily:T.fontBody, fontSize:"0.78rem", fontWeight:600,
                               cursor:"pointer", flexShrink:0,
                               opacity: (isLoading || !(parseFloat(inlineBetrag[f.k]) > 0)) ? 0.4 : 1 }}>
                             {isLoading ? "…" : "Annehmen"}
@@ -885,7 +885,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
 
                   ) : (
                     /* ── Kein Kandidat ──────────────────────────────────── */
-                    <div style={{ flex:1, fontFamily:"'Figtree',sans-serif",
+                    <div style={{ flex:1, fontFamily:T.fontBody,
                       fontSize:"0.82rem", color:T.textFaint }}>—</div>
                   )}
                 </div>
@@ -906,7 +906,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
               display:"flex", flexDirection:"column", overflow:"hidden" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
                 padding:"12px 20px", borderBottom:`1px solid ${T.border}`, background:T.surface }}>
-                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem", fontWeight:600, color:T.navy,
+                <span style={{ fontFamily:T.fontBody, fontSize:"0.9rem", fontWeight:600, color:T.navy,
                   overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"70vw" }}>
                   📄 {dokumente.find(d => d.id === belegVorschau)?.dateiname || "Vorschau"}
                 </span>
@@ -937,9 +937,9 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
             ) : null}
           />
           {dokumente.length === 0 ? (
-            <div style={{ padding:"2rem", textAlign:"center", fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", color:T.textFaint }}>Noch keine Dokumente hochgeladen.</div>
+            <div style={{ padding:"2rem", textAlign:"center", fontFamily:T.fontBody, fontSize:"0.975rem", color:T.textFaint }}>Noch keine Dokumente hochgeladen.</div>
           ) : sichtbareDokumente.length === 0 ? (
-            <div style={{ padding:"1.5rem", textAlign:"center", fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem", color:T.textFaint }}>
+            <div style={{ padding:"1.5rem", textAlign:"center", fontFamily:T.fontBody, fontSize:"0.9rem", color:T.textFaint }}>
               Alle Dokumente zugeordnet.{" "}
               <button onClick={() => setZeigeAlle(true)} style={{ background:"none", border:"none", color:T.accent, cursor:"pointer", textDecoration:"underline", fontFamily:"inherit", fontSize:"inherit" }}>Alle anzeigen</button>
             </div>
@@ -965,7 +965,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                   <div
                     onClick={() => { setBezEdit(d.id); setBezText(d.bezeichnung || ""); }}
                     title="Klicken zum Umbenennen"
-                    style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", fontWeight:600, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"text" }}>
+                    style={{ fontFamily:T.fontBody, fontSize:"0.975rem", fontWeight:600, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"text" }}>
                     {d.bezeichnung || d.dateiname}
                   </div>
                   {bezEdit === d.id && (
@@ -986,7 +986,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                       value={d.dokumentenklasse||d.typ||"sonstiges"}
                       disabled={korrekturLading===d.id}
                       onChange={e => korrigiereKlasse(d.id, e.target.value)}
-                      style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem", background:korrekturLading===d.id?T.accentPale:T.surface, color:T.textMuted, border:`1px solid ${T.border}`, borderRadius:10, padding:"1px 7px", cursor:"pointer", outline:"none", appearance:"none", WebkitAppearance:"none", paddingRight:16, backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23999'/%3E%3C/svg%3E")`, backgroundRepeat:"no-repeat", backgroundPosition:"right 5px center" }}
+                      style={{ fontFamily:T.fontBody, fontSize:"0.825rem", background:korrekturLading===d.id?T.accentPale:T.surface, color:T.textMuted, border:`1px solid ${T.border}`, borderRadius:10, padding:"1px 7px", cursor:"pointer", outline:"none", appearance:"none", WebkitAppearance:"none", paddingRight:16, backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23999'/%3E%3C/svg%3E")`, backgroundRepeat:"no-repeat", backgroundPosition:"right 5px center" }}
                     >{DOK_TYPEN.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select>
                     <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.815rem", color:T.textFaint }}>{fmtSize(d.groesse)}</span>
                     {d.hochgeladen_am && (
@@ -1078,7 +1078,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                     <select
                       value={gewPos || ""}
                       onChange={e => setInlineWahl(p => ({ ...p, [d.id]: e.target.value }))}
-                      style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", background:"#fff",
+                      style={{ fontFamily:T.fontBody, fontSize:"0.8rem", background:"#fff",
                         color:T.textMid, border:`1px solid ${T.border}`, borderRadius:10,
                         padding:"2px 7px", cursor:"pointer", outline:"none" }}
                     >
@@ -1087,7 +1087,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                       ))}
                     </select>
                   ) : (
-                    <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem", fontWeight:600,
+                    <span style={{ fontFamily:T.fontBody, fontSize:"0.8rem", fontWeight:600,
                       color:T.navy, flexShrink:0 }}>
                       {SCHADEN_F.find(f => f.k === offenePos[0])?.l || offenePos[0]}
                     </span>
@@ -1102,7 +1102,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                       type="number" step="0.01" min="0" placeholder="Betrag €"
                       value={inlineWahl[`${d.id}_b`] || ""}
                       onChange={e => setInlineWahl(p => ({ ...p, [`${d.id}_b`]: e.target.value }))}
-                      style={{ width:90, fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
+                      style={{ width:90, fontFamily:T.fontBody, fontSize:"0.78rem",
                         padding:"2px 7px", border:`1px solid ${T.border}`, borderRadius:5,
                         outline:"none", color:T.text, background:"#fff" }}
                     />
@@ -1112,7 +1112,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                     disabled={inlineAnnehmenLaden === d.id ||
                       (betragV == null && !(parseFloat(inlineWahl[`${d.id}_b`]) > 0))}
                     style={{ padding:"3px 10px", borderRadius:5, border:"none", background:T.accent,
-                      color:"#fff", fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem",
+                      color:"#fff", fontFamily:T.fontBody, fontSize:"0.78rem",
                       fontWeight:600, cursor:"pointer", flexShrink:0,
                       opacity: (inlineAnnehmenLaden === d.id ||
                         (betragV == null && !(parseFloat(inlineWahl[`${d.id}_b`]) > 0))) ? 0.5 : 1 }}>
@@ -1158,7 +1158,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
               onMouseLeave={e => e.currentTarget.style.background="transparent"}>
               <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                 <span style={{ transform: eakteOffen ? "rotate(90deg)" : "rotate(0)", transition:"transform 0.15s", display:"inline-flex" }}>{Ic.chevR}</span>
-                <h3 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:"1rem", fontWeight:700, color:T.navy, margin:0 }}>
+                <h3 style={{ fontFamily:T.fontDisplay, fontSize:"1rem", fontWeight:700, color:T.navy, margin:0 }}>
                   E-Akte (RA-Micro)
                 </h3>
                 {eakteGeladen && (
@@ -1178,7 +1178,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                     {eakteBulkLaden ? "…" : "📥 Alle PDFs"}
                   </Btn>
                 )}
-                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color: eakteEmails ? T.text : T.textFaint }}>E-Mails</span>
+                <span style={{ fontFamily:T.fontBody, fontSize:"0.82rem", color: eakteEmails ? T.text : T.textFaint }}>E-Mails</span>
                 <div
                   onClick={toggleEmails}
                   style={{
@@ -1210,13 +1210,13 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                 )}
 
                 {eakteFehler && (
-                  <div style={{ padding:"1rem 1.4rem", color:T.red, fontFamily:"'Figtree',sans-serif", fontSize:"0.9rem" }}>
+                  <div style={{ padding:"1rem 1.4rem", color:T.red, fontFamily:T.fontBody, fontSize:"0.9rem" }}>
                     ⚠ {eakteFehler}
                   </div>
                 )}
 
                 {!eakteLaden && !eakteFehler && eakteDoks.length === 0 && eakteGeladen && (
-                  <div style={{ padding:"2rem", textAlign:"center", fontFamily:"'Figtree',sans-serif", fontSize:"0.975rem", color:T.textFaint }}>
+                  <div style={{ padding:"2rem", textAlign:"center", fontFamily:T.fontBody, fontSize:"0.975rem", color:T.textFaint }}>
                     Keine E-Akte-Dokumente gefunden.
                   </div>
                 )}
@@ -1225,11 +1225,11 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                   <>
                     {/* Filter-Leiste */}
                     <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 1.4rem", borderBottom:`1px solid ${T.border}`, background:T.offWhite }}>
-                      <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textMuted, flexShrink:0 }}>Filter:</span>
+                      <span style={{ fontFamily:T.fontBody, fontSize:"0.82rem", color:T.textMuted, flexShrink:0 }}>Filter:</span>
                       <select
                         value={eakteFilter}
                         onChange={e => { setEakteFilter(e.target.value); setEakteSeite(0); }}
-                        style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textMid, border:`1px solid ${T.border}`, borderRadius:6, padding:"3px 8px", background:T.white, maxWidth:280, cursor:"pointer" }}>
+                        style={{ fontFamily:T.fontBody, fontSize:"0.82rem", color:T.textMid, border:`1px solid ${T.border}`, borderRadius:6, padding:"3px 8px", background:T.white, maxWidth:280, cursor:"pointer" }}>
                         <option value="">Alle Absender ({eakteDoks.length})</option>
                         {eakteAbsender.map(a => (
                           <option key={a} value={a}>{a.length > 40 ? a.slice(0,40)+"…" : a}</option>
@@ -1242,7 +1242,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                       )}
                       {eakteFilter && (
                         <span onClick={() => { setEakteFilter(""); setEakteSeite(0); }}
-                          style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", color:T.red, cursor:"pointer", textDecoration:"underline" }}>
+                          style={{ fontFamily:T.fontBody, fontSize:"0.78rem", color:T.red, cursor:"pointer", textDecoration:"underline" }}>
                           Filter zurücksetzen
                         </span>
                       )}
@@ -1252,19 +1252,19 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                     <div style={{ display:"flex", alignItems:"center", padding:"6px 1.4rem", borderBottom:`1px solid ${T.border}`, background:T.surface }}>
                       <div style={{ width:38, flexShrink:0 }} />
                       <div onClick={() => eakteSortKlick("bemerkung")}
-                        style={{ flex:2, fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="bemerkung" ? T.accent : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", paddingLeft:13, cursor:"pointer", userSelect:"none" }}>
+                        style={{ flex:2, fontFamily:T.fontBody, fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="bemerkung" ? T.accent : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", paddingLeft:13, cursor:"pointer", userSelect:"none" }}>
                         Dokument{sortPfeil("bemerkung")}
                       </div>
                       <div onClick={() => eakteSortKlick("empfaenger")}
-                        style={{ flex:1, fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="empfaenger" ? T.accent : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", minWidth:120, cursor:"pointer", userSelect:"none" }}>
+                        style={{ flex:1, fontFamily:T.fontBody, fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="empfaenger" ? T.accent : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", minWidth:120, cursor:"pointer", userSelect:"none" }}>
                         Absender{sortPfeil("empfaenger")}
                       </div>
                       <div onClick={() => eakteSortKlick("sachbearbeiter")}
-                        style={{ width:50, textAlign:"center", fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="sachbearbeiter" ? T.accent : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", flexShrink:0, cursor:"pointer", userSelect:"none" }}>
+                        style={{ width:50, textAlign:"center", fontFamily:T.fontBody, fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="sachbearbeiter" ? T.accent : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", flexShrink:0, cursor:"pointer", userSelect:"none" }}>
                         SB{sortPfeil("sachbearbeiter")}
                       </div>
                       <div onClick={() => eakteSortKlick("version")}
-                        style={{ width:90, textAlign:"right", fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="version" ? T.accent : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", flexShrink:0, paddingRight:8, cursor:"pointer", userSelect:"none" }}>
+                        style={{ width:90, textAlign:"right", fontFamily:T.fontBody, fontSize:"0.75rem", fontWeight:600, color: eakteSortSpalte==="version" ? T.accent : T.textFaint, textTransform:"uppercase", letterSpacing:"0.06em", flexShrink:0, paddingRight:8, cursor:"pointer", userSelect:"none" }}>
                         Datum{sortPfeil("version")}
                       </div>
                       <div style={{ width:140, flexShrink:0 }} />
@@ -1285,7 +1285,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                             </div>
                             {/* Dokument */}
                             <div style={{ flex:2, minWidth:0, paddingLeft:13 }}>
-                              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.93rem", fontWeight:600, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                              <div style={{ fontFamily:T.fontBody, fontSize:"0.93rem", fontWeight:600, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                                 {ed.bemerkung || ed.anzeigename}
                               </div>
                               {ed.rubrik && (
@@ -1296,7 +1296,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                             </div>
                             {/* Absender */}
                             <div style={{ flex:1, minWidth:120 }}>
-                              <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textMuted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"block" }}>
+                              <span style={{ fontFamily:T.fontBody, fontSize:"0.82rem", color:T.textMuted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"block" }}>
                                 {absenderName}
                               </span>
                             </div>
@@ -1320,7 +1320,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                             {/* Aktionen */}
                             <div style={{ width:140, display:"flex", alignItems:"center", justifyContent:"flex-end", gap:4, flexShrink:0 }} onClick={e => e.stopPropagation()}>
                               {eakteImportiert.has(ed.nr) ? (
-                                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.72rem", fontWeight:600, color:T.green, background:T.greenBg, border:`1px solid ${T.green}33`, borderRadius:10, padding:"2px 8px", whiteSpace:"nowrap" }}>
+                                <span style={{ fontFamily:T.fontBody, fontSize:"0.72rem", fontWeight:600, color:T.green, background:T.greenBg, border:`1px solid ${T.green}33`, borderRadius:10, padding:"2px 8px", whiteSpace:"nowrap" }}>
                                   ✓ Importiert
                                 </span>
                               ) : ed.dateityp === "pdf" ? (
@@ -1363,7 +1363,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                                 />
                               )}
                               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
-                                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.82rem", color:T.textFaint }}>
+                                <span style={{ fontFamily:T.fontBody, fontSize:"0.82rem", color:T.textFaint }}>
                                   {ed.anzeigename}
                                 </span>
                                 <Btn size="sm" variant="secondary" onClick={() => setEakteVorschau(null)}>Vorschau schließen</Btn>
@@ -1381,7 +1381,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                           onClick={() => setEakteSeite(s => Math.max(0, s - 1))}>
                           ← Zurück
                         </Btn>
-                        <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem", color:T.textMid }}>
+                        <span style={{ fontFamily:T.fontBody, fontSize:"0.85rem", color:T.textMid }}>
                           Seite {eakteSeiteAktuell + 1} von {eakteGesamtSeiten}
                           <span style={{ color:T.textFaint, marginLeft:8 }}>
                             ({eakteGefiltert.length} Dokumente)
@@ -1419,7 +1419,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                   onMouseLeave={ev => { if (!istOffen) ev.currentTarget.style.background = "transparent"; }}>
                   <span style={{ color:T.blue, display:"flex", flexShrink:0 }}>📧</span>
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.925rem",
+                    <div style={{ fontFamily:T.fontBody, fontSize:"0.925rem",
                       fontWeight:500, color:T.text,
                       overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                       {em.von_name || em.absender || "Unbekannt"}
@@ -1441,7 +1441,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                   <div style={{ padding:"0 1.25rem 12px 2.75rem",
                     background:T.accentPale, borderTop:`1px solid ${T.border}` }}>
                     {meta?.body_text ? (
-                      <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem",
+                      <div style={{ fontFamily:T.fontBody, fontSize:"0.855rem",
                         color:T.textMid, marginTop:10, marginBottom:10,
                         whiteSpace:"pre-wrap", maxHeight:120, overflowY:"auto",
                         background:T.white, border:`1px solid ${T.border}`,
@@ -1449,7 +1449,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                         {meta.body_text.slice(0, 400)}{meta.body_text.length > 400 ? " …" : ""}
                       </div>
                     ) : !meta ? (
-                      <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.855rem",
+                      <div style={{ fontFamily:T.fontBody, fontSize:"0.855rem",
                         color:T.textMuted, marginTop:10 }}>Lade …</div>
                     ) : null}
                     {(meta?.anhaenge || []).length > 0 && (
@@ -1462,7 +1462,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                                 <span style={{ color: isPdf ? T.red : T.blue, display:"flex", fontSize:"0.9rem", flexShrink:0 }}>
                                   {isPdf ? Ic.pdf : Ic.attach}
                                 </span>
-                                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+                                <span style={{ fontFamily:T.fontBody, fontSize:"0.875rem",
                                   color:T.text, flex:1 }}>
                                   {anh.name || `Anhang ${anh.index + 1}`}
                                 </span>
@@ -1474,7 +1474,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                                   }}
                                   style={{ background:"none", border:`1px solid ${T.border}`,
                                     borderRadius:5, padding:"2px 10px", cursor:"pointer",
-                                    fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem",
+                                    fontFamily:T.fontBody, fontSize:"0.815rem",
                                     color: emailAnhangVorschau && `${emailAnhangVorschau.logId}-${emailAnhangVorschau.index}` === `${em.id}-${anh.index}` ? T.accent : T.textMid }}>
                                   {emailAnhangVorschau && `${emailAnhangVorschau.logId}-${emailAnhangVorschau.index}` === `${em.id}-${anh.index}` ? "▼ Schließen" : "▶ Vorschau"}
                                 </button>
@@ -1482,7 +1482,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                               {emailAnhangVorschau && `${emailAnhangVorschau.logId}-${emailAnhangVorschau.index}` === `${em.id}-${anh.index}` && (
                                 <div style={{ marginTop:6 }}>
                                   {!emailAnhangUrl ? (
-                                    <div style={{ height:80, display:"flex", alignItems:"center", justifyContent:"center", color:T.textMuted, fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}>
+                                    <div style={{ height:80, display:"flex", alignItems:"center", justifyContent:"center", color:T.textMuted, fontFamily:T.fontBody, fontSize:"0.875rem" }}>
                                       <div style={{ width:16, height:16, border:`2px solid ${T.border}`, borderTopColor:T.navy, borderRadius:"50%", animation:"spin 0.7s linear infinite", marginRight:8 }} />
                                       PDF wird geladen…
                                     </div>
@@ -1620,14 +1620,14 @@ function KandidatenDebugDialog({ kandidaten, uebersprungen = {}, onClose }) {
         {/* Header */}
         <div style={{ padding:"14px 20px", borderBottom:`1px solid ${T.border}` }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-            <div style={{ fontFamily:"'Figtree',sans-serif", fontWeight:700, fontSize:"1rem", color:T.text }}>
+            <div style={{ fontFamily:T.fontBody, fontWeight:700, fontSize:"1rem", color:T.text }}>
               Auto-Parser Debug – Kandidaten
             </div>
             <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer",
               fontSize:"1.3rem", color:T.textMuted, lineHeight:1, padding:"4px 8px" }}>✕</button>
           </div>
           <div style={{ display:"flex", gap:16, flexWrap:"wrap", marginTop:6,
-            fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem" }}>
+            fontFamily:T.fontBody, fontSize:"0.78rem" }}>
             <span style={{ color:T.textMuted }}>
               Gesamt: <strong style={{color:T.text}}>{kandidaten.length}</strong>
             </span>
@@ -1676,7 +1676,7 @@ function KandidatenDebugDialog({ kandidaten, uebersprungen = {}, onClose }) {
             return (
               <div key={dk} style={{ marginBottom:16 }}>
                 {/* Gruppen-Header */}
-                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem",
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.75rem",
                   fontWeight:700, textTransform:"uppercase", letterSpacing:"0.07em",
                   color: isRef ? T.textMuted : T.accent,
                   borderBottom:`2px solid ${isRef ? T.border : T.accent+"44"}`,
@@ -1695,7 +1695,7 @@ function KandidatenDebugDialog({ kandidaten, uebersprungen = {}, onClose }) {
                       padding:"6px 8px", borderRadius:6, marginBottom:4,
                       background: isWinner ? T.green+"12" : (i%2===0 ? "#fafafa" : "#fff"),
                       border: isWinner ? `1px solid ${T.green}44` : "1px solid transparent",
-                      fontFamily:"'Figtree',sans-serif",
+                      fontFamily:T.fontBody,
                       fontWeight: isWinner ? 700 : 400,
                       color: T.text,
                     }}>
@@ -1765,7 +1765,7 @@ function KandidatenDebugDialog({ kandidaten, uebersprungen = {}, onClose }) {
           })}
           {kandidaten.length === 0 && (
             <div style={{ textAlign:"center", padding:"2rem", color:T.textMuted,
-              fontFamily:"'Figtree',sans-serif" }}>
+              fontFamily:T.fontBody }}>
               Keine Kandidaten gefunden.
             </div>
           )}
@@ -1775,7 +1775,7 @@ function KandidatenDebugDialog({ kandidaten, uebersprungen = {}, onClose }) {
         <div style={{ padding:"10px 20px", borderTop:`1px solid ${T.border}`,
           display:"flex", justifyContent:"flex-end" }}>
           <button onClick={onClose} style={{
-            fontFamily:"'Figtree',sans-serif", fontWeight:600, fontSize:"0.875rem",
+            fontFamily:T.fontBody, fontWeight:600, fontSize:"0.875rem",
             background:T.accent, color:"#fff", border:"none", borderRadius:7,
             padding:"7px 20px", cursor:"pointer",
           }}>
@@ -1832,7 +1832,7 @@ function GutachtenVorschau({ erg, laden, wahl, setWahl, speichert, onSpeichern, 
       {/* Header */}
       <div style={{ padding:"12px 20px", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
         <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-          <span style={{ fontFamily:"'Figtree',sans-serif", fontWeight:700, fontSize:"0.975rem", color:T.text }}>
+          <span style={{ fontFamily:T.fontBody, fontWeight:700, fontSize:"0.975rem", color:T.text }}>
             Gutachten · KI-Analyse
           </span>
           {istKi && !hatKonflikt && (
@@ -1881,7 +1881,7 @@ function GutachtenVorschau({ erg, laden, wahl, setWahl, speichert, onSpeichern, 
           )}
 
           {!laden && !erg && (
-            <div style={{ textAlign:"center", padding:"2rem", color:T.textFaint, fontFamily:"'Figtree',sans-serif" }}>
+            <div style={{ textAlign:"center", padding:"2rem", color:T.textFaint, fontFamily:T.fontBody }}>
               Kein Parse-Ergebnis verfügbar.
             </div>
           )}
@@ -1889,7 +1889,7 @@ function GutachtenVorschau({ erg, laden, wahl, setWahl, speichert, onSpeichern, 
           {!laden && erg && (
             <>
               {/* Vergleichstabelle */}
-              <table style={{ width:"100%", borderCollapse:"collapse", fontFamily:"'Figtree',sans-serif", fontSize:"0.85rem" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontFamily:T.fontBody, fontSize:"0.85rem" }}>
                 <thead>
                   <tr style={{ background:T.surface, borderBottom:`1px solid ${T.border}` }}>
                     <th style={{ padding:"6px 10px", textAlign:"left", fontWeight:600, color:T.textMuted, fontSize:"0.75rem", textTransform:"uppercase", letterSpacing:"0.05em" }}>Position</th>
@@ -1989,14 +1989,14 @@ function GutachtenVorschau({ erg, laden, wahl, setWahl, speichert, onSpeichern, 
         {/* Footer */}
         {!laden && erg && (
           <div style={{ padding:"12px 20px", borderTop:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"flex-end", gap:10 }}>
-            <button onClick={onClose} style={{ padding:"7px 16px", borderRadius:6, border:`1px solid ${T.border}`, background:"transparent", color:T.textMid, cursor:"pointer", fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}>
+            <button onClick={onClose} style={{ padding:"7px 16px", borderRadius:6, border:`1px solid ${T.border}`, background:"transparent", color:T.textMid, cursor:"pointer", fontFamily:T.fontBody, fontSize:"0.875rem" }}>
               Schließen
             </button>
             {(hatKiWahl || hatKonflikt) && (
               <button onClick={onSpeichern} disabled={speichert}
                 style={{ padding:"7px 16px", borderRadius:6, border:"none", background: hatKiWahl ? T.accent : T.surface,
                   color: hatKiWahl ? "#fff" : T.textMuted, cursor: speichert ? "not-allowed" : "pointer",
-                  fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", fontWeight:600,
+                  fontFamily:T.fontBody, fontSize:"0.875rem", fontWeight:600,
                   opacity: speichert ? 0.6 : 1 }}>
                 {speichert ? "Speichert …" : hatKiWahl ? "KI-Werte übernehmen" : "Regex-Werte bestätigen"}
               </button>

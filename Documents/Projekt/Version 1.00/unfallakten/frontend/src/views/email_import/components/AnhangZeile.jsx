@@ -23,7 +23,7 @@ function AnhangZeile({ name, groesse, isPdf, isImg, kannOeffnen, onClick }) {
         {isPdf ? Ic.pdf : Ic.attach}
       </span>
       <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.895rem",
+        <div style={{ fontFamily:T.fontBody, fontSize:"0.895rem",
           fontWeight:600, color:kannOeffnen?T.navy:T.text,
           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
           textDecoration:kannOeffnen?"underline":"none",
@@ -35,7 +35,7 @@ function AnhangZeile({ name, groesse, isPdf, isImg, kannOeffnen, onClick }) {
         borderTopColor:T.navy, borderRadius:"50%",
         animation:"spin 0.7s linear infinite", flexShrink:0 }}/>}
       {!laedt && kannOeffnen && <span style={{ fontSize:"0.78rem", color:T.textMuted,
-        fontFamily:"'Figtree',sans-serif", flexShrink:0 }}>
+        fontFamily:T.fontBody, flexShrink:0 }}>
         {isPdf ? "PDF öffnen" : isImg ? "Bild öffnen" : "Öffnen"}</span>}
     </div>
   );

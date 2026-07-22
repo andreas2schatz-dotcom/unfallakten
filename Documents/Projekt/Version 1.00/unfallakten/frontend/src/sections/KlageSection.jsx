@@ -95,7 +95,7 @@ function ManuelleVertreterEingabe({ id, onSave }) {
       <div style={{ display:"flex", gap:8 }}>
         <select value={mFunk} onChange={e => setMFunk(e.target.value)}
           style={{ padding:"6px 8px", border:`1px solid ${T.border}`, borderRadius:6,
-            fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem", flexShrink:0 }}>
+            fontFamily:T.fontBody, fontSize:"0.875rem", flexShrink:0 }}>
           <option value="Geschäftsführer">Geschäftsführer</option>
           <option value="Vorstand">Vorstand</option>
           <option value="Geschäftsführerin">Geschäftsführerin</option>
@@ -105,7 +105,7 @@ function ManuelleVertreterEingabe({ id, onSave }) {
         <input value={mName} onChange={e => setMName(e.target.value)}
           placeholder="Vor- und Nachname"
           style={{ flex:1, padding:"6px 10px", border:`1px solid ${T.border}`,
-            borderRadius:6, fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem" }}/>
+            borderRadius:6, fontFamily:T.fontBody, fontSize:"0.875rem" }}/>
       </div>
       <button onClick={() => { if (mName.trim()) onSave(mName.trim(), mFunk); }}
         disabled={!mName.trim()}
@@ -133,7 +133,7 @@ function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertrete
       <div style={{ background:"#fff", borderRadius:12, padding:"1.75rem",
         maxWidth:480, width:"90%", boxShadow:"0 20px 60px rgba(0,0,0,0.3)" }}
         onClick={e => e.stopPropagation()}>
-        <h3 style={{ fontFamily:"'Figtree',sans-serif", fontSize:"1rem",
+        <h3 style={{ fontFamily:T.fontBody, fontSize:"1rem",
           fontWeight:700, margin:"0 0 0.5rem", color:T.navy }}>
           Vertreter-Lookup: {firmaName}
         </h3>
@@ -739,7 +739,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     background:T.white };
 
   if (laedt) return <div style={{ padding:"2rem", textAlign:"center", color:T.textFaint,
-    fontFamily:"'Figtree',sans-serif" }}>Lade Klage-Daten …</div>;
+    fontFamily:T.fontBody }}>Lade Klage-Daten …</div>;
 
   return (
     <div style={{ flex:1, overflowY:"auto", background:T.offWhite }}>
@@ -875,7 +875,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
 
         {fehler && (
           <div style={{ background:T.redBg, border:`1px solid ${T.red}30`, borderRadius:8,
-            padding:"10px 14px", color:T.red, fontFamily:"'Figtree',sans-serif",
+            padding:"10px 14px", color:T.red, fontFamily:T.fontBody,
             fontSize:"0.915rem" }}>{fehler}</div>
         )}
 
@@ -893,14 +893,14 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                 background:T.surface, borderRadius:8, padding:"10px 14px",
                 marginBottom:"0.75rem" }}>
                 <div style={{ flex:1 }}>
-                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.945rem",
+                  <div style={{ fontFamily:T.fontBody, fontSize:"0.945rem",
                     fontWeight:700, color:T.navy }}>{gericht.name}</div>
                   <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.835rem",
                     color:T.textMuted }}>
                     {[gericht.strasse, gericht.plz, gericht.ort].filter(Boolean).join(", ")}
                   </div>
                   {gericht.quelle && (
-                    <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.8rem",
+                    <div style={{ fontFamily:T.fontBody, fontSize:"0.8rem",
                       marginTop:3,
                       color: gericht.quelle === "akte" ? T.green
                            : gericht.quelle === "unfallort_match" ? T.amber
@@ -916,12 +916,12 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                 <button onClick={() => { setGericht(null); setGTreffer([]); setGSuche(""); }}
                   style={{ background:"none", border:`1px solid ${T.border}`, borderRadius:6,
                     padding:"3px 10px", cursor:"pointer", color:T.textMuted,
-                    fontFamily:"'Figtree',sans-serif", fontSize:"0.825rem" }}>
+                    fontFamily:T.fontBody, fontSize:"0.825rem" }}>
                   ✕ Ändern
                 </button>
               </div>
             ) : (
-              <div style={{ color:T.amber, fontFamily:"'Figtree',sans-serif",
+              <div style={{ color:T.amber, fontFamily:T.fontBody,
                 fontSize:"0.875rem", marginBottom:"0.75rem" }}>
                 ⚠ Kein Gericht ausgewählt – bitte suchen und auswählen.
               </div>
@@ -937,7 +937,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                   <input value={gerichtSuche} onChange={e => sucheGerichte(e.target.value)}
                     placeholder="Gericht suchen (z.B. Frankfurt, Offenbach) …"
                     style={{ flex:1, border:"none", outline:"none", background:"transparent",
-                      fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem" }}/>
+                      fontFamily:T.fontBody, fontSize:"0.935rem" }}/>
                   {gerichtLaedt && (
                     <div style={{ width:14, height:14, border:`2px solid ${T.border}`,
                       borderTopColor:T.navy, borderRadius:"50%",
@@ -956,7 +956,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                           background:T.white, transition:"background 0.1s" }}
                         onMouseEnter={e => e.currentTarget.style.background = T.surface}
                         onMouseLeave={e => e.currentTarget.style.background = T.white}>
-                        <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.925rem",
+                        <div style={{ fontFamily:T.fontBody, fontSize:"0.925rem",
                           fontWeight:600, color:T.navy }}>{g.name}</div>
                         <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.825rem",
                           color:T.textMuted }}>
@@ -967,7 +967,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                   </div>
                 )}
                 {gerichtSuche.length >= 2 && !gerichtLaedt && gerichtTreffer.length === 0 && (
-                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+                  <div style={{ fontFamily:T.fontBody, fontSize:"0.875rem",
                     color:T.textFaint, padding:"6px 0" }}>
                     Keine Gerichte gefunden.
                   </div>
@@ -981,7 +981,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
         <div id="karte-parteien" />
         <Card>
           <KlageCardHead nr={2} title="Parteien (Rubrum)" />
-          <div style={{ padding:"1.25rem 1.75rem", fontFamily:"'Figtree',sans-serif" }}>
+          <div style={{ padding:"1.25rem 1.75rem", fontFamily:T.fontBody }}>
             {beklagte.length === 0 && (
               <div style={{ color:T.amber, fontSize:"0.875rem" }}>
                 ⚠ Keine Beteiligten erfasst. Bitte zuerst Beteiligte anlegen.
@@ -1125,7 +1125,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                       )}
                       {!!personName && (
                         <label style={{ display:"flex", alignItems:"center", gap:6, marginTop:4,
-                          fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", cursor:"pointer",
+                          fontFamily:T.fontBody, fontSize:"0.78rem", cursor:"pointer",
                           color: T.textMuted }}>
                           <input type="checkbox"
                             checked={!!b.ist_halter}
@@ -1160,7 +1160,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
             <Card style={{ background: T.navyLight || "#1a2744", border:"none" }}>
               <div style={{ padding:"1.25rem 1rem", display:"flex", flexDirection:"column",
                 gap:10, alignItems:"stretch" }}>
-                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.76rem",
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.76rem",
                   color:"rgba(255,255,255,0.45)", fontWeight:700, letterSpacing:"0.12em",
                   textTransform:"uppercase", textAlign:"center" }}>Klage starten</div>
                 {klagebetrag > 0 && (
@@ -1170,11 +1170,11 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                   </div>
                 )}
                 {gericht
-                  ? <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.77rem",
+                  ? <div style={{ fontFamily:T.fontBody, fontSize:"0.77rem",
                       color:"rgba(255,255,255,0.6)", textAlign:"center" }}>
                       📍 {gericht.name}
                     </div>
-                  : <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.77rem",
+                  : <div style={{ fontFamily:T.fontBody, fontSize:"0.77rem",
                       color:"rgba(255,180,0,0.9)", textAlign:"center" }}>
                       ⚠ Kein Gericht gewählt
                     </div>
@@ -1198,7 +1198,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           <KlageCardHead nr={3} title={`Schadenpositionen & Regulierung – Klagebetrag: ${fmtEuro(klagebetrag)}`} />
           <div style={{ padding:"0.75rem 1.25rem 0" }}>
             {posOffen.length === 0 && (
-              <div style={{ color:T.amber, fontFamily:"'Figtree',sans-serif",
+              <div style={{ color:T.amber, fontFamily:T.fontBody,
                 fontSize:"0.875rem", marginBottom:"0.75rem" }}>
                 ⚠ Keine Schadenpositionen erfasst. Bitte zuerst Schaden erfassen.
               </div>
@@ -1209,7 +1209,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                   <tr style={{ background:T.surface }}>
                     {["☑","Position","Gefordert","Reguliert","Klageanteil"].map((h, i) => (
                       <th key={h} style={{
-                        padding:"5px 8px", fontFamily:"'Figtree',sans-serif",
+                        padding:"5px 8px", fontFamily:T.fontBody,
                         fontSize:"0.72rem", fontWeight:700, color:T.textMuted,
                         textTransform:"uppercase", letterSpacing:"0.06em",
                         textAlign: i === 0 ? "center" : i >= 2 ? "right" : "left",
@@ -1232,7 +1232,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                             onClick={e => e.stopPropagation()}
                             style={{ width:15, height:15, cursor:"pointer" }}/>
                         </td>
-                        <td style={{ padding:"8px", fontFamily:"'Figtree',sans-serif",
+                        <td style={{ padding:"8px", fontFamily:T.fontBody,
                           fontSize:"0.9rem", color: p.checked ? T.text : T.textMuted }}>
                           {p.label}
                           {vollReg && (
@@ -1259,7 +1259,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                   })}
                   <tr style={{ borderTop:`2px solid ${T.border}`, background:T.surface }}>
                     <td colSpan={4} style={{ padding:"8px 8px 8px 0",
-                      fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+                      fontFamily:T.fontBody, fontSize:"0.875rem",
                       fontWeight:700, color:T.navy, textAlign:"right" }}>
                       Klagebetrag (angehakte Positionen)
                     </td>
@@ -1294,7 +1294,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
             return (
               <div style={{ marginTop:"1rem", borderTop:`2px solid ${T.borderSoft}` }}>
                 <div style={{ padding:"0.5rem 1.25rem 0.25rem",
-                  fontFamily:"'Figtree',sans-serif", fontSize:"0.75rem",
+                  fontFamily:T.fontBody, fontSize:"0.75rem",
                   fontWeight:600, color:T.textMuted, textTransform:"uppercase",
                   letterSpacing:"0.07em" }}>
                   Regulierungsstand – {gruppen.length} Zahlung{gruppen.length !== 1 ? "en" : ""}
@@ -1304,7 +1304,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                   {gruppen.map((g, i) => (
                     <div key={i} style={{ display:"flex", justifyContent:"space-between",
                       alignItems:"center", padding:"3px 0",
-                      fontFamily:"'Figtree',sans-serif", fontSize:"0.86rem" }}>
+                      fontFamily:T.fontBody, fontSize:"0.86rem" }}>
                       <span style={{ color:T.textMid }}>
                         {g.datum ? (() => {
                           try { const [y,m,d] = g.datum.split("-"); return `${d}.${m}.${y}`; }
@@ -1338,22 +1338,22 @@ function KlageSection({ akteId, akte, st, dispatch }) {
             flexDirection:"column", gap:"0.75rem" }}>
             <div style={{ display:"flex", gap:16 }}>
               <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer",
-                fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem" }}>
+                fontFamily:T.fontBody, fontSize:"0.935rem" }}>
                 <input type="radio" checked={!mitSG} onChange={() => setMitSG(false)}/> Kein Schmerzensgeld
               </label>
               <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer",
-                fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem" }}>
+                fontFamily:T.fontBody, fontSize:"0.935rem" }}>
                 <input type="radio" checked={mitSG} onChange={() => setMitSG(true)}/> Schmerzensgeld
               </label>
             </div>
             {mitSG && (
               <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                <label style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+                <label style={{ fontFamily:T.fontBody, fontSize:"0.875rem",
                   color:T.textMuted, whiteSpace:"nowrap" }}>Mindestbetrag:</label>
                 <input type="number" min="0" step="100" value={sgMind}
                   onChange={e => setSGMind(parseFloat(e.target.value)||0)}
                   style={{ ...inS, width:120 }}/>
-                <span style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+                <span style={{ fontFamily:T.fontBody, fontSize:"0.875rem",
                   color:T.textMuted }}>€</span>
               </div>
             )}
@@ -1363,7 +1363,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                 style={{
                   padding: "7px 14px", background: T.navy, color: "#fff",
                   border: "none", borderRadius: 7, cursor: "pointer",
-                  fontFamily: "'Figtree',sans-serif", fontSize: "0.85rem", fontWeight: 600,
+                  fontFamily: T.fontBody, fontSize: "0.85rem", fontWeight: 600,
                 }}>
                 Schmerzensgeld-Assistent
               </button>
@@ -1379,12 +1379,12 @@ function KlageSection({ akteId, akte, st, dispatch }) {
             {/* Zinsart-Auswahl */}
             <div style={{ display:"flex", gap:16 }}>
               <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer",
-                fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem" }}>
+                fontFamily:T.fontBody, fontSize:"0.935rem" }}>
                 <input type="radio" checked={zinsenAb==="verzug"} onChange={() => setZinsenAb("verzug")}/>
                 Ab Verzugseintritt
               </label>
               <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer",
-                fontFamily:"'Figtree',sans-serif", fontSize:"0.935rem" }}>
+                fontFamily:T.fontBody, fontSize:"0.935rem" }}>
                 <input type="radio" checked={zinsenAb==="rechtshaengigkeit"} onChange={() => setZinsenAb("rechtshaengigkeit")}/>
                 Ab Rechtshängigkeit
               </label>
@@ -1395,7 +1395,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
               {/* Dokument-Karten */}
               {verzugDokListe.length > 0 && (
                 <div>
-                  <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", fontWeight:600,
+                  <div style={{ fontFamily:T.fontBody, fontSize:"0.78rem", fontWeight:600,
                     color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:6 }}>
                     Verzugsbegründendes Schreiben
                   </div>
@@ -1408,7 +1408,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                           style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px",
                             background: sel ? T.accentPale : T.white,
                             border: `1.5px solid ${sel ? T.accent : T.border}`,
-                            borderRadius:7, fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+                            borderRadius:7, fontFamily:T.fontBody, fontSize:"0.875rem",
                             color:T.text, cursor:"pointer", textAlign:"left", width:"100%",
                             transition:"border-color 0.15s, background 0.15s" }}
                           onMouseEnter={e => { if (!sel) { e.currentTarget.style.borderColor=T.accent; e.currentTarget.style.background=T.accentPale; }}}
@@ -1439,7 +1439,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                   })();
                   return (
                     <div key={label}>
-                      <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.78rem", fontWeight:600,
+                      <div style={{ fontFamily:T.fontBody, fontSize:"0.78rem", fontWeight:600,
                         color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:4 }}>
                         {label}
                       </div>
@@ -1481,7 +1481,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                     <div key={sw.label} style={{ flex:1, background:T.surface,
                       borderRadius:8, padding:"0.6rem 0.9rem",
                       border:`1px solid ${T.border}` }}>
-                      <div style={{ fontFamily:"'Figtree',sans-serif",
+                      <div style={{ fontFamily:T.fontBody,
                         fontSize:"0.75rem", fontWeight:600, color:T.textMuted,
                         textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:3 }}>
                         {sw.label}
@@ -1490,7 +1490,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                         fontSize:"1.1rem", fontWeight:700, color:T.navy }}>
                         {fmtEuro(sw.val)}
                       </div>
-                      <div style={{ fontFamily:"'Figtree',sans-serif",
+                      <div style={{ fontFamily:T.fontBody,
                         fontSize:"0.74rem", color:T.textFaint, marginTop:2 }}>
                         {sw.hint}
                       </div>
@@ -1519,7 +1519,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                     <span style={{ color: z.bold ? T.navy : T.text }}>{fmtEuro(z.val)}</span>
                   </div>
                 ))}
-                <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.7rem",
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.7rem",
                   color: T.textFaint, marginTop: 6, textAlign: "right" }}>
                   § 13 RVG Anlage 2 – {rvgData.rvg_version === "2025"
                     ? "2. KostRMoG (ab 01.06.2025)"
@@ -1535,23 +1535,23 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           <div style={{ padding:"1.25rem 1.4rem", display:"flex",
             alignItems:"center", justifyContent:"space-between", gap:16 }}>
             <div>
-              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.875rem",
+              <div style={{ fontFamily:T.fontBody, fontSize:"0.875rem",
                 color:"rgba(255,255,255,0.7)", marginBottom:4 }}>Gegenstandswert (Sachschaden)</div>
               <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"1.5rem",
                 fontWeight:700, color:"white" }}>
                 {fmtEuro(klagebetrag + (mitSG ? sgMind : 0))}
               </div>
-              <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem",
+              <div style={{ fontFamily:T.fontBody, fontSize:"0.815rem",
                 color:"rgba(255,255,255,0.5)", marginTop:2 }}>
                 {mitSG ? `Sachschaden ${fmtEuro(klagebetrag)} + Schmerzensgeld mind. ${fmtEuro(sgMind)}` : ""}
                 {" · "}Nr. 2300 außergerichtl. {fmtEuro(rvgGesamt)} als Nebenforderung
               </div>
               {gericht
-                ? <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem",
+                ? <div style={{ fontFamily:T.fontBody, fontSize:"0.815rem",
                     color:"rgba(255,255,255,0.6)", marginTop:4 }}>
                     📍 {gericht.name}
                   </div>
-                : <div style={{ fontFamily:"'Figtree',sans-serif", fontSize:"0.815rem",
+                : <div style={{ fontFamily:T.fontBody, fontSize:"0.815rem",
                     color:"rgba(255,180,0,0.9)", marginTop:4 }}>
                     ⚠ Kein Gericht gewählt – bitte oben auswählen
                   </div>
