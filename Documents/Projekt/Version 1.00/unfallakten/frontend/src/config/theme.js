@@ -1,66 +1,50 @@
+// frontend/src/config/theme.js
 const T = {
-  // ─── Primärfarben ──────────────────────────────────────────────
-  navy:     "#1B2A4A",
-  navyDark: "#111d35",
-  navyMid:  "#243660",
-  navyLight:"#2e4270",
+  navy:      "var(--color-brand-surface)",
+  navyDark:  "var(--color-brand-surface-strong)",
+  navyMid:   "var(--color-brand-surface-mid)",
+  navyLight: "var(--color-brand-surface-hover)",
 
-  // ─── Akzent: Sienna / Terrakotta (ersetzt Gold) ────────────────
-  // oklch(55% 0.08 38) ≈ warme Sienna – augenschonend, menschennah
-  accent:      "#A06B4A",                    // Primär – Rahmen, Icons, Spinner
-  accentLight: "#C08F6C",                    // Hell – Hover, Text auf Dunkel (5:1 auf Navy)
-  accentPale:  "#F3EAE2",                    // Sehr hell – Hintergründe, Highlights
-  accentDark:  "#7D5038",                    // Dunkel – Text auf Weiß (6.5:1)
-  accentTrim:  "rgba(160,107,74,0.18)",      // Transparent – dezente Rahmen
-  // Gold behalten für Rückwärtskompatibilität (deprecated)
-  gold:        "#C8A84B",
-  goldLight:   "#dfc070",
-  goldPale:    "#f8f1e0",
-  goldTrim:    "rgba(200,168,75,0.18)",
+  accent:      "var(--color-accent)",
+  accentLight: "var(--color-accent-hover)",
+  accentPale:  "var(--color-accent-subtle)",
+  accentDark:  "var(--color-accent-hover)",
+  accentTrim:  "var(--color-accent-trim)",
 
-  // ─── Oberflächen & Neutrale ────────────────────────────────────
   white:      "#FFFFFF",
-  offWhite:   "#F6F4EF",  // Pergament – augenschonendes Hintergrundweiß
-  surface:    "#FAFAF8",  // Kachel-Hintergrund
-  border:     "#E2DDD3",
-  borderSoft: "rgba(226,221,211,0.6)",
+  offWhite:   "var(--color-bg-page)",
+  surface:    "var(--color-bg-inset)",
+  border:     "var(--color-border)",
+  borderSoft: "var(--color-border-soft)",
 
-  // ─── Text ─────────────────────────────────────────────────────
-  text:      "#1a1a2e",
-  textMid:   "#3d4060",
-  textMuted: "#6b7094",
-  textFaint: "#9da3be",
+  text:      "var(--color-text-primary)",
+  textMid:   "var(--color-text-secondary)",
+  textMuted: "var(--color-text-muted)",
+  textFaint: "var(--color-text-faint)",
 
-  // ─── Semantische Status-Farben ─────────────────────────────────
-  // Grün / Erfolg
-  green:      "#10b981",
-  greenBg:    "#ecfdf5",
-  greenLight: "#86efac",  // Rahmen, helle Akzente
-  greenText:  "#065f46",  // Text auf greenBg
+  green:      "var(--color-status-success)",
+  greenBg:    "var(--color-status-success-bg)",
+  greenLight: "var(--color-status-success-border)",
+  greenText:  "var(--color-status-success-fg)",
 
-  // Amber / Warnung
-  amber:     "#f59e0b",
-  amberBg:   "#fffbeb",   // Hintergrund
-  amberMid:  "#fef3c7",   // Hintergrund (etwas dunkler)
-  amberText: "#92400e",   // Text auf amberBg/amberMid
+  amber:     "var(--color-status-warning)",
+  amberBg:   "var(--color-status-warning-bg)",
+  amberMid:  "var(--color-status-warning-bg-alt)",
+  amberText: "var(--color-status-warning-fg)",
 
-  // Rot / Fehler
-  red:       "#ef4444",
-  redBg:     "#fef2f2",
-  redLight:  "#fca5a5",   // Rahmen, helle Akzente
-  redText:   "#991b1b",   // Text auf redBg
+  red:       "var(--color-status-danger)",
+  redBg:     "var(--color-status-danger-bg)",
+  redLight:  "var(--color-status-danger-border)",
+  redText:   "var(--color-status-danger-fg)",
 
-  // Blau / Info
-  blue:      "#3b82f6",
-  blueBg:    "#eff6ff",
-  blueText:  "#1e40af",   // Text auf blueBg
+  blue:      "var(--color-status-info)",
+  blueBg:    "var(--color-status-info-bg)",
+  blueText:  "var(--color-status-info-fg)",
 
-  // ─── Typographie-Tokens ────────────────────────────────────────
-  fontDisplay: "'Bricolage Grotesque', system-ui, sans-serif",
-  fontBody:    "'Figtree', system-ui, sans-serif",
-  fontMono:    "ui-monospace, 'Cascadia Code', monospace",
+  fontDisplay: "var(--font-display)",
+  fontBody:    "var(--font-ui)",
+  fontMono:    "var(--font-mono)",
 
-  // Typscala
   textXs:   "0.75rem",
   textSm:   "0.8125rem",
   textBase: "0.875rem",
