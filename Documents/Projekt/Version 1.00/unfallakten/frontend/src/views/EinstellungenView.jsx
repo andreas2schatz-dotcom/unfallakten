@@ -9,6 +9,7 @@ import {
   apiSvPortal,
   apiSystem,
 } from "../api.js";
+import { getThemePrefs, setThemePrefs } from "../theme/themePrefs.js";
 
 function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
   const [tab, setTab]           = useState(initialTab || "versicherer");
@@ -26,6 +27,18 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
     versicherer_name:"", kuerzel:"", notizen:""
   });
   const [speichert, setSpeichert] = useState(false);
+
+  const [themePrefs, setThemePrefsState] = useState(() => getThemePrefs());
+
+  function handleSchemaWechsel(scheme) {
+    const updated = setThemePrefs({ scheme, mode: themePrefs.mode });
+    setThemePrefsState(updated);
+  }
+
+  function handleModeWechsel(mode) {
+    const updated = setThemePrefs({ scheme: themePrefs.scheme, mode });
+    setThemePrefsState(updated);
+  }
 
   // STA-Fristen + Texttemplates
   const [fristen,       setFristen]       = useState({ stufe1_tage: 14, stufe2_tage: 7, stufe3_tage: 5, stufe1_text: "", stufe2_text: "", stufe3_text: "" });
@@ -1161,6 +1174,73 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
 
         {tab === "system_status" && (
           <div style={{ maxWidth: 680 }}>
+            <Card style={{ marginBottom: "1.25rem" }}>
+              <CardHead title="Darstellung" />
+              <div style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+
+                <div style={{ color: T.textMuted, fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                  Farbschema
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  {[
+                    { id: "classic", label: "Kanzlei Classic", swatch1: "#1B2A4A", swatch2: "#A06B4A" },
+                    { id: "clio",    label: "Clio-Style",      swatch1: "#1B4B91", swatch2: "#EAF0FA" },
+                  ].map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => handleSchemaWechsel(s.id)}
+                      style={{
+                        flex: 1, display: "flex", alignItems: "center", gap: 10,
+                        padding: "10px 14px", borderRadius: 8, cursor: "pointer",
+                        border: `2px solid ${themePrefs.scheme === s.id ? T.accent : T.border}`,
+                        background: T.surface, fontFamily: T.fontBody, fontSize: "0.875rem",
+                        fontWeight: 600, color: T.text,
+                      }}
+                    >
+                      <span style={{ display: "flex", borderRadius: "50%", overflow: "hidden", width: 20, height: 20, flexShrink: 0 }}>
+                        <span style={{ flex: 1, background: s.swatch1 }} />
+                        <span style={{ flex: 1, background: s.swatch2 }} />
+                      </span>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ color: T.textMuted, fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 6 }}>
+                  Dark Mode
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div
+                    onClick={() => {
+                      if (themePrefs.scheme !== "clio") return;
+                      handleModeWechsel(themePrefs.mode === "dark" ? "light" : "dark");
+                    }}
+                    title={themePrefs.scheme !== "clio" ? "Dark Mode aktuell nur fuer Clio-Style verfuegbar" : ""}
+                    style={{
+                      width: 42, height: 24, borderRadius: 12,
+                      background: themePrefs.mode === "dark" ? T.accent : T.border,
+                      position: "relative",
+                      cursor: themePrefs.scheme === "clio" ? "pointer" : "not-allowed",
+                      opacity: themePrefs.scheme === "clio" ? 1 : 0.45,
+                      transition: "background 0.2s", flexShrink: 0,
+                    }}
+                  >
+                    <div style={{
+                      position: "absolute", top: 3,
+                      left: themePrefs.mode === "dark" ? 21 : 3,
+                      width: 18, height: 18, borderRadius: 9, background: "#fff",
+                      transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                    }} />
+                  </div>
+                  <span style={{ fontFamily: T.fontBody, fontSize: "0.8rem", color: T.textMuted }}>
+                    {themePrefs.scheme !== "clio"
+                      ? "Dark Mode aktuell nur für Clio-Style verfügbar"
+                      : themePrefs.mode === "dark" ? "An" : "Aus"}
+                  </span>
+                </div>
+
+              </div>
+            </Card>
             <Card>
               <CardHead title="System-Status" />
               {sysLaedt && <p style={{ color: T.textMuted, padding: "1rem" }}>Wird geladen…</p>}
