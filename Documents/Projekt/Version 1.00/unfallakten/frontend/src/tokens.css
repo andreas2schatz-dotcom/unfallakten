@@ -1,0 +1,148 @@
+/* frontend/src/tokens.css */
+:root,
+[data-scheme="classic"][data-theme="light"] {
+  --color-bg-page: #F6F4EF;
+  --color-bg-card: #FFFFFF;
+  --color-bg-inset: #FAFAF8;
+
+  --color-brand-surface: #1B2A4A;
+  --color-brand-surface-strong: #111d35;
+  --color-brand-surface-mid: #243660;
+  --color-brand-surface-hover: #2e4270;
+
+  --color-border: #E2DDD3;
+  --color-border-strong: #C9C2B4;
+  --color-border-soft: rgba(226,221,211,0.6);
+
+  --color-accent: #A06B4A;
+  --color-accent-hover: #7D5038;
+  --color-accent-subtle: #F3EAE2;
+  --color-accent-trim: rgba(160,107,74,0.18);
+
+  --color-text-primary: #1a1a2e;
+  --color-text-secondary: #3d4060;
+  --color-text-muted: #6b7094;
+  --color-text-faint: #9da3be;
+  --color-text-on-accent: #FFFFFF;
+
+  --color-status-success: #10b981;
+  --color-status-success-bg: #ecfdf5;
+  --color-status-success-border: #86efac;
+  --color-status-success-fg: #065f46;
+
+  --color-status-warning: #f59e0b;
+  --color-status-warning-bg: #fffbeb;
+  --color-status-warning-bg-alt: #fef3c7;
+  --color-status-warning-fg: #92400e;
+
+  --color-status-danger: #ef4444;
+  --color-status-danger-bg: #fef2f2;
+  --color-status-danger-border: #fca5a5;
+  --color-status-danger-fg: #991b1b;
+
+  --color-status-info: #3b82f6;
+  --color-status-info-bg: #eff6ff;
+  --color-status-info-fg: #1e40af;
+
+  --font-ui: 'Figtree', system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+}
+
+[data-scheme="clio"][data-theme="light"] {
+  --color-bg-page: #F5F6F8;
+  --color-bg-card: #FFFFFF;
+  --color-bg-inset: #EEF0F3;
+
+  --color-brand-surface: #1B4B91;
+  --color-brand-surface-strong: #123561;
+  --color-brand-surface-mid: #163C74;
+  --color-brand-surface-hover: #2E63A8;
+
+  --color-border: #E3E6EA;
+  --color-border-strong: #CBD0D8;
+  --color-border-soft: rgba(227,230,234,0.6);
+
+  --color-accent: #1B4B91;
+  --color-accent-hover: #163C74;
+  --color-accent-subtle: #EAF0FA;
+  --color-accent-trim: rgba(27,75,145,0.18);
+
+  --color-text-primary: #1A1D21;
+  --color-text-secondary: #5B6472;
+  --color-text-muted: #8A93A1;
+  --color-text-faint: #A9B0BC;
+  --color-text-on-accent: #FFFFFF;
+
+  --color-status-success: #1E7A34;
+  --color-status-success-bg: #E6F4EA;
+  --color-status-success-border: #A8D8B9;
+  --color-status-success-fg: #1E7A34;
+
+  --color-status-warning: #9A5B00;
+  --color-status-warning-bg: #FFF4E0;
+  --color-status-warning-bg-alt: #FCE8C2;
+  --color-status-warning-fg: #9A5B00;
+
+  --color-status-danger: #B23A3A;
+  --color-status-danger-bg: #FBE7E7;
+  --color-status-danger-border: #EFB3B3;
+  --color-status-danger-fg: #B23A3A;
+
+  --color-status-info: var(--color-accent);
+  --color-status-info-bg: var(--color-accent-subtle);
+  --color-status-info-fg: var(--color-accent-hover);
+
+  --font-ui: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", monospace;
+}
+
+[data-scheme="clio"][data-theme="dark"] {
+  --color-bg-page: #14161A;
+  --color-bg-card: #1C1F24;
+  --color-bg-inset: #21242A;
+
+  --color-brand-surface: #1B2A45;
+  --color-brand-surface-strong: #10192C;
+  --color-brand-surface-mid: #223655;
+  --color-brand-surface-hover: #2C4570;
+
+  --color-border: #2A2E35;
+  --color-border-strong: #3A3F47;
+  --color-border-soft: rgba(42,46,53,0.6);
+
+  --color-accent: #4B8AE0;
+  --color-accent-hover: #6FA3EA;
+  --color-accent-subtle: #1E2A3D;
+  --color-accent-trim: rgba(75,138,224,0.22);
+
+  --color-text-primary: #E8EAED;
+  --color-text-secondary: #9BA3AF;
+  --color-text-muted: #7C8591;
+  --color-text-faint: #5B6472;
+  --color-text-on-accent: #FFFFFF;
+
+  --color-status-success: #4ADE80;
+  --color-status-success-bg: #14261C;
+  --color-status-success-border: #2F6B45;
+  --color-status-success-fg: #4ADE80;
+
+  --color-status-warning: #FBBF24;
+  --color-status-warning-bg: #2A2210;
+  --color-status-warning-bg-alt: #3A2F16;
+  --color-status-warning-fg: #FBBF24;
+
+  --color-status-danger: #F87171;
+  --color-status-danger-bg: #2A1616;
+  --color-status-danger-border: #6B3232;
+  --color-status-danger-fg: #F87171;
+
+  --color-status-info: var(--color-accent);
+  --color-status-info-bg: var(--color-accent-subtle);
+  --color-status-info-fg: var(--color-accent-hover);
+
+  --font-ui: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", monospace;
+}
