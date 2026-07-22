@@ -9,9 +9,10 @@
   --color-brand-surface-strong: #111d35;
   --color-brand-surface-mid: #243660;
   --color-brand-surface-hover: #2e4270;
+  --color-brand-surface-trim: rgba(27,42,74,0.15);
 
   --color-border: #E2DDD3;
-  --color-border-strong: #C9C2B4;
+  --color-border-strong: #d4ccbc;
   --color-border-soft: rgba(226,221,211,0.6);
 
   --color-accent: #A06B4A;
@@ -58,6 +59,7 @@
   --color-brand-surface-strong: #123561;
   --color-brand-surface-mid: #163C74;
   --color-brand-surface-hover: #2E63A8;
+  --color-brand-surface-trim: rgba(27,75,145,0.15);
 
   --color-border: #E3E6EA;
   --color-border-strong: #CBD0D8;
@@ -107,6 +109,7 @@
   --color-brand-surface-strong: #10192C;
   --color-brand-surface-mid: #223655;
   --color-brand-surface-hover: #2C4570;
+  --color-brand-surface-trim: rgba(27,42,69,0.18);
 
   --color-border: #2A2E35;
   --color-border-strong: #3A3F47;
