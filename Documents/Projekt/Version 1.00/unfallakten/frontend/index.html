@@ -12,6 +12,21 @@
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Figtree:ital,wght@0,300..900;1,300..900&family=Inter:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem("unfallakten.theme");
+          var prefs = raw ? JSON.parse(raw) : null;
+          var scheme = prefs && prefs.scheme === "clio" ? "clio" : "classic";
+          var mode = scheme === "clio" && prefs && prefs.mode === "dark" ? "dark" : "light";
+          document.documentElement.dataset.scheme = scheme;
+          document.documentElement.dataset.theme = mode;
+        } catch (e) {
+          document.documentElement.dataset.scheme = "classic";
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
