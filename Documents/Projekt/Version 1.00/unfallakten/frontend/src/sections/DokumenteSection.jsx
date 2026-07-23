@@ -1190,7 +1190,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                   }}>
                   <div style={{
                     width:16, height:16, borderRadius:"50%",
-                    background:T.cardBg,
+                    background:T.white,
                     position:"absolute", top:2,
                     left: eakteEmails ? 18 : 2,
                     transition:"left 0.2s",
