@@ -98,6 +98,18 @@ class TestTextbausteinRest(_RouteBasis):
         self.assertNotIn("<MANDANT>", v)
         self.assertIn("[FEHLT: <UNBEKANNT>]", v)
 
+    def test_post_neue_kuerzungsart_mit_textbaustein(self):
+        r = self.client.post(
+            "/kuerzungsarten",
+            json={"bezeichnung": "Testtyp POST-Baustein",
+                  "kategorie": "fahrzeugschaden",
+                  "textbaustein": "Neuer Baustein mit <MANDANT>."},
+            headers=self._auth())
+        self.assertIn(r.status_code, (200, 201))
+        eintrag = next(k for k in self._liste()
+                       if k["bezeichnung"] == "Testtyp POST-Baustein")
+        self.assertEqual(eintrag["textbaustein"], "Neuer Baustein mit <MANDANT>.")
+
 
 if __name__ == "__main__":
     unittest.main()

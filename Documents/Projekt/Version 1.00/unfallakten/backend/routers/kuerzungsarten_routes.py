@@ -91,7 +91,7 @@ def neue_kuerzungsart():
     """
     POST /kuerzungsarten
     Body: { bezeichnung, kategorie, standard_gegenargument?, rechtsgrundlagen?,
-            hinweis_intern?, sv_stellungnahme_erforderlich?, sortierung? }
+            hinweis_intern?, sv_stellungnahme_erforderlich?, sortierung?, textbaustein? }
     """
     daten = _body()
     bezeichnung = (daten.get("bezeichnung") or "").strip()
@@ -116,6 +116,7 @@ def neue_kuerzungsart():
                 bool(daten.get("sv_stellungnahme_erforderlich", False))
             ),
             sortierung=int(daten.get("sortierung", 999)),
+            textbaustein=daten.get("textbaustein"),
         )
     except ValueError as e:
         return _err(str(e), 422)
