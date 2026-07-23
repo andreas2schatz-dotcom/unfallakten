@@ -298,7 +298,7 @@ function VerwerfenDialog({ dokument, onConfirm, onCancel, laeuft }) {
       zIndex: 900,
     }}>
       <div style={{
-        background: T.white, width: 480,
+        background: T.cardBg, width: 480,
         borderRadius: 10, padding: 24,
         boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
       }}>
@@ -323,7 +323,7 @@ function VerwerfenDialog({ dokument, onConfirm, onCancel, laeuft }) {
             width: "100%", boxSizing: "border-box",
             padding: "6px 8px", marginBottom: 14,
             border: `1px solid ${T.border}`, borderRadius: 4,
-            fontSize: T.textSm, background: T.white,
+            fontSize: T.textSm, background: T.cardBg,
           }}>
           {VERWERFEN_GRUENDE.map(g => (
             <option key={g.wert} value={g.wert}>{g.label}</option>
@@ -393,7 +393,7 @@ function FelderEditor({ felder, onChange }) {
                   width: "100%", boxSizing: "border-box",
                   padding: "4px 8px", border: `1px solid ${T.border}`,
                   borderRadius: 4, fontFamily: T.fontMono,
-                  fontSize: T.textSm, background: T.white,
+                  fontSize: T.textSm, background: T.cardBg,
                 }}
               />
             </td>
@@ -588,7 +588,7 @@ export function FragebogenUebernahme({ abschnitte, state, onToggle, onFeld, onAd
                                    padding: "5px 8px", fontSize: T.textSm,
                                    border: `1px solid ${f.konflikt ? T.amber : T.greenLight}`,
                                    borderRadius: 4,
-                                   background: f.konflikt ? T.amberBg : T.white }}
+                                   background: f.konflikt ? T.amberBg : T.cardBg }}
                         />
                         {f.konflikt && (
                           <div style={{ display: "flex", gap: 8, alignItems: "center",
@@ -640,7 +640,7 @@ function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
       zIndex: 900,
     }}>
       <div style={{
-        background: T.white, width: 640, maxHeight: "85vh",
+        background: T.cardBg, width: 640, maxHeight: "85vh",
         borderRadius: 10, padding: 24, overflow: "auto",
         boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
       }}>
@@ -681,7 +681,7 @@ function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
                 style={{
                   flex: 1, padding: "4px 6px",
                   border: `1px solid ${T.border}`, borderRadius: 4,
-                  fontSize: T.textSm, background: T.white,
+                  fontSize: T.textSm, background: T.cardBg,
                 }}>
                 {!typenListe.some(t => t.typ === ev.typ) && ev.typ && (
                   <option value={ev.typ}>{typLabel(ev.typ)} (unbekannt)</option>
@@ -1030,7 +1030,7 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
             style={{
               width: "100%", padding: "6px 8px", boxSizing: "border-box",
               border: `1px solid ${T.border}`, borderRadius: 4,
-              fontSize: T.textSm, background: T.white,
+              fontSize: T.textSm, background: T.cardBg,
             }} />
           <div style={{ fontSize: T.textXs, color: T.textFaint, marginTop: 4 }}>
             Vorschlag automatisch aus Klasse/Aussteller/Datum/Betrag. Editierbar; wird bei Freigabe übernommen.
@@ -1063,7 +1063,7 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
               style={{
                 flex: 1, padding: "6px 8px",
                 border: `1px solid ${T.border}`, borderRadius: 4,
-                fontSize: T.textSm, background: T.white,
+                fontSize: T.textSm, background: T.cardBg,
               }}>
               <option value="">— unbekannt —</option>
               {(klassen && klassen.length ? klassen : KLASSEN_FALLBACK)
@@ -1352,7 +1352,7 @@ export default function ReviewQueueView({ onOpenAkte }) {
       {/* Queue-Liste */}
       <div style={{
         width: 340, borderRight: `1px solid ${T.border}`,
-        background: T.white, display: "flex", flexDirection: "column",
+        background: T.cardBg, display: "flex", flexDirection: "column",
       }}>
         <div style={{
           padding: "12px 14px", borderBottom: `1px solid ${T.border}`,

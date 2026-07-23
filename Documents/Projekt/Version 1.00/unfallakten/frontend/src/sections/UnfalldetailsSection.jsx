@@ -121,12 +121,12 @@ function UnfalldetailsSection({ akteId }) {
 
   const inS = { width:"100%", padding:"7px 10px", border:`1px solid ${T.border}`,
     borderRadius:7, fontFamily:T.fontBody, fontSize:"0.935rem",
-    outline:"none", background:T.white, boxSizing:"border-box" };
+    outline:"none", background:T.cardBg, boxSizing:"border-box" };
   const taS = { ...inS, minHeight:120, resize:"vertical" };
   const lbS = { display:"block", fontFamily:T.fontBody,
     fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:4 };
   const calBtnStyle = { padding:"6px 9px", borderRadius:7, cursor:"pointer",
-    border:`1px solid ${T.border}`, background:T.white, color:T.textMuted,
+    border:`1px solid ${T.border}`, background:T.cardBg, color:T.textMuted,
     display:"flex", alignItems:"center", flexShrink:0 };
   const CalIcon = () => (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">

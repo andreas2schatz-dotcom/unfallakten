@@ -223,7 +223,7 @@ function KuerzungskatalogSection() {
                       <div style={{ border:`1px solid ${T.border}`, borderRadius:9, overflow:"hidden" }}>
                         {eintraege.map((art, i) => (
                           <div key={art.id}
-                            style={{ padding:"0.8rem 1rem", borderBottom:i<eintraege.length-1?`1px solid ${T.border}`:"none", background:art.aktiv?T.white:"rgba(0,0,0,0.02)", opacity:art.aktiv?1:0.55 }}
+                            style={{ padding:"0.8rem 1rem", borderBottom:i<eintraege.length-1?`1px solid ${T.border}`:"none", background:art.aktiv?T.cardBg:"rgba(0,0,0,0.02)", opacity:art.aktiv?1:0.55 }}
                           >
                             <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
                               <div style={{ flex:1 }}>

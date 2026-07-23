@@ -19,7 +19,7 @@ function StatusBadge({ status, map = STATUS_MAP }) {
 
 
 function Card({ children, style = {} }) {
-  return <div style={{ background:T.white, borderRadius:12, border:`1px solid ${T.border}`, boxShadow:"0 2px 8px rgba(0,0,0,0.04)", overflow:"hidden", ...style }}>{children}</div>;
+  return <div style={{ background:T.cardBg, borderRadius:12, border:`1px solid ${T.border}`, boxShadow:"0 2px 8px rgba(0,0,0,0.04)", overflow:"hidden", ...style }}>{children}</div>;
 }
 
 
@@ -113,7 +113,7 @@ function SlidePanel({ open, onClose, title, children }) {
   const panel = (
     <>
       {open && <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(17,29,53,0.45)", zIndex:300, backdropFilter:"blur(2px)" }} />}
-      <div style={{ position:"fixed", top:0, right:0, bottom:0, width:"min(500px, calc(100vw - 40px))", background:T.white, boxShadow:"-8px 0 48px rgba(0,0,0,0.18)", zIndex:310, display:"flex", flexDirection:"column", transform:open?"translateX(0)":"translateX(105%)", transition:"transform 0.3s cubic-bezier(0.16,1,0.3,1)" }}>
+      <div style={{ position:"fixed", top:0, right:0, bottom:0, width:"min(500px, calc(100vw - 40px))", background:T.cardBg, boxShadow:"-8px 0 48px rgba(0,0,0,0.18)", zIndex:310, display:"flex", flexDirection:"column", transform:open?"translateX(0)":"translateX(105%)", transition:"transform 0.3s cubic-bezier(0.16,1,0.3,1)" }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"1.1rem 1.5rem", borderBottom:`1px solid ${T.border}`, background:T.navy, flexShrink:0 }}>
           <span style={{ fontFamily:T.fontDisplay, fontSize:"1.175rem", fontWeight:700, color:T.white }}>{title}</span>
           <button onClick={onClose} style={{ background:"rgba(255,255,255,0.1)", border:"none", borderRadius:6, padding:7, cursor:"pointer", color:T.white, display:"flex" }}>{Ic.x}</button>

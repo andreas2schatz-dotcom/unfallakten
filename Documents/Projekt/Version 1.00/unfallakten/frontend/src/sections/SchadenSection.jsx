@@ -592,7 +592,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
             style={{ position:"fixed", top:0, left:0, right:0, bottom:0,
               background:"rgba(0,0,0,0.4)", zIndex:950 }} />
           <div style={{ position:"fixed", top:"5%", left:"10%", right:"10%", bottom:"5%",
-            zIndex:951, background:T.white, borderRadius:12,
+            zIndex:951, background:T.cardBg, borderRadius:12,
             boxShadow:"0 20px 60px rgba(0,0,0,0.3)",
             display:"flex", flexDirection:"column", overflow:"hidden" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
@@ -621,7 +621,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
           <div onClick={() => setBelegVorschau(null)}
             style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.4)", zIndex:950 }} />
           <div style={{ position:"fixed", top:"5%", left:"10%", right:"10%", bottom:"5%",
-            zIndex:951, background:T.white, borderRadius:12,
+            zIndex:951, background:T.cardBg, borderRadius:12,
             boxShadow:"0 16px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
               padding:"12px 18px", borderBottom:`1px solid ${T.border}` }}>
@@ -651,7 +651,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
           <div onClick={() => setKandidatView(null)}
             style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.4)", zIndex:950 }} />
           <div style={{ position:"fixed", top:"4%", left:"4%", right:"4%", bottom:"4%",
-            zIndex:951, background:T.white, borderRadius:12,
+            zIndex:951, background:T.cardBg, borderRadius:12,
             boxShadow:"0 20px 60px rgba(0,0,0,0.3)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
               padding:"12px 20px", borderBottom:`1px solid ${T.border}`, background:T.surface }}>
@@ -856,9 +856,9 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                     {gutachtenDoks.map(gd => (
                       <div key={gd.id}
                         onClick={() => handleGutVorhandenes(gd.id, gd.dateiname)}
-                        style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", borderRadius:7, cursor:"pointer", border:`1px solid ${T.border}`, background:T.white, marginBottom:4, transition:"all 0.15s" }}
+                        style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", borderRadius:7, cursor:"pointer", border:`1px solid ${T.border}`, background:T.cardBg, marginBottom:4, transition:"all 0.15s" }}
                         onMouseEnter={e => { e.currentTarget.style.borderColor = T.accent; e.currentTarget.style.background = T.accentPale; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.white; }}>
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.cardBg; }}>
                         <span style={{ color:T.red, flexShrink:0 }}>{Ic.pdf}</span>
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ fontSize:"0.875rem", fontWeight:600, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{gd.dateiname}</div>
@@ -1033,9 +1033,9 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
               const isLast = fi === SCHADEN_F.length - 1;
               return (
                 <tr key={f.k}
-                  style={{ borderBottom:`1px solid ${T.border}`, background:fi%2===0?T.white:T.surface, transition:"background 0.1s" }}
+                  style={{ borderBottom:`1px solid ${T.border}`, background:fi%2===0?T.cardBg:T.surface, transition:"background 0.1s" }}
                   onMouseEnter={e => e.currentTarget.style.background = T.accentPale}
-                  onMouseLeave={e => e.currentTarget.style.background = fi%2===0?T.white:T.surface}>
+                  onMouseLeave={e => e.currentTarget.style.background = fi%2===0?T.cardBg:T.surface}>
                   <td style={{ padding:"6px 12px", color:f.abzug?T.red:T.text, fontWeight:500 }}>
                     {f.l}
                   </td>
@@ -1147,7 +1147,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                           <>
                             <div onClick={() => setBelegZuordnen(null)} style={{ position:"fixed", top:0, left:0, right:0, bottom:0, zIndex:800 }} />
                             <div style={{ position:"absolute", top:"calc(100% + 4px)", right:0, zIndex:801,
-                              background:T.white, border:`1px solid ${T.border}`, borderRadius:8,
+                              background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:8,
                               boxShadow:"0 4px 16px rgba(0,0,0,0.12)", minWidth:260, maxHeight:200, overflowY:"auto" }}>
                               {belegfaehigePdfs.length > 0 ? belegfaehigePdfs.map(d => (
                                 <button key={d.id} onClick={() => handleBelegZuordnen(f.k, d.id)}
@@ -1344,7 +1344,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                 {i < 2 ? (
                   <div style={{ fontFamily:T.fontDisplay, fontSize:"1.625rem", fontWeight:700, color:s.c }}>{s.v}</div>
                 ) : (
-                  <select value={form.quelle||"manuell"} onChange={e => { setForm(p => ({...p,quelle:e.target.value})); setChg(true); }} style={{ padding:"5px 8px", border:`1px solid ${T.border}`, borderRadius:6, fontFamily:T.fontBody, fontSize:"0.955rem", color:T.text, background:T.white, cursor:"pointer", outline:"none" }}>
+                  <select value={form.quelle||"manuell"} onChange={e => { setForm(p => ({...p,quelle:e.target.value})); setChg(true); }} style={{ padding:"5px 8px", border:`1px solid ${T.border}`, borderRadius:6, fontFamily:T.fontBody, fontSize:"0.955rem", color:T.text, background:T.cardBg, cursor:"pointer", outline:"none" }}>
                     <option value="manuell">Manuell</option>
                     <option value="gutachten_pdf">Gutachten (PDF)</option>
                     <option value="abrechnung_pdf">Abrechnung (PDF)</option>
@@ -1383,7 +1383,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
             <select value={form.abrechnungsart||""} onChange={e => { setForm(p=>({...p,abrechnungsart:e.target.value})); setChg(true); setArtVorschlag(null); }}
               style={{ padding:"6px 10px", border:`1.5px solid ${T.border}`, borderRadius:7,
                 fontFamily:T.fontBody, fontSize:"0.895rem", color:T.text,
-                background:T.white, cursor:"pointer", outline:"none", minWidth:180 }}>
+                background:T.cardBg, cursor:"pointer", outline:"none", minWidth:180 }}>
               <option value="">— nicht gesetzt —</option>
               <option value="fiktiv">Fiktive Abrechnung (Gutachten, netto)</option>
               <option value="konkret">Konkrete Abrechnung (Rechnung, netto)</option>
@@ -1611,7 +1611,7 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
           placeholder="Name oder Adressnummer, dann Enter…" autoFocus
           style={{ flex:1, padding:"7px 10px", border:`1.5px solid ${T.border}`,
             borderRadius:7, fontFamily:T.fontBody, fontSize:"0.875rem",
-            background:T.white, outline:"none" }} />
+            background:T.cardBg, outline:"none" }} />
         <Btn size="sm" variant="secondary" onClick={suchStarten} disabled={sucheLaden}>
           {sucheLaden ? "⟳" : "Suchen"}
         </Btn>
@@ -1620,7 +1620,7 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
 
       {sucheErg.length > 0 && (
         <div style={{ border:`1px solid ${T.border}`, borderRadius:7, overflow:"hidden",
-          background:T.white, maxHeight:200, overflowY:"auto", marginBottom:"0.6rem" }}>
+          background:T.cardBg, maxHeight:200, overflowY:"auto", marginBottom:"0.6rem" }}>
           {sucheErg.map(e => (
             <div key={e.adressnr} onClick={() => setGewaehlt(e)}
               style={{ padding:"7px 12px", cursor:"pointer",
@@ -1662,7 +1662,7 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
             style={{ marginTop:5, width:"100%", padding:"4px 7px",
               border:`1px solid ${T.border}`, borderRadius:5,
               fontFamily:T.fontBody, fontSize:"0.84rem",
-              background:T.white, outline:"none", boxSizing:"border-box" }} />
+              background:T.cardBg, outline:"none", boxSizing:"border-box" }} />
         </div>
       )}
       <Btn variant="gold" onClick={beteiligterHinzufuegen} disabled={!gewaehlt}>
@@ -1680,7 +1680,7 @@ function PersonenschadenTab({ akteId, psForm, setPsForm, psChg, setPsChg,
         {liste.map((b, i) => (
           <div key={b.id ?? `b_${i}`} style={{ display:"flex", alignItems:"flex-start",
             gap:"0.6rem", padding:"0.55rem 0.8rem",
-            background:T.white, border:`1px solid ${T.border}`, borderRadius:7 }}>
+            background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:7 }}>
             <span style={{ fontSize:"1rem", flexShrink:0, marginTop:1 }}>{ROLLEN_ICON[rolle]}</span>
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontFamily:T.fontBody, fontSize:"0.875rem",
@@ -1984,7 +1984,7 @@ const DateInput = ({ value, onChange, placeholder = "TT.MM.JJJJ", style = {} }) 
         border:`1.5px solid ${T.border}`, borderRadius:6,
         fontFamily:T.fontBody, fontSize:"0.875rem",
         color: value ? T.text : T.textFaint,
-        background:T.white, outline:"none", boxSizing:"border-box",
+        background:T.cardBg, outline:"none", boxSizing:"border-box",
         cursor:"pointer",
         ...style
       }}
@@ -2023,7 +2023,7 @@ const PsRow = ({label, field, form, upd, type="text", placeholder=""}) => (
         placeholder={placeholder}
         style={{ width:"100%", padding:"6px 9px", border:`1.5px solid ${T.border}`, borderRadius:6,
           fontFamily:T.fontBody, fontSize:"0.875rem", color:T.text,
-          background:T.white, outline:"none", boxSizing:"border-box" }} />
+          background:T.cardBg, outline:"none", boxSizing:"border-box" }} />
     )}
   </div>
 );

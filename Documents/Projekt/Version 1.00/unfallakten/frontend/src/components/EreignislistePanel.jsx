@@ -108,7 +108,7 @@ export default function EreignislistePanel({ az, positionKey, onClose }) {
   return (
     <div style={{
       position: 'fixed', top: 0, right: 0, bottom: 0, width: 480, zIndex: 100,
-      background: T.white, borderLeft: `1px solid ${T.border}`,
+      background: T.cardBg, borderLeft: `1px solid ${T.border}`,
       boxShadow: '-8px 0 24px rgba(27,42,74,0.10)',
       padding: '18px 20px',
       overflowY: 'auto',

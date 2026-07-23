@@ -72,7 +72,7 @@ function BeteiligteSection({ beteiligte, dispatch, akteId }) {
                 {beteiligte.map((b, i) => {
                   const rc = ROLLEN_C[b.rolle] || ROLLEN_C.sonstiger;
                   return (
-                    <tr key={b.id} style={{ borderBottom:`1px solid ${T.borderSoft}`, background:i%2===0?T.white:T.surface }}>
+                    <tr key={b.id} style={{ borderBottom:`1px solid ${T.borderSoft}`, background:i%2===0?T.cardBg:T.surface }}>
                       <td style={{ padding:"10px 14px" }}>
                         <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:rc.bg, color:rc.c, border:`1px solid ${rc.c}33`, borderRadius:12, padding:"2px 8px", fontSize:"0.825rem", fontWeight:600 }}>
                           {ROLLEN.find(r => r.value===b.rolle)?.label || b.rolle}

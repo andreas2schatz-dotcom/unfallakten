@@ -48,7 +48,7 @@ function EakteHoverPopover({ az, anchor, daten, akteObj, onOpenAkte, onMouseEnte
       onMouseLeave={onMouseLeave}
       style={{
         position: "fixed", top, right,
-        width: BREITE, background: T.white,
+        width: BREITE, background: T.cardBg,
         border: `1px solid ${T.border}`, borderRadius: 10,
         boxShadow: "0 6px 24px rgba(0,0,0,0.16)", zIndex: 500, overflow: "hidden",
       }}
@@ -95,10 +95,10 @@ function EakteHoverPopover({ az, anchor, daten, akteObj, onOpenAkte, onMouseEnte
                 style={{
                   padding: "7px 9px", border: `1px solid ${T.borderSoft}`,
                   borderRadius: 6, display: "flex", alignItems: "flex-start",
-                  gap: 8, cursor: "pointer", background: T.white,
+                  gap: 8, cursor: "pointer", background: T.cardBg,
                 }}
                 onMouseEnter={e => e.currentTarget.style.background = T.accentPale}
-                onMouseLeave={e => e.currentTarget.style.background = T.white}
+                onMouseLeave={e => e.currentTarget.style.background = T.cardBg}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 2 }}>
@@ -198,7 +198,7 @@ function AutocompleteInput({ value, onChange, onSearch, onOpenAkte, placeholder,
   const inpStyle = {
     width: "100%", padding: "9px 11px", border: `1.5px solid ${T.border}`,
     borderRadius: 7, fontFamily: "ui-monospace,monospace", fontSize: "0.975rem",
-    color: T.text, background: T.white, outline: "none",
+    color: T.text, background: T.cardBg, outline: "none",
     boxSizing: "border-box", transition: "border-color 0.15s",
     ...style,
   };
@@ -225,7 +225,7 @@ function AutocompleteInput({ value, onChange, onSearch, onOpenAkte, placeholder,
       {offen && (
         <div style={{
           position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 200,
-          background: T.white, border: `1px solid ${T.border}`,
+          background: T.cardBg, border: `1px solid ${T.border}`,
           borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.13)",
           overflow: "hidden",
         }}>
@@ -328,7 +328,7 @@ function NeueAkteModal({ onClose, onAkteErstellt }) {
         placeholder={placeholder}
         style={{ width: "100%", padding: "9px 11px", border: `1.5px solid ${fehler[key] ? T.red : T.border}`,
           borderRadius: 7, fontFamily: T.fontBody, fontSize: "0.95rem",
-          color: T.text, background: T.white, outline: "none", boxSizing: "border-box" }}
+          color: T.text, background: T.cardBg, outline: "none", boxSizing: "border-box" }}
         onFocus={e => e.target.style.borderColor = fehler[key] ? T.red : T.accent}
         onBlur={e  => e.target.style.borderColor = fehler[key] ? T.red : T.border}
       />
@@ -343,7 +343,7 @@ function NeueAkteModal({ onClose, onAkteErstellt }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
       zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: T.white, borderRadius: 12, boxShadow: "0 8px 40px rgba(0,0,0,0.22)",
+      <div style={{ background: T.cardBg, borderRadius: 12, boxShadow: "0 8px 40px rgba(0,0,0,0.22)",
         padding: "1.75rem", width: "100%", maxWidth: 440, maxHeight: "90vh", overflowY: "auto" }}>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -374,7 +374,7 @@ function NeueAkteModal({ onClose, onAkteErstellt }) {
             rows={2} placeholder="Erstnotiz (optional)"
             style={{ width: "100%", padding: "9px 11px", border: `1.5px solid ${T.border}`,
               borderRadius: 7, fontFamily: T.fontBody, fontSize: "0.95rem",
-              color: T.text, background: T.white, outline: "none", boxSizing: "border-box",
+              color: T.text, background: T.cardBg, outline: "none", boxSizing: "border-box",
               resize: "vertical" }}
             onFocus={e => e.target.style.borderColor = T.accent}
             onBlur={e  => e.target.style.borderColor = T.border} />
@@ -501,7 +501,7 @@ function AktensucheView({ onOpenAkte }) {
   };
 
   const kachelStyle = {
-    flex: 1, background: T.white, border: `1px solid ${T.border}`,
+    flex: 1, background: T.cardBg, border: `1px solid ${T.border}`,
     borderRadius: 10, padding: "1rem 1.1rem",
     boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
   };
@@ -517,7 +517,7 @@ function AktensucheView({ onOpenAkte }) {
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: T.offWhite }}>
 
       {/* Header */}
-      <div style={{ background: T.white, borderBottom: `1px solid ${T.border}`,
+      <div style={{ background: T.cardBg, borderBottom: `1px solid ${T.border}`,
         padding: "1.1rem 1.75rem", flexShrink: 0,
         display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
@@ -582,7 +582,7 @@ function AktensucheView({ onOpenAkte }) {
             style={{
               width: "100%", padding: "9px 11px", border: `1.5px solid ${T.border}`,
               borderRadius: 7, fontFamily: T.fontBody, fontSize: "0.975rem",
-              color: T.text, background: T.white, outline: "none",
+              color: T.text, background: T.cardBg, outline: "none",
               boxSizing: "border-box", transition: "border-color 0.15s",
             }}
             onFocus={e => e.target.style.borderColor = T.accent}
@@ -648,9 +648,9 @@ function AktensucheView({ onOpenAkte }) {
                 <tbody>
                   {treffer.map((t, i) => (
                     <tr key={t.az + i}
-                      style={{ borderBottom: `1px solid ${T.borderSoft}`, background: i % 2 === 0 ? T.white : "#fafaf8", transition: "background 0.12s", cursor: "default" }}
+                      style={{ borderBottom: `1px solid ${T.borderSoft}`, background: i % 2 === 0 ? T.cardBg : "#fafaf8", transition: "background 0.12s", cursor: "default" }}
                       onMouseEnter={e => { e.currentTarget.style.background = "#f6f4ef"; handleRowEnter(e, t); }}
-                      onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 0 ? T.white : "#fafaf8"; handleRowLeave(); }}>
+                      onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 0 ? T.cardBg : "#fafaf8"; handleRowLeave(); }}>
                       <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
                         <button onClick={() => onOpenAkte({ id: t.az_roh, az: t.az, az_roh: t.az_roh, status: t.status || "offen", unfalldatum: t.unfalldatum || "", unfallort: t.unfallort || "", hq: t.haftungsquote || 100, brutto: 0 })}
                           style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "ui-monospace,monospace", fontSize: "0.875rem", fontWeight: 600, color: T.navy, textDecoration: "underline", textDecorationColor: "rgba(27,42,74,0.3)" }}>

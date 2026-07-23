@@ -901,7 +901,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
               style={{ position:"fixed", top:0, left:0, right:0, bottom:0,
                 background:"rgba(0,0,0,0.4)", zIndex:950 }} />
             <div style={{ position:"fixed", top:"5%", left:"10%", right:"10%", bottom:"5%",
-              zIndex:951, background:T.white, borderRadius:12,
+              zIndex:951, background:T.cardBg, borderRadius:12,
               boxShadow:"0 20px 60px rgba(0,0,0,0.3)",
               display:"flex", flexDirection:"column", overflow:"hidden" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
@@ -1190,7 +1190,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                   }}>
                   <div style={{
                     width:16, height:16, borderRadius:"50%",
-                    background:T.white,
+                    background:T.cardBg,
                     position:"absolute", top:2,
                     left: eakteEmails ? 18 : 2,
                     transition:"left 0.2s",
@@ -1229,7 +1229,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                       <select
                         value={eakteFilter}
                         onChange={e => { setEakteFilter(e.target.value); setEakteSeite(0); }}
-                        style={{ fontFamily:T.fontBody, fontSize:"0.82rem", color:T.textMid, border:`1px solid ${T.border}`, borderRadius:6, padding:"3px 8px", background:T.white, maxWidth:280, cursor:"pointer" }}>
+                        style={{ fontFamily:T.fontBody, fontSize:"0.82rem", color:T.textMid, border:`1px solid ${T.border}`, borderRadius:6, padding:"3px 8px", background:T.cardBg, maxWidth:280, cursor:"pointer" }}>
                         <option value="">Alle Absender ({eakteDoks.length})</option>
                         {eakteAbsender.map(a => (
                           <option key={a} value={a}>{a.length > 40 ? a.slice(0,40)+"…" : a}</option>
@@ -1358,7 +1358,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                               {!vorschauLaden && vorschauUrl && (
                                 <iframe
                                   src={vorschauUrl}
-                                  style={{ width:"100%", height:600, border:`1px solid ${T.border}`, borderRadius:8, background:T.white }}
+                                  style={{ width:"100%", height:600, border:`1px solid ${T.border}`, borderRadius:8, background:T.cardBg }}
                                   title={ed.anzeigename}
                                 />
                               )}
@@ -1444,7 +1444,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                       <div style={{ fontFamily:T.fontBody, fontSize:"0.855rem",
                         color:T.textMid, marginTop:10, marginBottom:10,
                         whiteSpace:"pre-wrap", maxHeight:120, overflowY:"auto",
-                        background:T.white, border:`1px solid ${T.border}`,
+                        background:T.cardBg, border:`1px solid ${T.border}`,
                         borderRadius:6, padding:"8px 10px", lineHeight:1.5 }}>
                         {meta.body_text.slice(0, 400)}{meta.body_text.length > 400 ? " …" : ""}
                       </div>

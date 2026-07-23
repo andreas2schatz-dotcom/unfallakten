@@ -12,6 +12,7 @@ const T = {
   accentTrim:  "var(--color-accent-trim)",
 
   white:      "#FFFFFF",
+  cardBg:     "var(--color-bg-card)",
   offWhite:   "var(--color-bg-page)",
   surface:    "var(--color-bg-inset)",
   border:     "var(--color-border)",

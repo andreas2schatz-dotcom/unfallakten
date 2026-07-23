@@ -15,9 +15,9 @@ function AnhangZeile({ name, groesse, isPdf, isImg, kannOeffnen, onClick }) {
   return (
     <div onClick={handleClick}
       onMouseEnter={ev => { if (kannOeffnen) ev.currentTarget.style.background = T.accentPale; }}
-      onMouseLeave={ev => { ev.currentTarget.style.background = T.white; }}
+      onMouseLeave={ev => { ev.currentTarget.style.background = T.cardBg; }}
       style={{ display:"flex", alignItems:"center", gap:10,
-        background:T.white, border:`1px solid ${T.border}`, borderRadius:7,
+        background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:7,
         padding:"7px 12px", cursor:kannOeffnen?"pointer":"default" }}>
       <span style={{ color:isPdf?T.red:isImg?T.blue:T.textMuted, display:"flex", flexShrink:0 }}>
         {isPdf ? Ic.pdf : Ic.attach}

@@ -57,7 +57,7 @@ export default function DokumentAktionsmenue({ az, dokumentId, onAktion = () => 
       {offen && (
         <div style={{
           position: 'absolute', top: '110%', right: 0, width: 340,
-          background: T.white, border: `1px solid ${T.border}`,
+          background: T.cardBg, border: `1px solid ${T.border}`,
           borderRadius: 10,
           boxShadow: '0 8px 24px rgba(27,42,74,0.14), 0 2px 6px rgba(27,42,74,0.06)',
           padding: 8, zIndex: 20,

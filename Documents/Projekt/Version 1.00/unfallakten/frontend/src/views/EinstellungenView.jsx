@@ -267,7 +267,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
     width:"100%", padding:"7px 10px", border:`1px solid ${T.border}`,
     borderRadius:7, fontFamily:T.fontBody,
     fontSize:"0.945rem", outline:"none", boxSizing:"border-box",
-    background:T.white,
+    background:T.cardBg,
   };
 
   return (
@@ -314,7 +314,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
         {/* IMAP Tab */}
         {tab === "imap" && (
           <div style={{ fontFamily:T.fontBody, fontSize:"0.955rem",
-            color:T.textMuted, background:T.white, borderRadius:10, padding:"1.5rem",
+            color:T.textMuted, background:T.cardBg, borderRadius:10, padding:"1.5rem",
             border:`1px solid ${T.border}` }}>
             <p style={{ margin:"0 0 0.75rem" }}>IMAP-Konfiguration ist in der <code>.env</code>-Datei hinterlegt.</p>
             <code style={{ display:"block", background:T.offWhite, padding:"1rem",
@@ -334,7 +334,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
           <div style={{ display:"flex", flexDirection:"column", gap:"1.25rem", maxWidth:520 }}>
 
             {/* Erklärung */}
-            <div style={{ background:T.white, borderRadius:10, padding:"1rem 1.25rem",
+            <div style={{ background:T.cardBg, borderRadius:10, padding:"1rem 1.25rem",
               border:`1px solid ${T.border}`, fontFamily:T.fontBody,
               fontSize:"0.915rem", color:T.textMuted, lineHeight:1.6 }}>
               Diese Werte bestimmen die <strong style={{ color:T.text }}>Antwortfrist im Brieftext</strong> der
@@ -497,7 +497,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
           <div style={{ display:"flex", flexDirection:"column", gap:"1.25rem", maxWidth:640 }}>
 
             {/* Info */}
-            <div style={{ background:T.white, borderRadius:10, padding:"1rem 1.25rem",
+            <div style={{ background:T.cardBg, borderRadius:10, padding:"1rem 1.25rem",
               border:`1px solid ${T.border}`, fontFamily:T.fontBody,
               fontSize:"0.915rem", color:T.textMuted, lineHeight:1.6 }}>
               Konfiguriert den KI-Vorschlag-Button im Klage-Wizard (Step 7 – Rechtliche Würdigung).
@@ -743,7 +743,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
         {tab === "zustaendigkeit" && (
           <div style={{ display:"flex", flexDirection:"column", gap:"1.25rem", maxWidth:520 }}>
 
-            <div style={{ background:T.white, borderRadius:10, padding:"1rem 1.25rem",
+            <div style={{ background:T.cardBg, borderRadius:10, padding:"1rem 1.25rem",
               border:`1px solid ${T.border}`, fontFamily:T.fontBody,
               fontSize:"0.915rem", color:T.textMuted, lineHeight:1.6 }}>
               Legt fest, ab welchem Streitwert das <strong style={{ color:T.text }}>Landgericht</strong> zuständig ist.
@@ -805,7 +805,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
         {tab === "sv_portal" && (
           <div style={{ display:"flex", height:"calc(100vh - 200px)", minHeight:480,
             border:`1px solid ${T.border}`, borderRadius:10, overflow:"hidden",
-            background:T.white }}>
+            background:T.cardBg }}>
 
             {/* ── Linke Spalte: SV-Liste ── */}
             <div style={{ width:260, borderRight:`1px solid ${T.border}`,
@@ -844,7 +844,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                   </div>
                   {svSuchOffen && (
                     <div style={{ position:"absolute", top:"calc(100% + 2px)", left:0, right:0, zIndex:300,
-                      background:T.white, border:`1px solid ${T.border}`,
+                      background:T.cardBg, border:`1px solid ${T.border}`,
                       borderRadius:8, boxShadow:"0 4px 16px rgba(0,0,0,0.13)", overflow:"hidden" }}>
                       {svSuchVorschlaege.length > 0 ? (
                         <div style={{ maxHeight:200, overflowY:"auto" }}>
@@ -969,7 +969,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                 return (
                   <>
                     {/* SV-Header */}
-                    <div style={{ padding:"14px 18px 12px", background:T.white,
+                    <div style={{ padding:"14px 18px 12px", background:T.cardBg,
                       borderBottom:`1px solid ${T.border}`,
                       display:"flex", alignItems:"flex-start", gap:12 }}>
                       <div style={{ width:42, height:42, borderRadius:"50%",
@@ -1108,7 +1108,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                           Keine Akten in RA-MICRO gefunden.
                         </div>
                       ) : svAkten.map(akte => (
-                        <div key={akte.az} style={{ background:T.white,
+                        <div key={akte.az} style={{ background:T.cardBg,
                           border:`1px solid ${T.border}`, borderRadius:8,
                           padding:"9px 12px", marginBottom:6,
                           display:"flex", alignItems:"center", gap:10,
@@ -1285,7 +1285,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                     <select
                       value={imapIntervall}
                       onChange={e => setImapIntervall(parseInt(e.target.value))}
-                      style={{ padding: "4px 8px", border: `1px solid ${T.border}`, borderRadius: 6, fontFamily: T.fontBody, fontSize: "0.875rem", background: T.white }}
+                      style={{ padding: "4px 8px", border: `1px solid ${T.border}`, borderRadius: 6, fontFamily: T.fontBody, fontSize: "0.875rem", background: T.cardBg }}
                     >
                       {[5, 10, 15, 30].map(v => (
                         <option key={v} value={v}>{v} Minuten</option>
@@ -1493,7 +1493,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
 
             {/* Suche */}
             <div style={{ marginBottom:"0.75rem", display:"flex", alignItems:"center",
-              gap:8, background:T.white, border:`1px solid ${T.border}`, borderRadius:8,
+              gap:8, background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:8,
               padding:"6px 12px" }}>
               <span style={{ color:T.textFaint }}>🔍</span>
               <input value={suche} onChange={e => setSuche(e.target.value)}
@@ -1560,7 +1560,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                         </div>
                         <button onClick={() => toggleAktiv(v)}
                           style={{ padding:"3px 10px", border:`1px solid ${T.border}`,
-                            borderRadius:6, background:T.white, cursor:"pointer",
+                            borderRadius:6, background:T.cardBg, cursor:"pointer",
                             fontFamily:T.fontBody, fontSize:"0.815rem",
                             color: v.aktiv ? T.green : T.textMuted, fontWeight:600,
                             flexShrink:0 }}>

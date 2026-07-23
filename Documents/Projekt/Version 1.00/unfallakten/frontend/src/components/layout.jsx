@@ -24,7 +24,7 @@ function TopNav({ user, onLogout, backendOnline }) {
           <span style={{ fontSize:"0.755rem", background:T.accentTrim, color:T.accentLight, border:`1px solid rgba(160,107,74,0.35)`, padding:"1px 7px", borderRadius:10 }}>Admin</span>
         </button>
         {open && (
-          <div style={{ position:"absolute", top:"calc(100% + 8px)", right:0, background:T.white, border:`1px solid ${T.border}`, borderRadius:10, boxShadow:"0 8px 32px rgba(0,0,0,0.15)", minWidth:200, overflow:"hidden", zIndex:200 }}>
+          <div style={{ position:"absolute", top:"calc(100% + 8px)", right:0, background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:10, boxShadow:"0 8px 32px rgba(0,0,0,0.15)", minWidth:200, overflow:"hidden", zIndex:200 }}>
             <div style={{ padding:"12px 14px 8px", borderBottom:`1px solid ${T.border}` }}>
               <div style={{ fontSize:"0.945rem", fontWeight:600, color:T.text }}>{user.name}</div>
               <div style={{ fontSize:"0.855rem", color:T.textMuted }}>{user.email}</div>

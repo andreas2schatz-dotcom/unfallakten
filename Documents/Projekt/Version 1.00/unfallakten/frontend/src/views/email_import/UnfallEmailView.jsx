@@ -256,7 +256,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
       {/* Aktionszeile: Verbindungsstatus + Import-Button */}
       <div style={{ display:"flex", gap:10, alignItems:"center", justifyContent:"flex-end", marginBottom:"1.25rem", flexWrap:"wrap" }}>
         <div onClick={() => setShowKonfigDialog(true)}
-          style={{ display:"flex", alignItems:"center", gap:7, background:T.white, border:`1px solid ${T.border}`,
+          style={{ display:"flex", alignItems:"center", gap:7, background:T.cardBg, border:`1px solid ${T.border}`,
             borderRadius:8, padding:"7px 13px", fontFamily:T.fontBody,
             fontSize:"0.925rem", color:T.textMid, cursor:"pointer" }}>
           <span style={{ width:8, height:8, borderRadius:"50%", background: verbunden ? T.green : T.amber, display:"block",
@@ -368,7 +368,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
                 <div style={{
                   fontFamily:T.fontBody, fontSize:"0.9rem",
                   color:T.textMuted, padding:"1.5rem", textAlign:"center",
-                  background:T.white, border:`1px solid ${T.border}`, borderRadius:8,
+                  background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:8,
                 }}>
                   Alle E-Mails zugeordnet ✓
                 </div>
@@ -412,7 +412,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
                 <div style={{
                   fontFamily:T.fontBody, fontSize:"0.9rem",
                   color:T.textMuted, padding:"1.5rem", textAlign:"center",
-                  background:T.white, border:`1px solid ${T.border}`, borderRadius:8,
+                  background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:8,
                 }}>
                   Keine neuen Fragebogen ✓
                 </div>
@@ -447,7 +447,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
           </h2>
           {ansichtsModus === "stream" && (
             <span style={{
-              background:T.white, border:`1px solid ${T.border}`,
+              background:T.cardBg, border:`1px solid ${T.border}`,
               color:T.textMuted, borderRadius:12, padding:"1px 9px",
               fontSize:"0.845rem", fontWeight:600,
             }}>{streamEmails.length}</span>
@@ -489,7 +489,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
                   <button key={chip.id} onClick={() => setStreamFilter(chip.id)}
                     style={{
                       padding:"4px 13px",
-                      background: aktiv ? T.navy : T.white,
+                      background: aktiv ? T.navy : T.cardBg,
                       border:`1px solid ${aktiv ? T.navy : T.border}`,
                       borderRadius:20,
                       fontFamily:T.fontBody,
@@ -522,7 +522,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
                   border:`1.5px solid ${streamSuche ? T.navy : T.border}`,
                   borderRadius:8, outline:"none",
                   fontFamily:T.fontBody, fontSize:"0.895rem",
-                  color:T.text, background:T.white, boxSizing:"border-box",
+                  color:T.text, background:T.cardBg, boxSizing:"border-box",
                 }}
               />
               {streamSuche && (
@@ -544,7 +544,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
             {[1,2,3].map(i => (
               <div key={i} style={{
-                background:T.white, border:`1px solid ${T.border}`,
+                background:T.cardBg, border:`1px solid ${T.border}`,
                 borderRadius:9, padding:"1rem 1.1rem",
                 animation:"pulse 1.4s ease-in-out infinite",
               }}>
@@ -564,7 +564,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
         ) : ansichtsModus === "akten" ? (
           /* AktenAnsicht-Stub (PRD-22d Session 4) */
           <div style={{
-            background:T.white, border:`1px solid ${T.border}`, borderRadius:12,
+            background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:12,
             padding:"3rem 2rem", textAlign:"center",
             boxShadow:"0 2px 8px rgba(0,0,0,0.04)",
           }}>
@@ -614,7 +614,7 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
           </div>
         ) : streamEmails.length === 0 ? (
           <div style={{
-            background:T.white, border:`1px solid ${T.border}`, borderRadius:10,
+            background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:10,
             padding:"3rem", textAlign:"center",
             fontFamily:T.fontBody, fontSize:"0.955rem", color:T.textMuted,
           }}>

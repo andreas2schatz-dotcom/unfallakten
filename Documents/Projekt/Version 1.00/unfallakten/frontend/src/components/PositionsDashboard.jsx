@@ -62,8 +62,8 @@ function PositionsZeile({ posKey, pos, onClick }) {
     gap: 10,
     padding: '10px 12px',
     background: pos.has_unbestaetigt
-      ? `repeating-linear-gradient(-45deg, ${T.white} 0, ${T.white} 12px, ${T.accentPale} 12px, ${T.accentPale} 13px)`
-      : T.white,
+      ? `repeating-linear-gradient(-45deg, ${T.cardBg} 0, ${T.cardBg} 12px, ${T.accentPale} 12px, ${T.accentPale} 13px)`
+      : T.cardBg,
     border: `1px solid ${T.border}`,
     borderLeft: `4px ${pos.has_unbestaetigt ? 'dashed' : 'solid'} ${
       pos.has_unbestaetigt ? T.accent
@@ -158,7 +158,7 @@ function AggregationsZeile({ gruppe, positionen }) {
         gridTemplateColumns: '1.6fr 130px 130px 130px',
         gap: 12, alignItems: 'center',
         padding: '14px 16px',
-        background: T.white,
+        background: T.cardBg,
         border: `1px solid ${T.border}`,
         borderRadius: 10, marginBottom: 6,
       }}
@@ -247,7 +247,7 @@ export default function PositionsDashboard({ az, onOeffneEreignisse = () => {} }
 
   return (
     <div style={{
-      background: T.white,
+      background: T.cardBg,
       border: `1px solid ${T.border}`,
       borderRadius: 12,
       marginBottom: 18,

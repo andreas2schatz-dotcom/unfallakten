@@ -378,7 +378,7 @@ function RadioOption({ checked, onChange, label, sub }) {
       display: "flex", alignItems: "flex-start", gap: 10,
       padding: "10px 12px", borderRadius: 8, cursor: "pointer",
       border: `1.5px solid ${checked ? T.navy : T.borderSoft}`,
-      background: checked ? `${T.navy}08` : T.white,
+      background: checked ? `${T.navy}08` : T.cardBg,
       transition: "all 0.15s", marginBottom: 6,
     }}>
       <input type="radio" checked={checked} onChange={onChange}
@@ -752,7 +752,7 @@ export function StepAktLeg({
                       padding: "7px 10px", border: `1.5px solid ${T.border}`,
                       borderRadius: 7, fontFamily: MONO, fontSize: "0.875rem",
                       outline: "none", width: "100%", boxSizing: "border-box",
-                      background: T.white, color: T.navy,
+                      background: T.cardBg, color: T.navy,
                     }}
                   />
                 )}
@@ -1109,7 +1109,7 @@ export function StepSchaden({ positionen, onTogglePos, mitSG, onMitSG, sgMind, o
                 width: 120, padding: "6px 10px",
                 border: `1.5px solid ${T.border}`, borderRadius: 7,
                 fontFamily: MONO, fontSize: "0.9rem", outline: "none",
-                background: T.white, color: T.navy,
+                background: T.cardBg, color: T.navy,
               }} />
             <span style={{ fontFamily: PLEX, fontSize: "0.85rem", color: T.textMuted }}>€</span>
           </div>
@@ -1247,7 +1247,7 @@ export function EinwaendeAuswahl({ abrechnungen, kuerzungsarten, beklagte, onUeb
     <div style={{
       display: "flex", flexDirection: "column",
       border: `1px solid ${T.borderSoft}`, borderRadius: 10,
-      background: T.white, maxHeight: 480, overflow: "hidden",
+      background: T.cardBg, maxHeight: 480, overflow: "hidden",
     }}>
       {/* Liste */}
       <div style={{ flex: 1, overflowY: "auto", padding: "1rem 1.25rem" }}>
@@ -1263,7 +1263,7 @@ export function EinwaendeAuswahl({ abrechnungen, kuerzungsarten, beklagte, onUeb
                 display: "flex", alignItems: "flex-start", gap: 10,
                 padding: "8px 10px", borderRadius: 8, cursor: "pointer",
                 border: `1px solid ${checked.has(ka.id) ? T.navy : T.borderSoft}`,
-                background: checked.has(ka.id) ? `${T.navy}06` : T.white,
+                background: checked.has(ka.id) ? `${T.navy}06` : T.cardBg,
                 marginBottom: 4, transition: "all 0.12s",
               }}>
                 <input type="checkbox" checked={checked.has(ka.id)}
@@ -1356,7 +1356,7 @@ export function StepRw({ hq, onHq, hqTyp = "gegnerisch", onHqTyp, hb, onHb, abre
                 width: 72, padding: "6px 8px",
                 border: `1.5px solid ${T.border}`, borderRadius: 7,
                 fontFamily: MONO, fontSize: "0.9rem", outline: "none",
-                background: T.white, color: T.navy,
+                background: T.cardBg, color: T.navy,
               }} />
             <span style={{ fontFamily: PLEX, fontSize: "0.9rem", color: T.textMuted }}>%</span>
             {hq < 100 && (
@@ -1412,7 +1412,7 @@ export function StepRw({ hq, onHq, hqTyp = "gegnerisch", onHqTyp, hb, onHb, abre
               width: "100%", padding: "8px 10px",
               border: `1.5px solid ${T.border}`, borderRadius: 7,
               fontFamily: PLEX, fontSize: "0.825rem", outline: "none",
-              background: T.white, color: T.navy,
+              background: T.cardBg, color: T.navy,
               resize: "none", boxSizing: "border-box", lineHeight: 1.5,
             }} />
         </div>
@@ -1573,7 +1573,7 @@ export function StepVerzug({ zinsenAb, weiblich,
 
   const calBtnStyle = {
     padding: "6px 9px", borderRadius: 7, cursor: "pointer",
-    border: `1.5px solid ${T.border}`, background: T.white,
+    border: `1.5px solid ${T.border}`, background: T.cardBg,
     color: T.textMuted, fontSize: "1rem", lineHeight: 1,
     display: "flex", alignItems: "center", flexShrink: 0,
   };
@@ -1597,7 +1597,7 @@ export function StepVerzug({ zinsenAb, weiblich,
               style={{
                 width: "100%", padding: "7px 8px", borderRadius: 7,
                 border: `1.5px solid ${T.border}`, fontFamily: PLEX,
-                fontSize: "0.825rem", background: T.white,
+                fontSize: "0.825rem", background: T.cardBg,
               }}
             >
               <option value="">– kein Dokument –</option>
@@ -1624,7 +1624,7 @@ export function StepVerzug({ zinsenAb, weiblich,
                 border: `1.5px solid ${wizardVerzugDokDatum ? T.navy : T.border}`,
                 fontFamily: MONO, fontSize: "0.875rem",
                 color: wizardVerzugDokDatum ? T.navy : T.textMuted,
-                background: T.white, boxSizing: "border-box",
+                background: T.cardBg, boxSizing: "border-box",
               }}
             />
             <button type="button" onClick={() => pickerDokRef.current?.showPicker?.()}
@@ -1661,7 +1661,7 @@ export function StepVerzug({ zinsenAb, weiblich,
                 border: `1.5px solid ${wizardVerzugDatum ? T.navy : T.amber}`,
                 fontFamily: MONO, fontSize: "0.875rem",
                 color: wizardVerzugDatum ? T.navy : T.textMuted,
-                background: T.white, boxSizing: "border-box",
+                background: T.cardBg, boxSizing: "border-box",
               }}
             />
             <button type="button" onClick={() => pickerEinRef.current?.showPicker?.()}
@@ -1963,7 +1963,7 @@ function StepGericht({ gericht, setGericht, gerichtSuche, setGSuche,
       {!gericht && (
         <div>
           <div style={{ display: "flex", gap: 8, alignItems: "center",
-            background: T.white, border: `1px solid ${T.border}`, borderRadius: 8,
+            background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: 8,
             padding: "6px 12px", marginBottom: "0.5rem" }}>
             <span style={{ color: T.textFaint }}>🔍</span>
             <input value={gerichtSuche} onChange={e => sucheGerichte(e.target.value)}
@@ -1985,9 +1985,9 @@ function StepGericht({ gericht, setGericht, gerichtSuche, setGSuche,
                   onClick={() => { setGericht(g); setGTreffer([]); setGSuche(""); setBestaetigt(false); }}
                   style={{ padding: "9px 14px", cursor: "pointer",
                     borderBottom: i < gerichtTreffer.length - 1 ? `1px solid ${T.borderSoft}` : "none",
-                    background: T.white, transition: "background 0.1s" }}
+                    background: T.cardBg, transition: "background 0.1s" }}
                   onMouseEnter={e => e.currentTarget.style.background = T.surface}
-                  onMouseLeave={e => e.currentTarget.style.background = T.white}>
+                  onMouseLeave={e => e.currentTarget.style.background = T.cardBg}>
                   <div style={{ fontFamily: PLEX, fontSize: "0.925rem", fontWeight: 600, color: T.navy }}>
                     {g.name}
                   </div>
@@ -2494,7 +2494,7 @@ export function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
 
         {rvgAussergData && (
           <div style={{ fontFamily: PLEX, fontSize: "0.8rem", color: T.text, lineHeight: 1.8,
-            background: T.white, border: `1px solid ${T.borderSoft}`, borderRadius: 8,
+            background: T.cardBg, border: `1px solid ${T.borderSoft}`, borderRadius: 8,
             padding: "0.6rem 0.85rem" }}>
             {[
               { l: `Geschäftsgebühr §§ 13, 14 Nr. 2300 VV RVG (${rvgAussergData.faktor})`, v: rvgAussergData.gebuehr_netto },
@@ -2542,7 +2542,7 @@ export function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
               style={{ width: 120, padding: "6px 8px",
                 border: `1.5px solid ${T.border}`, borderRadius: 7,
                 fontFamily: MONO, fontSize: "0.9rem", outline: "none",
-                background: T.white, color: T.navy }} />
+                background: T.cardBg, color: T.navy }} />
             <span style={{ fontFamily: PLEX, fontSize: "0.85rem", color: T.textMuted }}>€</span>
           </div>
         </div>
@@ -2559,7 +2559,7 @@ export function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
               style={{ width: 120, padding: "6px 8px",
                 border: `1.5px solid ${bereitsGez > 0 ? T.amber : T.border}`, borderRadius: 7,
                 fontFamily: MONO, fontSize: "0.9rem", outline: "none",
-                background: T.white, color: T.navy }} />
+                background: T.cardBg, color: T.navy }} />
             <span style={{ fontFamily: PLEX, fontSize: "0.85rem", color: T.textMuted }}>€</span>
           </div>
           {bereitsGez > 0 && (

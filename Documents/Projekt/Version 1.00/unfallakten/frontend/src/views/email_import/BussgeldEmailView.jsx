@@ -142,7 +142,7 @@ export default function BussgeldEmailView({ onOpenAkte }) {
           {laedt ? (
             <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
               {[1,2,3].map(i => (
-                <div key={i} style={{ background:T.white, border:`1px solid ${T.border}`,
+                <div key={i} style={{ background:T.cardBg, border:`1px solid ${T.border}`,
                   borderRadius:9, padding:"1rem 1.1rem", animation:"pulse 1.4s ease-in-out infinite" }}>
                   <div style={{ display:"flex", gap:10, alignItems:"center" }}>
                     <div style={{ width:32, height:32, borderRadius:"50%", background:T.offWhite }}/>
@@ -155,7 +155,7 @@ export default function BussgeldEmailView({ onOpenAkte }) {
               ))}
             </div>
           ) : log.length === 0 ? (
-            <div style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:10,
+            <div style={{ background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:10,
               padding:"3rem", textAlign:"center",
               fontFamily:T.fontBody, fontSize:"0.955rem", color:T.textMuted }}>
               Noch keine E-Mails importiert

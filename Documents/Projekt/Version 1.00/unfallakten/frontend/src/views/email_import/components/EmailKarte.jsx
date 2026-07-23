@@ -172,7 +172,7 @@ function EmailKarte({ entry: e, seite, onOpenAkte, onOpenEmail, zuordnungState: 
                   </button>
                   <button
                     style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px",
-                      background:T.white, color:T.textMuted, border:`1px solid ${T.border}`,
+                      background:T.cardBg, color:T.textMuted, border:`1px solid ${T.border}`,
                       borderRadius:6, fontFamily:T.fontBody, fontSize:"0.875rem",
                       fontWeight:600, cursor:"not-allowed", opacity:0.5 }}
                     title="Feature in Entwicklung">
@@ -180,7 +180,7 @@ function EmailKarte({ entry: e, seite, onOpenAkte, onOpenEmail, zuordnungState: 
                   </button>
                 </div>
               ) : (
-                <div style={{ background:T.white, border:`1px solid ${T.border}`,
+                <div style={{ background:T.cardBg, border:`1px solid ${T.border}`,
                   borderRadius:8, overflow:"hidden", maxWidth:420 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8,
                     padding:"8px 12px", borderBottom:`1px solid ${T.border}` }}>
@@ -256,7 +256,7 @@ function EmailKarte({ entry: e, seite, onOpenAkte, onOpenEmail, zuordnungState: 
               <div style={{ fontFamily:T.fontBody, fontSize:"0.8rem",
                 fontWeight:600, color:T.textMuted, textTransform:"uppercase",
                 letterSpacing:"0.06em", marginBottom:6 }}>E-Mail-Text</div>
-              <div style={{ background:T.white, border:`1px solid ${T.border}`,
+              <div style={{ background:T.cardBg, border:`1px solid ${T.border}`,
                 borderRadius:7, padding:"10px 12px",
                 fontFamily:T.fontBody, fontSize:"0.875rem",
                 color:T.textMid, whiteSpace:"pre-wrap", maxHeight:180,

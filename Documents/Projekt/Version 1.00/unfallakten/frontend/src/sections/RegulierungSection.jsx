@@ -175,12 +175,12 @@ function PdfAuswahlZeile({ dok, akteId, setDn, setPhase, setFehler, setErg, setS
       });
     }}
       style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px",
-        background:T.white, border:`1px solid ${T.border}`, borderRadius:7,
+        background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:7,
         fontFamily:T.fontBody, fontSize:"0.875rem",
         color:T.text, cursor:"pointer", textAlign:"left", width:"100%",
         transition:"border-color 0.15s", marginBottom:4 }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = T.accent; e.currentTarget.style.background = T.accentPale; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.white; }}>
+      onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.cardBg; }}>
       <span style={{ color:T.red, fontSize:"1rem", flexShrink:0 }}>📄</span>
       <div style={{ flex:1, minWidth:0, textAlign:"left" }}>
         <div style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontWeight:600 }}>{dok.dateiname}</div>
@@ -1094,7 +1094,7 @@ function AbrechnungFormular({ schaden, kuerzungsarten, akteId, onSave, onCancel,
       {/* Positionen */}
       <div style={{ marginBottom:"1rem" }}>
         <div style={{ fontFamily:T.fontBody, fontSize:"0.82rem", fontWeight:600, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"0.6rem" }}>Regulierte Positionen</div>
-        <div style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:8, overflow:"hidden" }}>
+        <div style={{ background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:8, overflow:"hidden" }}>
           <table style={{ width:"100%", borderCollapse:"collapse", fontFamily:T.fontBody, fontSize:"0.875rem" }}>
             <thead>
               <tr style={{ background:T.surface }}>
@@ -2408,10 +2408,10 @@ function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, s
                   return (
                     <React.Fragment key={pos.key}>
                       <tr style={{ borderBottom:`1px solid ${T.border}`,
-                        background: idx%2===0 ? T.white : T.surface,
+                        background: idx%2===0 ? T.cardBg : T.surface,
                         transition:"background 0.1s" }}
                         onMouseEnter={e => e.currentTarget.style.background = T.accentPale}
-                        onMouseLeave={e => e.currentTarget.style.background = idx%2===0 ? T.white : T.surface}>
+                        onMouseLeave={e => e.currentTarget.style.background = idx%2===0 ? T.cardBg : T.surface}>
 
                         {/* Expand-Button */}
                         <td style={{ padding:"8px 4px 8px 12px", textAlign:"center" }}>
@@ -2459,7 +2459,7 @@ function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, s
                               <div onMouseDown={e => e.stopPropagation()}
                                 style={{ position:"fixed", top:"50%", left:"50%",
                                   transform:"translate(-50%, -50%)",
-                                  zIndex:901, background:T.white,
+                                  zIndex:901, background:T.cardBg,
                                   border:`1.5px solid ${T.accent}`,
                                   borderRadius:10, boxShadow:"0 12px 40px rgba(0,0,0,0.2)",
                                   padding:"18px 20px", width:300,
@@ -2643,7 +2643,7 @@ function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, s
                               {kuerzungDropdown === pos.key && (
                                 <div onMouseDown={e => e.preventDefault()}
                                   style={{ position:"absolute", top:"calc(100% + 4px)", left:0,
-                                  zIndex:200, background:T.white, border:`1px solid ${T.border}`,
+                                  zIndex:200, background:T.cardBg, border:`1px solid ${T.border}`,
                                   borderRadius:8, boxShadow:"0 4px 20px rgba(0,0,0,0.12)",
                                   minWidth:240, maxHeight:220, overflowY:"auto" }}>
                                   {(() => {

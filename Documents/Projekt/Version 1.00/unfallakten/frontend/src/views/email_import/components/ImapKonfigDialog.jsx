@@ -46,12 +46,12 @@ function ImapKonfigDialog({ cfg, onClose, onGespeichert }) {
     width:"100%", padding:"8px 10px",
     border:`1.5px solid ${T.border}`, borderRadius:7,
     fontFamily:"ui-monospace,monospace", fontSize:"0.925rem",
-    color:T.text, background:T.white, outline:"none", boxSizing:"border-box",
+    color:T.text, background:T.cardBg, outline:"none", boxSizing:"border-box",
   };
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }}>
-      <div style={{ background:T.white, borderRadius:12, width:"100%", maxWidth:520, boxShadow:"0 8px 40px rgba(0,0,0,0.18)", overflow:"hidden" }}>
+      <div style={{ background:T.cardBg, borderRadius:12, width:"100%", maxWidth:520, boxShadow:"0 8px 40px rgba(0,0,0,0.18)", overflow:"hidden" }}>
         <div style={{ background:T.navy, padding:"1rem 1.4rem", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
             <div style={{ fontFamily:T.fontDisplay, fontSize:"1.15rem", fontWeight:700, color:T.white }}>

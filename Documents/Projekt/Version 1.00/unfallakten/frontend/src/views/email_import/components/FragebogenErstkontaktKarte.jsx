@@ -17,7 +17,7 @@ function FragebogenErstkontaktKarte({ eintrag, onAlsBearbeitet }) {
 
   return (
     <div style={{
-      background:T.white, border:`1px solid ${T.border}`, borderRadius:9,
+      background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:9,
       padding:"0.9rem 1rem", marginBottom:"0.5rem",
       boxShadow:"0 1px 4px rgba(0,0,0,0.04)",
     }}>

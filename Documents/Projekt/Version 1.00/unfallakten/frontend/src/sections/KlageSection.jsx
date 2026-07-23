@@ -736,7 +736,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
 
   const inS = { padding:"6px 10px", border:`1px solid ${T.border}`, borderRadius:7,
     fontFamily:"ui-monospace,monospace", fontSize:"0.915rem", outline:"none",
-    background:T.white };
+    background:T.cardBg };
 
   if (laedt) return <div style={{ padding:"2rem", textAlign:"center", color:T.textFaint,
     fontFamily:T.fontBody }}>Lade Klage-Daten …</div>;
@@ -931,7 +931,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
             {!gericht && (
               <div>
                 <div style={{ display:"flex", gap:8, alignItems:"center",
-                  background:T.white, border:`1px solid ${T.border}`, borderRadius:8,
+                  background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:8,
                   padding:"6px 12px", marginBottom:"0.5rem" }}>
                   <span style={{ color:T.textFaint }}>🔍</span>
                   <input value={gerichtSuche} onChange={e => sucheGerichte(e.target.value)}
@@ -953,9 +953,9 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                       <div key={g.adressnr} onClick={() => { setGericht(g); setGTreffer([]); setGSuche(""); }}
                         style={{ padding:"9px 14px", cursor:"pointer",
                           borderBottom: i < gerichtTreffer.length-1 ? `1px solid ${T.borderSoft}` : "none",
-                          background:T.white, transition:"background 0.1s" }}
+                          background:T.cardBg, transition:"background 0.1s" }}
                         onMouseEnter={e => e.currentTarget.style.background = T.surface}
-                        onMouseLeave={e => e.currentTarget.style.background = T.white}>
+                        onMouseLeave={e => e.currentTarget.style.background = T.cardBg}>
                         <div style={{ fontFamily:T.fontBody, fontSize:"0.925rem",
                           fontWeight:600, color:T.navy }}>{g.name}</div>
                         <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.825rem",
@@ -1406,13 +1406,13 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                       return (
                         <button key={dok.id} onClick={() => waehleVerzugDok(dok.id)}
                           style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px",
-                            background: sel ? T.accentPale : T.white,
+                            background: sel ? T.accentPale : T.cardBg,
                             border: `1.5px solid ${sel ? T.accent : T.border}`,
                             borderRadius:7, fontFamily:T.fontBody, fontSize:"0.875rem",
                             color:T.text, cursor:"pointer", textAlign:"left", width:"100%",
                             transition:"border-color 0.15s, background 0.15s" }}
                           onMouseEnter={e => { if (!sel) { e.currentTarget.style.borderColor=T.accent; e.currentTarget.style.background=T.accentPale; }}}
-                          onMouseLeave={e => { if (!sel) { e.currentTarget.style.borderColor=T.border; e.currentTarget.style.background=T.white; }}}>
+                          onMouseLeave={e => { if (!sel) { e.currentTarget.style.borderColor=T.border; e.currentTarget.style.background=T.cardBg; }}}>
                           <span style={{ color:T.red, fontSize:"1rem", flexShrink:0 }}>📄</span>
                           <div style={{ flex:1, minWidth:0 }}>
                             <div style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontWeight:600 }}>{dok.dateiname}</div>

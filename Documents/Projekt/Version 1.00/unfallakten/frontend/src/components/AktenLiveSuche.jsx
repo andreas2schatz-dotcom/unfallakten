@@ -58,7 +58,7 @@ export default function AktenLiveSuche({ onWaehle, autoFocus = false, placeholde
           width: '100%', boxSizing: 'border-box',
           padding: '7px 10px', border: `1px solid ${T.border}`,
           borderRadius: 4, fontSize: T.textSm, fontFamily: T.fontBody,
-          background: T.white,
+          background: T.cardBg,
         }}
       />
 
@@ -90,7 +90,7 @@ export default function AktenLiveSuche({ onWaehle, autoFocus = false, placeholde
         <div style={{
           marginTop: 6, maxHeight: 260, overflowY: 'auto',
           border: `1px solid ${T.border}`, borderRadius: 4,
-          background: T.white,
+          background: T.cardBg,
         }}>
           {treffer.map((t, i) => (
             <button

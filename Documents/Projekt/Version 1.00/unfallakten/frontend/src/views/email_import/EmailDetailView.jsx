@@ -258,7 +258,7 @@ function EmailDetailView({ entry: e, onBack, onOpenAkte, onInAkteImportiert, onG
             <>
               <div style={{ padding:"8px 14px", borderBottom:`1px solid ${T.border}`,
                 display:"flex", alignItems:"center", gap:10, flexShrink:0,
-                background:T.white, fontFamily:T.fontBody, fontSize:"0.875rem" }}>
+                background:T.cardBg, fontFamily:T.fontBody, fontSize:"0.875rem" }}>
                 <span style={{ color:T.textMid }}>
                   {(meta?.anhaenge || []).find(a => a.index === aktiverIdx)?.name || `Anhang ${aktiverIdx + 1}`}
                 </span>

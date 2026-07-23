@@ -234,14 +234,14 @@ function WiedervorlageView({ onOpenAkte }) {
 
         {/* Filterzeile */}
         <div style={{ display:"flex", gap:10, marginBottom:"1.25rem", flexWrap:"wrap", alignItems:"center" }}>
-          <label style={{ display:"flex", alignItems:"center", gap:7, background:T.white, border:`1px solid ${T.border}`, borderRadius:8, padding:"7px 13px", cursor:"pointer", fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMid, userSelect:"none" }}>
+          <label style={{ display:"flex", alignItems:"center", gap:7, background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:8, padding:"7px 13px", cursor:"pointer", fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMid, userSelect:"none" }}>
             <input type="checkbox" checked={filterHeute} onChange={e => {
                 setFilterHeute(e.target.checked);
                 if (e.target.checked) setFilterAlleWv(false);
               }} style={{ accentColor:T.navy, width:15, height:15 }} />
             Nur heute fällig
           </label>
-          <label style={{ display:"flex", alignItems:"center", gap:7, background:T.white, border:`1px solid ${T.border}`, borderRadius:8, padding:"7px 13px", cursor:"pointer", fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMid, userSelect:"none" }}>
+          <label style={{ display:"flex", alignItems:"center", gap:7, background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:8, padding:"7px 13px", cursor:"pointer", fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMid, userSelect:"none" }}>
             <input type="checkbox" checked={filterAlleWv} onChange={e => {
                 setFilterAlleWv(e.target.checked);
                 if (e.target.checked) setFilterHeute(false);
@@ -250,20 +250,20 @@ function WiedervorlageView({ onOpenAkte }) {
           </label>
           {grundListe.length > 0 && (
             <select value={filterGrund} onChange={e => setFilterGrund(e.target.value)}
-              style={{ padding:"7px 13px", background:T.white, border:`1px solid ${T.border}`, borderRadius:8, fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMid, cursor:"pointer", maxWidth:220 }}>
+              style={{ padding:"7px 13px", background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:8, fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMid, cursor:"pointer", maxWidth:220 }}>
               <option value="">Alle WV-Gründe</option>
               {grundListe.map(g => <option key={g} value={g}>{g}</option>)}
             </select>
           )}
           {sbListe.length > 0
             ? <select value={filterSb} onChange={e => setFilterSb(e.target.value)}
-                style={{ padding:"7px 13px", background:T.white, border:`1px solid ${T.border}`, borderRadius:8, fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMid, cursor:"pointer" }}>
+                style={{ padding:"7px 13px", background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:8, fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMid, cursor:"pointer" }}>
                 <option value="">Alle Sachbearbeiter</option>
                 {sbListe.map(sb => <option key={sb} value={sb}>{sb}</option>)}
               </select>
             : <input value={filterSb} onChange={e => setFilterSb(e.target.value)}
                 placeholder="SB-Kürzel (z.B. AS)"
-                style={{ padding:"7px 13px", background:T.white, border:`1px solid ${T.border}`, borderRadius:8, fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMid, width:160 }} />
+                style={{ padding:"7px 13px", background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:8, fontFamily:T.fontBody, fontSize:"0.895rem", color:T.textMid, width:160 }} />
           }
           {wvListe && (
             <span style={{ marginLeft:"auto", fontFamily:T.fontBody, fontSize:"0.865rem", color:T.textMuted }}>
@@ -315,7 +315,7 @@ function WiedervorlageView({ onOpenAkte }) {
             </button>
           </div>
         ) : !wvListe || wvListe.length === 0 ? (
-          <div style={{ background:T.white, borderRadius:12, border:`1px solid ${T.border}`, padding:"3rem", textAlign:"center" }}>
+          <div style={{ background:T.cardBg, borderRadius:12, border:`1px solid ${T.border}`, padding:"3rem", textAlign:"center" }}>
             <div style={{ fontSize:"2.5rem", marginBottom:12 }}>🎉</div>
             <div style={{ fontFamily:T.fontDisplay, fontSize:"1.2rem", fontWeight:700, color:T.navy, marginBottom:6 }}>
               Keine fälligen Wiedervorlagen
@@ -325,7 +325,7 @@ function WiedervorlageView({ onOpenAkte }) {
             </div>
           </div>
         ) : (
-          <div style={{ background:T.white, borderRadius:12, border:`1px solid ${T.border}`, overflow:"hidden" }}>
+          <div style={{ background:T.cardBg, borderRadius:12, border:`1px solid ${T.border}`, overflow:"hidden" }}>
             <table style={{ width:"100%", borderCollapse:"collapse" }}>
               <thead>
                 <tr style={{ background:T.navy }}>
@@ -361,9 +361,9 @@ function WiedervorlageView({ onOpenAkte }) {
                   const istUeberfaellig = wv.datum < new Date().toISOString().slice(0,10);
                   return (
                     <tr key={wv.guid}
-                      style={{ background: istAusgewaehlt ? "#f0f4ff" : idx % 2 === 0 ? T.white : "#fafaf8", borderBottom:`1px solid ${T.border}`, transition:"background 0.12s" }}
+                      style={{ background: istAusgewaehlt ? "#f0f4ff" : idx % 2 === 0 ? T.cardBg : "#fafaf8", borderBottom:`1px solid ${T.border}`, transition:"background 0.12s" }}
                       onMouseEnter={e => { if (!istAusgewaehlt) e.currentTarget.style.background = "#f6f4ef"; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = istAusgewaehlt ? "#f0f4ff" : idx % 2 === 0 ? T.white : "#fafaf8"; }}>
+                      onMouseLeave={e => { e.currentTarget.style.background = istAusgewaehlt ? "#f0f4ff" : idx % 2 === 0 ? T.cardBg : "#fafaf8"; }}>
 
                       {/* Checkbox */}
                       <td style={{ padding:"10px 14px", textAlign:"center" }}>
@@ -437,7 +437,7 @@ function WiedervorlageView({ onOpenAkte }) {
                             width:"100%", padding:"5px 8px",
                             border:`1px solid ${T.border}`, borderRadius:6,
                             fontFamily:T.fontBody, fontSize:"0.825rem",
-                            color:T.text, background:T.white, cursor:"pointer",
+                            color:T.text, background:T.cardBg, cursor:"pointer",
                             maxWidth:190,
                           }}>
                           <option value="">

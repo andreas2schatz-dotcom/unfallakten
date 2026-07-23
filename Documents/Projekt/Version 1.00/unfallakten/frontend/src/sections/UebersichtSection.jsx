@@ -151,7 +151,7 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
 
   return (
     <>
-    <div style={{ background:T.white, border: titel ? `1px solid ${T.border}` : "none", borderRadius: titel ? 10 : 0, overflow:"hidden", boxShadow: titel ? "0 1px 4px rgba(0,0,0,0.04)" : "none" }}>
+    <div style={{ background:T.cardBg, border: titel ? `1px solid ${T.border}` : "none", borderRadius: titel ? 10 : 0, overflow:"hidden", boxShadow: titel ? "0 1px 4px rgba(0,0,0,0.04)" : "none" }}>
       {/* Kachel-Header – wird ausgeblendet wenn kein Titel (z.B. in RechtsschutzKlappkachel) */}
       {titel && (
         ausklappbar ? (
@@ -1824,7 +1824,7 @@ function PhasenStrip({ phase }) {
         const fertig  = phasenFertig[p.id];
         const isAktiv = aktiv === p.id;
         const last    = i === PHASEN.length - 1;
-        const bg    = fertig ? T.greenBg  : isAktiv ? "#EEF3FF"  : T.white;
+        const bg    = fertig ? T.greenBg  : isAktiv ? "#EEF3FF"  : T.cardBg;
         const color = fertig ? T.greenText : isAktiv ? T.accent   : T.textFaint;
         const icon  = fertig ? "✓"        : isAktiv ? "▶"        : "○";
         return (
@@ -2006,7 +2006,7 @@ function TodoInlineForm({ az, onDone }) {
             flex:1, minWidth:200, padding:"6px 10px",
             border:`1.5px solid ${T.border}`, borderRadius:6,
             fontFamily:T.fontBody, fontSize:"0.875rem", color:T.text,
-            background:T.white || "#ffffff", outline:"none",
+            background:T.cardBg || "#ffffff", outline:"none",
           }}
           onFocus={e => e.target.style.borderColor = T.accent}
           onBlur={e => e.target.style.borderColor = T.border}
@@ -2018,7 +2018,7 @@ function TodoInlineForm({ az, onDone }) {
           style={{
             padding:"6px 10px", border:`1.5px solid ${T.border}`, borderRadius:6,
             fontFamily:T.fontBody, fontSize:"0.875rem", color:T.text,
-            background:T.white || "#ffffff", outline:"none",
+            background:T.cardBg || "#ffffff", outline:"none",
           }}
         />
         <Btn variant="gold" size="sm" onClick={speichern} disabled={busy || !text.trim()}>
