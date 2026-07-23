@@ -806,6 +806,74 @@ git commit -m "feat(einstellungen): Darstellung-Sektion mit Farbschema- und Dark
 
 ---
 
+## Task 6b (Nachtrag): T.white-Rollentrennung — Karten-/Panel-Hintergrund vs. Text-auf-Farbe
+
+**Warum dieser Task existiert:** Beim Umsetzen von Task 6 fiel auf, dass Task 3s Annahme über `T.white` falsch war. `T.white` wurde als fixer `"#FFFFFF"`-Literal gemappt in der Annahme, es werde nur für „weißer Text/Icon auf farbigem/dunklem Grund" verwendet (eine Rolle, die tatsächlich in jedem Schema weiß bleiben soll). Tatsächliche Recherche ergab: `T.white` wird an 204 Stellen über ~40 Dateien verwendet, die meisten davon (113 direkt als `background:`, weitere ~40 über Ternaries für Zebra-Streifen in Tabellen und über imperative `element.style.background = T.white`-Hover-Reset-Handler) sind **Hintergrundfarbe** von Karten, Panels, Dropdowns, Tabellenzeilen — nicht Text. Im Dark Mode blieben diese Flächen strahlend weiß auf dunklem Seitenhintergrund, sichtbar kaputt. Nutzer-Entscheidung (RA Schatz, 2026-07-22): jetzt fixen, nicht zurückstellen.
+
+**Files:**
+- Modify: `frontend/src/config/theme.js` (ein neuer Key)
+- Modify: alle Dateien mit Hintergrund-Rolle-Verwendung von `T.white` (siehe Klassifizierung unten)
+
+**Wichtig zur Risikoeinschätzung:** `--color-bg-card` (Ziel-Token) ist in `tokens.css` für `classic-light` UND `clio-light` bereits `#FFFFFF` — identisch zum bisherigen `T.white`. Nur `clio-dark` hat einen anderen Wert (`#1C1F24`). Der Fix hat also **kein Sichtbarkeitsrisiko außerhalb von Clio-Dark** (eine brandneue, noch nirgends aktiv genutzte Kombination) — für alle bestehenden Nutzer:innen ändert sich optisch nichts.
+
+- [ ] **Step 1: `T.cardBg` in `theme.js` ergänzen**
+
+In `frontend/src/config/theme.js`, direkt nach der `white`-Zeile, ergänzen:
+
+```js
+  white:      "#FFFFFF",
+  cardBg:     "var(--color-bg-card)",
+```
+
+- [ ] **Step 2: Alle `T.white`-Fundstellen klassifizieren und Hintergrund-Rolle migrieren**
+
+Fundstellen ermitteln (führt eigenständig aus, da sich die Zeilennummern seit der Analyse verschoben haben können):
+
+```bash
+grep -rn "T\.white" frontend/src --include=*.jsx
+```
+
+Klassifizierungsregel:
+- **Hintergrund-Rolle → auf `T.cardBg` umstellen:** jede Verwendung, bei der `T.white` einer `background`/`backgroundColor`/`element.style.background`-Eigenschaft zugewiesen wird (auch innerhalb von Ternaries wie `background: idx%2===0 ? T.white : T.surface` — nur den `T.white`-Zweig ändern, den anderen Zweig unangetastet lassen) — das schließt Gradient-Stops (`repeating-linear-gradient(..., ${T.white} ..., ...)`) mit ein.
+- **Text-/Vordergrund-Rolle → unverändert lassen:** jede Verwendung bei `color:` (Text-/Icon-Farbe) oder als Bestandteil einer Rahmenfarbe mit Transparenz-Suffix wie `` `1px solid ${T.white}40` `` (das ist eine halbtransparente weiße Umrandung auf farbigem Grund, keine Fläche).
+- **Bereits bekannte eindeutige Fälle aus einer Voranalyse** (zur Orientierung — verifiziert gegen den tatsächlichen Dateiinhalt, da sich Zeilennummern verschoben haben können):
+  - Hintergrund-Rolle (→ `T.cardBg`): `components/common.jsx` (Card-Hintergrund + Drawer-Hintergrund), `components/PositionsDashboard.jsx` (Gradient + Fallback), `sections/BeteiligteSection.jsx`, `sections/KlageSection.jsx` (mehrere, inkl. `.style.background=`), `sections/KlageWizard.jsx` (mehrere, inkl. `.style.background=`), `sections/RegulierungSection.jsx` (mehrere, inkl. `.style.background=`), `sections/SchadenSection.jsx` (mehrere, inkl. `.style.background=`), `sections/UebersichtSection.jsx` (Zeile mit `const bg = ... : T.white`), `views/AktensucheView.jsx` (mehrere, inkl. `.style.background=`), `views/email_import/components/AnhangZeile.jsx` (`.style.background=`), `views/email_import/UnfallEmailView.jsx` (Tab-Hintergrund), `views/KuerzungskatalogView.jsx`, `views/ReviewQueueView.jsx` (Zeile 591-artig: `background: f.konflikt ? T.amberBg : T.white`), `views/WiedervorlageView.jsx` (mehrere, inkl. `.style.background=`), plus alle ~113 direkten `background:T.white`/`background: T.white`-Stellen (grösstenteils Karten/Panels/Inputs/Dropdowns in `sections/*.jsx`, `views/*.jsx`).
+  - Text-Rolle (unverändert lassen): alle `color:T.white`/`color: T.white`-Stellen (46 Stück) sowie Ternary-Varianten wie `color: cond ? T.white : T.textMuted`.
+  - **Bewusst einzeln prüfen** (im ersten Durchgang nicht eindeutig klassifizierbar, vollen Datei-Kontext lesen): `views/ReviewQueueView.jsx`, Zeilen um `border: \`1px solid ${T.white}40\`` und die direkt danebenliegende `background: ansicht === a ? T.white : "transparent"` — hier muss anhand des umgebenden JSX (vermutlich ein Tab/Pill-Element auf farbigem Balken) entschieden werden, ob das „weiße Pille-auf-Farbe"-Aktiv-Element eine echte Flächenrolle hat (→ migrieren) oder eine bewusste feste Weiß-Markierung ist, die unabhängig vom Schema weiß bleiben soll (→ nicht migrieren). Im Zweifel: migrieren, da die umgebende Leiste selbst vermutlich `T.navy`/`T.accent`-farbig ist und nicht vom Card-Hintergrund-Token abhängt — Fehlentscheidung hier ist niedrig riskant (visuell in Classic/Clio-Light ohnehin identisch).
+
+Für die ~113 eindeutigen direkten `background:T.white`/`background: T.white`-Stellen ist ein mechanisches Suchen&Ersetzen zulässig (analog Task 4s Vorgehen: temporäres Skript, danach löschen). Für die übrigen ~45 Misch-/Ternary-/imperativen Stellen: Datei für Datei von Hand durchgehen, da Kontext nötig ist.
+
+- [ ] **Step 3: Verifizieren**
+
+```bash
+grep -rn "background:\s*T\.white" frontend/src --include=*.jsx
+```
+Expected: keine Treffer mehr (alle Hintergrund-Stellen migriert).
+
+```bash
+grep -rn "T\.white" frontend/src --include=*.jsx | grep -v "color:\s*T\.white"
+```
+Expected: verbleibende Treffer sind ausschließlich Rahmen-mit-Transparenz-Fälle wie oben beschrieben, keine reinen Hintergrund-Zuweisungen mehr.
+
+- [ ] **Step 4: Build-Check**
+
+Run: `cd frontend && npm run build`
+Expected: erfolgreich.
+
+- [ ] **Step 5: Visuelle Prüfung**
+
+Run: `npm run dev`, mit gesetztem `localStorage.setItem("unfallakten.theme", '{"scheme":"clio","mode":"dark"}')` + Hard-Reload mehrere Views öffnen (Übersicht, Klage-Wizard, Einstellungen, E-Mail-Import, Aktensuche).
+Expected: Karten/Panels/Dropdowns sind jetzt dunkel (nicht mehr weiß) im Dark Mode. In Classic/Clio-Light: keine sichtbare Änderung gegenüber vorher.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add frontend/src
+git commit -m "fix(theme): T.white-Rolle aufgeteilt — T.cardBg fuer Flaechen (schema-reaktiv), T.white nur noch Text-auf-Farbe"
+```
+
+---
+
 ## Task 7: Manuelle Test-Runde über die Gesamt-App
 
 **Files:** keine Code-Änderungen — reine Verifikation.
