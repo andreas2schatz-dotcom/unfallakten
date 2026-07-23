@@ -13,7 +13,10 @@ Empfohlene Reihenfolge 1→2→3→4 (3+4 teilen sich den Textaufbau-Umbau/V11 �
 1. **Entwurf speichern** — ✅ umgesetzt + in `main` (2026-07-19). Detail → CHANGELOG.
 2. **UI-Führung** — ✅ umgesetzt + in **lokales `main`** gemergt (mit Firmen-Vertreter-Paket, nicht gepusht). Browser-Nachtest im Büro offen. Detail → CHANGELOG.
 3. **Gesamtvorschau** — ✅ umgesetzt (Branch `klage-gesamtvorschau`, in **lokales `main`** gemergt, nicht gepusht; Branch behalten). Wortgenaue Server-Text-Vorschau (`POST /klage/vorschau`), abschnittsweise inline bearbeitbar in Schritt 11 (4 Freitext-Overrides), Single-Source aus `_baue_klage_dokument` (DOCX byte-identisch, V10 grün). **Offen (Büro): Browser-E2E** — Vorschau erzeugen → Sachverhalt bearbeiten → Übernehmen (neuer Text sichtbar) → Als Word generieren (geänderter Text im DOCX). Spec: `docs/superpowers/specs/2026-07-19-klage-wizard-gesamtvorschau-design.md`.
-4. **Standardtexte pflegbar (V11)** — offen. Baustein-Registry (YAML, fail-loud) + Override-Tabelle, Einstellungs-Karte mit Platzhalter-Chips + Live-Vorschau; Fall-B „Die Beklagte" hartcodiert mitbeheben. Spec: `docs/superpowers/specs/2026-07-19-klage-wizard-standardtexte-design.md`.
+4. **Standardtexte pflegbar (V11)** — **wartet bewusst** (Entscheidung 2026-07-23, DECISIONS.md): Phase 1 der Kürzungstaxonomie kommt zuerst und baut die gemeinsame Editor-Komponente; V11 erbt sie. Spec bleibt gültig: `docs/superpowers/specs/2026-07-19-klage-wizard-standardtexte-design.md`.
+
+### Kürzungstaxonomie — Phase 0 (Handtest) — NÄCHSTES VORHABEN
+Konzept + Verifikation: `handover/KONZEPT-Kuerzungstaxonomie-Vorgangsautomat.md` (Abschnitt 12 = verbindlicher Prozess-Stand 2026-07-23). Phase 0: maschineller Handtest Bestandskürzungen gegen Bausteinsammlung (+ 30 Stichproben), Messgrößen Trefferquote/Abdeckung; ~18 Quelldateien aus `tools/textbausteine/` Typen zuordnen; Unkostenpauschale-Lücke klären; `mockups/` committen. Danach Entscheidungs-Tor (Ort der Kürzungsdaten + Verhältnis der zwei Faltungen → DECISIONS.md), erst dann Phase-1-Code.
 
 ---
 
@@ -24,7 +27,7 @@ Empfohlene Reihenfolge 1→2→3→4 (3+4 teilen sich den Textaufbau-Umbau/V11 �
 - **PRD-25c – Automatische Mandantenkommunikation:** `MandantenEmailDialog` nach Generierung von Forderungs-/Regulierungsschreiben; 3 Textbausteine je Trigger, neue Tabelle `mandanten_emails`. PRD: `handover/PRD-25c_Mandantenkommunikation.md`.
 
 ### Mittel
-- **PRD-39 – Stellungnahme zum Abrechnungsschreiben (DOCX):** Antwort auf eingegangenes Abrechnungsschreiben. Vor Umsetzung `superpowers:brainstorming`. Anknüpfung: PRD-27 ReguWizard, `stellungnahme_routes.generiere()`, Regulierungs-Daten als Faktenquelle.
+- **PRD-39 – Stellungnahme zum Abrechnungsschreiben (DOCX): bereits durch PRD-27 abgedeckt** (verifiziert 2026-07-23: 4 aktive Routen in `stellungnahme_routes.py`, voller DOCX-Generator, Tabelle `stellungnahme_texte`/Mig 40). Offen ist NUR die Trigger-Umkehr (Queue liefert fertigen Entwurf statt manuellem Wizard-Aufruf) — Teil von Phase 2 der Kürzungstaxonomie, kein eigenes Vorhaben.
 - **Dokumentenklasse „Klagedrohung" mit `frist_datum` → Verzugs-Automatik im Klage-Wizard:** Fristsetzungs-Schreiben bekommen eigene Klasse + strukturiertes Fristdatum; Verzugseintritt-Vorbelegung = Tag nach Fristablauf. Zwei Befüllungswege (selbst erzeugte Schreiben stempeln die Frist exakt; importierte via Parser). `verzug_dokumente` um `frist_datum` erweitern; optional Kopplung an Fristen-System (PRD-25a). Berührt Intake + Generator — eigenes Vorhaben.
 - **PRD-32 Phase 2 – Rechnungstypen Beleg-Mapping:** erkannte Typen automatisch der Schadenposition zuordnen (Standkosten→Standgeld usw.). Plan: `handover/PRD-32_Rechnungstypen_Parser.md`.
 - **PRD-05 – Betrag-Abgleich nach Upload:** hochgeladene Rechnung gegen Schadenposition abgleichen.
@@ -69,6 +72,7 @@ Empfohlene Reihenfolge 1→2→3→4 (3+4 teilen sich den Textaufbau-Umbau/V11 �
 
 | Datum | Feature |
 |---|---|
+| 2026-07-23 | Kürzungstaxonomie-Konzept verifiziert + Prozess revidiert (Papier Abschnitt 12, 3 DECISIONS-Einträge); Klage-Wizard-Fix: [FEHLT]-Marker statt stiller Lücke bei Kürzungsart ohne Textbaustein |
 | 2026-07-21 | Klage-Wizard Paket 3: Gesamtvorschau (Server-Text-Vorschau + Inline-Edit, Single-Source; lokal main, Browser-E2E offen) |
 | 2026-07-21 | Globaler Firmen-Vertreter-Speicher (Tabelle `firmen_vertreter`, aktenübergreifende Vertreter-Zuordnung) |
 | 2026-07-20 | Klage-Wizard Paket 2: UI-Führung (umgesetzt, noch nicht gemergt) |

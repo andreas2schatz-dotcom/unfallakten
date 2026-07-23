@@ -7,6 +7,17 @@
 
 ---
 
+## 2026-07-23 — Kürzungstaxonomie: Konzept-Verifikation + Klage-Wizard-Fix „[FEHLT]-Marker"
+
+Konzeptionelle Session (Kritik + Codebasis-Verifikation des Papiers `handover/KONZEPT-Kuerzungstaxonomie-Vorgangsautomat.md`), direkt in `main`.
+
+- **Papier Abschnitt 12** neu: zwei 11.4-Befunde korrigiert (Textbausteine: 14/19 in aktiver Dev-DB befüllt, nicht 0/19 — Prüfung war gegen falsche DB; Fallback-Kritik gilt nur für Klage-Pfad), Migrations-Delta 56–63 als unkritisch verifiziert, RA-MICRO-Aktenkonto per Katalogabfrage negativ geprüft (keine Zahlungsdaten auf dem SQL Server), Differenz-Mathematik in `eingehende_ereignisse._regulierungs_wirkungen()` als bereits vorhanden identifiziert (stützt Option b aus 10.3.1).
+- **3 DECISIONS-Einträge** (2026-07-23): Phase 1 vor V11 (Editor-Komponente entsteht in Phase 1) · Urteilscheck für Bestand entfällt (handverifiziert) · kommentarlose Zahlungen als Kaskade Betrags-Matching → Versicherer-Anfrage → protokollierte Not-Zuordnung.
+- **Bugfix (TDD):** `EinwaendeAuswahl.uebernehmen()` erzeugte bei Kürzungsart ohne `textbaustein`/`standard_gegenargument` eine Überschrift ohne Argumentation. Jetzt sichtbarer `[FEHLT: Kein Textbaustein zur Kürzungsart „…" hinterlegt]`-Marker; neue Tests `KlageWizard.einwaende-fehlt.test.jsx` (3). Frontend-Suite **342/342** grün.
+- TODO.md: PRD-39 als „durch PRD-27 abgedeckt" umgeschrieben; Kürzungstaxonomie Phase 0 (Handtest) als nächstes Vorhaben eingetragen; V11 wartet bewusst.
+
+---
+
 ## 2026-07-20 — Klage-Wizard Paket 2: UI-Führung
 
 Branch `klage-wizard-ui-fuehrung`, 14 Commits `65f657bc..22ae53a3`, **noch NICHT in `main` gemergt**.

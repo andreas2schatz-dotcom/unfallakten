@@ -398,6 +398,42 @@ for _key in ("rvg_ausserg", "rvg_ausserg_override", "rvg_bereits_gezahlt"):
 
 ---
 
+## Kürzungstaxonomie vor V11 — Editor-Komponente entsteht in Phase 1
+
+**Entscheidung:** Phase 1 der Kürzungstaxonomie (`handover/KONZEPT-Kuerzungstaxonomie-Vorgangsautomat.md`) wird vor Paket 4 „Standardtexte pflegbar" (V11) umgesetzt. Die gemeinsame Editor-Komponente (Platzhalter-Hilfe, Live-Vorschau, Registry+Override) entsteht in Phase 1; V11 erbt sie.
+
+**Grund:** RA Schatz (2026-07-23) — die Kürzungstaxonomie ist die eigentliche Vision hinter Paket 4; wer zuerst baut, baut den Editor, der andere erbt ihn.
+
+**Alternative:** V11 zuerst (kleiner, fertig durchgeplant) oder parallel.
+
+**Konsequenz:** V11 wartet, Spec bleibt gültig. Kein Parallel-Editor. Phase-1-Erfolg wird an Klassifikationsgüte gemessen (Trefferquote des Typ-Vorschlags + Abdeckung durch Bausteine), nicht an „Erfassungsdisziplin" — die Daten entstehen im neuen Workflow als Abfallprodukt der Schreiben-Beantwortung. Konkrete Prozentziele nach dem Handtest (Phase 0) festlegen. (2026-07-23)
+
+---
+
+## Urteilscheck für Bestand-Textbausteine entfällt
+
+**Entscheidung:** Der im Kürzungstaxonomie-Papier vorgesehene Prüfprozess `urteil-verifikation` wird für die vorhandene Bausteinsammlung NICHT gebaut. Bei der Registry-Migration wird nur das Verifikationsdatum mitgeführt („handgeprüft RA Schatz, Juli 2026").
+
+**Grund:** RA Schatz (2026-07-23) — sämtliche zitierten Urteile der Bestandsbausteine sind bereits von Hand verifiziert.
+
+**Alternative:** Eigenes Prüf-Werkzeug bzw. manueller Prüfablauf vor der Migration (hätte Phase 0 zum eigenen Bauvorhaben gemacht).
+
+**Konsequenz:** Phase 0 schrumpft auf Handtest + Baustein-Zuordnung. Der 12-Monats-Re-Verifikations-Zyklus hat über `verifiziert_am` einen Anker; eine Regel für künftig NEU zitierte Urteile wird erst beim ersten Neuzugang definiert. (2026-07-23)
+
+---
+
+## Kommentarlose Zahlungen: Betrags-Matching → Anfrage → Not-Zuordnung (keine Verteil-Maske)
+
+**Entscheidung:** Nicht zuordenbare Zahlungseingänge werden dreistufig behandelt: (1) automatisches Betrags-Matching gegen die offenen Kürzungsbeträge — nur bei EINDEUTIGEM Treffer (auch Summen-Kombinationen, aber nie bei Mehrdeutigkeit); (2) Regelfall sonst: generierte Anfrage an den Versicherer „worauf wurde gezahlt?" als Queue-Eintrag mit Entwurf + Frist; (3) Not-Zuordnung von Hand auf die kritischste Schadenposition, als bewusste Ausnahme protokolliert (Praxis: ~1 : 200–300 Fälle). Jede geflaggte Kürzung führt dafür ihren gekürzten Betrag als Pflichtangabe. Technische Einwände gegen den Reparaturweg werden zu einer Sammel-Kürzung gebündelt, sofern kein eigener Textbaustein existiert.
+
+**Grund:** RA Schatz (2026-07-23) — „einfach verteilen" verfälscht die Statistik; ein bekannter offener Betrag (z. B. 33,40 € Kleinteile) identifiziert die Zahlung auch ohne Begründungsschreiben.
+
+**Alternative:** Manuelle Verteil-Maske für alle unklaren Zahlungen; oder automatischer Abgleich mit dem RA-MICRO-Aktenkonto.
+
+**Konsequenz:** Der Aktenkonto-Abgleich ist mit dem vorhandenen Read-only-SQL-Zugang NICHT baubar — Katalogprüfung 2026-07-23: Der RA-MICRO SQL Server (alle Datenbanken inkl. `RAMICRO_buk`) enthält keine Aktenkonto-/Buchungs-/Zahlungseingangsdaten; `tblKosten`/`tblKostenDetails` sind Kosten-/Honorarerfassung, keine Geldeingänge. Ersatz: Nach angekündigter Zahlung setzt der Workflow eine Prüf-Frist („Zahlungseingang kontrollieren"), die Bestätigung erfolgt manuell. (2026-07-23)
+
+---
+
 ## Bewusst vertagt (kein Handlungsbedarf)
 
 - **Prod-Rollout intake-stufe1** — Git-Teil erledigt (2026-07-15), Deployment vertagt (kein Prod-Host, Go-Live später). Runbook + Deploy-Reihenfolge in STATE.md.
