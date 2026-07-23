@@ -15,16 +15,15 @@ Empfohlene Reihenfolge 1→2→3→4 (3+4 teilen sich den Textaufbau-Umbau/V11 �
 3. **Gesamtvorschau** — ✅ KOMPLETT (Browser-E2E bestanden 2026-07-23: Vorschau → Sachverhalt-Edit → Übernehmen → DOCX mit geändertem Text). In `main`, gepusht. Spec: `docs/superpowers/specs/2026-07-19-klage-wizard-gesamtvorschau-design.md`.
 4. **Standardtexte pflegbar (V11)** — **wartet bewusst** (Entscheidung 2026-07-23, DECISIONS.md): Phase 1 der Kürzungstaxonomie kommt zuerst und baut die gemeinsame Editor-Komponente; V11 erbt sie. Spec bleibt gültig: `docs/superpowers/specs/2026-07-19-klage-wizard-standardtexte-design.md`.
 
-### Kürzungstaxonomie — Phase 0 ✅ · Phase 1 GEPLANT (Plan wartet auf Freigabe)
-**Phase-1-Plan (2026-07-23):** `docs/superpowers/plans/2026-07-23-kuerzungstaxonomie-phase1.md` — 12 Tasks in 4 Sessions (Migration 64 → YAML-Registry 32 A–F-Typen → Baustein-Import → Matching+LLM-Fallback → Verkettung → Typ-UI mit Pflicht-Begründung → Runden-Vergleich → TextbausteinEditor → Konsistenz → Messanker). **Vor Umsetzung: RA Schatz bestätigt die 3 Detail-Entscheidungen im Plan-Kopf** (A05a–c für Fehlerspeicher/Batterie/Tankrest, Varianten-Suffix-Modell, A09 für Technische Kürzungen).
-Konzept + Verifikation: `handover/KONZEPT-Kuerzungstaxonomie-Vorgangsautomat.md` (Abschnitt 12 = verbindlicher Prozess-Stand 2026-07-23).
-**Befunde 2026-07-23 (aktive DB `/app/data/unfallakten.db` im Container `unfallakten-backend-dev`, Schema 63):**
-- **Der geplante Freitext-Bestand existiert nicht:** `pruefberichte` 0 Zeilen; alle 44 `regulierung_positionen.kuerzung_freitext` leer; nur 4 manuelle `kuerzungsart_id`. Handtest lief deshalb gegen die **PDF-Volltexte** (11 einzigartige Prüfberichte + 59 einzigartige Abrechnungsschreiben mit Positionen — die 672/6.243 DB-Zeilen sind Re-Import-Duplikate mit identischem `pdf_hash`).
-- **Abdeckung 94 %** (30 von 32 Dokumenten mit Kürzungs-Indiz haben ≥1 Typ-Treffer); die 2 Lücken sind Zahlungsavise („Schadenzahlung…" → Fall für die Zahlungs-Kaskade, DECISIONS 2026-07-23). 5 Dokumente ohne Textschicht (Image-PDF → OCR-Pfad PRD-30). **Trefferquote** ist mangels Ground Truth nur per Stichproben-Review messbar → `handover/phase0-handtest-stichproben.md` (30 Stück, **wartet auf RA Schatz**).
-- **Unkostenpauschale (15) geklärt + behoben:** `ghpfup.DOC` wird vom Import übersprungen (nur .docx/.rtf); der 2. Lauf nach der .doc→.rtf-Konvertierung schrieb in `backend/data/` (Default-Pfad) statt ins Docker-Volume. Baustein (1.882 Z., identisch mit Konvertat) am 2026-07-23 in die aktive DB übertragen → **15/19 befüllt**.
-- **30-Stichproben-Review ✅ (2026-07-23, RA Schatz):** Ergebnis + Kernerkenntnisse → `handover/phase0-handtest-stichproben.md` (Abschnitt „Ergebnis"). Wichtigste: Kürzungs-Erkennung = Differenz Forderung/Zahlung, NIE aus dem Abrechnungsschreiben (nur Typ-Begründung, nur auf Begründungsdokumenten); Trefferquote Typ auf Prüfberichten 61 % roh / ~71 % nach trivialen Stichwort-Fixes; Begründung↔Zahlung oft in getrennten Dokumenten → Verkettung nötig; Typ „Neu-für-alt" (A07) + Baustein fehlen.
-- **Datenqualitäts-Funde ✅ behoben (2026-07-23):** Dok 2562 per `korrigiere_klassifikation` → `gutachten` umklassifiziert (neu geparst). Dok 41478 + 43429: FEHLABLAGE-Vermerk in `dokumente.notizen` gesetzt — Umhängen unmöglich: 852/25 existiert nur in RA-MICRO (Matic/Weil, SB PK, keine Unfallakte), 418/28 existiert nirgends (fremdes Zeichen). **Offen für RA Schatz: entscheiden, ob die 2 Fehlablage-Dokumente aus den Akten 971/25 / 980/25 gelöscht werden.**
-- **Entscheidungs-Tor ✅ + A–F-Zuordnung ✅ + Zielwerte ✅ (RA Schatz 2026-07-23):** 2 neue DECISIONS-Einträge (Option (b) Ereignis-Attribut + getrennte Faltungen; Zielwerte/Matching-Architektur/A–F-Zuordnung inkl. neuer Typen A07, A11, C01b). **Phase 0 damit abgeschlossen.** `ghpfstverort.DOC` gesichtet (2026-07-23): Datei ist LEER (0 Wörter, leer gespeichert 2012) → entfällt ersatzlos; A04 speist sich allein aus `ghpfansprort.doc` (Inhalt bestätigt: Stundenverrechnungssätze; braucht .doc→.rtf-Konvertierung vor Import). (`mockups/` war bereits mit 80e2f044 versioniert.) → Nächstes: Phase 1 planen — Prompt: `handover/naechste_session_kuerzungstaxonomie_phase1_prompt.md`.
+### Kürzungstaxonomie — Phase 0 ✅ · Phase 1 ✅ KOMPLETT (2026-07-23, Branch `kuerzungstaxonomie-phase1`)
+Alle 12 Tasks umgesetzt (Migration 64, YAML-Registry 32 A–F-Typen, Baustein-Import, Matching+LLM-Fallback, Verkettung, Typ-UI mit Pflicht-Begründung, Runden-Vergleich, TextbausteinEditor, Baustein-Konsistenz+ZITAT, Messanker-Tool). Protokoll mit Commits → `docs/CHANGELOG.md`. Plan: `docs/superpowers/plans/2026-07-23-kuerzungstaxonomie-phase1.md`.
+**Offen:**
+- **Abnahme RA Schatz (Browser):** Kürzungskatalog-Editor (Chip einfügen, Vorschau, Speichern-Sperre), Typ-Vorschlag-Chips + Pflicht-Begründung in der Regulierung, Runden-Kachel (braucht Akte mit 2 Abrechnungsrunden), Versicherer-Zitat im Stellungnahme-Wizard.
+- **Branch-Integration:** `kuerzungstaxonomie-phase1` → `main` mergen nach Abnahme.
+- **Messung Zielwerte (~2026-08-20, nach ~4 Wochen Betrieb):** `docker exec unfallakten-backend-dev python /app/tools/kuerzungsmatching_report.py` — Zielwerte: Abdeckung ≥ 90 %, Trefferquote ≥ 75 %, Positionszuordnung ≥ 90 % (DECISIONS 2026-07-23). Baseline siehe CHANGELOG.
+- **Fehlablage-Entscheidung RA Schatz (aus Phase 0):** Dok 41478 + 43429 aus Akten 971/25 / 980/25 löschen? (FEHLABLAGE-Vermerk gesetzt; 852/25 nur in RA-MICRO, 418/28 existiert nirgends.)
+- **V11 Standardtexte** kann jetzt starten — `TextbausteinEditor` liegt vor (Spec `docs/superpowers/specs/2026-07-19-klage-wizard-standardtexte-design.md`).
+Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, Vorgangsautomat — Konzept `handover/KONZEPT-Kuerzungstaxonomie-Vorgangsautomat.md` Abschnitt 12.
 
 ---
 
@@ -88,6 +87,7 @@ Konzept + Verifikation: `handover/KONZEPT-Kuerzungstaxonomie-Vorgangsautomat.md`
 
 | Datum | Feature |
 |---|---|
+| 2026-07-23 | Kürzungstaxonomie **Phase 1 komplett** (12 Tasks: Mig 64, YAML-Registry A–F, Matching+LLM, Verkettung, Typ-UI, Runden-Vergleich, TextbausteinEditor, ZITAT, Messanker) — Branch `kuerzungstaxonomie-phase1` |
 | 2026-07-23 | Kürzungstaxonomie-Konzept verifiziert + Prozess revidiert (Papier Abschnitt 12, 3 DECISIONS-Einträge); Klage-Wizard-Fix [FEHLT]-Marker; Browser-Nachtests Paket 2+3 bestanden; main gepusht (58 Commits) |
 | 2026-07-21 | Klage-Wizard Paket 3: Gesamtvorschau (Server-Text-Vorschau + Inline-Edit, Single-Source; lokal main, Browser-E2E offen) |
 | 2026-07-21 | Globaler Firmen-Vertreter-Speicher (Tabelle `firmen_vertreter`, aktenübergreifende Vertreter-Zuordnung) |

@@ -222,6 +222,24 @@ Backend → services/llm_service.py
              google-genai → Gemini (GEMINI_API_KEY)
 ```
 
+**Kürzungstaxonomie-Pfad (Phase 1, 2026-07):**
+```
+backend/registry/kuerzungstypen/*.yaml    32 A–F-Typen · fail-louder Loader: services/kuerzungstyp_registry.py
+  → services/kuerzungstyp_matching.py     Regel-Matching (Wortgrenzen, Briefkopf-Filter,
+                                          Kontext-Pflicht-Keywords) + LLM-Fallback (closed-label)
+  → routers/abrechnungsschreiben_routes.py  GET …/<abid>/typ-vorschlaege (Text aus verkettetem
+                                          Prüfbericht) · PATCH Position: kuerzungsart_id nur mit
+                                          Begründung (400 sonst), typ_quelle regel/llm/manuell
+  → services/ereignis_service.py          reicht begruendung_roh bis ereignis_positionen durch
+  → services/abrechnungsrunden_service.py  reine Lese-Faltung Runde 1↔2 auf dem Ereignisstrom
+                                          (nachzahlung/aufrechterhalten/neu/erhoeht)
+  → GET /akten/<az>/abrechnungen/runden   → RundenVergleichKachel (RegulierungSection, ab 2 Runden)
+Positions-Synonymik je Versicherer-Template: backend/registry/positions_synonyme.yaml
+Baustein-Editor: frontend/src/components/TextbausteinEditor.jsx (Platzhalter-Chips, Live-Vorschau,
+pruefePlatzhalter blockiert Speichern; V11 Standardtexte erbt die Komponente)
+Kennzahlen: tools/kuerzungsmatching_report.py (docker exec, 3 Zielwerte aus DECISIONS 2026-07-23)
+```
+
 **Portal-Sync-Pfad:**
 ```
 SQLite (portal_sync_queue)

@@ -243,7 +243,7 @@ Trigger: `unfallakte_geaendert` → setzt `geaendert_am = datetime('now','localt
 ---
 
 ### kuerzungsarten
-*Erstellt: Migration 3 · 19 Seed-Einträge · Erweiterung: Migration 22*
+*Erstellt: Migration 3 · 19 Seed-Einträge · Erweiterung: Migration 22 · Taxonomie (typ_code A–F, +13 Seeds → 32): Migration 64*
 
 | Spalte | Typ | Constraint / Herkunft |
 |---|---|---|
@@ -258,6 +258,8 @@ Trigger: `unfallakte_geaendert` → setzt `geaendert_am = datetime('now','localt
 | `sortierung` | INTEGER | NOT NULL DEFAULT 0 |
 | `erstellt_am` | TEXT | NOT NULL DEFAULT datetime() |
 | `textbaustein` | TEXT | nullable · *Migration 22* · briefreifer Gegenargument-Text |
+| `typ_code` | TEXT | nullable · *Mig 64* · A–F-Taxonomie-Code (z. B. 'A02', 'E06') · UNIQUE-Partial-Index, per REST nicht schreibbar |
+| `verifiziert_am` | TEXT | nullable · *Mig 64* · Verifikationsstempel der Typ-Zuordnung |
 
 ---
 
@@ -285,6 +287,7 @@ Trigger: `unfallakte_geaendert` → setzt `geaendert_am = datetime('now','localt
 | `quelle` | TEXT | NOT NULL DEFAULT 'pdf' · *Mig 16* · 'pdf'/'manuell'/'wdm' |
 | `gesamt_kuerzung` | REAL | NOT NULL DEFAULT 0.0 · *Mig 16* · = gesamt_gefordert - gesamt_reguliert |
 | `wdm_importiert` | INTEGER | NOT NULL DEFAULT 0 · *Mig 16* · verhindert Doppel-WDM-Import |
+| `pruefdienstleister_id` | INTEGER | FK pruefdienstleister(id) · *Mig 64* |
 
 ---
 
@@ -305,6 +308,7 @@ Trigger: `unfallakte_geaendert` → setzt `geaendert_am = datetime('now','localt
 | `parser_konfidenz` | REAL | nullable |
 | `fuer_klage_vorgemerkt` | INTEGER | NOT NULL DEFAULT 0 · CHECK IN (0,1) |
 | `sv_stellungnahme_ausstehend` | INTEGER | NOT NULL DEFAULT 0 · CHECK IN (0,1) |
+| `typ_quelle` | TEXT | nullable · *Mig 64* · 'regel'/'llm'/'manuell' — Herkunft der kuerzungsart_id-Zuordnung |
 
 Gültige `position_key`-Werte (Python-Enum `POSITION_KEYS` in `models/abrechnungsschreiben.py`):
 ```
@@ -332,7 +336,8 @@ sonstiges_wdm_1 … sonstiges_wdm_6
 | `gutachter` | TEXT | nullable |
 | `dokument_id` | INTEGER | FK dokumente(id) ON DELETE SET NULL |
 | `parse_status` | TEXT | NOT NULL DEFAULT 'manuell' |
-| `pruefdienstleister` | TEXT | nullable · *Mig 4* |
+| `pruefdienstleister` | TEXT | nullable · *Mig 4* · Freitext (Alt) |
+| `pruefdienstleister_id` | INTEGER | FK pruefdienstleister(id) · *Mig 64* · strukturierter Stamm-Verweis |
 | `vorgangsnummer` | TEXT | nullable · *Mig 4* |
 | `schadennummer` | TEXT | nullable · *Mig 4* |
 | `reparaturkosten_vor_pruefung` | REAL | nullable · *Mig 4* |
@@ -521,6 +526,9 @@ Endpunkte: `GET/PUT/DELETE /akten/<az>/klage/entwurf` (Router `backend/routers/k
 | `portal_sync_queue` | 38 | Outbox für Stakeholder-Portal · kein FK auf unfallakte | INTEGER PK AUTO |
 | `portal_einladungen` | 38 | Portal-Zugriffseinladungen je Beteiligter | INTEGER PK AUTO |
 | `stellungnahme_texte` | 40 | Persistierte Gegenargument-Texte je Akte/Position | PK (az, gruppe_key) TEXT composite |
+| `pruefdienstleister` | 64 | Stammtabelle Prüfdienstleister (name UNIQUE, erkennungsmuster, aktiv) · Seeds | INTEGER PK AUTO |
+
+**Mig 64 außerdem:** `ereignis_positionen.begruendung_roh` TEXT (Versicherer-Wortlaut der Kürzungsbegründung, wird von `ereignis_service.schreibe_ereignis` persistiert).
 
 ---
 

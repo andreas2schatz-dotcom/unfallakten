@@ -7,6 +7,27 @@
 
 ---
 
+## 2026-07-23 — Kürzungstaxonomie Phase 1 KOMPLETT (12 Tasks, Branch `kuerzungstaxonomie-phase1`)
+
+Plan `docs/superpowers/plans/2026-07-23-kuerzungstaxonomie-phase1.md` (freigegeben inkl. der 3 Detail-Entscheidungen A05a–c/Varianten-Suffix/A09). Umsetzung über mehrere Sessions; eine Session brach mittendrin ab (Task 8 lag fertig, aber uncommittet vor — nach Prüfung ohne Verlust committet).
+
+- **Task 1** `a8248f67` Migration 64: `kuerzungsarten.typ_code`+`verifiziert_am` (UNIQUE-Partial-Index) + 13 neue Seeds (→ 32), Stammtabelle `pruefdienstleister` (+FK-Spalten auf pruefberichte/abrechnungsschreiben), `ereignis_positionen.begruendung_roh`, `regulierung_positionen.typ_quelle`.
+- **Task 2** `1257c157`+`0f97084a` YAML-Registry `backend/registry/kuerzungstypen/` (32 A–F-Typen) + fail-louder Loader (`kuerzungstyp_registry.py`, App-Start bricht bei defektem YAML).
+- **Task 3** `3c2a6d74`+`99369b07` Baustein-Import 19→32 (ghpfansprort.doc→RTF konvertiert, Masken-Zeilen/&&-Artefakte gestrippt).
+- **Task 4** `7c9d795f`+`6cf32afb` `textbaustein` REST-fähig, `GET /kuerzungsarten/platzhalter`, `POST /kuerzungsarten/vorschau`.
+- **Task 5** `e35a2002`+`b11b2e68` Regel-Matching (`kuerzungstyp_matching.py`): Wortgrenzen, Briefkopf-Filter, Kontext-Pflicht-Keywords — Phase-0-Fehlerfälle als Fixtures.
+- **Task 6** `114372af` LLM-Fallback (closed-label, nur wenn Regeln leer) + Positions-Synonymik je Versicherer-Template (`positions_synonyme.yaml`).
+- **Task 7** `ba38f4f2` Verkettung Abrechnungsschreiben↔Prüfbericht (Auto-Kandidat ±90 Tage/Schadennummer, PATCH, `pruefdienstleister_id`-Befüllung, Frontend-Dropdown).
+- **Task 8** `3e1a626b` Typ-Zuordnung im Regulierungs-UI: Vorschlag-Chips aus verkettetem Prüfbericht, **Pflicht-Begründung** (PATCH ohne Begründung → 400), `typ_quelle`, `begruendung_roh` bis ins Ereignis. Vitest `RegulierungSection.typvorschlag.test.jsx`.
+- **Task 9** `90f74758` Runde-1↔Runde-2-Vergleich: `abrechnungsrunden_service.py` (reine Lese-Faltung, `ersetzt_durch`-Filter kollabiert ReguWizard-Ersetzungen), `GET …/abrechnungen/runden`, `RundenVergleichKachel` (grün=Nachzahlung, grau=aufrechterhalten, rot=neu/erhöht). 9 Tests.
+- **Task 10** `03b2018c` `TextbausteinEditor.jsx` (Chips mit Cursor-Insert, 400-ms-Debounce-Vorschau, `pruefePlatzhalter` blockiert Speichern) + `KuerzungskatalogView` auf A–F-Gruppierung, typ_code-Badge, verifiziert_am. Nebenbefund behoben: CardHead-Prop `titel`→`title` an der Runden-Kachel.
+- **Task 11** `cbe8a77f` Baustein-Fallback vereinheitlicht: Positions-JOIN liefert jetzt `ka.textbaustein` (Kette gespeichert→textbaustein→standard_gegenargument greift erstmals wirklich); `begruendung_roh` je Gruppe in Vorschau+DOCX; neuer Platzhalter `<ZITAT>` (Versicherer-Wortlaut); ReguWizard zeigt Zitat kursiv überm Textarea.
+- **Task 12** Messanker `tools/kuerzungsmatching_report.py` (3 Zielwert-Kennzahlen, via docker exec), Doku nachgeführt (DATAMODEL Mig 64, ARCHITECTURE Taxonomie-Pfad, TODO). **Baseline 2026-07-23** (aktive DB, Schema 64, vor Betrieb): Abdeckung 17,4 % (4/23) · Trefferquote 0 % (0/4, alle 4 Alt-Zuordnungen manuell) · Betragszuordnung n/a (0 Ereignisse seit Stichtag) — naturgemäß niedrig, Messung ~2026-08-20.
+- **Bekannte Alt-Failures** der lokalen Windows-Testumgebung (ModuleNotFound-Cluster) unverändert; alle taxonomie-relevanten Suites grün, Vitest komplett grün.
+- **Offen zur Abnahme RA Schatz:** Browser-Kurztest Katalog-Editor (Task 10 Step 4) + Typ-Chips/Runden-Kachel im echten Betrieb; Messung der Zielwerte nach ~4 Wochen (TODO-Eintrag).
+
+---
+
 ## 2026-07-23 — Kürzungstaxonomie: Konzept-Verifikation + Klage-Wizard-Fix „[FEHLT]-Marker"
 
 Konzeptionelle Session (Kritik + Codebasis-Verifikation des Papiers `handover/KONZEPT-Kuerzungstaxonomie-Vorgangsautomat.md`), direkt in `main`.
