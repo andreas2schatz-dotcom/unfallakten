@@ -154,9 +154,10 @@ def _ev_check(name: str) -> bool:
     return bool(re.search(r'(?<![a-zA-Z])e\.?\s*[Vv]\.?(?![a-zA-Z])', name or ""))
 
 
-def _grammatik_vars(s_anrede: str, name: str = "", briefanrede: str = "") -> dict:
+def bestimme_geschlecht(s_anrede: str, name: str = "",
+                        briefanrede: str = "") -> str:
     """
-    Bestimmt das grammatikalische Geschlecht anhand von sAnrede.
+    Bestimmt das grammatikalische Geschlecht ("m"/"f"/"p") anhand von sAnrede.
 
     RA-Micro speichert sAnrede numerisch als String ("1"=Herr, "2"=Frau etc.).
     Fallback auf Text-Erkennung für SQLite-Daten ohne RA-Micro-Kodierung.
@@ -167,44 +168,42 @@ def _grammatik_vars(s_anrede: str, name: str = "", briefanrede: str = "") -> dic
     if a in _ANREDE_GESCHLECHT:
         g = _ANREDE_GESCHLECHT[a]
         if g is not None:
-            return dict(_GRAMMATIK[g])
+            return g
         # g == None: 0=Selbstdefiniert oder 4=Firma
         if a == "4":
             # Firma: e.V. → m, sonst f
-            return dict(_GRAMMATIK["m" if _ev_check(name) else "f"])
+            return "m" if _ev_check(name) else "f"
         # a == "0": selbstdefiniert → direkt zu Briefanrede-Auswertung
         ba = (briefanrede or "").strip().lower()
         if re.search(r'geehrter\b|lieber\s+herr\b', ba):
-            return dict(_GRAMMATIK["m"])
+            return "m"
         if re.search(r'geehrte\s+frau\b|liebe\s+frau\b', ba):
-            return dict(_GRAMMATIK["f"])
-        if _ev_check(name):
-            return dict(_GRAMMATIK["m"])
-        return dict(_GRAMMATIK["f"])
+            return "f"
+        return "m" if _ev_check(name) else "f"
 
     # ── Text-Fallback (SQLite-Daten, manuell erfasst) ─────────────────────
     al = a.lower().rstrip(".")
     if al in ("herr", "herrn", "hr", "mr", "mister", "notar", "rechtsanwalt"):
-        return dict(_GRAMMATIK["m"])
+        return "m"
     if al in ("frau", "fr", "mrs", "ms", "notarin",
               "rechtsanwältin", "rechtsanwaeltin", "sonstige"):
-        return dict(_GRAMMATIK["f"])
+        return "f"
     if al in ("eheleute", "rechtsanwälte", "rechtsanwaelte"):
-        return dict(_GRAMMATIK["p"])
-    if al in ("firma",):
-        return dict(_GRAMMATIK["m" if _ev_check(name) else "f"])
+        return "p"
     if al:
-        return dict(_GRAMMATIK["m" if _ev_check(name) else "f"])
+        return "m" if _ev_check(name) else "f"
 
     # ── Briefanrede auswerten (leer oder 0=Selbstdefiniert) ───────────────
     ba = (briefanrede or "").strip().lower()
     if re.search(r'geehrter\b|lieber\s+herr\b', ba):
-        return dict(_GRAMMATIK["m"])
+        return "m"
     if re.search(r'geehrte\s+frau\b|liebe\s+frau\b', ba):
-        return dict(_GRAMMATIK["f"])
-    if _ev_check(name):
-        return dict(_GRAMMATIK["m"])
-    return dict(_GRAMMATIK["f"])
+        return "f"
+    return "m" if _ev_check(name) else "f"
+
+
+def _grammatik_vars(s_anrede: str, name: str = "", briefanrede: str = "") -> dict:
+    return dict(_GRAMMATIK[bestimme_geschlecht(s_anrede, name, briefanrede)])
 
 
 

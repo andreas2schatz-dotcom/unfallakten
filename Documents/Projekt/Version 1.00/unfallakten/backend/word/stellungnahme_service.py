@@ -77,6 +77,40 @@ def ersetze_platzhalter(text, kontext: dict):
     return text
 
 
+_GENUS_FORMEN = {
+    "m": {"ANREDE": "Herr", "ANREDE_DEKL": "Herrn", "PRON": "er",
+          "PRON_GROSS": "Er", "PRON_DAT": "ihm", "PRON_AKK": "ihn",
+          "POSS": "sein", "POSS_E": "seine", "POSS_EM": "seinem",
+          "POSS_EN": "seinen", "POSS_ER": "seiner", "POSS_ES": "seines",
+          "MANDANT_NOM": "Mandant", "MANDANT_OBL": "Mandanten",
+          "UNSER": "unser", "UNSER_GROSS": "Unser",
+          "UNSERES": "unseres", "UNSEREM": "unserem"},
+    "f": {"ANREDE": "Frau", "ANREDE_DEKL": "Frau", "PRON": "sie",
+          "PRON_GROSS": "Sie", "PRON_DAT": "ihr", "PRON_AKK": "sie",
+          "POSS": "ihr", "POSS_E": "ihre", "POSS_EM": "ihrem",
+          "POSS_EN": "ihren", "POSS_ER": "ihrer", "POSS_ES": "ihres",
+          "MANDANT_NOM": "Mandantin", "MANDANT_OBL": "Mandantin",
+          "UNSER": "unsere", "UNSER_GROSS": "Unsere",
+          "UNSERES": "unserer", "UNSEREM": "unserer"},
+    "p": {"ANREDE": "", "ANREDE_DEKL": "", "PRON": "sie",
+          "PRON_GROSS": "Sie", "PRON_DAT": "ihnen", "PRON_AKK": "sie",
+          "POSS": "ihr", "POSS_E": "ihre", "POSS_EM": "ihrem",
+          "POSS_EN": "ihren", "POSS_ER": "ihrer", "POSS_ES": "ihres",
+          "MANDANT_NOM": "Mandanten", "MANDANT_OBL": "Mandanten",
+          "UNSER": "unsere", "UNSER_GROSS": "Unsere",
+          "UNSERES": "unserer", "UNSEREM": "unseren"},
+}
+
+
+def genus_platzhalter(anrede: str, name: str = "",
+                      briefanrede: str = "") -> dict:
+    """Genus-Platzhalter (<PRON>, <POSS_EM>, <ANREDE> …) für die
+    Mandantschaft. Erkennung wie im Forderungsschreiben (RA-MICRO
+    sAnrede-Codes + Text-Fallback)."""
+    from .forderungsschreiben_wv import bestimme_geschlecht
+    return dict(_GENUS_FORMEN[bestimme_geschlecht(anrede, name, briefanrede)])
+
+
 def _baue_kontext(az: str, akte_daten, beteiligte: list) -> dict:
     """Baut das Platzhalter-Kontext-Dict aus Aktendaten."""
     mandant = next(
@@ -102,7 +136,19 @@ def _baue_kontext(az: str, akte_daten, beteiligte: list) -> dict:
     else:
         _s = lambda k: str(getattr(schaden, k, "") or "")
 
+    if mandant is not None and (getattr(mandant, "anrede", "")
+                                or getattr(mandant, "briefanrede", "")):
+        genus = genus_platzhalter(
+            getattr(mandant, "anrede", "") or "",
+            name=getattr(mandant, "name", "") or "",
+            briefanrede=getattr(mandant, "briefanrede", "") or "")
+    else:
+        # Ohne Anrede-Daten bleiben die Bausteine bei den (historisch
+        # maskulinen) Formen — kein stiller Wechsel auf weiblich.
+        genus = dict(_GENUS_FORMEN["m"])
+
     return {
+        **genus,
         "MANDANT":      _name(mandant),
         "AZ":           az,
         "VERSICHERER":  _name(versicherung),

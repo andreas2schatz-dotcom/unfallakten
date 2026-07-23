@@ -7,6 +7,13 @@
 
 ---
 
+## 2026-07-23 — Phase-1-Nachtrag: Genus-Platzhalter (Weg 2, Freigabe RA Schatz)
+
+18 Genus-Platzhalter für die Mandantschaft (`<PRON>`, `<POSS_EM>`, `<ANREDE_DEKL>`, `<MANDANT_NOM>`, `<UNSERES>` …), gespeist aus RA-MICRO `sAnrede` (Erkennung wiederverwendet: `bestimme_geschlecht` aus `forderungsschreiben_wv._grammatik_vars` extrahiert, verhaltensgleich). Stellungnahme-Kontext löst sie akten-genau auf (ohne Anrede-Daten bewusst maskulin = Bestandsverhalten); Klage-Einwände lösen sie über den neuen wortgleichen FE-Helfer `platzhalterLogik.js` (`weiblich`-Flag des Wizards) auf, Unauflösbares wird sichtbarer `[FEHLT: <X>]`-Marker.
+**Kernfund:** 5 Bausteine (1, 16, 21, 24, 32) enthielten noch **rohe RA-MICRO-Grammatikcodes** (`<@a2A> Mandant<@S2A>`, `<@PP1A>` …) — beim RTF-Import nie übersetzt, standen wörtlich in Briefen. `tools/genus_umstellung_bausteine.py` (Dry-Run/--write, JSON-Backup im Datenverzeichnis) hat 7 Bausteine umgestellt; danach 0 @-Codes. Dabei 3 Alt-Textfehler behoben (id 16 fehlendes Subjekt, id 24 fehlendes „ist", `$WZ`-Währungsmarker global entfernt). Die maskulinen Pronomen der übrigen Bausteine beziehen sich auf Gerichte/SV/BGH-Zitate — bewusst unangetastet. Offen sichtbar bleiben `<V-KRVON>/<V-KRBIS>` (id 32, Krankschreibung — Kontextwerte erst Phase 2). Tests: +12 Backend (`test_genus_platzhalter.py`), +11 Vitest (`platzhalterLogik.test.js`, `KlageWizard.einwaende-genus.test.jsx`), Vitest gesamt 362 grün.
+
+---
+
 ## 2026-07-23 — Kürzungstaxonomie Phase 1 KOMPLETT (12 Tasks, Branch `kuerzungstaxonomie-phase1`)
 
 Plan `docs/superpowers/plans/2026-07-23-kuerzungstaxonomie-phase1.md` (freigegeben inkl. der 3 Detail-Entscheidungen A05a–c/Varianten-Suffix/A09). Umsetzung über mehrere Sessions; eine Session brach mittendrin ab (Task 8 lag fertig, aber uncommittet vor — nach Prüfung ohne Verlust committet).

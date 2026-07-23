@@ -25,6 +25,7 @@ import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
 import { formatGespeichertAm } from "./klageEntwurfLogik.js";
 import { istPersonPartei, parteiAnzeigeName, organBezeichnung, kanonischeBeklagte } from "./parteiLogik.js";
 import { wortDiff, schrittStatus, firmenOhneVertreter as ermittleFirmenOhneVertreter } from "./wizardFuehrungLogik.js";
+import { ersetzePlatzhalter, genusKontext } from "./platzhalterLogik.js";
 import { KlageGesamtvorschau } from "./KlageGesamtvorschau.jsx";
 export { kanonischeBeklagte };
 
@@ -1164,7 +1165,7 @@ const EINLEITUNGS_VARIANTEN = [
 const EINLEITUNG_LETZT = (z, eur) =>
   `Schließlich kürzt die Beklagte${z} auch hier noch einen Betrag in Höhe von ${eur}.`;
 
-export function EinwaendeAuswahl({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen }) {
+export function EinwaendeAuswahl({ abrechnungen, kuerzungsarten, beklagte, onUebernehmen, platzhalterKontext = null }) {
   // IDs der tatsächlich gekürzten Positionen (aus Regulierungsschreiben)
   const aktiveIds = new Set(
     (abrechnungen || []).flatMap(ab =>
@@ -1222,10 +1223,14 @@ export function EinwaendeAuswahl({ abrechnungen, kuerzungsarten, beklagte, onUeb
       const betragsatz = abzug > 0
         ? (istLetzt ? EINLEITUNG_LETZT(zuSuffix, eur) : EINLEITUNGS_VARIANTEN[i % 5](zuSuffix, eur))
         : "";
+      const roh = (ka.textbaustein || ka.standard_gegenargument || "").trim();
+      const baustein = platzhalterKontext
+        ? ersetzePlatzhalter(roh, platzhalterKontext)
+        : roh;
       return [
         `**${letter}) ${ka.bezeichnung}**`,
         betragsatz,
-        (ka.textbaustein || ka.standard_gegenargument || "").trim()
+        baustein
           || `[FEHLT: Kein Textbaustein zur Kürzungsart „${ka.bezeichnung}“ hinterlegt]`,
       ].filter(Boolean).join("\n");
     });
@@ -1476,7 +1481,7 @@ export function StepRw({ hq, onHq, hqTyp = "gegnerisch", onHqTyp, hb, onHb, abre
 export function StepEinwaende({ abrechnungen, kuerzungsarten, beklagte,
                                 rwText, onRwText,
                                 einwaendeBlock, onEinwaendeBlock,
-                                grundhaftungsText }) {
+                                grundhaftungsText, platzhalterKontext = null }) {
   const erfasst = (abrechnungen || []).some(ab =>
     (ab.positionen || []).some(p => p.kuerzungsart_id != null));
 
@@ -1498,7 +1503,8 @@ export function StepEinwaende({ abrechnungen, kuerzungsarten, beklagte,
         <AbschnittLabel text="Kürzungen & Einwände" />
         {erfasst ? (
           <EinwaendeAuswahl abrechnungen={abrechnungen} kuerzungsarten={kuerzungsarten}
-            beklagte={beklagte} onUebernehmen={uebernehmen} />
+            beklagte={beklagte} onUebernehmen={uebernehmen}
+            platzhalterKontext={platzhalterKontext} />
         ) : (
           <div style={{ background: T.surface, border: `1px solid ${T.borderSoft}`,
             borderRadius: 8, padding: "0.9rem 1rem",
@@ -2913,6 +2919,7 @@ export default function KlageWizard({
                 einwaendeBlock={wizardEinwaendeBlock}
                 onEinwaendeBlock={onWizardEinwaendeBlock}
                 grundhaftungsText={grundhaftungsText}
+                platzhalterKontext={genusKontext(weiblich)}
               />
             )}
 
