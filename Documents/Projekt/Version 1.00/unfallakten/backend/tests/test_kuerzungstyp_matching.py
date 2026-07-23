@@ -65,6 +65,12 @@ class TestRegelMatching(_DBBasis):
         v = self._vorschlaege("Verbringung hier. Verbringungskosten dort.")
         self.assertEqual(len([x for x in v if x.typ_code == "A02"]), 1)
 
+    def test_briefkopf_ohne_signal_wird_unterdrueckt(self):
+        text = ("Wertminderung\nSchaden-Nr. 4711\nAmtl. Kennzeichen OF-AB 123\n"
+                "Sachverhalt: " + "Fahrzeug am Werktag besichtigt. " * 30)
+        self.assertGreater(len(text), 600)
+        self.assertEqual(self._vorschlaege(text), [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -51,12 +51,13 @@ def schlage_typen_vor(text: str, *, dokumentklasse: str,
 def _finde_regel_treffer(text: str, typ: dict) -> Optional[str]:
     for kw in typ.get("keywords", []):
         for m in _wort_regex(kw).finditer(text):
+            # Briefkopf-Unterdrueckung nur fuer vollstaendige Schreiben; Kurztexte sind Snippets ohne Kopfzone
             if (m.start() < _BRIEFKOPF_ZEICHEN and len(text) > _BRIEFKOPF_ZEICHEN
                     and not _hat_kuerzungskontext(text, m)):
                 continue
             if typ.get("keywords_erfordert"):
                 fenster = text[max(0, m.start() - 200):m.end() + 200]
-                if not any(_wort_regex(e).search(fenster) or e.lower() in fenster.lower()
+                if not any(e.lower() in fenster.lower()
                            for e in typ["keywords_erfordert"]):
                     continue
             a = max(0, m.start() - _SNIPPET_RADIUS)
