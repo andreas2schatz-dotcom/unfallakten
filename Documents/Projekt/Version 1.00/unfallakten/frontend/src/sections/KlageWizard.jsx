@@ -1225,7 +1225,8 @@ export function EinwaendeAuswahl({ abrechnungen, kuerzungsarten, beklagte, onUeb
       return [
         `**${letter}) ${ka.bezeichnung}**`,
         betragsatz,
-        (ka.textbaustein || ka.standard_gegenargument || "").trim(),
+        (ka.textbaustein || ka.standard_gegenargument || "").trim()
+          || `[FEHLT: Kein Textbaustein zur Kürzungsart „${ka.bezeichnung}“ hinterlegt]`,
       ].filter(Boolean).join("\n");
     });
 
