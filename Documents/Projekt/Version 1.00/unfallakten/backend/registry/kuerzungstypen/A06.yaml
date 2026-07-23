@@ -6,6 +6,7 @@ baustein_pfad: true
 keywords:
 - "Kleinteilepauschale"
 - "Kleinteilkostenpauschale"
+- "Kleinteilekostenpauschale"
 - "Kleinteile"
 keywords_erfordert: []
 llm_hinweis: "Kürzung der Kleinteilepauschale bei fiktiver Abrechnung der Reparaturkosten"
