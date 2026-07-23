@@ -6,9 +6,14 @@
 # Neubauen: docker compose up --build
 # Stoppen:  docker compose down
 #
-# HINWEIS: E-Akte-Mount erfordert vorheriges Mounten in WSL:
-#   wsl --user root
-#   mount -t cifs //192.168.10.100/ServerSQL/ra /mnt/eakte -o username=admin,password=passwort,ro
+# HINWEIS: E-Akte-Mount geht nach jedem Docker-/PC-Neustart verloren und muss
+# in der DOCKER-DESKTOP-VM erneuert werden (nicht in der Standard-WSL-Distro!).
+# Zugangsdaten: EAKTE_SMB_USER / EAKTE_SMB_PASSWORD in .env (Benutzername
+# enthält ein Leerzeichen -> einfache Anführungszeichen sind Pflicht).
+# Danach: docker restart unfallakten-backend-dev (laufender Container sieht
+# den neuen Mount sonst nicht). Verifikation: docker exec unfallakten-backend-dev ls /mnt/eakte
+#
+#   wsl -d docker-desktop -- sh -c "mount -t cifs //192.168.10.100/ServerSQL/ra /mnt/eakte -o 'username=<EAKTE_SMB_USER>,password=<EAKTE_SMB_PASSWORD>,ro'"
 #
 # URLs:
 #   Frontend: http://localhost:5173

@@ -7,7 +7,10 @@
 
 ---
 
-## 0. Betrieb & Deploy-Warnungen (aktuell, 2026-07-20)
+## 0. Betrieb & Deploy-Warnungen (aktuell, 2026-07-23)
+
+### ⚠️ E-Akte-Mount nach jedem Docker-/PC-Neustart erneuern (2026-07-23 diagnostiziert)
+Der CIFS-Mount des E-Akte-Shares überlebt keinen Neustart und muss in der **Docker-Desktop-VM** gesetzt werden (`wsl -d docker-desktop`, NICHT die Standard-WSL-Distro — der Container bindet `/mnt/eakte` aus der VM). Exakter Befehl + Hinweise (Benutzername mit Leerzeichen → Quotes; danach `docker restart unfallakten-backend-dev`): Header von `docker-compose.yml`. Zugangsdaten: `EAKTE_SMB_USER`/`EAKTE_SMB_PASSWORD` in `.env` (unversioniert). Die früher dokumentierten Zugangsdaten `admin/passwort` waren ein Platzhalter und werden vom Server abgelehnt.
 
 ### ⚠️ Prod-Bestands-DBs: mutmaßliche Schema-Drift vor Go-Live prüfen
 Auf der Dev-DB fehlten Spalten trotz korrekter `schema_version` — Prod-Bestands-DBs sind vermutlich ebenso betroffen. Vor dem Kollegen-/Prod-Rollout prüfen und ggf. per `ALTER TABLE` nachziehen (jeweils Backup zuerst):
