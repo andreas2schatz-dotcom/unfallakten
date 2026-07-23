@@ -3,9 +3,20 @@ import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
 import { KATEGORIE_CFG } from "../config/constants.js";
 import { Card, CardHead, Btn, FieldInput, FieldSelect, Toast } from "../components/common.jsx";
+import TextbausteinEditor, { pruefePlatzhalter } from "../components/TextbausteinEditor.jsx";
 import {
   kuerzungsarten as apiKuerzungsarten,
 } from "../api.js";
+
+const KATEGORIEN_AF = {
+  A: "Reparaturkosten fiktiv",
+  B: "Reparaturkosten konkret",
+  C: "Fahrzeugwert",
+  D: "Ausfall/Mobilität",
+  E: "Nebenkosten",
+  F: "Personenschaden",
+  "?": "Ohne Typ-Code",
+};
 
 function KuerzungskatalogSection() {
   const [arten, setArten]           = useState([]);
@@ -40,6 +51,16 @@ function KuerzungskatalogSection() {
 
   // Bug 1: useEffect statt useState für Datenladen
   useEffect(() => { ladeArten(); }, []);
+
+  const [platzhalter, setPlatzhalter] = useState([]);
+  useEffect(() => {
+    apiKuerzungsarten.platzhalter()
+      .then(r => setPlatzhalter(Array.isArray(r) ? r : []))
+      .catch(() => setPlatzhalter([]));
+  }, []);
+
+  const bausteinPruefung = pruefePlatzhalter(
+    form.textbaustein, platzhalter.map(p => p.key));
 
   const F = (k) => (v) => setForm(p => ({ ...p, [k]: v }));
 
@@ -93,9 +114,10 @@ function KuerzungskatalogSection() {
     }
   };
 
-  const gefiltert = filterKat === "alle" ? arten : arten.filter(a => a.kategorie === filterKat);
-  const grupppen = Object.keys(KATEGORIE_CFG).reduce((acc, k) => {
-    acc[k] = gefiltert.filter(a => a.kategorie === k);
+  const afPrefix = a => (a.typ_code || "?").charAt(0);
+  const gefiltert = filterKat === "alle" ? arten : arten.filter(a => afPrefix(a) === filterKat);
+  const grupppen = Object.keys(KATEGORIEN_AF).reduce((acc, k) => {
+    acc[k] = gefiltert.filter(a => afPrefix(a) === k);
     return acc;
   }, {});
 
@@ -115,8 +137,8 @@ function KuerzungskatalogSection() {
                   style={{ padding:"5px 10px", border:`1px solid ${T.border}`, borderRadius:7, fontSize:"0.875rem", background:T.surface, color:T.text, cursor:"pointer" }}
                 >
                   <option value="alle">Alle Kategorien</option>
-                  {Object.entries(KATEGORIE_CFG).map(([k,v]) => (
-                    <option key={k} value={k}>{v.label}</option>
+                  {Object.entries(KATEGORIEN_AF).map(([k, label]) => (
+                    <option key={k} value={k}>{k === "?" ? label : `${k} — ${label}`}</option>
                   ))}
                 </select>
                 <Btn size="sm" onClick={() => { setEditItem(null); resetForm(); setShowForm(o => !o); }}>
@@ -160,14 +182,11 @@ function KuerzungskatalogSection() {
                     (ausführlicher Brieftext – wenn leer: Standard-Gegenargument wird verwendet)
                   </span>
                 </label>
-                <textarea
-                  value={form.textbaustein}
-                  onChange={e => setForm(p => ({...p, textbaustein: e.target.value}))}
-                  rows={5}
-                  placeholder="Ausführlicher briefreifer Text für Stellungnahmen zum Abrechnungsschreiben …"
-                  style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${T.border}`, borderRadius:7, fontFamily:T.fontBody, fontSize:"0.925rem", color:T.text, background:T.surface, outline:"none", resize:"vertical", lineHeight:1.5 }}
-                  onFocus={e => e.target.style.borderColor=T.accent}
-                  onBlur={e => e.target.style.borderColor=T.border}
+                <TextbausteinEditor
+                  wert={form.textbaustein}
+                  onChange={v => setForm(p => ({...p, textbaustein: v}))}
+                  platzhalter={platzhalter}
+                  onVorschau={async (text) => (await apiKuerzungsarten.vorschau(text)).vorschau}
                 />
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"1rem" }}>
@@ -183,7 +202,9 @@ function KuerzungskatalogSection() {
                 </label>
               </div>
               <div style={{ display:"flex", gap:8 }}>
-                <Btn variant="gold" onClick={save}>{Ic.check} {editItem ? "Aktualisieren" : "Anlegen"}</Btn>
+                <Btn variant="gold" onClick={save} disabled={!bausteinPruefung.ok}>
+                  {Ic.check} {editItem ? "Aktualisieren" : "Anlegen"}
+                </Btn>
                 <Btn variant="secondary" onClick={() => { setShowForm(false); setEditItem(null); resetForm(); }}>Abbrechen</Btn>
               </div>
             </div>
@@ -202,14 +223,14 @@ function KuerzungskatalogSection() {
             </div>
           ) : (
             <div style={{ padding:"0 1.4rem 1rem" }}>
-              {Object.entries(KATEGORIE_CFG).map(([kat, katCfg]) => {
+              {Object.entries(KATEGORIEN_AF).map(([kat, katLabel]) => {
                 const eintraege = grupppen[kat] || [];
-                if (eintraege.length === 0 && filterKat !== "alle") return null;
+                if (eintraege.length === 0 && (filterKat !== "alle" || kat === "?")) return null;
                 return (
                   <div key={kat} style={{ marginBottom:"1.25rem" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"0.5rem" }}>
-                      <span style={{ fontSize:"0.78rem", fontWeight:600, padding:"3px 10px", borderRadius:20, background:katCfg.bg, color:katCfg.color }}>
-                        {katCfg.label}
+                      <span style={{ fontSize:"0.78rem", fontWeight:600, padding:"3px 10px", borderRadius:20, background:T.blueBg, color:T.blue }}>
+                        {kat === "?" ? katLabel : `${kat} — ${katLabel}`}
                       </span>
                       <span style={{ fontSize:"0.82rem", color:T.textFaint, fontFamily:T.fontBody }}>
                         {eintraege.length} {eintraege.length === 1 ? "Eintrag" : "Einträge"}
@@ -228,6 +249,11 @@ function KuerzungskatalogSection() {
                             <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
                               <div style={{ flex:1 }}>
                                 <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:art.standard_gegenargument||art.hinweis_intern?4:0 }}>
+                                  {art.typ_code && (
+                                    <span style={{ fontSize:"0.72rem", background:T.blueBg, color:T.blue, borderRadius:4, padding:"1px 6px", fontWeight:700, fontFamily:"ui-monospace,monospace" }}>
+                                      {art.typ_code}
+                                    </span>
+                                  )}
                                   <span style={{ fontFamily:T.fontBody, fontSize:"0.935rem", fontWeight:600, color:art.aktiv?T.text:T.textFaint }}>
                                     {art.bezeichnung}
                                   </span>
@@ -243,6 +269,11 @@ function KuerzungskatalogSection() {
                                     <span style={{ fontSize:"0.72rem", background:T.surface, color:T.textFaint, borderRadius:4, padding:"1px 5px" }}>inaktiv</span>
                                   )}
                                 </div>
+                                {art.verifiziert_am && (
+                                  <div style={{ fontSize:"0.72rem", color:T.textFaint, fontFamily:T.fontBody, marginBottom:2 }}>
+                                    verifiziert am {art.verifiziert_am}
+                                  </div>
+                                )}
                                 {art.textbaustein && (
                                   <div style={{
                                     fontSize: "0.78rem",

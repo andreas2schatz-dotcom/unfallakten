@@ -1842,7 +1842,7 @@ function RundenVergleichKachel({ akteId, kuerzungsarten, refreshKey }) {
 
   return (
     <Card>
-      <CardHead titel={`Runden-Vergleich (${daten.runden.length} Abrechnungsrunden)`} />
+      <CardHead title={`Runden-Vergleich (${daten.runden.length} Abrechnungsrunden)`} />
       <div style={{ padding: "0.5rem 1.1rem 0.9rem" }}>
         {daten.vergleich.length === 0 ? (
           <div style={{ fontFamily: T.fontBody, fontSize: "0.875rem", color: T.textFaint }}>

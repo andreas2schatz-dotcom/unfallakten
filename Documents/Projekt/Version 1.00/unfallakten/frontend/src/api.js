@@ -618,6 +618,9 @@ export const kuerzungsarten = {
     request(`/kuerzungsarten/${id}`, { method: "PUT", body: JSON.stringify(daten) }),
   toggleAktiv: (id, aktiv) =>
     request(`/kuerzungsarten/${id}/aktiv`, { method: "PATCH", body: JSON.stringify({ aktiv }) }),
+  platzhalter: () => request("/kuerzungsarten/platzhalter"),
+  vorschau: (text) =>
+    request("/kuerzungsarten/vorschau", { method: "POST", body: JSON.stringify({ text }) }),
 };
 
 /** Abrechnungsschreiben */
