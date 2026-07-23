@@ -188,12 +188,15 @@ def vorschau(akte_id: str):
     for k in kuerzungen:
         key = k.get("_gruppe_key", "")
         raw = k.get("standard_gegenargument") or "Die Kürzung ist nicht gerechtfertigt."
-        vorschlag = saved_texte.get(key) or ersetze_platzhalter(raw, kontext)
+        vorschlag = saved_texte.get(key) or ersetze_platzhalter(
+            raw, {**kontext, "ZITAT": k.get("begruendung_roh") or ""})
         positionen_out.append({
             "_gruppe_key":            key,
+            "kuerzungsart_id":        k.get("kuerzungsart_id"),
             "bezeichnung":            k.get("bezeichnung", ""),
             "label":                  k.get("label", ""),
             "kuerzung_gesamt":        k.get("kuerzung_gesamt", 0.0),
+            "begruendung_roh":        k.get("begruendung_roh", ""),
             "textbaustein_vorschlag": vorschlag,
         })
 

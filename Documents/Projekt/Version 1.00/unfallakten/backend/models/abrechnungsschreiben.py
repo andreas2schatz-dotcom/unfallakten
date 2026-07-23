@@ -84,6 +84,7 @@ class RegulierungPosition:
     kuerzungsart_bezeichnung: Optional[str] = None
     kuerzungsart_kategorie: Optional[str] = None
     standard_gegenargument: Optional[str] = None
+    textbaustein: Optional[str] = None
 
     @property
     def kuerzung_betrag(self) -> float:
@@ -115,6 +116,7 @@ class RegulierungPosition:
             "kuerzungsart_bezeichnung":     self.kuerzungsart_bezeichnung,
             "kuerzungsart_kategorie":       self.kuerzungsart_kategorie,
             "standard_gegenargument":       self.standard_gegenargument,
+            "textbaustein":                 self.textbaustein,
             "kuerzung_freitext":            self.kuerzung_freitext,
             "parser_erkannt":               self.parser_erkannt,
             "parser_konfidenz":             self.parser_konfidenz,
@@ -271,7 +273,8 @@ def _lade_positionen(conn: sqlite3.Connection, abrechnung_id: int) -> list[Regul
         SELECT rp.*,
                ka.bezeichnung  AS kuerzungsart_bezeichnung,
                ka.kategorie    AS kuerzungsart_kategorie,
-               ka.standard_gegenargument
+               ka.standard_gegenargument,
+               ka.textbaustein
         FROM regulierung_positionen rp
         LEFT JOIN kuerzungsarten ka ON ka.id = rp.kuerzungsart_id
         WHERE rp.abrechnungsschreiben_id = ?
@@ -530,7 +533,8 @@ def aktualisiere_position(
             """
             SELECT rp.*, ka.bezeichnung AS kuerzungsart_bezeichnung,
                    ka.kategorie AS kuerzungsart_kategorie,
-                   ka.standard_gegenargument
+                   ka.standard_gegenargument,
+                   ka.textbaustein
             FROM regulierung_positionen rp
             LEFT JOIN kuerzungsarten ka ON ka.id = rp.kuerzungsart_id
             WHERE rp.id = ?

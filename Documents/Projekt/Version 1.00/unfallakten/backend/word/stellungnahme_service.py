@@ -160,20 +160,26 @@ def _aggregiere_kuerzungen(abrechnungen: list) -> tuple[list, float]:
             if gruppe_key not in kuerzung_by_art:
                 kuerzung_by_art[gruppe_key] = {
                     "_gruppe_key":            gruppe_key,
+                    "kuerzungsart_id":        ka_id,
                     "bezeichnung":            ka_bez or pos_label,
                     "label":                  ka_bez or pos_label,
                     "standard_gegenargument": ka_arg,
                     "kuerzung_gesamt":        0.0,
                     "positionen":             [],
+                    "_zitate":                [],
                 }
             kuerzung_by_art[gruppe_key]["kuerzung_gesamt"] += kuerzung
             kuerzung_by_art[gruppe_key]["positionen"].append(pos_label)
+            zitat = (pos_dict.get("kuerzung_freitext") or "").strip()
+            if zitat:
+                kuerzung_by_art[gruppe_key]["_zitate"].append(zitat)
 
     kuerzungen = list(kuerzung_by_art.values())
     for k in kuerzungen:
         posis = list(dict.fromkeys(k["positionen"]))
         if len(posis) > 1:
             k["label"] = k["bezeichnung"] + f" ({', '.join(posis)})"
+        k["begruendung_roh"] = " / ".join(dict.fromkeys(k.pop("_zitate")))
 
     return kuerzungen, restbetrag
 
@@ -292,7 +298,9 @@ def _xml_kuerzungstabelle(
             or k.get("standard_gegenargument")
             or "Die Kürzung ist nicht gerechtfertigt."
         )
-        argument = ersetze_platzhalter(raw_text, kontext or {})
+        argument = ersetze_platzhalter(
+            raw_text,
+            {**(kontext or {}), "ZITAT": k.get("begruendung_roh") or ""})
         reihen.append(zeile(
             k.get("label") or k.get("bezeichnung") or "Position",
             f"−{_euro(betrag)}",

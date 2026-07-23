@@ -111,5 +111,76 @@ class TestTextbausteinRest(_RouteBasis):
         self.assertEqual(eintrag["textbaustein"], "Neuer Baustein mit <MANDANT>.")
 
 
+class TestStellungnahmeVorschau(_RouteBasis):
+    """Task 11: Baustein-Fallback-Kette + begruendung_roh in der Vorschau."""
+
+    def setUp(self):
+        super().setUp()
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            conn.execute("PRAGMA foreign_keys = OFF")
+            conn.execute("INSERT INTO unfallakte (az) VALUES ('971/25')")
+            cur = conn.execute(
+                "INSERT INTO abrechnungsschreiben "
+                "(akte_id, datum, versicherung, gesamt_gefordert, gesamt_reguliert) "
+                "VALUES ('971/25', '2026-07-01', 'Allianz', 100.0, 40.0)")
+            ab_id = cur.lastrowid
+            conn.execute(
+                "INSERT INTO regulierung_positionen "
+                "(abrechnungsschreiben_id, position_key, betrag_gefordert, "
+                " betrag_reguliert, kuerzungsart_id, kuerzung_freitext) "
+                "VALUES (?, 'wertminderung', 100.0, 40.0, 2, "
+                "'Wertminderung nicht nachvollziehbar.')", (ab_id,))
+            conn.execute(
+                "UPDATE kuerzungsarten "
+                "SET standard_gegenargument='STANDARD-ARGUMENT abweichend.' "
+                "WHERE id=2")
+
+    def _setze_textbaustein(self, kid, text):
+        r = self.client.put(f"/kuerzungsarten/{kid}",
+                            json={"textbaustein": text}, headers=self._auth())
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+
+    def test_vorschau_nutzt_textbaustein_vor_standard_gegenargument(self):
+        self._setze_textbaustein(2, "BAUSTEIN-TEXT zur Wertminderung")
+        r = self.client.get("/akten/971/25/stellungnahme/vorschau",
+                            headers=self._auth())
+        pos = next(p for p in r.get_json()["positionen"]
+                   if p.get("kuerzungsart_id") == 2)
+        self.assertIn("BAUSTEIN-TEXT", pos["textbaustein_vorschlag"])
+
+    def test_vorschau_faellt_auf_standard_gegenargument_zurueck(self):
+        self._setze_textbaustein(2, "")
+        r = self.client.get("/akten/971/25/stellungnahme/vorschau",
+                            headers=self._auth())
+        pos = next(p for p in r.get_json()["positionen"]
+                   if p.get("kuerzungsart_id") == 2)
+        self.assertIn("STANDARD-ARGUMENT", pos["textbaustein_vorschlag"])
+
+    def test_vorschau_liefert_begruendung_roh(self):
+        r = self.client.get("/akten/971/25/stellungnahme/vorschau",
+                            headers=self._auth())
+        pos = next(p for p in r.get_json()["positionen"]
+                   if p.get("kuerzungsart_id") == 2)
+        self.assertEqual(pos["begruendung_roh"],
+                         "Wertminderung nicht nachvollziehbar.")
+
+    def test_zitat_platzhalter_wird_ersetzt(self):
+        self._setze_textbaustein(
+            2, "Die Versicherung meint: <ZITAT> Dem widersprechen wir.")
+        r = self.client.get("/akten/971/25/stellungnahme/vorschau",
+                            headers=self._auth())
+        pos = next(p for p in r.get_json()["positionen"]
+                   if p.get("kuerzungsart_id") == 2)
+        self.assertIn("Wertminderung nicht nachvollziehbar.",
+                      pos["textbaustein_vorschlag"])
+        self.assertNotIn("<ZITAT>", pos["textbaustein_vorschlag"])
+
+    def test_zitat_im_platzhalter_katalog(self):
+        r = self.client.get("/kuerzungsarten/platzhalter", headers=self._auth())
+        keys = {p["key"] for p in r.get_json()}
+        self.assertIn("ZITAT", keys)
+
+
 if __name__ == "__main__":
     unittest.main()

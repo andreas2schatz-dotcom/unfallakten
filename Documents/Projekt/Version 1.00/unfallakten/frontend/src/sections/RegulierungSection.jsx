@@ -3290,6 +3290,13 @@ function ReguWizard({ az, onClose }) {
         <div style={{ marginBottom: "0.85rem", fontSize: "0.88rem", color: T.textMid }}>
           Kürzungsbetrag: <strong style={{ color: T.red }}>−{Number(pos.kuerzung_gesamt).toFixed(2).replace(".", ",")} €</strong>
         </div>
+        {pos.begruendung_roh && (
+          <div style={{ marginBottom: "0.6rem", padding: "6px 10px", background: T.surface,
+            borderLeft: `3px solid ${T.border}`, borderRadius: 4,
+            fontFamily: T.fontBody, fontSize: "0.84rem", fontStyle: "italic", color: T.textMid }}>
+            Versicherer: „{pos.begruendung_roh}“
+          </div>
+        )}
         <label style={{ display: "block", marginBottom: "0.35rem", fontFamily: T.fontBody, fontSize: "0.82rem", fontWeight: 600, color: T.textMid, textTransform: "uppercase", letterSpacing: "0.05em" }}>
           Gegenargument
         </label>

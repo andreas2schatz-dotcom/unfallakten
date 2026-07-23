@@ -42,6 +42,7 @@ PLATZHALTER_KATALOG = [
     {"key": "KOSTENNB", "beschreibung": "Kostennote/Gebührenbetrag", "beispiel": "413,64 €"},
     {"key": "SCHMGELD", "beschreibung": "Schmerzensgeld-Forderung", "beispiel": "1.500,00 €"},
     {"key": "SGVORSCHUSS", "beschreibung": "Schmerzensgeld-Vorschuss", "beispiel": "500,00 €"},
+    {"key": "ZITAT", "beschreibung": "Wortlaut der Kürzungsbegründung des Versicherers", "beispiel": "Die Wertminderung ist nicht nachvollziehbar."},
 ]
 
 _BEISPIEL_KONTEXT = {p["key"]: p["beispiel"] for p in PLATZHALTER_KATALOG}
