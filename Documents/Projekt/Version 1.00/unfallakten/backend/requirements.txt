@@ -25,6 +25,7 @@ google-genai==1.10.0          # Gemini 3.1 Pro – KI-Haftungsbegründung
 # ── Word-Generierung (Modul 5) ────────────────────────────────────────────────
 python-docx==1.1.2
 docxtpl==0.16.8                # Jinja2-Vorlagen in .docx
+striprtf==0.0.32               # RTF-Parsing für Textbaustein-Import
 
 # ── Datenvalidierung ─────────────────────────────────────────────────────────
 pydantic==2.7.1                # Request/Response-Validierung in FastAPI

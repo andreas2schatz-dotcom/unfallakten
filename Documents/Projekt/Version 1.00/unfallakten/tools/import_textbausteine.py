@@ -96,7 +96,9 @@ _MASKE_RE = re.compile(r"^.*&&\*.*$", re.MULTILINE)
 
 def _bereinige(text: str) -> str:
     """Entfernt RA-MICRO-Maskenzeilen (z.B. '&&*&&*Maske: HUKKOPIE') aus dem Text."""
-    return _MASKE_RE.sub("", text).strip()
+    text = _MASKE_RE.sub("", text)
+    text = re.sub(r"&&\S*", "", text)
+    return text.strip()
 
 
 # -- Hilfsfunktionen -----------------------------------------------------------
