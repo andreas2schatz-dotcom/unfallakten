@@ -315,6 +315,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     61: "-- migration_61_klage_entwurf",  # Handled by _run_migration_61 (Klage-Wizard Entwurf)
     62: "-- migration_62_firmen_vertreter",  # Handled by _run_migration_62 (globaler Firmen-Vertreter-Speicher)
     63: "-- migration_63_beteiligte_vertreter",  # Handled by _run_migration_63 (Schema-Drift-Fix)
+    64: "-- migration_64_kuerzungstaxonomie",  # Handled by _run_migration_64
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -1138,6 +1139,119 @@ def _run_migration_63(conn: sqlite3.Connection) -> None:
         "Migration 63 abgeschlossen (beteiligte.vertreter_name/-funktion).")
 
 
+_TYP_CODES_BESTAND = {
+    1: "A04", 2: "C01", 3: "A01", 4: "A02", 5: "A03", 6: "B01",
+    7: "A05c", 8: "A05b", 9: "A05a", 10: "A06", 11: "A09",
+    12: "E05", 13: "E05b", 14: "E05c", 15: "E06", 16: "D01",
+    17: "E01", 18: "D04", 19: "F03",
+}
+
+_KUERZUNGSARTEN_NEU = [
+    ("Neu-für-alt-Abzug", "fahrzeugschaden", "A07", 200),
+    ("Reparaturbestätigung", "fahrzeugschaden", "A10", 210),
+    ("Abrechnungszeitpunkt / Preissteigerung", "fahrzeugschaden", "A11", 220),
+    ("Stundenverrechnungssätze (Variante Prüfbericht-Erwiderung)",
+     "fahrzeugschaden", "A04b", 230),
+    ("Rechnungskürzung trotz Reparatur (Variante)", "fahrzeugschaden", "B01b", 240),
+    ("Wertminderung – Umsatzsteuer", "fahrzeugschaden", "C01b", 250),
+    ("Nutzungsausfall Schadentag / SV-Besichtigung", "sonstiger_schaden", "D01b", 260),
+    ("SV-Grundhonorar – JVEG", "sonstiger_schaden", "E01b", 270),
+    ("SV-Grundhonorar – HUK-Tableau", "sonstiger_schaden", "E01c", 280),
+    ("SV-Nebenkosten-Pauschale", "sonstiger_schaden", "E02", 290),
+    ("Abschleppkosten", "sonstiger_schaden", "E03", 300),
+    ("Unkostenpauschale – 2. Runde", "sonstiger_schaden", "E06b", 310),
+    ("Schmerzensgeld-Zurückstellung (HWS/Nachweis)", "sonstiger_schaden", "F01", 320),
+]
+
+_PRUEFDIENSTLEISTER_SEEDS = [
+    ("ControlExpert", r"control.?expert"),
+    ("DEKRA", r"dekra"),
+    ("Eucon", r"eucon"),
+    ("SSH", r"\bssh\b"),
+    ("Audatex", r"audatex"),
+    ("GTÜ", r"gtue|gtü"),
+    ("DA Direkt", r"da\s+direkt"),
+]
+
+VERIFIKATIONS_STEMPEL = "handgeprüft RA Schatz, Juli 2026"
+
+
+def _run_migration_64(conn: sqlite3.Connection) -> None:
+    """
+    Migration 64 - Kürzungstaxonomie Phase 1:
+    typ_code/verifiziert_am auf kuerzungsarten, 13 neue A-F-Typen,
+    Stammtabelle pruefdienstleister, FK-Spalten, begruendung_roh, typ_quelle.
+    Kein executescript, explizite Commits um DDL (Reloader-Falle).
+    """
+    conn.commit()
+    spalten = {r[1] for r in conn.execute("PRAGMA table_info(kuerzungsarten)").fetchall()}
+    if "typ_code" not in spalten:
+        conn.execute("ALTER TABLE kuerzungsarten ADD COLUMN typ_code TEXT")
+    if "verifiziert_am" not in spalten:
+        conn.execute("ALTER TABLE kuerzungsarten ADD COLUMN verifiziert_am TEXT")
+    conn.commit()
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uidx_kuerzungsarten_typ_code "
+        "ON kuerzungsarten(typ_code) WHERE typ_code IS NOT NULL"
+    )
+    conn.commit()
+    for kid, code in _TYP_CODES_BESTAND.items():
+        conn.execute(
+            "UPDATE kuerzungsarten SET typ_code = ?, verifiziert_am = ? "
+            "WHERE id = ? AND typ_code IS NULL",
+            (code, VERIFIKATIONS_STEMPEL, kid),
+        )
+    for bezeichnung, kategorie, code, sort in _KUERZUNGSARTEN_NEU:
+        conn.execute(
+            "INSERT OR IGNORE INTO kuerzungsarten "
+            "(bezeichnung, kategorie, typ_code, verifiziert_am, sortierung) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (bezeichnung, kategorie, code, VERIFIKATIONS_STEMPEL, sort),
+        )
+    conn.commit()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS pruefdienstleister (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            name             TEXT NOT NULL UNIQUE,
+            erkennungsmuster TEXT,
+            aktiv            INTEGER NOT NULL DEFAULT 1 CHECK(aktiv IN (0,1)),
+            erstellt_am      TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        )
+    """)
+    conn.commit()
+    for name, muster in _PRUEFDIENSTLEISTER_SEEDS:
+        conn.execute(
+            "INSERT OR IGNORE INTO pruefdienstleister (name, erkennungsmuster) "
+            "VALUES (?, ?)",
+            (name, muster),
+        )
+    conn.commit()
+    for tabelle, spalte, ddl in [
+        ("pruefberichte", "pruefdienstleister_id",
+         "ALTER TABLE pruefberichte ADD COLUMN pruefdienstleister_id INTEGER "
+         "REFERENCES pruefdienstleister(id)"),
+        ("abrechnungsschreiben", "pruefdienstleister_id",
+         "ALTER TABLE abrechnungsschreiben ADD COLUMN pruefdienstleister_id INTEGER "
+         "REFERENCES pruefdienstleister(id)"),
+        ("ereignis_positionen", "begruendung_roh",
+         "ALTER TABLE ereignis_positionen ADD COLUMN begruendung_roh TEXT"),
+        ("regulierung_positionen", "typ_quelle",
+         "ALTER TABLE regulierung_positionen ADD COLUMN typ_quelle TEXT"),
+    ]:
+        vorhanden = {r[1] for r in conn.execute(f"PRAGMA table_info({tabelle})").fetchall()}
+        if spalte not in vorhanden:
+            conn.commit()
+            conn.execute(ddl)
+            conn.commit()
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
+        (64, "Migration 64 - Kürzungstaxonomie: typ_code, pruefdienstleister, "
+             "begruendung_roh, typ_quelle"),
+    )
+    conn.commit()
+    logger.info("Migration 64 abgeschlossen (Kürzungstaxonomie-Fundament).")
+
+
 def _run_migration_54(conn: sqlite3.Connection) -> None:
     """
     Migration 54 - intake_dokumente.textquelle erlaubt 'email_text'.
@@ -1557,6 +1671,8 @@ def run_migrations() -> None:
                 _run_migration_62(conn)
             elif version == 63:
                 _run_migration_63(conn)
+            elif version == 64:
+                _run_migration_64(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
