@@ -623,6 +623,7 @@ function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePrue
                   fahrzeug_hersteller:         ergebnis.fahrzeug?.hersteller || "",
                   fahrzeug_typ:                ergebnis.fahrzeug?.typ || "",
                   fahrzeug_kennzeichen:        ergebnis.fahrzeug?.kennzeichen || "",
+                  kuerzungen:                  ergebnis.kuerzungen || [],
                 });
                 onCancel();
               }}>
@@ -1471,10 +1472,42 @@ function ManuelleAbrechnungFormular({ schaden, kuerzungsarten, akteId, versicher
 
 
 
-function PruefberichteGespeichertListe({ pruefberichte, mandantAdresse }) {
+function PruefberichteGespeichertListe({ pruefberichte, mandantAdresse, akteId, onVerketteErfolg }) {
   const [expanded, setExpanded] = useState(null);
   const [verweis, setVerweis]   = useState({});   // { [pbId]: ergebnis }
   const [verweisLaden, setVerweisLaden] = useState({});
+
+  // Task 7: Verkettung Abrechnungsschreiben <-> Prüfbericht
+  const [kandidaten, setKandidaten]           = useState({});  // { [pbId]: [...] }
+  const [kandidatenLaden, setKandidatenLaden] = useState({});
+  const [auswahl, setAuswahl]                 = useState({});  // { [pbId]: abId }
+  const [verketteSpeichern, setVerketteSpeichern] = useState({});
+
+  const ladeKandidaten = async (pb) => {
+    if (kandidaten[pb.id] || kandidatenLaden[pb.id]) return;
+    setKandidatenLaden(p => ({ ...p, [pb.id]: true }));
+    try {
+      const res = await apiPruefberichte.kandidaten(akteId, pb.id);
+      setKandidaten(p => ({ ...p, [pb.id]: res?.kandidaten || [] }));
+    } catch {
+      setKandidaten(p => ({ ...p, [pb.id]: [] }));
+    } finally {
+      setKandidatenLaden(p => ({ ...p, [pb.id]: false }));
+    }
+  };
+
+  const speichereVerkettung = async (pb) => {
+    const abId = auswahl[pb.id];
+    if (!abId) return;
+    setVerketteSpeichern(p => ({ ...p, [pb.id]: true }));
+    try {
+      const res = await apiPruefberichte.verkette(akteId, pb.id, Number(abId));
+      onVerketteErfolg?.(pb.id, res?.pruefbericht?.abrechnungsschreiben_id ?? Number(abId));
+    } catch { /* Fehler bleibt sichtbar über unveränderten Status */ }
+    finally {
+      setVerketteSpeichern(p => ({ ...p, [pb.id]: false }));
+    }
+  };
 
   // Gespeichertes pb → ergebnis-Format für PruefberichtVorschau mappen
   const pbZuErgebnis = (pb) => {
@@ -1613,6 +1646,51 @@ function PruefberichteGespeichertListe({ pruefberichte, mandantAdresse }) {
             {/* ── Ausgeklappter Inhalt ── */}
             {isOpen && (
               <div style={{ borderTop:`1px solid ${T.border}`, padding:"1rem 1.2rem", background:T.surface }}>
+                {!pb.abrechnungsschreiben_id && (
+                  <div style={{
+                    display:"flex", alignItems:"center", gap:8, flexWrap:"wrap",
+                    padding:"0.6rem 0.8rem", marginBottom:"0.8rem",
+                    background:T.amberBg, border:`1px solid ${T.amber}44`, borderRadius:6,
+                  }}>
+                    <span style={{ fontSize:"0.85rem", color:T.textMid, fontWeight:600 }}>
+                      Nicht verkettet
+                    </span>
+                    {!kandidaten[pb.id] && !kandidatenLaden[pb.id] && (
+                      <Btn size="sm" variant="secondary" onClick={() => ladeKandidaten(pb)}>
+                        Kandidaten laden
+                      </Btn>
+                    )}
+                    {kandidatenLaden[pb.id] && (
+                      <span style={{ fontSize:"0.85rem", color:T.textFaint }}>⟳ Lade…</span>
+                    )}
+                    {kandidaten[pb.id] && kandidaten[pb.id].length === 0 && (
+                      <span style={{ fontSize:"0.85rem", color:T.textFaint }}>
+                        Keine Abrechnungsschreiben in dieser Akte gefunden.
+                      </span>
+                    )}
+                    {kandidaten[pb.id] && kandidaten[pb.id].length > 0 && (
+                      <>
+                        <FieldSelect
+                          value={auswahl[pb.id] || ""}
+                          onChange={v => setAuswahl(p => ({ ...p, [pb.id]: v }))}
+                          options={[
+                            { value: "", label: "— Abrechnungsschreiben wählen —" },
+                            ...kandidaten[pb.id].map(k => ({
+                              value: String(k.abrechnungsschreiben_id),
+                              label: `${k.datum || "?"} · ${k.versicherung || "?"}`
+                                + (k.grund ? ` (${k.grund})` : ""),
+                            })),
+                          ]}
+                        />
+                        <Btn size="sm" variant="primary"
+                          disabled={!auswahl[pb.id] || verketteSpeichern[pb.id]}
+                          onClick={() => speichereVerkettung(pb)}>
+                          {verketteSpeichern[pb.id] ? "⟳ Speichere…" : "Verketten"}
+                        </Btn>
+                      </>
+                    )}
+                  </div>
+                )}
                 <PruefberichtVorschau
                   ergebnis={ergebnis}
                   onPrüfeEntfernung={mandantAdresse && ergebnis.referenzwerkstatt ? () => prüfeEntfernung(pb) : null}
@@ -2912,6 +2990,9 @@ function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, s
             <PruefberichteGespeichertListe
               pruefberichte={pruefberichte}
               mandantAdresse={mandantAdresse}
+              akteId={akteId}
+              onVerketteErfolg={(pbId, abId) => setPruefberichte(prev =>
+                prev.map(pb => pb.id === pbId ? { ...pb, abrechnungsschreiben_id: abId } : pb))}
             />
           )}
         </Card>

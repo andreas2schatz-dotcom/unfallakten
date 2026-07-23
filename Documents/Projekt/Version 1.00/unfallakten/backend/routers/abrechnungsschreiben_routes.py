@@ -16,12 +16,16 @@ except ImportError:
 from ._helpers import pruefe_akte as _pruefe_akte
 from ..utils.datum import datum_zu_iso as _datum_zu_iso
 from ..services.portal_sync import _portal_flag
+from ..db.database import get_connection
 from ..models.abrechnungsschreiben import (
     hole_abrechnungsschreiben_by_akte, hole_abrechnungsschreiben_by_id,
     erstelle_abrechnungsschreiben, loesche_abrechnungsschreiben,
     aktualisiere_position, PositionNichtGefunden,
-    hole_pruefberichte_by_akte, erstelle_pruefbericht,
+    hole_pruefberichte_by_akte, erstelle_pruefbericht, Pruefbericht,
     hole_klagebetrag, GUELTIGE_HAFTUNGSARTEN, POSITION_KEYS,
+)
+from ..services.kuerzungstyp_matching import (
+    finde_abrechnungs_kandidaten, _pruefdienstleister_id,
 )
 
 # Erweiterte Position-Keys (Migration 16: neue WDM + fehlende Frontend-Keys)
@@ -536,15 +540,30 @@ def neuer_pruefbericht(akte_id: str):
         try: return float(v) if v is not None else None
         except (TypeError, ValueError): return None
 
+    with get_connection() as conn:
+        pruefdienstleister_id = _pruefdienstleister_id(conn, daten.get("pruefdienstleister"))
+
+    # Task 7: Auto-Verkettung mit Abrechnungsschreiben, wenn nicht explizit
+    # angegeben und genau EIN Kandidat den (positiven) Bestwert erreicht.
+    abrechnungsschreiben_id = daten.get("abrechnungsschreiben_id")
+    if not abrechnungsschreiben_id:
+        kandidaten = finde_abrechnungs_kandidaten(
+            akte_id, datum=datum, schadennummer=daten.get("schadennummer") or "")
+        if kandidaten and kandidaten[0]["score"] > 0:
+            beste = [k for k in kandidaten if k["score"] == kandidaten[0]["score"]]
+            if len(beste) == 1:
+                abrechnungsschreiben_id = beste[0]["abrechnungsschreiben_id"]
+
     bericht = erstelle_pruefbericht(
         akte_id=akte_id, datum=datum, bearbeiter_id=g.benutzer_id,
-        abrechnungsschreiben_id=daten.get("abrechnungsschreiben_id"),
+        abrechnungsschreiben_id=abrechnungsschreiben_id,
         gutachter=daten.get("gutachter"),
         notizen=daten.get("notizen"),
         dokument_id=daten.get("dokument_id"),
         kuerzungen_json=kuerzungen_json,
         # PDF-Parser Felder
         pruefdienstleister=daten.get("pruefdienstleister") or None,
+        pruefdienstleister_id=pruefdienstleister_id,
         vorgangsnummer=daten.get("vorgangsnummer") or None,
         schadennummer=daten.get("schadennummer") or None,
         reparaturkosten_vor_pruefung=_float("reparaturkosten_vor_pruefung"),
@@ -562,4 +581,72 @@ def neuer_pruefbericht(akte_id: str):
         fahrzeug_kennzeichen=daten.get("fahrzeug_kennzeichen") or None,
         parse_status="erfolgreich" if daten.get("pruefdienstleister") else "manuell",
     )
+
+    if bericht.abrechnungsschreiben_id and pruefdienstleister_id:
+        with get_connection() as conn:
+            conn.execute(
+                "UPDATE abrechnungsschreiben SET pruefdienstleister_id = ? "
+                "WHERE id = ? AND pruefdienstleister_id IS NULL",
+                (pruefdienstleister_id, bericht.abrechnungsschreiben_id))
+
     return _j({"pruefbericht": bericht.as_dict()}, 201)
+
+
+# ── Task 7: Verkettung Abrechnungsschreiben ↔ Prüfbericht ──────────────────────
+
+@pruefbericht_bp.route("/<int:pid>/abrechnungs-kandidaten", methods=["GET"])
+@login_erforderlich
+def abrechnungs_kandidaten(akte_id: str, pid: int):
+    if not _pruefe_akte(akte_id):
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    with get_connection() as conn:
+        pb = conn.execute(
+            "SELECT * FROM pruefberichte WHERE id = ? AND akte_id = ?",
+            (pid, akte_id)).fetchone()
+    if not pb:
+        return _err(f"Prüfbericht {pid} nicht gefunden.", 404)
+    kandidaten = finde_abrechnungs_kandidaten(
+        akte_id, datum=pb["datum"] or "", schadennummer=pb["schadennummer"] or "")
+    return _j({"kandidaten": kandidaten})
+
+
+@pruefbericht_bp.route("/<int:pid>", methods=["PATCH"])
+@login_erforderlich
+def verkette_pruefbericht(akte_id: str, pid: int):
+    if not _pruefe_akte(akte_id):
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    daten = _body()
+    if "abrechnungsschreiben_id" not in daten:
+        return _err("Feld 'abrechnungsschreiben_id' erforderlich.", 400)
+    neu_id = daten.get("abrechnungsschreiben_id")
+    if neu_id is not None and (isinstance(neu_id, bool) or not isinstance(neu_id, int)):
+        return _err("abrechnungsschreiben_id muss eine Zahl oder null sein.", 400)
+
+    with get_connection() as conn:
+        pb = conn.execute(
+            "SELECT * FROM pruefberichte WHERE id = ? AND akte_id = ?",
+            (pid, akte_id)).fetchone()
+        if not pb:
+            return _err(f"Prüfbericht {pid} nicht gefunden.", 404)
+
+        if neu_id is not None:
+            ab = conn.execute(
+                "SELECT * FROM abrechnungsschreiben WHERE id = ? AND akte_id = ?",
+                (neu_id, akte_id)).fetchone()
+            if not ab:
+                return _err(
+                    f"Abrechnungsschreiben {neu_id} gehört nicht zu Akte {akte_id}.", 404)
+
+        conn.execute(
+            "UPDATE pruefberichte SET abrechnungsschreiben_id = ? WHERE id = ?",
+            (neu_id, pid))
+
+        if neu_id is not None and pb["pruefdienstleister_id"]:
+            conn.execute(
+                "UPDATE abrechnungsschreiben SET pruefdienstleister_id = ? "
+                "WHERE id = ? AND pruefdienstleister_id IS NULL",
+                (pb["pruefdienstleister_id"], neu_id))
+
+        row = conn.execute("SELECT * FROM pruefberichte WHERE id = ?", (pid,)).fetchone()
+
+    return _j({"pruefbericht": Pruefbericht.from_row(row).as_dict()})

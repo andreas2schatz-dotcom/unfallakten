@@ -212,6 +212,7 @@ class Pruefbericht:
     fahrzeug_hersteller: Optional[str] = None
     fahrzeug_typ: Optional[str] = None
     fahrzeug_kennzeichen: Optional[str] = None
+    pruefdienstleister_id: Optional[int] = None
 
     @property
     def kuerzungen(self) -> list:
@@ -256,6 +257,7 @@ class Pruefbericht:
             "fahrzeug_hersteller":              self.fahrzeug_hersteller,
             "fahrzeug_typ":                     self.fahrzeug_typ,
             "fahrzeug_kennzeichen":             self.fahrzeug_kennzeichen,
+            "pruefdienstleister_id":            self.pruefdienstleister_id,
         }
 
 
@@ -602,7 +604,7 @@ def erstelle_pruefbericht(
         "reparaturkosten_nach_pruefung", "referenzwerkstatt_name",
         "referenzwerkstatt_adresse", "referenzwerkstatt_entfernung",
         "ist_image_pdf", "fahrzeug_hersteller", "fahrzeug_typ",
-        "fahrzeug_kennzeichen",
+        "fahrzeug_kennzeichen", "pruefdienstleister_id",
     }
     daten = {k: v for k, v in felder.items() if k in erlaubt and v is not None}
     daten.update({"akte_id": akte_id, "datum": datum, "erfasst_von": bearbeiter_id})
@@ -610,6 +612,12 @@ def erstelle_pruefbericht(
     spalten = list(daten.keys())
     werte   = list(daten.values())
     with get_connection() as conn:
+        # akte_id haelt in diesem Datenmodell das Aktenzeichen (Text), nicht
+        # die (in unfallakte gar nicht existierende) numerische ID — die
+        # deklarierte FK auf unfallakte(id) ist daher grundsaetzlich
+        # inkompatibel; siehe erstelle_abrechnungsschreiben() fuer dasselbe
+        # etablierte Muster.
+        conn.execute("PRAGMA foreign_keys = OFF")
         cur = conn.execute(
             f"INSERT INTO pruefberichte ({', '.join(spalten)}) "
             f"VALUES ({', '.join('?' * len(werte))})",

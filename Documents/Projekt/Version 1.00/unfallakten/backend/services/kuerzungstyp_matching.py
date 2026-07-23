@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass
-from typing import List, Optional
+from datetime import date
+from typing import Dict, List, Optional
 
 from backend.services.kuerzungstyp_registry import lade_kuerzungstypen
 
@@ -95,6 +96,56 @@ def _llm_fallback(text, reg, id_map) -> List[TypVorschlag]:
     return [TypVorschlag(typ_code=code, kuerzungsart_id=id_map.get(code),
                          snippet=text[:240].strip(), quelle="llm",
                          konfidenz=min(konf, 0.7))]
+
+
+def finde_abrechnungs_kandidaten(akte_az: str, *, datum: str,
+                                 schadennummer: str = "") -> List[Dict]:
+    """
+    Kandidaten-Abrechnungsschreiben fuer die Verkettung mit einem Pruefbericht.
+
+    Hinweis: `abrechnungsschreiben.akte_id` haelt in diesem Datenmodell das
+    Aktenzeichen (Text) direkt, nicht die (in `unfallakte` gar nicht
+    existierende) numerische ID — daher direkter Vergleich, kein JOIN.
+    """
+    from backend.db.database import get_connection
+    nur_ziffern = re.sub(r"\D", "", schadennummer or "")
+    kandidaten = []
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT id, datum, versicherung, referenz_nr, gesamt_reguliert "
+            "FROM abrechnungsschreiben WHERE akte_id = ? ORDER BY datum DESC",
+            (akte_az,)).fetchall()
+    for r in rows:
+        score, gruende = 0, []
+        ref_ziffern = re.sub(r"\D", "", r["referenz_nr"] or "")
+        if nur_ziffern and nur_ziffern in ref_ziffern:
+            score += 2
+            gruende.append("Schadennummer")
+        try:
+            tage = abs((date.fromisoformat(datum) -
+                        date.fromisoformat(r["datum"])).days)
+            if tage <= 30:
+                score += 1
+                gruende.append(f"{tage} Tage Abstand")
+        except (ValueError, TypeError):
+            pass
+        kandidaten.append({"abrechnungsschreiben_id": r["id"], "datum": r["datum"],
+                           "versicherung": r["versicherung"],
+                           "gesamt_reguliert": r["gesamt_reguliert"],
+                           "score": score, "grund": ", ".join(gruende)})
+    return sorted(kandidaten, key=lambda k: -k["score"])
+
+
+def _pruefdienstleister_id(conn, name: Optional[str]) -> Optional[int]:
+    """Loest einen geparsten Dienstleister-Namen gegen die Stammtabelle auf.
+    Unbekannte Namen legen KEINE neue Zeile an (Stammtabelle wird manuell
+    gepflegt) — FK bleibt in diesem Fall NULL."""
+    if not name or name == "Unbekannt":
+        return None
+    row = conn.execute(
+        "SELECT id FROM pruefdienstleister WHERE name = ? AND aktiv = 1",
+        (name,)).fetchone()
+    return row["id"] if row else None
 
 
 def normalisiere_positionslabel(label: str) -> Optional[str]:

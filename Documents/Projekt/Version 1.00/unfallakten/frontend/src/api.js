@@ -638,6 +638,11 @@ export const pruefberichte = {
   liste:    (akteId)        => request(`/akten/${akteId}/pruefberichte`),
   erstelle: (akteId, daten) =>
     request(`/akten/${akteId}/pruefberichte`, { method: "POST", body: JSON.stringify(daten) }),
+  kandidaten: (akteId, pid) =>
+    request(`/akten/${akteId}/pruefberichte/${pid}/abrechnungs-kandidaten`),
+  verkette: (akteId, pid, abrechnungsschreibenId) =>
+    request(`/akten/${akteId}/pruefberichte/${pid}`,
+      { method: "PATCH", body: JSON.stringify({ abrechnungsschreiben_id: abrechnungsschreibenId }) }),
 };
 
 /** PDF-Parser (Modul 9) – Upload eines Versicherungs-PDFs */

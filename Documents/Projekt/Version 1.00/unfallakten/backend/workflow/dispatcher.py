@@ -619,6 +619,10 @@ def _parse_pruefbericht(norm_text, meta, versicherer_kuerzel,
         "ist_image_pdf":                      r.ist_image_pdf,
         "parse_konfidenz":                    round(r.konfidenz, 3),
         "warnungen":                          r.warnungen,
+        "kuerzungen": [
+            {"kategorie": a.kategorie, "bezeichnung": a.bezeichnung, "betrag": a.betrag}
+            for a in (r.abzuege_detail or [])
+        ],
     }
 
 
