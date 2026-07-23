@@ -1078,7 +1078,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                     <select
                       value={gewPos || ""}
                       onChange={e => setInlineWahl(p => ({ ...p, [d.id]: e.target.value }))}
-                      style={{ fontFamily:T.fontBody, fontSize:"0.8rem", background:"#fff",
+                      style={{ fontFamily:T.fontBody, fontSize:"0.8rem", background:T.cardBg,
                         color:T.textMid, border:`1px solid ${T.border}`, borderRadius:10,
                         padding:"2px 7px", cursor:"pointer", outline:"none" }}
                     >
@@ -1104,7 +1104,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                       onChange={e => setInlineWahl(p => ({ ...p, [`${d.id}_b`]: e.target.value }))}
                       style={{ width:90, fontFamily:T.fontBody, fontSize:"0.78rem",
                         padding:"2px 7px", border:`1px solid ${T.border}`, borderRadius:5,
-                        outline:"none", color:T.text, background:"#fff" }}
+                        outline:"none", color:T.text, background:T.cardBg }}
                     />
                   )}
                   <button
@@ -1613,7 +1613,7 @@ function KandidatenDebugDialog({ kandidaten, uebersprungen = {}, onClose }) {
       display:"flex", alignItems:"center", justifyContent:"center", padding:16,
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        background:"#fff", borderRadius:12, width:"100%", maxWidth:920,
+        background:T.cardBg, borderRadius:12, width:"100%", maxWidth:920,
         maxHeight:"88vh", display:"flex", flexDirection:"column",
         boxShadow:"0 8px 40px rgba(0,0,0,0.28)",
       }}>
@@ -1828,7 +1828,7 @@ function GutachtenVorschau({ erg, laden, wahl, setWahl, speichert, onSpeichern, 
   };
 
   return (
-    <div style={{ borderRadius:12, border:`1px solid ${T.border}`, background:"#fff", overflow:"hidden" }}>
+    <div style={{ borderRadius:12, border:`1px solid ${T.border}`, background:T.cardBg, overflow:"hidden" }}>
       {/* Header */}
       <div style={{ padding:"12px 20px", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
         <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>

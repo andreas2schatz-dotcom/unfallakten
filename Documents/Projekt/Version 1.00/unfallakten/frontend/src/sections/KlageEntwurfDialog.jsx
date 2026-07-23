@@ -1,3 +1,4 @@
+import T from "../config/theme.js";
 import { formatGespeichertAm } from "./klageEntwurfLogik.js";
 
 export default function KlageEntwurfDialog({
@@ -6,7 +7,7 @@ export default function KlageEntwurfDialog({
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
       display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
-      <div style={{ background: "#fff", borderRadius: "10px", padding: "1.5rem",
+      <div style={{ background: T.cardBg, borderRadius: "10px", padding: "1.5rem",
         maxWidth: "26rem", width: "90%", boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}>
         {typ === "fortsetzen" ? (
           <>

@@ -130,7 +130,7 @@ function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertrete
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)",
       zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}
       onClick={() => setVModal(null)}>
-      <div style={{ background:"#fff", borderRadius:12, padding:"1.75rem",
+      <div style={{ background:T.cardBg, borderRadius:12, padding:"1.75rem",
         maxWidth:480, width:"90%", boxShadow:"0 20px 60px rgba(0,0,0,0.3)" }}
         onClick={e => e.stopPropagation()}>
         <h3 style={{ fontFamily:T.fontBody, fontSize:"1rem",
@@ -200,7 +200,7 @@ function VertreterModal({ vertreterModal, setVModal, setBek, apiFirmen, vertrete
         <div style={{ display:"flex", justifyContent:"flex-end", marginTop:"1rem" }}>
           <button onClick={() => setVModal(null)}
             style={{ padding:"6px 16px", border:`1px solid ${T.border}`, borderRadius:7,
-              background:"#fff", cursor:"pointer", fontSize:"0.875rem" }}>
+              background:T.cardBg, cursor:"pointer", fontSize:"0.875rem" }}>
             Schließen
           </button>
         </div>

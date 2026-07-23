@@ -1,5 +1,6 @@
 // frontend/src/views/SplitDialog.jsx
 import { useState, useEffect, useRef } from "react";
+import T from "../config/theme.js";
 import { apiIntake } from "../api.js";
 import { gruppenAusSchnitten, schnittUmschalten } from "./splitLogik.js";
 
@@ -43,7 +44,7 @@ export default function SplitDialog({ docId, thumbUrl, onDone, onClose }) {
     display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
   };
   const box = {
-    background: "#fff", borderRadius: 10, padding: 20, maxWidth: "90vw",
+    background: T.cardBg, borderRadius: 10, padding: 20, maxWidth: "90vw",
     maxHeight: "85vh", overflow: "auto", boxShadow: "0 10px 40px rgba(0,0,0,.3)",
   };
 

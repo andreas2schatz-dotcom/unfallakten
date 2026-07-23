@@ -495,7 +495,7 @@ export function EditorMitDiff({ autoText, text, onText, warnung }) {
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
           <button onClick={() => setZeigeDiff(v => !v)}
             style={{ padding: "4px 10px", borderRadius: 6, cursor: "pointer",
-              border: `1.5px solid ${T.border}`, background: "#fff",
+              border: `1.5px solid ${T.border}`, background: T.cardBg,
               fontFamily: PLEX, fontSize: "0.76rem", fontWeight: 600, color: T.navy }}>
             {zeigeDiff ? "✎ Bearbeiten" : "⇄ Änderungen anzeigen"}
           </button>
@@ -564,7 +564,7 @@ export function StepRubrum({ beklagte, onClose, onVertreterLookup, vertreterLook
             {onLookup ? (
               <button onClick={onLookup} disabled={lookupLaeuft}
                 title="Vertretung online nachschlagen – ohne den Wizard zu verlassen"
-                style={{ background: "#fff", border: `1px solid ${T.amber}`, borderRadius: 5,
+                style={{ background: T.cardBg, border: `1px solid ${T.amber}`, borderRadius: 5,
                   padding: "1px 8px", cursor: lookupLaeuft ? "wait" : "pointer",
                   color: T.amberText, fontFamily: PLEX, fontSize: "0.78rem", fontWeight: 600 }}>
                 {lookupLaeuft ? "⟳ sucht …" : "🔍 Lookup"}
@@ -1824,7 +1824,7 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
                     <button onClick={() => onVertreterLookup(b.id, fname)}
                       disabled={!!(vertreterLookup && vertreterLookup[b.id]?.laden)}
                       title="Vertretung online nachschlagen – ohne den Wizard zu verlassen"
-                      style={{ background: "#fff", border: `1px solid ${T.red}`, borderRadius: 5,
+                      style={{ background: T.cardBg, border: `1px solid ${T.red}`, borderRadius: 5,
                         padding: "1px 8px", cursor: "pointer", fontSize: "0.76rem", fontWeight: 600, color: T.red }}>
                       {vertreterLookup && vertreterLookup[b.id]?.laden ? "⟳ sucht …" : "🔍 Lookup"}
                     </button>
@@ -2065,20 +2065,20 @@ export function TextVeraltetBadge({ sichtbar, onNeuGenerieren, onBehalten, autoT
         {mitDiff && (
           <button onClick={() => setZeigeDiff(v => !v)}
             style={{ padding: "5px 10px", borderRadius: 6, cursor: "pointer",
-              border: `1.5px solid ${T.border}`, background: "#fff",
+              border: `1.5px solid ${T.border}`, background: T.cardBg,
               fontFamily: PLEX, fontSize: "0.78rem", fontWeight: 600, color: T.navy }}>
             {zeigeDiff ? "✎ Ausblenden" : "⇄ Änderungen anzeigen"}
           </button>
         )}
         <button onClick={onNeuGenerieren}
           style={{ padding: "5px 10px", borderRadius: 6, cursor: "pointer",
-            border: `1.5px solid ${T.navy}`, background: "#fff",
+            border: `1.5px solid ${T.navy}`, background: T.cardBg,
             fontFamily: PLEX, fontSize: "0.78rem", fontWeight: 600, color: T.navy }}>
           ↻ Neu generieren
         </button>
         <button onClick={onBehalten}
           style={{ padding: "5px 10px", borderRadius: 6, cursor: "pointer",
-            border: `1.5px solid ${T.border}`, background: "#fff",
+            border: `1.5px solid ${T.border}`, background: T.cardBg,
             fontFamily: PLEX, fontSize: "0.78rem", fontWeight: 600, color: T.textMuted }}>
           Behalten
         </button>
@@ -2105,7 +2105,7 @@ export function EntwurfStatusLeiste({ dirty, gespeichertAm, fehler, laeuft, onSp
     <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
       <button onClick={onSpeichern} disabled={laeuft}
         style={{ padding: "5px 10px", borderRadius: 6, cursor: laeuft ? "wait" : "pointer",
-          border: `1.5px solid ${T.navy}`, background: "#fff",
+          border: `1.5px solid ${T.navy}`, background: T.cardBg,
           fontFamily: PLEX, fontSize: "0.78rem", fontWeight: 600, color: T.navy }}>
         💾 Entwurf speichern
       </button>
@@ -2610,7 +2610,7 @@ export function SchliessenGuardDialog({ onEntwurfSpeichern, onClose, onZurueck }
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
       display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9500 }}>
-      <div style={{ background: "#fff", borderRadius: 12, padding: "1.75rem",
+      <div style={{ background: T.cardBg, borderRadius: 12, padding: "1.75rem",
         maxWidth: "27rem", width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
         <h3 style={{ margin: "0 0 0.6rem", fontFamily: PLEX, fontSize: "1.1rem",
           fontWeight: 700, color: T.navy }}>
@@ -2623,11 +2623,11 @@ export function SchliessenGuardDialog({ onEntwurfSpeichern, onClose, onZurueck }
         <div style={{ display: "flex", gap: "0.6rem", justifyContent: "flex-end",
           marginTop: "1.5rem", flexWrap: "wrap" }}>
           <button onClick={onZurueck} disabled={laeuft}
-            style={{ ...knopf, border: `1.5px solid ${T.border}`, background: "#fff", color: T.text }}>
+            style={{ ...knopf, border: `1.5px solid ${T.border}`, background: T.cardBg, color: T.text }}>
             Zurück zum Wizard
           </button>
           <button onClick={onClose} disabled={laeuft}
-            style={{ ...knopf, border: `1.5px solid ${T.red}`, background: "#fff", color: T.red }}>
+            style={{ ...knopf, border: `1.5px solid ${T.red}`, background: T.cardBg, color: T.red }}>
             Verwerfen &amp; schließen
           </button>
           <button onClick={speichernUndSchliessen} disabled={laeuft}
@@ -2767,7 +2767,7 @@ export default function KlageWizard({
         }}>
 
         <div style={{
-          background: "#fff", borderRadius: 16,
+          background: T.cardBg, borderRadius: 16,
           width: "100%", maxWidth: 840,
           height: "92vh", overflow: "hidden",
           display: "flex", flexDirection: "column",
@@ -2984,7 +2984,7 @@ export default function KlageWizard({
             <button onClick={zurueck} disabled={step === 1}
               style={{
                 padding: "9px 20px", borderRadius: 8, cursor: step === 1 ? "default" : "pointer",
-                border: `1.5px solid ${T.border}`, background: "#fff",
+                border: `1.5px solid ${T.border}`, background: T.cardBg,
                 fontFamily: PLEX, fontSize: "0.875rem", color: step === 1 ? T.textFaint : T.text,
                 fontWeight: 500, opacity: step === 1 ? 0.4 : 1,
               }}>

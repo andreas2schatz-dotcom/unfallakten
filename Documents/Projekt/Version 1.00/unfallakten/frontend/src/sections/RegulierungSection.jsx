@@ -2933,7 +2933,7 @@ function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, s
 
 const _STICKY_NAV = {
   position: "sticky", bottom: 0,
-  background: "#fff", borderTop: "1px solid #e8ecf0",
+  background: T.cardBg, borderTop: "1px solid #e8ecf0",
   padding: "0.9rem 0 0", marginTop: "1.25rem",
   display: "flex", gap: "0.5rem", flexWrap: "wrap",
 };

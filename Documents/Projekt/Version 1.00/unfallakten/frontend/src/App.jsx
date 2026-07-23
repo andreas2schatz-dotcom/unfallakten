@@ -75,7 +75,7 @@ function QuickAkteSearch({ onOpenAkte }) {
         <span style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)", fontSize:"0.8rem", color:"rgba(255,255,255,0.35)", pointerEvents:"none" }}>🔍</span>
       </div>
       {open && items.length > 0 && (
-        <div style={{ position:"absolute", left:"0.5rem", right:"0.5rem", top:"calc(100% - 2px)", background:"#fff", border:"1px solid #ddd", borderRadius:7, boxShadow:"0 6px 20px rgba(0,0,0,0.18)", zIndex:200, overflow:"hidden" }}>
+        <div style={{ position:"absolute", left:"0.5rem", right:"0.5rem", top:"calc(100% - 2px)", background:T.cardBg, border:"1px solid #ddd", borderRadius:7, boxShadow:"0 6px 20px rgba(0,0,0,0.18)", zIndex:200, overflow:"hidden" }}>
           {items.slice(0, 6).map((a, i) => (
             <div key={i}
               onMouseDown={() => select(a)}
