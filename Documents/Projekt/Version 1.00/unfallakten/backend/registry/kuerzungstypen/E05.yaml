@@ -1,0 +1,11 @@
+typ_code: "E05"
+name: "Zulassungsdienst"
+kategorie_code: "E"
+kategorie_label: "Nebenkosten"
+baustein_pfad: true
+keywords:
+- "Zulassungsdienst"
+- "Zulassungskosten"
+keywords_erfordert: []
+llm_hinweis: "Kürzung der Kosten für den Zulassungsdienst"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

@@ -1,0 +1,14 @@
+typ_code: "A01"
+name: "Ersatzteilaufschläge / UPE-Zuschläge"
+kategorie_code: "A"
+kategorie_label: "Reparaturkosten fiktiv"
+baustein_pfad: true
+keywords:
+- "UPE"
+- "UPE-Aufschläge"
+- "Ersatzteilaufschläge"
+- "Aufschläge auf Ersatzteile"
+keywords_erfordert: []
+llm_hinweis: "Kürzung der Aufschläge auf Ersatzteile (UPE) bei fiktiver Abrechnung\
+  \ der Reparaturkosten"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

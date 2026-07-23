@@ -1,0 +1,12 @@
+typ_code: "E03"
+name: "Abschleppkosten"
+kategorie_code: "E"
+kategorie_label: "Nebenkosten"
+baustein_pfad: true
+keywords:
+- "Abschleppkosten"
+- "Abschleppgebühr"
+- "Bergungskosten"
+keywords_erfordert: []
+llm_hinweis: "Kürzung der Abschlepp- oder Bergungskosten"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

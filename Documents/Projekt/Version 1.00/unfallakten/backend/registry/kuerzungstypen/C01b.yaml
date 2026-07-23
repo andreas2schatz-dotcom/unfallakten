@@ -1,0 +1,14 @@
+typ_code: "C01b"
+name: "Wertminderung – Umsatzsteuer"
+kategorie_code: "C"
+kategorie_label: "Fahrzeugwert"
+baustein_pfad: true
+keywords:
+- "Umsatzsteuer"
+- "Mehrwertsteuer"
+keywords_erfordert:
+- "Wertminderung"
+- "merkantil"
+llm_hinweis: "Kürzung der Wertminderung wegen fälschlichem Abzug oder Hinzurechnung\
+  \ von Umsatzsteuer"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

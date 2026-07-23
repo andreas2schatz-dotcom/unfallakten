@@ -1,0 +1,12 @@
+typ_code: "F03"
+name: "Verdienstausfall"
+kategorie_code: "F"
+kategorie_label: "Personenschaden"
+baustein_pfad: false
+keywords:
+- "Verdienstausfall"
+- "Verdienstausfallschaden"
+- "Lohnausfall"
+keywords_erfordert: []
+llm_hinweis: "Kürzung des geltend gemachten Verdienstausfalls"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

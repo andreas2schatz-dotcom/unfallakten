@@ -1,0 +1,13 @@
+typ_code: "D01"
+name: "Nutzungsausfall"
+kategorie_code: "D"
+kategorie_label: "Ausfall/Mobilität"
+baustein_pfad: true
+keywords:
+- "Nutzungsausfall"
+- "Nutzungsausfallentschädigung"
+- "Ausfalltage"
+keywords_erfordert: []
+llm_hinweis: "Kürzung der Nutzungsausfallentschädigung, etwa durch weniger anerkannte\
+  \ Ausfalltage"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

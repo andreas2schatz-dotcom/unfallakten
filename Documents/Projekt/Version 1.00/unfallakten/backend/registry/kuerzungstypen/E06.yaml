@@ -1,0 +1,12 @@
+typ_code: "E06"
+name: "Unkostenpauschale"
+kategorie_code: "E"
+kategorie_label: "Nebenkosten"
+baustein_pfad: true
+keywords:
+- "Unkostenpauschale"
+- "Kostenpauschale"
+- "Auslagenpauschale"
+keywords_erfordert: []
+llm_hinweis: "Kürzung der allgemeinen Unkostenpauschale des Geschädigten"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

@@ -1,0 +1,13 @@
+typ_code: "F01"
+name: "Schmerzensgeld-Zurückstellung (HWS/Nachweis)"
+kategorie_code: "F"
+kategorie_label: "Personenschaden"
+baustein_pfad: true
+keywords:
+- "Schmerzensgeld"
+- "Verletzungsnachweis"
+- "HWS"
+keywords_erfordert: []
+llm_hinweis: "Zurückstellung/Kürzung des Schmerzensgeldes mangels Verletzungsnachweis,\
+  \ insbesondere bei HWS-Beschwerden"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

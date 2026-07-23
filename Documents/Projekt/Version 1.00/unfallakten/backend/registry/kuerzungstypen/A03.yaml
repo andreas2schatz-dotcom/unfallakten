@@ -1,0 +1,12 @@
+typ_code: "A03"
+name: "Beilackierung"
+kategorie_code: "A"
+kategorie_label: "Reparaturkosten fiktiv"
+baustein_pfad: true
+keywords:
+- "Beilackierung"
+- "Beilackierungskosten"
+keywords_erfordert: []
+llm_hinweis: "Kürzung der Kosten für die Beilackierung angrenzender Fahrzeugteile\
+  \ bei fiktiver Abrechnung"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

@@ -1,0 +1,13 @@
+typ_code: "E06b"
+name: "Unkostenpauschale – 2. Runde"
+kategorie_code: "E"
+kategorie_label: "Nebenkosten"
+baustein_pfad: true
+keywords:
+- "Unkostenpauschale"
+- "Kostenpauschale"
+- "erneute Kürzung"
+- "wiederholte Kürzung"
+keywords_erfordert: []
+llm_hinweis: "Erneute Kürzung der Unkostenpauschale in einer zweiten Korrespondenzrunde"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

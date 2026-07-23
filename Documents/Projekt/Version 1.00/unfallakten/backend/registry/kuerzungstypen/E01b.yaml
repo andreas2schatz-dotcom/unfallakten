@@ -1,0 +1,10 @@
+typ_code: "E01b"
+name: "SV-Grundhonorar – JVEG"
+kategorie_code: "E"
+kategorie_label: "Nebenkosten"
+baustein_pfad: true
+keywords:
+- "JVEG"
+keywords_erfordert: []
+llm_hinweis: "Kürzung des SV-Grundhonorars unter Verweis auf die JVEG-Sätze"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

@@ -1,0 +1,13 @@
+typ_code: "E01c"
+name: "SV-Grundhonorar – HUK-Tableau"
+kategorie_code: "E"
+kategorie_label: "Nebenkosten"
+baustein_pfad: true
+keywords:
+- "Honorartableau"
+- "HUK-Tableau"
+- "Tableau"
+keywords_erfordert: []
+llm_hinweis: "Kürzung des SV-Grundhonorars unter Verweis auf ein Honorartableau (z.\
+  \ B. HUK-Tableau)"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

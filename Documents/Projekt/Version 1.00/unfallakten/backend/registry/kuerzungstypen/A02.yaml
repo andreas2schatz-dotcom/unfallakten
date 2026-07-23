@@ -1,0 +1,13 @@
+typ_code: "A02"
+name: "Verbringungskosten"
+kategorie_code: "A"
+kategorie_label: "Reparaturkosten fiktiv"
+baustein_pfad: true
+keywords:
+- "Verbringung"
+- "Verbringungskosten"
+- "Fremdlackierung"
+keywords_erfordert: []
+llm_hinweis: "Kürzung der Kosten für Verbringung des Fahrzeugs zur Lackiererei bei\
+  \ fiktiver Abrechnung"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

@@ -1,0 +1,11 @@
+typ_code: "A10"
+name: "Reparaturbestätigung"
+kategorie_code: "A"
+kategorie_label: "Reparaturkosten fiktiv"
+baustein_pfad: false
+keywords:
+- "Reparaturbestätigung"
+- "Reparaturnachweis"
+keywords_erfordert: []
+llm_hinweis: "Kürzung wegen fehlender oder unzureichender Reparaturbestätigung/Reparaturnachweis"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

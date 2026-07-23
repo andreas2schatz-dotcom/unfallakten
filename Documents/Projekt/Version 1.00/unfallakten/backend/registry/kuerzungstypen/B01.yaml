@@ -1,0 +1,12 @@
+typ_code: "B01"
+name: "Kürzung Reparaturrechnung"
+kategorie_code: "B"
+kategorie_label: "Reparaturkosten konkret"
+baustein_pfad: true
+keywords:
+- "Reparaturrechnung"
+- "Kürzung Reparaturrechnung"
+- "Werkstattrechnung"
+keywords_erfordert: []
+llm_hinweis: "Kürzung der konkret abgerechneten Reparaturrechnung durch den Versicherer"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

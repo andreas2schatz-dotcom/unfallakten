@@ -149,6 +149,13 @@ def erstelle_app(test_config: dict = None) -> Flask:
         len(_pmreg.aktionen), _pmreg.version,
     )
 
+    # ── Kürzungstyp-Registry (Kürzungstaxonomie Phase 1): Fail-Loud ───────────
+    # Defektes YAML in registry/kuerzungstypen bricht den App-Start ab.
+    from .services.kuerzungstyp_registry import lade_kuerzungstypen
+    _ktreg = lade_kuerzungstypen(reload=True)
+    logger.info("Kürzungstyp-Registry geladen: %d Typen (Version %s)",
+                len(_ktreg.typen), _ktreg.version)
+
     # ── Rausch-Absender-Registry: Fail-Loud vor DB-Init ───────────────────────
     # Defektes YAML bricht den App-Start ab, statt spaeter jede Intake-Mail
     # scheitern zu lassen (sonst stiller Intake-Stillstand).

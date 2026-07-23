@@ -1,0 +1,12 @@
+typ_code: "A11"
+name: "Abrechnungszeitpunkt / Preissteigerung"
+kategorie_code: "A"
+kategorie_label: "Reparaturkosten fiktiv"
+baustein_pfad: false
+keywords:
+- "Preissteigerung"
+- "Abrechnungszeitpunkt"
+- "Zeitpunkt der Abrechnung"
+keywords_erfordert: []
+llm_hinweis: "Kürzung wegen Preissteigerungen zwischen Gutachtenerstellung und Abrechnungszeitpunkt"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

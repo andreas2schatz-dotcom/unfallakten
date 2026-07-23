@@ -1,0 +1,10 @@
+typ_code: "E05c"
+name: "Wunschkennzeichen"
+kategorie_code: "E"
+kategorie_label: "Nebenkosten"
+baustein_pfad: false
+keywords:
+- "Wunschkennzeichen"
+keywords_erfordert: []
+llm_hinweis: "Kürzung der Mehrkosten für ein Wunschkennzeichen"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

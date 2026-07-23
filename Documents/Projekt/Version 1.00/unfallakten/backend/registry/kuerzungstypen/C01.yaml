@@ -1,0 +1,12 @@
+typ_code: "C01"
+name: "Wertminderung"
+kategorie_code: "C"
+kategorie_label: "Fahrzeugwert"
+baustein_pfad: true
+keywords:
+- "Wertminderung"
+- "merkantile Wertminderung"
+- "Minderwert"
+keywords_erfordert: []
+llm_hinweis: "Kürzung der merkantilen Wertminderung des Fahrzeugs"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

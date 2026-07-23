@@ -1,0 +1,14 @@
+typ_code: "A04b"
+name: "Stundenverrechnungssätze (Variante Prüfbericht-Erwiderung)"
+kategorie_code: "A"
+kategorie_label: "Reparaturkosten fiktiv"
+baustein_pfad: true
+keywords:
+- "Stundenverrechnungssätze"
+- "Prüfbericht-Erwiderung"
+- "Prüfberichtserwiderung"
+keywords_erfordert:
+- "Prüfbericht"
+llm_hinweis: "Kürzung der Stundenverrechnungssätze im Rahmen einer Erwiderung auf\
+  \ einen Prüfbericht des Versicherers"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

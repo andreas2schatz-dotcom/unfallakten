@@ -1,0 +1,16 @@
+typ_code: "E05b"
+name: "Kennzeichen / Schilderkosten"
+kategorie_code: "E"
+kategorie_label: "Nebenkosten"
+baustein_pfad: true
+keywords:
+- "Schilderkosten"
+- "Kennzeichen"
+keywords_erfordert:
+- "Schilder"
+- "Prägung"
+- "Erneuerung"
+- "neue Kennzeichen"
+llm_hinweis: "Kürzung der Kosten für neue Kennzeichen/Schilder bei Ummeldung oder\
+  \ Neuzulassung"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

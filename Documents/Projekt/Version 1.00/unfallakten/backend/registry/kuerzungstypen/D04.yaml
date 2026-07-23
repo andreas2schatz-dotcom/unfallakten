@@ -1,0 +1,12 @@
+typ_code: "D04"
+name: "Mietwagenrechnung"
+kategorie_code: "D"
+kategorie_label: "Ausfall/Mobilität"
+baustein_pfad: false
+keywords:
+- "Mietwagenrechnung"
+- "Mietwagenkosten"
+- "Mietwagen"
+keywords_erfordert: []
+llm_hinweis: "Kürzung der Mietwagenrechnung durch den Versicherer"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

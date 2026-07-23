@@ -1,0 +1,11 @@
+typ_code: "A05a"
+name: "Fehlerspeicher auslesen"
+kategorie_code: "A"
+kategorie_label: "Reparaturkosten fiktiv"
+baustein_pfad: true
+keywords:
+- "Fehlerspeicher"
+keywords_erfordert: []
+llm_hinweis: "Kürzung der Kosten für das Auslesen des Fehlerspeichers bei fiktiver\
+  \ Abrechnung"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

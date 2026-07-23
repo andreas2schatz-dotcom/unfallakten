@@ -1,0 +1,13 @@
+typ_code: "A04"
+name: "Stundenverrechnungssätze"
+kategorie_code: "A"
+kategorie_label: "Reparaturkosten fiktiv"
+baustein_pfad: true
+keywords:
+- "Stundenverrechnungssatz"
+- "Stundenverrechnungssätze"
+- "Stundensatz"
+keywords_erfordert: []
+llm_hinweis: "Kürzung der Reparaturkosten durch Verweis auf niedrigere Stundenverrechnungssätze\
+  \ einer freien Werkstatt"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

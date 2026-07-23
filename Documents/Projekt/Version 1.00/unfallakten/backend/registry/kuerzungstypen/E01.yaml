@@ -1,0 +1,13 @@
+typ_code: "E01"
+name: "Kürzung Sachverständigenrechnung"
+kategorie_code: "E"
+kategorie_label: "Nebenkosten"
+baustein_pfad: true
+keywords:
+- "Sachverständigenkosten"
+- "Sachverständigenhonorar"
+- "SV-Honorar"
+- "Grundhonorar"
+keywords_erfordert: []
+llm_hinweis: "Kürzung der Sachverständigenrechnung bzw. des SV-Grundhonorars"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

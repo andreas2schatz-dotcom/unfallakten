@@ -1,0 +1,12 @@
+typ_code: "A06"
+name: "Kleinteilpauschale"
+kategorie_code: "A"
+kategorie_label: "Reparaturkosten fiktiv"
+baustein_pfad: true
+keywords:
+- "Kleinteilepauschale"
+- "Kleinteilkostenpauschale"
+- "Kleinteile"
+keywords_erfordert: []
+llm_hinweis: "Kürzung der Kleinteilepauschale bei fiktiver Abrechnung der Reparaturkosten"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

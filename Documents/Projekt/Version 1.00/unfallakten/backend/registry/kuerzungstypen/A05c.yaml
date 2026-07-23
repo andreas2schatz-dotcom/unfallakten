@@ -1,0 +1,11 @@
+typ_code: "A05c"
+name: "Tankrest"
+kategorie_code: "A"
+kategorie_label: "Reparaturkosten fiktiv"
+baustein_pfad: true
+keywords:
+- "Tankrest"
+- "Restkraftstoff"
+keywords_erfordert: []
+llm_hinweis: "Kürzung der Kosten für den Tankrest/Restkraftstoff bei fiktiver Abrechnung"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

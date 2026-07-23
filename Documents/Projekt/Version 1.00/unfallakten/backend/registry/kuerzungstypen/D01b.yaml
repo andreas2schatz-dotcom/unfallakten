@@ -1,0 +1,12 @@
+typ_code: "D01b"
+name: "Nutzungsausfall Schadentag / SV-Besichtigung"
+kategorie_code: "D"
+kategorie_label: "Ausfall/Mobilität"
+baustein_pfad: true
+keywords:
+- "Schadentag"
+- "Besichtigungstag"
+keywords_erfordert:
+- "Nutzungsausfall"
+llm_hinweis: "Kürzung des Nutzungsausfalls um den Schadentag oder den Tag der SV-Besichtigung"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

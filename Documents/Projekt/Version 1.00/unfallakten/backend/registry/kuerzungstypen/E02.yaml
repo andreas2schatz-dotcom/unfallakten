@@ -1,0 +1,16 @@
+typ_code: "E02"
+name: "SV-Nebenkosten-Pauschale"
+kategorie_code: "E"
+kategorie_label: "Nebenkosten"
+baustein_pfad: true
+keywords:
+- "Nebenkosten"
+- "Nebenkostenpauschale"
+- "Fahrtkosten"
+- "Fotokosten"
+- "Schreibkosten"
+keywords_erfordert:
+- "Sachverständig"
+- "Gutacht"
+llm_hinweis: "Kürzung der Nebenkosten des Sachverständigen (Fahrt-, Foto-, Schreibkosten)"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

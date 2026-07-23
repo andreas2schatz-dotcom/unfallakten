@@ -1,0 +1,14 @@
+typ_code: "A07"
+name: "Neu-für-alt-Abzug"
+kategorie_code: "A"
+kategorie_label: "Reparaturkosten fiktiv"
+baustein_pfad: false
+keywords:
+- "neu für alt"
+- "Neu-für-alt"
+- "Abzug neu für alt"
+- "Vorteilsausgleich"
+keywords_erfordert: []
+llm_hinweis: "Abzug 'neu für alt' als Vorteilsausgleich bei Erneuerung verschlissener\
+  \ Fahrzeugteile"
+verifiziert_am: "handgeprüft RA Schatz, Juli 2026"
