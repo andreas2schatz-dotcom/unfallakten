@@ -1815,6 +1815,72 @@ function PruefberichteGespeichertListe({ pruefberichte, mandantAdresse, akteId, 
 
 
 
+const RUNDEN_STATUS = {
+  nachzahlung:      { label: "Nachzahlung",      farbe: "green"  },
+  aufrechterhalten: { label: "aufrechterhalten", farbe: "grau"   },
+  neu:              { label: "neu",              farbe: "rot"    },
+  erhoeht:          { label: "erhöht",           farbe: "rot"    },
+};
+
+function RundenVergleichKachel({ akteId, kuerzungsarten, refreshKey }) {
+  const [daten, setDaten] = useState(null);
+
+  useEffect(() => {
+    let aktiv = true;
+    apiAbrechnungen.runden(akteId)
+      .then(d => { if (aktiv) setDaten(d); })
+      .catch(() => { if (aktiv) setDaten(null); });
+    return () => { aktiv = false; };
+  }, [akteId, refreshKey]);
+
+  if (!daten || (daten.runden || []).length < 2) return null;
+
+  const statusFarbe = s => {
+    const f = RUNDEN_STATUS[s]?.farbe;
+    return f === "green" ? T.green : f === "rot" ? T.redText : T.textMid;
+  };
+
+  return (
+    <Card>
+      <CardHead titel={`Runden-Vergleich (${daten.runden.length} Abrechnungsrunden)`} />
+      <div style={{ padding: "0.5rem 1.1rem 0.9rem" }}>
+        {daten.vergleich.length === 0 ? (
+          <div style={{ fontFamily: T.fontBody, fontSize: "0.875rem", color: T.textFaint }}>
+            Keine Kürzungen zwischen den Runden zu vergleichen.
+          </div>
+        ) : daten.vergleich.map((v, i) => {
+          const art = kuerzungsarten.find(k => k.id === v.kuerzungsart_id);
+          return (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10,
+              padding: "6px 0", borderBottom: `1px solid ${T.border}`,
+              fontFamily: T.fontBody, fontSize: "0.875rem" }}>
+              <span style={{ flex: 1, color: T.text, fontWeight: 500 }}>
+                {POSITION_LABELS_FE[v.position_key] || v.position_key}
+              </span>
+              {v.typ_code && (
+                <span title={art?.bezeichnung || ""}
+                  style={{ padding: "1px 8px", borderRadius: 10, fontSize: "0.75rem",
+                    fontWeight: 600, background: T.blueBg, color: T.blue,
+                    whiteSpace: "nowrap" }}>
+                  {v.typ_code}
+                </span>
+              )}
+              <span style={{ fontFamily: "ui-monospace,monospace", color: T.textMid,
+                whiteSpace: "nowrap" }}>
+                {fmtEuro(v.betrag_alt)} → {fmtEuro(v.betrag_neu)}
+              </span>
+              <span style={{ minWidth: 150, textAlign: "right", fontWeight: 600,
+                color: statusFarbe(v.status), whiteSpace: "nowrap" }}>
+                {v.delta > 0 ? "+" : ""}{fmtEuro(v.delta)} · {RUNDEN_STATUS[v.status]?.label || v.status}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, schaden, abrechnungenCached, beteiligte, dokumente }) {
   const [abrechnungen, setAbrechnungen]   = useState([]);
   const [kuerzungsarten, setKuerzungsarten] = useState([]);
@@ -2420,6 +2486,10 @@ function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, s
             )}
           </div>
         )}
+
+        {/* ── Runden-Vergleich (Task 9): sichtbar ab 2 Abrechnungsrunden ── */}
+        <RundenVergleichKachel akteId={akteId} kuerzungsarten={kuerzungsarten}
+          refreshKey={abrechnungen.length} />
 
         {/* ── Haupt-Regulierungskarte ── */}
         <Card>

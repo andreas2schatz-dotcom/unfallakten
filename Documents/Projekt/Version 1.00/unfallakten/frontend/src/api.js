@@ -633,6 +633,7 @@ export const abrechnungen = {
   klagebetrag: (akteId)      => request(`/akten/${akteId}/abrechnungen/klagebetrag`),
   typVorschlaege: (akteId, abid) =>
     request(`/akten/${akteId}/abrechnungen/${abid}/typ-vorschlaege`),
+  runden: (akteId) => request(`/akten/${akteId}/abrechnungen/runden`),
 };
 
 /** Prüfberichte */

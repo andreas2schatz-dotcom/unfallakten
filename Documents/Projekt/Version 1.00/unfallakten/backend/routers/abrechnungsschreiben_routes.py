@@ -282,6 +282,17 @@ def klagebetrag(akte_id: str):
     return _j(hole_klagebetrag(akte_id))
 
 
+@abrechnung_bp.route("/runden", methods=["GET"])
+@login_erforderlich
+def abrechnungsrunden(akte_id: str):
+    akte_obj = _pruefe_akte(akte_id)
+    if not akte_obj:
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    az = akte_obj.aktenzeichen if hasattr(akte_obj, "aktenzeichen") else akte_id
+    from ..services.abrechnungsrunden_service import leite_runden_ab
+    return _j(leite_runden_ab(az))
+
+
 # ── Hilfsfunktion: quelle direkt aus DB lesen ───────────────────────────────
 def _hole_quelle(abid: int) -> str:
     """Liest quelle aus DB (Fallback wenn Modell das Feld noch nicht kennt)."""
