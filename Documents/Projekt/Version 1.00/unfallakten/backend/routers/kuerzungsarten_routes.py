@@ -27,6 +27,40 @@ def _err(m, s, **kw): return jsonify({"fehler": m, "status": s, **kw}), s
 def _body():        return request.get_json(silent=True) or {}
 
 
+PLATZHALTER_KATALOG = [
+    {"key": "MANDANT", "beschreibung": "Name der Mandantschaft", "beispiel": "Herr Max Beispiel"},
+    {"key": "AZ", "beschreibung": "Aktenzeichen der Kanzlei", "beispiel": "971/25"},
+    {"key": "VERSICHERER", "beschreibung": "Gegnerische Versicherung", "beispiel": "HUK-COBURG"},
+    {"key": "DATUM", "beschreibung": "Heutiges Datum", "beispiel": "23.07.2026"},
+    {"key": "KFZ", "beschreibung": "Fahrzeug (Hersteller/Typ/Kennzeichen)", "beispiel": "VW Golf, OF-XY 123"},
+    {"key": "RGGDAT", "beschreibung": "Datum des Regulierungsschreibens", "beispiel": "10.07.2026"},
+    {"key": "GUTACHTER", "beschreibung": "Name des Sachverständigen", "beispiel": "Dipl.-Ing. Muster"},
+    {"key": "FKLASSE", "beschreibung": "Fahrzeug-/Mietwagenklasse", "beispiel": "Gruppe F"},
+    {"key": "NUTZUNGSA", "beschreibung": "Nutzungsausfall-Tagessatz", "beispiel": "50,00 €"},
+    {"key": "NABETRAG", "beschreibung": "Nutzungsausfall-Gesamtbetrag", "beispiel": "350,00 €"},
+    {"key": "REPDAUER", "beschreibung": "Reparaturdauer laut Gutachten", "beispiel": "5 Arbeitstage"},
+    {"key": "KOSTENNB", "beschreibung": "Kostennote/Gebührenbetrag", "beispiel": "413,64 €"},
+    {"key": "SCHMGELD", "beschreibung": "Schmerzensgeld-Forderung", "beispiel": "1.500,00 €"},
+    {"key": "SGVORSCHUSS", "beschreibung": "Schmerzensgeld-Vorschuss", "beispiel": "500,00 €"},
+]
+
+_BEISPIEL_KONTEXT = {p["key"]: p["beispiel"] for p in PLATZHALTER_KATALOG}
+
+
+@kuerzungsarten_bp.route("/platzhalter", methods=["GET"])
+@login_erforderlich
+def platzhalter_katalog():
+    return jsonify(PLATZHALTER_KATALOG)
+
+
+@kuerzungsarten_bp.route("/vorschau", methods=["POST"])
+@login_erforderlich
+def textbaustein_vorschau():
+    from ..word.stellungnahme_service import ersetze_platzhalter
+    text = _body().get("text", "")
+    return _j({"vorschau": ersetze_platzhalter(text, _BEISPIEL_KONTEXT)})
+
+
 @kuerzungsarten_bp.route("", methods=["GET"])
 @login_erforderlich
 def liste_kuerzungsarten():
@@ -102,7 +136,8 @@ def update_kuerzungsart(kid: int):
     daten = _body()
     felder = {}
     for f in ("bezeichnung", "kategorie", "standard_gegenargument",
-               "rechtsgrundlagen", "hinweis_intern", "sortierung"):
+               "rechtsgrundlagen", "hinweis_intern", "sortierung",
+               "textbaustein"):
         if f in daten:
             felder[f] = daten[f]
     if "sv_stellungnahme_erforderlich" in daten:

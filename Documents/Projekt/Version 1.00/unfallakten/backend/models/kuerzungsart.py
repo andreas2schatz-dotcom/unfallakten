@@ -39,6 +39,9 @@ class Kuerzungsart:
     aktiv: bool = True
     sortierung: int = 0
     erstellt_am: Optional[str] = None
+    textbaustein: Optional[str] = None
+    typ_code: Optional[str] = None
+    verifiziert_am: Optional[str] = None
 
     @property
     def kategorie_label(self) -> str:
@@ -64,6 +67,9 @@ class Kuerzungsart:
             "aktiv":                            self.aktiv,
             "sortierung":                       self.sortierung,
             "erstellt_am":                      self.erstellt_am,
+            "textbaustein":                     self.textbaustein,
+            "typ_code":                         self.typ_code,
+            "verifiziert_am":                   self.verifiziert_am,
         }
 
 
@@ -98,7 +104,7 @@ def erstelle_kuerzungsart(
 
     erlaubt = {
         "standard_gegenargument", "rechtsgrundlagen", "hinweis_intern",
-        "sv_stellungnahme_erforderlich", "sortierung",
+        "sv_stellungnahme_erforderlich", "sortierung", "textbaustein",
     }
     daten = {k: v for k, v in felder.items() if k in erlaubt}
     daten["bezeichnung"] = bezeichnung
@@ -123,6 +129,7 @@ def aktualisiere_kuerzungsart(kid: int, **felder) -> Optional[Kuerzungsart]:
         "bezeichnung", "kategorie", "standard_gegenargument",
         "rechtsgrundlagen", "hinweis_intern",
         "sv_stellungnahme_erforderlich", "aktiv", "sortierung",
+        "textbaustein",
     }
     updates = {k: v for k, v in felder.items() if k in erlaubt}
     if not updates:
