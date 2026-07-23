@@ -39,7 +39,7 @@ _KATEGORIEN = {"fahrzeugschaden", "nebenkosten", "personenschaden",
 
 _YAML_DATEIEN = ("positionsarten.yaml", "ereignistypen.yaml",
                   "aktionen.yaml", "rechnungstyp_mapping.yaml",
-                  "klasse_ereignistyp.yaml")
+                  "klasse_ereignistyp.yaml", "positions_synonyme.yaml")
 
 # Sondermarker aus dem alten _KLASSE_POSITION_MAP: wird zur Laufzeit
 # auf sv_kosten resolved (belege_routes.py, abhaengig vom Vorsteuer-
@@ -56,6 +56,7 @@ class PositionsmodellRegistry:
     aktionen:              Dict[str, Dict[str, Any]]
     rechnungstyp_mapping:  Dict[str, str]
     klasse_ereignistyp:    Dict[str, str]
+    positions_synonyme:    Dict[str, str]
 
 
 _cache: Dict[str, PositionsmodellRegistry] = {}
@@ -156,6 +157,13 @@ def lade_positionsmodell(pfad: Optional[str] = None, *,
     klasse_ereignistyp = _validiere_klasse_ereignistyp(
         klasse_ereignistyp_roh, ereignistypen,
     )
+    positions_synonyme_roh = _extrahiere_mapping(
+        daten["positions_synonyme.yaml"],
+        "positions_synonyme", "positions_synonyme.yaml",
+    )
+    positions_synonyme = _validiere_positions_synonyme(
+        positions_synonyme_roh, positionsarten,
+    )
 
     registry = PositionsmodellRegistry(
         version=hasher.hexdigest()[:16],
@@ -165,13 +173,14 @@ def lade_positionsmodell(pfad: Optional[str] = None, *,
         aktionen=aktionen,
         rechnungstyp_mapping=rechnungstyp_mapping,
         klasse_ereignistyp=klasse_ereignistyp,
+        positions_synonyme=positions_synonyme,
     )
     _cache[pfad_norm] = registry
     logger.info(
         "Positionsmodell-Registry geladen: %d Arten, %d Typen, %d Aktionen, "
-        "%d Rechnungstyp-Mappings (version=%s)",
+        "%d Rechnungstyp-Mappings, %d Positions-Synonyme (version=%s)",
         len(positionsarten), len(ereignistypen), len(aktionen),
-        len(rechnungstyp_mapping), registry.version,
+        len(rechnungstyp_mapping), len(positions_synonyme), registry.version,
     )
     return registry
 
@@ -197,6 +206,30 @@ def _validiere_rechnungstyp_mapping(
                 "position_key, der nicht in positionsarten.yaml existiert"
             )
         ergebnis[klasse.strip()] = ziel.strip()
+    return ergebnis
+
+
+def _validiere_positions_synonyme(
+    roh: Dict[str, Any],
+    positionsarten: Dict[str, Dict[str, Any]],
+) -> Dict[str, str]:
+    ergebnis: Dict[str, str] = {}
+    for synonym, ziel in roh.items():
+        if not isinstance(synonym, str) or not synonym.strip():
+            raise RuntimeError(
+                f"positions_synonyme: leeres Synonym {synonym!r}"
+            )
+        if not isinstance(ziel, str) or not ziel.strip():
+            raise RuntimeError(
+                f"positions_synonyme[{synonym!r}]: Ziel muss String sein "
+                f"(ist {type(ziel).__name__})"
+            )
+        if ziel not in positionsarten:
+            raise RuntimeError(
+                f"positions_synonyme[{synonym!r}]={ziel!r} zeigt auf "
+                "position_key, der nicht in positionsarten.yaml existiert"
+            )
+        ergebnis[synonym.strip().lower()] = ziel.strip()
     return ergebnis
 
 

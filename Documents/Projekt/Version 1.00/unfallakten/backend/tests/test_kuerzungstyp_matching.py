@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+import unittest.mock
 
 
 class _DBBasis(unittest.TestCase):
@@ -70,6 +71,34 @@ class TestRegelMatching(_DBBasis):
                 "Sachverhalt: " + "Fahrzeug am Werktag besichtigt. " * 30)
         self.assertGreater(len(text), 600)
         self.assertEqual(self._vorschlaege(text), [])
+
+
+class TestLlmFallback(_DBBasis):
+    def test_fallback_nur_wenn_regeln_leer(self):
+        from backend.services import kuerzungstyp_matching as m
+        aufrufe = []
+
+        def fake_klassifiziere(labels, text):
+            aufrufe.append(labels)
+            return ("A02", 0.8)
+
+        with unittest.mock.patch.object(
+                m, "_klassifiziere_via_llm", side_effect=fake_klassifiziere):
+            v = m.schlage_typen_vor(
+                "Die Position wird nicht anerkannt, unklarer Grund.",
+                dokumentklasse="pruefbericht", llm_fallback=True)
+        self.assertEqual([x.typ_code for x in v], ["A02"])
+        self.assertEqual(v[0].quelle, "llm")
+        self.assertEqual(len(aufrufe), 1)
+
+
+class TestPositionsSynonymik(unittest.TestCase):
+    def test_versicherer_synonyme(self):
+        from backend.services.kuerzungstyp_matching import normalisiere_positionslabel
+        self.assertEqual(normalisiere_positionslabel("Differenzbetrag"), "fahrzeugschaden")
+        self.assertEqual(normalisiere_positionslabel("Kostenpauschale"), "kostenpauschale")
+        self.assertEqual(normalisiere_positionslabel("Sachverständigenkosten"), "sv_kosten")
+        self.assertIsNone(normalisiere_positionslabel("Völlig Unbekanntes"))
 
 
 if __name__ == "__main__":

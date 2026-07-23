@@ -76,5 +76,29 @@ def _hat_kuerzungskontext(text: str, m: re.Match) -> bool:
     return bool(_KUERZUNGS_SIGNALE.search(fenster))
 
 
+def _klassifiziere_via_llm(labels, text):
+    from backend.services import llm_service
+    if not llm_service.is_available():
+        return (None, 0.0)
+    return llm_service.klassifiziere_geschlossen(labels, text)
+
+
 def _llm_fallback(text, reg, id_map) -> List[TypVorschlag]:
-    return []
+    labels = [f"{c}: {t['name']} — {t.get('llm_hinweis', '')}"
+              for c, t in sorted(reg.typen.items())] + ["KEINE: keine Kürzungsbegründung"]
+    label, konf = _klassifiziere_via_llm(labels, text[:4000])
+    if not label or label.startswith("KEINE"):
+        return []
+    code = label.split(":", 1)[0].strip()
+    if code not in reg.typen:
+        return []
+    return [TypVorschlag(typ_code=code, kuerzungsart_id=id_map.get(code),
+                         snippet=text[:240].strip(), quelle="llm",
+                         konfidenz=min(konf, 0.7))]
+
+
+def normalisiere_positionslabel(label: str) -> Optional[str]:
+    from backend.services.positionsmodell_registry import lade_positionsmodell
+    reg = lade_positionsmodell()
+    norm = " ".join(label.strip().lower().split())
+    return reg.positions_synonyme.get(norm)

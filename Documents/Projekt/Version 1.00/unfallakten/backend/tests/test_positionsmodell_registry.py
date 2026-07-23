@@ -59,6 +59,17 @@ class TestPositionsmodellRegistryLaden(unittest.TestCase):
                 "ereignistypen.yaml",
             )
 
+    def test_positions_synonyme_zeigen_auf_gueltige_position_keys(self):
+        from backend.services.positionsmodell_registry import lade_positionsmodell
+        reg = lade_positionsmodell(reload=True)
+        self.assertGreater(len(reg.positions_synonyme), 5)
+        for synonym, ziel in reg.positions_synonyme.items():
+            self.assertIn(
+                ziel, reg.positionsarten,
+                f"positions_synonyme[{synonym!r}] -> {ziel!r} ist kein "
+                "gueltiger position_key",
+            )
+
 
 class TestPositionsmodellRegistryFailLoud(unittest.TestCase):
     def setUp(self):
@@ -84,7 +95,7 @@ class TestPositionsmodellRegistryFailLoud(unittest.TestCase):
     def test_defektes_yaml_wirft(self):
         for name in ("positionsarten.yaml", "ereignistypen.yaml",
                      "aktionen.yaml", "rechnungstyp_mapping.yaml",
-                     "klasse_ereignistyp.yaml"):
+                     "klasse_ereignistyp.yaml", "positions_synonyme.yaml"):
             with open(os.path.join(self._tmp, name), "w",
                       encoding="utf-8") as f:
                 f.write("nicht: gueltiges: yaml: [")
@@ -123,6 +134,9 @@ class TestPositionsmodellRegistryFailLoud(unittest.TestCase):
         with open(os.path.join(self._tmp, "klasse_ereignistyp.yaml"), "w",
                    encoding="utf-8") as f:
             f.write("klasse_ereignistyp: {}\n")
+        with open(os.path.join(self._tmp, "positions_synonyme.yaml"), "w",
+                   encoding="utf-8") as f:
+            f.write("positions_synonyme: {}\n")
 
         from backend.services.positionsmodell_registry import lade_positionsmodell
         with self.assertRaisesRegex(RuntimeError, "ungueltiger_typ_xyz"):

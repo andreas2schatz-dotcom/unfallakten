@@ -1,0 +1,33 @@
+# positions_synonyme.yaml — P1.8 Kuerzungstaxonomie Phase 1 (Task 6)
+#
+# Versicherer-Templates (HDI/LVM/HUK etc.) benennen Positionen abweichend
+# vom internen position_key-Katalog. Dieses Mapping normalisiert
+# Freitext-Labels aus Abrechnungs-/Pruefberichten auf den kanonischen
+# position_key (aus positionsarten.yaml).
+#
+# Schluessel: normalisiertes Synonym (lowercase, Whitespace kollabiert).
+# Wert: MUSS ein existierender position_key aus positionsarten.yaml sein
+# (Validierung analog rechnungstyp_mapping.yaml, siehe
+# _validiere_positions_synonyme in positionsmodell_registry.py).
+#
+# Startbestand aus Phase-0-Stichproben (S11-S14, S23, HDI/LVM/HUK-Templates).
+
+positions_synonyme:
+  "differenzbetrag": fahrzeugschaden
+  "fahrzeugschaden": fahrzeugschaden
+  "reparaturkosten gemäß prüfbericht": reparaturkosten
+  "kostenpauschale": kostenpauschale
+  "unkostenpauschale": kostenpauschale
+  "auslagenpauschale": kostenpauschale
+  "sachverständigenkosten": sv_kosten
+  "sachverständigenhonorar": sv_kosten
+  "sv-kosten": sv_kosten
+  "gutachterkosten": sv_kosten
+  "rechtsanwaltsgebühren": ra_gebuehren
+  "rechtsverfolgungskosten": ra_gebuehren
+  "wertminderung": wertminderung
+  "merkantile wertminderung": wertminderung
+  "nutzungsausfall": nutzungsausfall
+  "nutzungsausfallentschädigung": nutzungsausfall
+  "abschleppkosten": abschleppkosten
+  "mietwagenkosten": mietwagenkosten
