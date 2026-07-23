@@ -558,21 +558,21 @@ export function StepRubrum({ beklagte, onClose, onVertreterLookup, vertreterLook
           }}>– {rolle} –</span>
         </div>
         {warn && (
-          <div style={{ fontSize: "0.78rem", color: T.amber, marginTop: 2,
+          <div style={{ fontSize: "0.78rem", color: "#92400e", marginTop: 2,
             display: "flex", alignItems: "center", gap: 8 }}>
             <span>⚠ Vertreter fehlt</span>
             {onLookup ? (
               <button onClick={onLookup} disabled={lookupLaeuft}
                 title="Vertretung online nachschlagen – ohne den Wizard zu verlassen"
-                style={{ background: T.cardBg, border: `1px solid ${T.amber}`, borderRadius: 5,
+                style={{ background: T.cardBg, border: `1px solid #92400e`, borderRadius: 5,
                   padding: "1px 8px", cursor: lookupLaeuft ? "wait" : "pointer",
-                  color: T.amberText, fontFamily: PLEX, fontSize: "0.78rem", fontWeight: 600 }}>
+                  color: "#92400e", fontFamily: PLEX, fontSize: "0.78rem", fontWeight: 600 }}>
                 {lookupLaeuft ? "⟳ sucht …" : "🔍 Lookup"}
               </button>
             ) : (
               <button onClick={() => { if (onClose) onClose(); setTimeout(() => document.getElementById("karte-parteien")?.scrollIntoView({ behavior: "smooth" }), 150); }}
                 style={{ background: "none", border: "none", padding: 0, cursor: "pointer",
-                  color: T.amber, fontFamily: PLEX, fontSize: "0.78rem", textDecoration: "underline", fontWeight: 600 }}>
+                  color: "#92400e", fontFamily: PLEX, fontSize: "0.78rem", textDecoration: "underline", fontWeight: 600 }}>
                 jetzt nachtragen →
               </button>
             )}
@@ -613,7 +613,7 @@ export function StepRubrum({ beklagte, onClose, onVertreterLookup, vertreterLook
       }}>
         {/* Kläger */}
         {klaeger.length === 0 ? (
-          <div style={{ color: T.amber }}>⚠ Kein Kläger erfasst.</div>
+          <div style={{ color: "#92400e" }}>⚠ Kein Kläger erfasst.</div>
         ) : klaeger.map((b, i) => {
           const name    = b.vorname ? `${b.vorname} ${b.name}`.trim() : b.name || b.firma || "Mandant";
           const anschr  = [b.anschrift, [b.plz, b.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ");
@@ -626,7 +626,7 @@ export function StepRubrum({ beklagte, onClose, onVertreterLookup, vertreterLook
         })}
 
         {klaeger.length > 0 && (
-          <div style={{ fontFamily: PLEX, fontSize: "0.875rem", color: T.text, margin: "0.5rem 0" }}>
+          <div style={{ fontFamily: PLEX, fontSize: "0.875rem", color: "#2d2a1e", margin: "0.5rem 0" }}>
             Prozessbevollmächtigte: Koch, Schatz &amp; Kollegen, Tulpenhofstr. 1, 63067 Offenbach
           </div>
         )}
@@ -643,7 +643,7 @@ export function StepRubrum({ beklagte, onClose, onVertreterLookup, vertreterLook
 
         {/* Beklagte */}
         {beklagteG.length === 0 ? (
-          <div style={{ color: T.amber, fontSize: "0.875rem" }}>⚠ Keine Beklagten ausgewählt.</div>
+          <div style={{ color: "#92400e", fontSize: "0.875rem" }}>⚠ Keine Beklagten ausgewählt.</div>
         ) : beklagteG.map((b, i) => {
           const istPerson  = istPersonPartei(b);
           const name       = parteiAnzeigeName(b);
