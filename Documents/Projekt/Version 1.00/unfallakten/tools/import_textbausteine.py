@@ -66,7 +66,37 @@ MAPPING: dict[str, int] = {
     "ghpfsvkosten":                      17,   # Kürzung Sachverständigenrechnung
     # 18 Mietwagenrechnung: kein Textbaustein
     # 19 Verdienstausfall: kein Textbaustein
+    # 20 A07 Neu-für-alt-Abzug: kein Baustein vorhanden
+    "repbest":                           21,   # A10 Reparaturbestätigung
+    "ghpfzeitpunkt":                     22,   # A11 Abrechnungszeitpunkt / Preissteigerung
+    "ghpfansprort.doc":                  23,   # A04b Stundenverrechnungssätze (Variante Prüfbericht-Erwiderung)
+    "ghpfreprg":                         24,   # B01b Rechnungskürzung trotz Reparatur (Variante)
+    "wertminderungsteuer":               25,   # C01b Wertminderung – Umsatzsteuer
+    "nutzungsausfall für schadentag und sv besichtigung": 26,  # D01b Nutzungsausfall Schadentag / SV-Besichtigung
+    "ghpfjveg":                          27,   # E01b SV-Grundhonorar – JVEG
+    "huktableau":                        28,   # E01c SV-Grundhonorar – HUK-Tableau
+    "ghpvnkpauschal":                    29,   # E02 SV-Nebenkosten-Pauschale
+    "ghpfabschleppgeb":                  30,   # E03 Abschleppkosten
+    "ghpfup2":                           31,   # E06b Unkostenpauschale – 2. Runde
+    "hws":                               32,   # F01 Schmerzensgeld-Zurückstellung (HWS/Nachweis)
 }
+
+# -- Bekannte Platzhalter (Katalog-Vorstufe, siehe Task 4) ---------------------
+
+PLATZHALTER_KATALOG: set[str] = {
+    "MANDANT", "AZ", "VERSICHERER", "DATUM", "KFZ", "RGGDAT", "GUTACHTER",
+    "FKLASSE", "NUTZUNGSA", "NABETRAG", "REPDAUER", "KOSTENNB", "SCHMGELD",
+    "SGVORSCHUSS",
+}
+
+# -- Masken-Zeilen (RA-MICRO) ---------------------------------------------------
+
+_MASKE_RE = re.compile(r"^.*&&\*.*$", re.MULTILINE)
+
+
+def _bereinige(text: str) -> str:
+    """Entfernt RA-MICRO-Maskenzeilen (z.B. '&&*&&*Maske: HUKKOPIE') aus dem Text."""
+    return _MASKE_RE.sub("", text).strip()
 
 
 # -- Hilfsfunktionen -----------------------------------------------------------
@@ -156,8 +186,10 @@ def run(schreiben: bool) -> None:
             name_key = pfad.stem.lower()
             kuerzungsart_id = MAPPING.get(name_key) or MAPPING.get(pfad.stem)
             text, felder_im_dok = _lese_datei(pfad)
+            text = _bereinige(text)
             platzhalter = _finde_platzhalter(text)
             alle_platzhalter.update(platzhalter)
+            unbekannte_platzhalter = [p for p in platzhalter if p not in PLATZHALTER_KATALOG]
 
             print(f"Datei: {pfad.name}")
             print(f"   Mapping -> ", end="")
@@ -174,6 +206,9 @@ def run(schreiben: bool) -> None:
                 print(f"   Platzhalter: {', '.join(f'<{p}>' for p in platzhalter)}")
             else:
                 print("   Platzhalter: keine")
+
+            for p in unbekannte_platzhalter:
+                print(f"   WARNUNG: unbekannter Platzhalter <{p}>")
 
             if felder_im_dok:
                 print(f"   Feldfunktionen ({len(felder_im_dok)}):")
