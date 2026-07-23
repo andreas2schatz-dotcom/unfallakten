@@ -1,0 +1,1044 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<title>P1.7 Mockup — Positions-Dashboard + AbleitungBadge + Dokument-Aktionsmenü</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Farben aus frontend/src/config/theme.js */
+    --navy: #1B2A4A;
+    --navyDark: #111d35;
+    --navyMid: #243660;
+    --accent: #A06B4A;
+    --accentLight: #C08F6C;
+    --accentPale: #F3EAE2;
+    --accentDark: #7D5038;
+    --accentTrim: rgba(160,107,74,0.18);
+    --white: #FFFFFF;
+    --offWhite: #F6F4EF;
+    --surface: #FAFAF8;
+    --border: #E2DDD3;
+    --borderSoft: rgba(226,221,211,0.6);
+    --text: #1a1a2e;
+    --textMid: #3d4060;
+    --textMuted: #6b7094;
+    --textFaint: #9da3be;
+    --green: #10b981;
+    --greenBg: #ecfdf5;
+    --greenLight: #86efac;
+    --greenText: #065f46;
+    --amber: #f59e0b;
+    --amberBg: #fffbeb;
+    --amberMid: #fef3c7;
+    --amberText: #92400e;
+    --red: #ef4444;
+    --redBg: #fef2f2;
+    --redLight: #fca5a5;
+    --redText: #991b1b;
+    --blue: #3b82f6;
+    --blueBg: #eff6ff;
+    --blueText: #1e40af;
+    --fontDisplay: 'Bricolage Grotesque', system-ui, sans-serif;
+    --fontBody: 'Figtree', system-ui, sans-serif;
+    --fontMono: ui-monospace, 'Cascadia Code', monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--offWhite); color: var(--text); font-family: var(--fontBody); font-size: 14px; line-height: 1.4; }
+
+  .stage {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 32px 24px 64px;
+  }
+
+  .stage h1 {
+    font-family: var(--fontDisplay);
+    font-weight: 600;
+    color: var(--navy);
+    letter-spacing: -0.02em;
+    margin: 0 0 6px;
+    font-size: 1.7rem;
+  }
+  .stage .sub { color: var(--textMuted); font-size: 0.85rem; margin-bottom: 26px; }
+  .stage .sub strong { color: var(--accentDark); font-weight: 600; }
+
+  /* ── Simulierter Übersicht-Kopf ──────────────────────────────── */
+  .akte-head {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .akte-head .az { font-family: var(--fontMono); font-size: 0.82rem; color: var(--textMuted); }
+  .akte-head .title { font-family: var(--fontDisplay); color: var(--navy); font-weight: 600; font-size: 1.15rem; letter-spacing: -0.01em; }
+  .akte-head .rubrum { color: var(--textMid); font-size: 0.82rem; }
+
+  /* ── PRD-18 Phasen-Strip (nur Kulisse, nicht Teil P1.7) ────── */
+  .phasenstrip {
+    display: flex;
+    gap: 0;
+    margin-bottom: 22px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .phasenstrip .phase {
+    flex: 1;
+    padding: 10px 14px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--textFaint);
+    border-right: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 600;
+  }
+  .phasenstrip .phase:last-child { border-right: 0; }
+  .phasenstrip .phase.done { color: var(--greenText); background: var(--greenBg); }
+  .phasenstrip .phase.active { color: var(--white); background: var(--navy); }
+  .phasenstrip .phase .dot { width:6px; height:6px; border-radius:50%; background: currentColor; opacity:.7; }
+
+  /* ── Card wie <Card>-Komponente ─────────────────────────────── */
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(27,42,74,0.03);
+    overflow: hidden;
+  }
+  .card + .card { margin-top: 18px; }
+  .card-head {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--borderSoft);
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .card-head .titel {
+    font-family: var(--fontDisplay);
+    font-size: 0.98rem;
+    font-weight: 600;
+    color: var(--navy);
+    letter-spacing: -0.005em;
+  }
+  .card-head .neu {
+    font-family: var(--fontBody);
+    background: var(--accentPale);
+    color: var(--accentDark);
+    font-size: 0.62rem;
+    padding: 3px 8px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    font-weight: 700;
+    border: 1px solid var(--accentTrim);
+  }
+  .card-body { padding: 14px 18px; }
+
+  /* ── Toggle aggregiert/getrennt ─────────────────────────────── */
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .toggle {
+    display: inline-flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 3px;
+  }
+  .toggle button {
+    background: transparent; border: 0; padding: 6px 14px;
+    font-family: var(--fontBody); font-size: 0.78rem; font-weight: 600;
+    color: var(--textMuted); border-radius: 6px; cursor: pointer;
+    transition: all .15s;
+  }
+  .toggle button.active {
+    background: var(--navy); color: var(--white);
+    box-shadow: 0 1px 2px rgba(27,42,74,0.2);
+  }
+  .registry-version {
+    color: var(--textFaint); font-size: 0.72rem; font-family: var(--fontMono);
+  }
+
+  /* ── Positions-Tabelle (getrennt) ───────────────────────────── */
+  .pos-list { display: flex; flex-direction: column; gap: 8px; }
+  .pos-row {
+    display: grid;
+    grid-template-columns: 1.6fr 130px 110px 110px 110px 190px 32px;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 12px 12px 14px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background .12s, border-color .12s, transform .12s;
+  }
+  .pos-row:hover {
+    background: var(--accentPale);
+    border-color: var(--accent);
+  }
+  .pos-row .name {
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .pos-row .name .titel {
+    font-weight: 600; color: var(--text); font-size: 0.92rem;
+  }
+  .pos-row .name .sub {
+    color: var(--textMuted); font-size: 0.72rem;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .pos-row .betrag {
+    font-family: var(--fontMono);
+    font-size: 0.88rem;
+    text-align: right;
+  }
+  .pos-row .betrag .lbl {
+    display: block; font-family: var(--fontBody); font-size: 0.66rem;
+    text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--textFaint); margin-bottom: 2px; font-weight: 600;
+  }
+  .pos-row .betrag.offen { color: var(--redText); font-weight: 600; }
+  .pos-row .betrag.anerkannt { color: var(--greenText); }
+  .pos-row .betrag.zero { color: var(--textFaint); }
+  .pos-row .checkliste {
+    font-size: 0.75rem; color: var(--textMid);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .pos-row .checkliste .frac { font-weight: 600; color: var(--text); }
+  .pos-row .checkliste .fehlt { color: var(--amberText); font-size: 0.7rem; }
+  .pos-row .checkliste .fehlt.ok { color: var(--greenText); }
+
+  .pos-row.state-anerkannt { border-left-color: var(--green); }
+  .pos-row.state-bestritten { border-left-color: var(--amber); }
+  .pos-row.state-abgelehnt { border-left-color: var(--red); }
+  .pos-row.state-offen { border-left-color: var(--navyMid); }
+  .pos-row.state-unbestaetigt {
+    border-left-color: var(--accent);
+    border-style: dashed;
+    background: repeating-linear-gradient(
+      -45deg,
+      var(--white) 0,
+      var(--white) 12px,
+      var(--accentPale) 12px,
+      var(--accentPale) 13px
+    );
+  }
+
+  .chev {
+    color: var(--textFaint);
+    font-size: 1.15rem;
+    justify-self: end;
+    line-height: 1;
+  }
+  .pos-row:hover .chev { color: var(--accent); }
+
+  /* ── Aggregiert-Ansicht ─────────────────────────────────────── */
+  .agg-row {
+    display: grid;
+    grid-template-columns: 1.6fr 130px 130px 130px 260px;
+    gap: 12px;
+    align-items: center;
+    padding: 14px 16px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 8px;
+  }
+  .agg-row .gruppe {
+    font-weight: 600; color: var(--text); font-size: 0.95rem;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .agg-row .gruppe .sub {
+    font-weight: 400; color: var(--textMuted); font-size: 0.75rem;
+  }
+  .agg-row .betrag {
+    text-align: right; font-family: var(--fontMono); font-size: 0.95rem;
+  }
+  .agg-row .betrag .lbl {
+    display: block; font-family: var(--fontBody); font-size: 0.66rem;
+    text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--textFaint); font-weight: 600;
+  }
+
+  /* ── Chips / Badges ─────────────────────────────────────────── */
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px; border-radius: 999px;
+    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em;
+    border: 1px solid;
+    white-space: nowrap;
+    line-height: 1;
+    font-family: var(--fontBody);
+  }
+  .chip.zustand-anerkannt { background: var(--greenBg); color: var(--greenText); border-color: var(--greenLight); }
+  .chip.zustand-bestritten { background: var(--amberMid); color: var(--amberText); border-color: var(--amber); }
+  .chip.zustand-abgelehnt { background: var(--redBg); color: var(--redText); border-color: var(--redLight); }
+  .chip.zustand-offen { background: var(--surface); color: var(--textMid); border-color: var(--border); }
+  .chip.zustand-unbestaetigt { background: var(--accentPale); color: var(--accentDark); border-color: var(--accent); }
+  .chip.eskalation {
+    background: var(--navy); color: var(--white); border-color: var(--navy);
+    padding: 4px 10px;
+  }
+  .chip.eskalation.grün { background: var(--green); border-color: var(--green); }
+  .chip.eskalation.warn { background: var(--amber); border-color: var(--amber); }
+  .chip.wdm-hinweis {
+    background: transparent; color: var(--accentDark);
+    border-color: var(--accent); border-style: dashed;
+  }
+
+  /* ── AbleitungBadge (Wissensgrenze) ─────────────────────────── */
+  .ableitung-badge {
+    display: inline-flex; align-items: flex-start; gap: 6px;
+    padding: 6px 10px;
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: var(--textMid);
+    line-height: 1.35;
+  }
+  .ableitung-badge.inline {
+    padding: 3px 8px;
+    font-size: 0.7rem;
+    background: transparent;
+    border-left: 0;
+    color: var(--textFaint);
+    font-style: italic;
+  }
+  .ableitung-badge .aussage { color: var(--text); font-weight: 500; font-style: normal; }
+  .ableitung-badge.err {
+    background: var(--redBg);
+    border-color: var(--red);
+    color: var(--redText);
+    font-weight: 600;
+    font-style: normal;
+  }
+
+  .footer-hinweis {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border);
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  }
+
+  /* ── Dokumente-Section (Aktionsmenü) ────────────────────────── */
+  .dok-row {
+    display: grid;
+    grid-template-columns: 22px 1.6fr 130px 130px 90px 40px;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--white);
+    margin-bottom: 6px;
+    position: relative;
+  }
+  .dok-row .icon {
+    color: var(--accent);
+    font-size: 0.95rem;
+    text-align: center;
+  }
+  .dok-row .name {
+    color: var(--navy); font-weight: 500; font-size: 0.87rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .dok-row .typ {
+    font-size: 0.72rem;
+    color: var(--textMuted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+  .dok-row .datum {
+    font-family: var(--fontMono); font-size: 0.78rem; color: var(--textMid);
+    text-align: right;
+  }
+  .dok-row .konfidenz {
+    text-align: right; font-size: 0.72rem;
+    color: var(--textMuted);
+  }
+  .dok-row .kebab {
+    background: transparent; border: 0; cursor: pointer;
+    color: var(--textMuted); font-size: 1.15rem; padding: 4px 8px;
+    border-radius: 6px;
+    justify-self: end;
+  }
+  .dok-row .kebab:hover { background: var(--surface); color: var(--accent); }
+
+  /* Popover / Aktionsmenü */
+  .aktionsmenue {
+    position: absolute;
+    top: 46px; right: 12px;
+    width: 340px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(27,42,74,0.14), 0 2px 6px rgba(27,42,74,0.06);
+    padding: 8px;
+    z-index: 10;
+  }
+  .aktionsmenue .titel {
+    padding: 8px 10px 4px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--textFaint);
+    font-weight: 700;
+  }
+  .aktion {
+    display: grid;
+    grid-template-columns: 26px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text);
+    transition: background .1s;
+  }
+  .aktion:hover { background: var(--accentPale); }
+  .aktion .ico { color: var(--accent); font-size: 1.05rem; text-align: center; }
+  .aktion .haupt { font-weight: 600; font-size: 0.85rem; color: var(--navy); }
+  .aktion .sub { color: var(--textMuted); font-size: 0.72rem; margin-top: 2px; }
+  .aktion .stufe {
+    font-family: var(--fontMono); font-size: 0.7rem;
+    color: var(--textFaint); font-weight: 500;
+  }
+  .aktion.primary { background: var(--navy); color: var(--white); }
+  .aktion.primary:hover { background: var(--navyDark); }
+  .aktion.primary .ico, .aktion.primary .haupt { color: var(--white); }
+  .aktion.primary .sub { color: rgba(255,255,255,0.75); }
+  .aktion.primary .stufe { color: var(--accentLight); }
+  .aktion.disabled { opacity: 0.5; cursor: not-allowed; }
+  .aktion.disabled:hover { background: transparent; }
+  .aktionsmenue .divider { height: 1px; background: var(--borderSoft); margin: 6px 4px; }
+
+  /* ── Ereignis-Slide-Panel (Ebene 2) ─────────────────────────── */
+  .ebene2 {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    box-shadow: 0 1px 2px rgba(27,42,74,0.03);
+  }
+  .ebene2 .kopf {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--borderSoft);
+    margin-bottom: 12px;
+  }
+  .ebene2 .kopf .titel {
+    font-family: var(--fontDisplay); font-weight: 600; font-size: 1.05rem; color: var(--navy);
+  }
+  .ebene2 .kopf .sub { font-size: 0.78rem; color: var(--textMuted); margin-top: 2px; }
+  .ereignis {
+    display: grid;
+    grid-template-columns: 100px 32px 1fr auto;
+    gap: 12px;
+    align-items: start;
+    padding: 12px 4px;
+    border-bottom: 1px solid var(--borderSoft);
+    position: relative;
+  }
+  .ereignis:last-child { border-bottom: 0; }
+  .ereignis.ersetzt { opacity: 0.55; }
+  .ereignis.ersetzt .haupt { text-decoration: line-through; text-decoration-color: var(--textFaint); }
+  .ereignis .datum {
+    font-family: var(--fontMono); font-size: 0.78rem; color: var(--textMid);
+    padding-top: 2px;
+  }
+  .ereignis .richtung {
+    display: flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--surface); border: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  .ereignis .richtung.aus { color: var(--blueText); background: var(--blueBg); border-color: var(--blue); }
+  .ereignis .richtung.ein { color: var(--greenText); background: var(--greenBg); border-color: var(--greenLight); }
+  .ereignis .richtung.sys { color: var(--accentDark); background: var(--accentPale); border-color: var(--accent); }
+  .ereignis .haupt { font-weight: 600; color: var(--text); font-size: 0.9rem; }
+  .ereignis .meta {
+    font-size: 0.75rem; color: var(--textMuted); margin-top: 2px;
+    display: flex; gap: 10px; flex-wrap: wrap;
+  }
+  .ereignis .meta a { color: var(--accentDark); text-decoration: none; font-weight: 500; border-bottom: 1px dotted var(--accent); }
+  .ereignis .status-tag {
+    font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.09em;
+    padding: 3px 7px; border-radius: 4px; font-weight: 700;
+    background: var(--greenBg); color: var(--greenText); border: 1px solid var(--greenLight);
+  }
+  .ereignis .status-tag.ersetzt { background: var(--surface); color: var(--textFaint); border-color: var(--border); }
+
+  .legende {
+    color: var(--textFaint); font-size: 0.72rem;
+    margin-top: 10px; font-family: var(--fontMono);
+  }
+
+  /* ── Layout Split ───────────────────────────────────────────── */
+  .split {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 22px;
+    margin-top: 22px;
+  }
+  @media (max-width: 1000px) { .split { grid-template-columns: 1fr; } }
+
+  /* ── Sektionstrenner ────────────────────────────────────────── */
+  .section-titel {
+    display: flex; align-items: baseline; gap: 12px;
+    margin: 44px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--accentPale);
+  }
+  .section-titel h2 {
+    font-family: var(--fontDisplay); font-weight: 600; font-size: 1.3rem;
+    color: var(--navy); margin: 0; letter-spacing: -0.01em;
+  }
+  .section-titel .kennz {
+    font-family: var(--fontMono); font-size: 0.75rem;
+    color: var(--accent); font-weight: 600;
+  }
+  .section-titel .plan {
+    color: var(--textFaint); font-size: 0.78rem; margin-left: auto;
+  }
+
+  .prose { color: var(--textMuted); font-size: 0.85rem; margin: 0 0 14px; max-width: 78ch; }
+  .prose code { font-family: var(--fontMono); background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: 0.78rem; color: var(--accentDark); border: 1px solid var(--border); }
+
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <h1>P1.7 — Positions-Dashboard · AbleitungBadge · Dokument-Aktionsmenü</h1>
+  <div class="sub">
+    Mockup zur UI-Abnahme vor Implementierung.
+    Alle Daten sind Beispieldaten für <strong>Akte 285/26 (Riccio ./. HUK-Coburg)</strong>.
+    Farben, Fonts und Kachel-Chrom aus <code style="font-family:var(--fontMono); background:var(--surface); border:1px solid var(--border); padding:1px 4px; border-radius:3px; font-size:0.75rem;">theme.js</code>.
+  </div>
+
+  <!-- ───────────────────────── Übersicht + Kontext ───────────────────────── -->
+  <div class="akte-head">
+    <div>
+      <div class="az">31/285-26</div>
+      <div class="title">Riccio ./. HUK-Coburg</div>
+      <div class="rubrum">SB · MA · Unfall vom 12.03.2026</div>
+    </div>
+    <div style="text-align:right; color:var(--textMuted); font-size:0.78rem;">
+      Übersicht (PRD-25b Action Board)
+    </div>
+  </div>
+
+  <div class="phasenstrip">
+    <div class="phase done"><span class="dot"></span>Erfassung</div>
+    <div class="phase done"><span class="dot"></span>Forderung</div>
+    <div class="phase active"><span class="dot"></span>Regulierung</div>
+    <div class="phase"><span class="dot"></span>Klage</div>
+    <div class="phase"><span class="dot"></span>Vollstreckung</div>
+  </div>
+
+  <!-- ───────────────────────── 1. Positions-Dashboard ───────────────────────── -->
+  <div class="section-titel">
+    <h2>① Positions-Dashboard</h2>
+    <span class="kennz">UebersichtSection.jsx · GET /akten/&lt;az&gt;/positionen/status</span>
+    <span class="plan">Plan §6.1</span>
+  </div>
+  <p class="prose">
+    Neuer Block direkt unter dem Phasen-Strip. Zeile pro Position mit Zustand,
+    gefordert/anerkannt/offen, Eskalationsvorschlag und Checkliste. Toggle bündelt
+    optional auf <em>Aggregations-Gruppen</em> aus <code>positionsarten.yaml</code>
+    (z.&nbsp;B. Fahrzeugschaden = Rep + WBW + Restwert + Wertminderung).
+    Berechnung <strong>ausschließlich</strong> im Backend — kein zweites
+    <code>calcBrutto</code> im Frontend.
+  </p>
+
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <div class="titel">Forderungen · Positions-Übersicht</div>
+        <div style="font-size:0.72rem; color:var(--textMuted); margin-top:2px;">
+          4 Positionen · gesamt gefordert <b style="color:var(--text); font-family:var(--fontMono);">7.485,00 €</b>
+          · anerkannt <b style="color:var(--greenText); font-family:var(--fontMono);">4.585,00 €</b>
+          · offen <b style="color:var(--redText); font-family:var(--fontMono);">2.900,00 €</b>
+        </div>
+      </div>
+      <span class="neu">Neu · P1.7</span>
+    </div>
+
+    <div class="card-body">
+
+      <div class="toggle-row">
+        <div class="toggle" id="toggle-agg">
+          <button data-view="getrennt" class="active">getrennt</button>
+          <button data-view="aggregiert">aggregiert (Fahrzeug/Personen/Neben)</button>
+        </div>
+        <span class="registry-version">registry v1.0 · stand 30.06.2026</span>
+      </div>
+
+      <!-- Ansicht: getrennt -->
+      <div class="pos-list view view-getrennt">
+
+        <!-- Reparaturkosten - bestritten -->
+        <div class="pos-row state-bestritten" onclick="oeffneEreignisse('reparaturkosten')">
+          <div class="name">
+            <div class="titel">Reparaturkosten</div>
+            <div class="sub">
+              <span class="chip zustand-bestritten">bestritten</span>
+              <span style="color:var(--textFaint);">·</span>
+              <span>Fahrzeug</span>
+            </div>
+          </div>
+          <div class="betrag">
+            <span class="lbl">gefordert</span>
+            6.200,00 €
+          </div>
+          <div class="betrag anerkannt">
+            <span class="lbl">anerkannt</span>
+            4.100,00 €
+          </div>
+          <div class="betrag offen">
+            <span class="lbl">offen</span>
+            2.100,00 €
+          </div>
+          <div>
+            <span class="chip eskalation warn">Stellungnahme empfohlen</span>
+          </div>
+          <div class="checkliste">
+            <span class="frac">3&nbsp;/&nbsp;4 Checkliste</span>
+            <span class="fehlt">fehlt: Fristsetzung 14&nbsp;Tage</span>
+          </div>
+          <div class="chev">›</div>
+        </div>
+
+        <!-- Wertminderung - streitig (bestritten) -->
+        <div class="pos-row state-bestritten" onclick="oeffneEreignisse('wertminderung')">
+          <div class="name">
+            <div class="titel">Wertminderung</div>
+            <div class="sub">
+              <span class="chip zustand-bestritten">bestritten</span>
+              <span style="color:var(--textFaint);">·</span>
+              <span>Fahrzeug</span>
+            </div>
+          </div>
+          <div class="betrag">
+            <span class="lbl">gefordert</span>
+            800,00 €
+          </div>
+          <div class="betrag zero">
+            <span class="lbl">anerkannt</span>
+            0,00 €
+          </div>
+          <div class="betrag offen">
+            <span class="lbl">offen</span>
+            800,00 €
+          </div>
+          <div>
+            <span class="chip eskalation">STA · Stufe&nbsp;1</span>
+          </div>
+          <div class="checkliste">
+            <span class="frac">2&nbsp;/&nbsp;3 Checkliste</span>
+            <span class="fehlt">fehlt: SV-Stellungnahme</span>
+          </div>
+          <div class="chev">›</div>
+        </div>
+
+        <!-- Nutzungsausfall - anerkannt -->
+        <div class="pos-row state-anerkannt" onclick="oeffneEreignisse('nutzungsausfall')">
+          <div class="name">
+            <div class="titel">Nutzungsausfall</div>
+            <div class="sub">
+              <span class="chip zustand-anerkannt">anerkannt</span>
+              <span style="color:var(--textFaint);">·</span>
+              <span>Fahrzeug · 12&nbsp;Tage &times; 35&nbsp;€</span>
+            </div>
+          </div>
+          <div class="betrag">
+            <span class="lbl">gefordert</span>
+            420,00 €
+          </div>
+          <div class="betrag anerkannt">
+            <span class="lbl">anerkannt</span>
+            420,00 €
+          </div>
+          <div class="betrag zero">
+            <span class="lbl">offen</span>
+            0,00 €
+          </div>
+          <div>
+            <span class="chip eskalation grün">erledigt</span>
+          </div>
+          <div class="checkliste">
+            <span class="frac">Vollständig</span>
+            <span class="fehlt ok">alles erfüllt</span>
+          </div>
+          <div class="chev">›</div>
+        </div>
+
+        <!-- WDM-Vorschlag - unbestätigt (has_unbestaetigt Flag) -->
+        <div class="pos-row state-unbestaetigt" onclick="oeffneEreignisse('sonstiger_schaden_wdm')">
+          <div class="name">
+            <div class="titel">
+              Sonstiger Schaden
+              <span class="chip wdm-hinweis" style="margin-left:6px;">WDM-Vorschlag · unbestätigt</span>
+            </div>
+            <div class="sub">
+              <span class="chip zustand-unbestaetigt">unbestätigt</span>
+              <span style="color:var(--textFaint);">·</span>
+              <span>Neben · Herkunft WDM (keine Rechnung)</span>
+            </div>
+          </div>
+          <div class="betrag">
+            <span class="lbl">gefordert</span>
+            65,00 €
+          </div>
+          <div class="betrag anerkannt">
+            <span class="lbl">anerkannt</span>
+            65,00 €
+          </div>
+          <div class="betrag zero">
+            <span class="lbl">offen</span>
+            0,00 €
+          </div>
+          <div>
+            <span class="chip eskalation warn">Rechnung anfordern</span>
+          </div>
+          <div class="checkliste">
+            <span class="frac">0&nbsp;/&nbsp;1 Checkliste</span>
+            <span class="fehlt">fehlt: Beleg fehlt</span>
+          </div>
+          <div class="chev">›</div>
+        </div>
+
+      </div>
+
+      <!-- Ansicht: aggregiert (initial versteckt) -->
+      <div class="view view-aggregiert" style="display:none;">
+        <div class="agg-row">
+          <div class="gruppe">Fahrzeugschaden
+            <span class="sub">Reparatur + Wertminderung + Nutzungsausfall</span>
+          </div>
+          <div class="betrag"><span class="lbl">gefordert</span>7.420,00 €</div>
+          <div class="betrag" style="color:var(--greenText);"><span class="lbl">anerkannt</span>4.520,00 €</div>
+          <div class="betrag" style="color:var(--redText); font-weight:600;"><span class="lbl">offen</span>2.900,00 €</div>
+          <div>
+            <span class="chip eskalation warn">Stellungnahme empfohlen</span>
+          </div>
+        </div>
+        <div class="agg-row">
+          <div class="gruppe">Nebenkosten
+            <span class="sub">Sonstiger Schaden (WDM)</span>
+          </div>
+          <div class="betrag"><span class="lbl">gefordert</span>65,00 €</div>
+          <div class="betrag" style="color:var(--greenText);"><span class="lbl">anerkannt</span>65,00 €</div>
+          <div class="betrag zero"><span class="lbl">offen</span>0,00 €</div>
+          <div>
+            <span class="chip eskalation warn">Rechnung anfordern</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-hinweis">
+        <div class="ableitung-badge">
+          <span style="font-size:1rem; line-height:1;">📍</span>
+          <span>
+            <span class="aussage">Zustand und Eskalationsvorschläge aus Aktenlage abgeleitet</span>
+            &nbsp;— nach Aktenlage, letztes Ereignis vom <b>30.06.2026</b>.
+          </span>
+        </div>
+        <span style="font-size:0.72rem; color:var(--textFaint); font-family:var(--fontMono);">
+          Berechnung: Backend (positionsstatus_service) · Frontend rendert nur
+        </span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ───────────────────────── 2. AbleitungBadge Varianten ───────────────────────── -->
+  <div class="section-titel">
+    <h2>② AbleitungBadge — Wissensgrenze</h2>
+    <span class="kennz">components/AbleitungBadge.jsx</span>
+    <span class="plan">Plan §6.2 / K-Punkt 3d</span>
+  </div>
+  <p class="prose">
+    Rendert <em>jede</em> abgeleitete Aussage zwingend zusammen mit dem Stand-Datum.
+    Fehlt <code>stand</code>, wird <strong>keine Aussage</strong> gezeigt, sondern ein Fehler —
+    technische Erzwingung der Ehrlichkeitsregel. Zwei Varianten: prominent (Kachel-Footer)
+    und inline (in Position-Zeilen, Chips).
+  </p>
+
+  <div class="card">
+    <div class="card-body" style="display:flex; flex-direction:column; gap:12px;">
+
+      <div>
+        <div style="font-size:0.72rem; color:var(--textFaint); text-transform:uppercase; letter-spacing:0.09em; margin-bottom:6px; font-weight:600;">Prominent (Kachel-Footer)</div>
+        <div class="ableitung-badge">
+          <span style="font-size:1rem; line-height:1;">📍</span>
+          <span>
+            <span class="aussage">Klage-Checkliste 4&nbsp;/&nbsp;4 erfüllt</span>
+            &nbsp;— nach Aktenlage, letztes Ereignis vom <b>30.06.2026</b>.
+          </span>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size:0.72rem; color:var(--textFaint); text-transform:uppercase; letter-spacing:0.09em; margin-bottom:6px; font-weight:600;">Inline (unter Positionszeile)</div>
+        <div class="ableitung-badge inline">
+          <span class="aussage">bestritten</span>
+          &nbsp;— nach Aktenlage vom 30.06.2026
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size:0.72rem; color:var(--textFaint); text-transform:uppercase; letter-spacing:0.09em; margin-bottom:6px; font-weight:600;">Fehlerzustand (Endpoint liefert kein <code>stand</code>)</div>
+        <div class="ableitung-badge err">
+          <span style="font-size:1rem; line-height:1;">⚠</span>
+          <span>
+            Ableitung <b>nicht anzeigbar</b> — Endpoint hat kein <code style="background:rgba(255,255,255,0.5);">stand</code> geliefert.
+            Bitte Fehler an Entwicklung melden.
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ───────────────────────── 3. + 4. Split ───────────────────────── -->
+  <div class="section-titel">
+    <h2>③ Dokument-Aktionsmenü &nbsp;+&nbsp; ④ Ereignisliste (Ebene 2)</h2>
+    <span class="kennz">DokumenteSection.jsx · positionen/&lt;key&gt;/ereignisse</span>
+    <span class="plan">Plan §6.3</span>
+  </div>
+  <p class="prose">
+    Links: das Aktionsmenü aus <code>GET /aktionen?dokument_id=…</code> je Dokumentzeile.
+    Rechts: die Ereignisliste einer Position (Klick auf eine Positionszeile oben).
+    Ersetzte Ereignisse (durch spätere positionsscharfe Zahlung) sind durchgestrichen und markiert.
+  </p>
+
+  <div class="split">
+
+    <!-- Dokumente + Kebab-Menü -->
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <div class="titel">Dokumente · Aktionsmenü je Zeile</div>
+          <div style="font-size:0.72rem; color:var(--textMuted); margin-top:2px;">
+            ersetzt perspektivisch <code style="font-family:var(--fontMono); font-size:0.7rem;">handleInlineAnnehmen</code> (Alt-Weg parallel)
+          </div>
+        </div>
+        <span class="neu">Neu · P1.7</span>
+      </div>
+      <div class="card-body">
+
+        <div class="dok-row">
+          <div class="icon">📄</div>
+          <div class="name">Abrechnung HUK-Coburg 2026-05-14.pdf</div>
+          <div class="typ">Regulierung</div>
+          <div class="datum">14.05.2026</div>
+          <div class="konfidenz">0.94</div>
+          <button class="kebab">⋮</button>
+        </div>
+
+        <div class="dok-row">
+          <div class="icon">📄</div>
+          <div class="name">Reparaturrechnung Autohaus Wagner 2026-04-30.pdf</div>
+          <div class="typ">Rechnung</div>
+          <div class="datum">30.04.2026</div>
+          <div class="konfidenz">0.91</div>
+          <button class="kebab" onclick="toggleMenue(this)">⋮</button>
+
+          <!-- Aktionsmenü - initial offen zur Vorschau -->
+          <div class="aktionsmenue">
+            <div class="titel">Vorgeschlagene Aktionen · Rechnung Reparaturkosten</div>
+
+            <div class="aktion primary">
+              <span class="ico">✎</span>
+              <div>
+                <div class="haupt">Stellungnahme zu Reparaturkosten</div>
+                <div class="sub">Kürzung 2.100 € — Belege 3/4 (fehlt: Fristsetzung)</div>
+              </div>
+              <span class="stufe">Empfohlen</span>
+            </div>
+
+            <div class="aktion">
+              <span class="ico">📎</span>
+              <div>
+                <div class="haupt">Beleg zuordnen</div>
+                <div class="sub">Position Reparaturkosten · Autohaus Wagner</div>
+              </div>
+              <span class="stufe">Beleg</span>
+            </div>
+
+            <div class="aktion">
+              <span class="ico">⏱</span>
+              <div>
+                <div class="haupt">Wiedervorlage setzen</div>
+                <div class="sub">14 Tage — bei Nichteingang STA Stufe 1</div>
+              </div>
+              <span class="stufe">Frist</span>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="aktion disabled">
+              <span class="ico">⚖️</span>
+              <div>
+                <div class="haupt">Klage einreichen</div>
+                <div class="sub">Checkliste unvollständig (fehlt: Stellungnahme)</div>
+              </div>
+              <span class="stufe">gesperrt</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dok-row">
+          <div class="icon">📄</div>
+          <div class="name">SV-Gutachten Dekra 2026-04-18.pdf</div>
+          <div class="typ">Gutachten</div>
+          <div class="datum">18.04.2026</div>
+          <div class="konfidenz">0.98</div>
+          <button class="kebab">⋮</button>
+        </div>
+
+        <div class="dok-row">
+          <div class="icon">📄</div>
+          <div class="name">Forderungsschreiben ausg. 2026-04-20.pdf</div>
+          <div class="typ">Forderung</div>
+          <div class="datum">20.04.2026</div>
+          <div class="konfidenz">–</div>
+          <button class="kebab">⋮</button>
+        </div>
+
+        <div style="margin-top:12px;">
+          <span class="ableitung-badge inline">
+            <span class="aussage">Aktionen abgeleitet aus Positionen &amp; Registry-Matrix</span>
+            &nbsp;— nach Aktenlage vom 30.06.2026
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ereignisliste je Position -->
+    <div class="ebene2">
+      <div class="kopf">
+        <div>
+          <div class="titel">Reparaturkosten · Ereignisse</div>
+          <div class="sub">Ebene 2 — chronologisch, aktuell/ersetzt sichtbar</div>
+        </div>
+        <button style="background:transparent; border:0; color:var(--textFaint); font-size:1.4rem; cursor:pointer; line-height:1;">×</button>
+      </div>
+
+      <div class="ereignis">
+        <div class="datum">20.04.2026</div>
+        <div class="richtung aus" title="ausgehend">↗</div>
+        <div>
+          <div class="haupt">Forderung generiert</div>
+          <div class="meta">
+            <span>gefordert 6.200,00&nbsp;€</span>
+            <span>·</span>
+            <a href="#">Forderungsschreiben.pdf</a>
+          </div>
+        </div>
+        <span class="status-tag">aktuell</span>
+      </div>
+
+      <div class="ereignis ersetzt">
+        <div class="datum">14.05.2026</div>
+        <div class="richtung ein" title="eingehend">↘</div>
+        <div>
+          <div class="haupt">Abrechnung eingegangen (Vorschlag WDM)</div>
+          <div class="meta">
+            <span>anerkannt 3.900,00&nbsp;€</span>
+            <span>·</span>
+            <a href="#">Abrechnung HUK-Coburg.pdf</a>
+            <span>·</span>
+            <span style="color:var(--accentDark); font-weight:600;">herkunft: wdm</span>
+          </div>
+        </div>
+        <span class="status-tag ersetzt">ersetzt (K-M2a)</span>
+      </div>
+
+      <div class="ereignis">
+        <div class="datum">14.05.2026</div>
+        <div class="richtung ein" title="eingehend">↘</div>
+        <div>
+          <div class="haupt">Abrechnung eingegangen (ReguWizard-Freigabe)</div>
+          <div class="meta">
+            <span>anerkannt 4.100,00&nbsp;€</span>
+            <span>·</span>
+            <a href="#">Abrechnung HUK-Coburg.pdf</a>
+            <span>·</span>
+            <span>freigegeben von: RA Schatz</span>
+          </div>
+        </div>
+        <span class="status-tag">aktuell</span>
+      </div>
+
+      <div class="ereignis">
+        <div class="datum">28.05.2026</div>
+        <div class="richtung sys" title="System">⏰</div>
+        <div>
+          <div class="haupt">Fristablauf (Antwort 2 Wochen)</div>
+          <div class="meta">
+            <span>Todo #4712 · quelle: system</span>
+            <span>·</span>
+            <span style="color:var(--amberText); font-weight:600;">→ Eskalationsvorschlag: Stellungnahme</span>
+          </div>
+        </div>
+        <span class="status-tag">aktuell</span>
+      </div>
+
+      <div class="legende">
+        Legende: <span style="color:var(--blueText);">↗ ausgehend</span> · <span style="color:var(--greenText);">↘ eingehend</span> · <span style="color:var(--accentDark);">⏰ system</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="margin-top:32px; padding:14px 18px; background:var(--accentPale); border:1px solid var(--accentTrim); border-radius:10px; font-size:0.82rem; color:var(--accentDark);">
+    <b>Umsetzungsreihenfolge (Vorschlag Commits):</b>
+    &nbsp;(1)&nbsp;<code style="font-family:var(--fontMono); font-size:0.78rem;">AbleitungBadge.jsx</code> + Tests
+    &nbsp;·&nbsp; (2)&nbsp;Positions-Dashboard (getrennt+aggregiert)
+    &nbsp;·&nbsp; (3)&nbsp;Dokument-Aktionsmenü (parallel zu handleInlineAnnehmen)
+    &nbsp;·&nbsp; (4)&nbsp;Ereignisliste-Panel + Endpoint-Check.
+  </div>
+
+</div>
+
+<script>
+  // Toggle aggregiert/getrennt
+  document.querySelectorAll('#toggle-agg button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#toggle-agg button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const view = btn.dataset.view;
+      document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+      document.querySelector('.view-' + view).style.display = view === 'getrennt' ? 'flex' : 'block';
+    });
+  });
+
+  // Aktionsmenü toggle
+  function toggleMenue(btn) {
+    const menue = btn.parentElement.querySelector('.aktionsmenue');
+    if (menue) menue.style.display = (menue.style.display === 'none') ? 'block' : 'none';
+  }
+
+  function oeffneEreignisse(key) {
+    console.log('Öffne Ereignisliste für', key);
+    // Im echten Code: Modal/Panel öffnen, GET /akten/<az>/positionen/<key>/ereignisse
+  }
+</script>
+</body>
+</html>
