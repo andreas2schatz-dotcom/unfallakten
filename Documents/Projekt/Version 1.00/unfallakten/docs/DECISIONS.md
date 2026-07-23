@@ -434,6 +434,30 @@ for _key in ("rvg_ausserg", "rvg_ausserg_override", "rvg_bereits_gezahlt"):
 
 ---
 
+## Kürzungstaxonomie Entscheidungs-Tor: Kürzung bleibt Ereignis-Attribut (Option b), zwei getrennte Faltungen
+
+**Entscheidung:** (1) **Ort der Kürzungsdaten = Option (b)** aus Konzept 10.3.1: Das Tripel (Position × Typ × Betrag) lebt im Ereignismodell (`ereignis_positionen` mit `wirkung='gekuerzt'`, `kuerzungsart_id`, Betrag). KEINE neue `kuerzung`-Tabelle; `regulierung_positionen` bleibt der Erfassungsweg im bestehenden Doppelschreibmuster. (2) **Verhältnis der zwei Faltungen: strikt getrennt** — die Positions-Faltung beantwortet allein „wo steht jede Schadenposition"; der Vorgangsautomat wird eine zweite, eigene Faltung über denselben Ereignisstrom für „wo steht der Prozess". Er liest den Positionszustand, schreibt aber nie hinein.
+
+**Grund:** RA Schatz (2026-07-23), nach dem Phase-0-Handtest. Empirisch gestützt: Kürzungs-Erkennung = Differenz Forderung (Soll) vs. Zahlung (Ist) — Abrechnungsschreiben sind reine Zahlungsmitteilungen, Kürzungen dort oft unsichtbar (Stichprobe 8a: Wertminderung 1.450 € gefordert, 650 € gezahlt, kein Kürzungsausweis; Stichprobe 20c: dokumentierte Nachzahlung 25 € → +5 €). Genau diese Differenz-Mathematik existiert bereits im Ereignismodell (Konzept 12.5).
+
+**Alternative:** (a) `regulierung_positionen` um Typ/Klassifikation erweitern; (c) neue Tabelle mit Backfill — beides schafft bzw. zementiert eine dritte Parallelwelt.
+
+**Konsequenz:** Phase-1-Kern = Runde-1↔Runde-2-Vergleich auf dem Ereignisstrom (Nachzahlung = Differenz der `gekuerzt`-Beträge je position_key × Typ). Begründung und Zahlung liegen oft in getrennten Dokumenten (Stichprobe 25: Abrechnungsschreiben zahlt mit „Nicht zu erstatten −7.734,55 €" unbegründet, der Prüfbericht begründet) → die Abrechnungsrunde muss Abrechnungsschreiben + Prüfbericht verketten. Keyword-Matching liefert nur den TYP und nur auf Begründungsdokumenten; Zahlmitteilungen werden auf Positionen/Beträge geparst. (2026-07-23)
+
+---
+
+## Phase 0 Kürzungstaxonomie abgeschlossen: Zielwerte, Matching-Architektur, A–F-Zuordnung
+
+**Entscheidung:** (1) **Phase-1-Zielwerte** (Messung nach ~4 Wochen Betrieb): Abdeckung ≥ 90 %, Trefferquote Typ-Vorschlag ≥ 75 %, Positions-/Betragszuordnung auf Zahlmitteilungen ≥ 90 %. (2) **Matching-Architektur:** regelbasierte Stichworte als Typ-Vorschlag auf Begründungsdokumenten, LLM nur als Fallback; Kürzungs-Erkennung ausschließlich über Betragsdifferenz. (3) **A–F-Zuordnung** der 17 bisher unzugeordneten Quelldateien aus `tools/textbausteine/`: ghpfabschleppgeb→E03 · ghpfjveg→E01 (Variante JVEG) · huktableau→E01 (Variante HUK-Tableau) · ghpvnkpauschal→E02 · ghpfup2→E06 (Eskalation 2. Runde) · ghpfansprort→A04 · ghpfstverort→A04 (vorbehaltlich Sichtung, altes .doc) · ghpfreprg→B01 · repbest→A10 · ghpfzeitpunkt→**A11 neu** (Abrechnungszeitpunkt/Preissteigerung) · wertminderungsteuer→**C01b neu** · „nutzungsausfall für schadentag und sv besichtigung"→D01 · hws→F01. KEIN Kürzungstyp: ghpfandrohungsv (Eskalationsbaustein zu Nr. 11 Technische Kürzungen), heilverlauf (Mandantenkommunikation), ghpfstellung (Rahmentext Stellungnahme-Generator), vertretungsanzeige (aussortieren). Zusätzlich neu aufzunehmen ohne Quelldatei: **A07 Neu-für-alt** (reale Abzüge in Stichproben 17/18, Baustein fehlt).
+
+**Grund:** RA Schatz (2026-07-23), 30-Stichproben-Tiefenprüfung: Abdeckung 94 % (Gesamtkorpus 11 Prüfberichte + 59 Abrechnungsschreiben, PDF-Volltexte); Trefferquote Typ auf Begründungsdokumenten 61 % roh / ~71 % nach trivialen Stichwort-Fixes.
+
+**Alternative:** LLM-first-Klassifikation (teurer, schwerer erklärbar); Handtest auf dem Freitext-Bestand (existiert nicht — alle 44 `kuerzung_freitext` leer, `pruefberichte` 0 Zeilen).
+
+**Konsequenz:** Phase 1 kann starten. Registry-Migration stempelt `verifiziert_am` = „handgeprüft RA Schatz, Juli 2026". Stichwort-Fixes einplanen: Wortgrenzen (Kleinteilepauschale ≠ Unkostenpauschale), „Kennzeichen" auf Schilderkosten verengen, ControlExpert-Tabellen strukturiert parsen. Positions-Synonymik je Versicherer-Template (Differenzbetrag = Fahrzeugschaden usw.). Vollprotokoll → `handover/phase0-handtest-stichproben.md`. (2026-07-23)
+
+---
+
 ## Bewusst vertagt (kein Handlungsbedarf)
 
 - **Prod-Rollout intake-stufe1** — Git-Teil erledigt (2026-07-15), Deployment vertagt (kein Prod-Host, Go-Live später). Runbook + Deploy-Reihenfolge in STATE.md.
