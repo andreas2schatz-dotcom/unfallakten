@@ -448,13 +448,25 @@ for _key in ("rvg_ausserg", "rvg_ausserg_override", "rvg_bereits_gezahlt"):
 
 ## Phase 0 Kürzungstaxonomie abgeschlossen: Zielwerte, Matching-Architektur, A–F-Zuordnung
 
-**Entscheidung:** (1) **Phase-1-Zielwerte** (Messung nach ~4 Wochen Betrieb): Abdeckung ≥ 90 %, Trefferquote Typ-Vorschlag ≥ 75 %, Positions-/Betragszuordnung auf Zahlmitteilungen ≥ 90 %. (2) **Matching-Architektur:** regelbasierte Stichworte als Typ-Vorschlag auf Begründungsdokumenten, LLM nur als Fallback; Kürzungs-Erkennung ausschließlich über Betragsdifferenz. (3) **A–F-Zuordnung** der 17 bisher unzugeordneten Quelldateien aus `tools/textbausteine/`: ghpfabschleppgeb→E03 · ghpfjveg→E01 (Variante JVEG) · huktableau→E01 (Variante HUK-Tableau) · ghpvnkpauschal→E02 · ghpfup2→E06 (Eskalation 2. Runde) · ghpfansprort→A04 · ghpfstverort→A04 (vorbehaltlich Sichtung, altes .doc) · ghpfreprg→B01 · repbest→A10 · ghpfzeitpunkt→**A11 neu** (Abrechnungszeitpunkt/Preissteigerung) · wertminderungsteuer→**C01b neu** · „nutzungsausfall für schadentag und sv besichtigung"→D01 · hws→F01. KEIN Kürzungstyp: ghpfandrohungsv (Eskalationsbaustein zu Nr. 11 Technische Kürzungen), heilverlauf (Mandantenkommunikation), ghpfstellung (Rahmentext Stellungnahme-Generator), vertretungsanzeige (aussortieren). Zusätzlich neu aufzunehmen ohne Quelldatei: **A07 Neu-für-alt** (reale Abzüge in Stichproben 17/18, Baustein fehlt).
+**Entscheidung:** (1) **Phase-1-Zielwerte** (Messung nach ~4 Wochen Betrieb): Abdeckung ≥ 90 %, Trefferquote Typ-Vorschlag ≥ 75 %, Positions-/Betragszuordnung auf Zahlmitteilungen ≥ 90 %. (2) **Matching-Architektur:** regelbasierte Stichworte als Typ-Vorschlag auf Begründungsdokumenten, LLM nur als Fallback; Kürzungs-Erkennung ausschließlich über Betragsdifferenz. (3) **A–F-Zuordnung** der 17 bisher unzugeordneten Quelldateien aus `tools/textbausteine/`: ghpfabschleppgeb→E03 · ghpfjveg→E01 (Variante JVEG) · huktableau→E01 (Variante HUK-Tableau) · ghpvnkpauschal→E02 · ghpfup2→E06 (Eskalation 2. Runde) · ghpfansprort→A04 · ghpfstverort→A04 (vorbehaltlich Sichtung, altes .doc) *[Nachtrag Sichtung 2026-07-23: Datei ist LEER — 0 Wörter laut Dokument-Metadaten, leer gespeichert 04/2012; ghpfstverort entfällt ersatzlos, A04 speist sich allein aus ghpfansprort (Inhalt gesichtet: Stundenverrechnungssätze-Argumentation, passt). Achtung: ghpfansprort.doc ist altes .doc-Format → braucht .doc→.rtf-Konvertierung vor dem Import, wie ghpfup.DOC]* · ghpfreprg→B01 · repbest→A10 · ghpfzeitpunkt→**A11 neu** (Abrechnungszeitpunkt/Preissteigerung) · wertminderungsteuer→**C01b neu** · „nutzungsausfall für schadentag und sv besichtigung"→D01 · hws→F01. KEIN Kürzungstyp: ghpfandrohungsv (Eskalationsbaustein zu Nr. 11 Technische Kürzungen), heilverlauf (Mandantenkommunikation), ghpfstellung (Rahmentext Stellungnahme-Generator), vertretungsanzeige (aussortieren). Zusätzlich neu aufzunehmen ohne Quelldatei: **A07 Neu-für-alt** (reale Abzüge in Stichproben 17/18, Baustein fehlt).
 
 **Grund:** RA Schatz (2026-07-23), 30-Stichproben-Tiefenprüfung: Abdeckung 94 % (Gesamtkorpus 11 Prüfberichte + 59 Abrechnungsschreiben, PDF-Volltexte); Trefferquote Typ auf Begründungsdokumenten 61 % roh / ~71 % nach trivialen Stichwort-Fixes.
 
 **Alternative:** LLM-first-Klassifikation (teurer, schwerer erklärbar); Handtest auf dem Freitext-Bestand (existiert nicht — alle 44 `kuerzung_freitext` leer, `pruefberichte` 0 Zeilen).
 
 **Konsequenz:** Phase 1 kann starten. Registry-Migration stempelt `verifiziert_am` = „handgeprüft RA Schatz, Juli 2026". Stichwort-Fixes einplanen: Wortgrenzen (Kleinteilepauschale ≠ Unkostenpauschale), „Kennzeichen" auf Schilderkosten verengen, ControlExpert-Tabellen strukturiert parsen. Positions-Synonymik je Versicherer-Template (Differenzbetrag = Fahrzeugschaden usw.). Vollprotokoll → `handover/phase0-handtest-stichproben.md`. (2026-07-23)
+
+---
+
+## Phase 1 Kürzungstaxonomie: Plan freigegeben + 3 Detail-Zuordnungen
+
+**Entscheidung:** Der Phase-1-Plan (`docs/superpowers/plans/2026-07-23-kuerzungstaxonomie-phase1.md`, 12 Tasks) ist freigegeben; Umsetzung per Subagent-Verfahren. Drei bei der Freigabe bestätigte Detail-Zuordnungen: (1) Fehlerspeicher=A05a, Batteriestützbetrieb=A05b, Tankrest=A05c (Kalkulationspositionen nahe A05 Arbeitszeitwerte). (2) Varianten-Modell: mehrere Bausteine zum selben Grundtyp werden eigene Katalog-Zeilen mit Suffix-Code (A04b, B01b, E01b, E01c, E06b); Statistik aggregiert über den Code-Präfix. (3) „Technische Kürzungen" (Bestand Nr. 11) = A09 Reparaturweg; A08 bleibt frei für künftige „nicht unfallkausal"-Fälle.
+
+**Grund:** RA Schatz (2026-07-23) — Bestätigung der Plan-Empfehlungen; Suffix-Modell, weil eine Katalog-Zeile genau einen editierbaren Textbaustein trägt.
+
+**Alternative:** B02 für die drei technischen Positionen; Varianten-Texte in einen gemeinsamen Baustein zusammenführen; A08 für Nr. 11.
+
+**Konsequenz:** Zieltaxonomie = 32 Typen (19 Bestand + 13 neu), Zuordnungstabelle im Plan ist verbindlich. Nachtrag zur A–F-Zuordnung vom selben Tag: ghpfstverort.DOC ist leer und entfällt ersatzlos (A04 allein aus ghpfansprort). (2026-07-23)
 
 ---
 
