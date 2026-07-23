@@ -16,8 +16,24 @@ import {
   request,
 } from "../api.js";
 
-function PositionenTabelle({ positionen, kuerzungsarten, akteId, abid, onUpdate, readOnly }) {
+export function PositionenTabelle({ positionen, kuerzungsarten, akteId, abid, onUpdate, readOnly }) {
   const hatKuerzung = positionen.some(p => p.kuerzung_betrag > 0);
+
+  // Task 8: Typ-Vorschläge aus dem verketteten Begründungsdokument + Pflicht-Begründung
+  const [vorschlaege, setVorschlaege] = useState([]);
+  const [entwurf, setEntwurf]         = useState(null);  // { posId, kuerzungsartId, freitext, typQuelle }
+  const [speichert, setSpeichert]     = useState(false);
+  const [toast, setToast]             = useState("");
+
+  useEffect(() => {
+    if (readOnly || !akteId || !abid) return;
+    if (!positionen.some(p => positionKuerzungBetrag(p) > 0 && !p.kuerzungsart_id)) return;
+    let aktiv = true;
+    apiAbrechnungen.typVorschlaege(akteId, abid)
+      .then(res => { if (aktiv) setVorschlaege(res?.vorschlaege || []); })
+      .catch(() => {});
+    return () => { aktiv = false; };
+  }, [akteId, abid, readOnly]);
 
   const toggleKlage = async (pos) => {
     const neu = !pos.fuer_klage_vorgemerkt;
@@ -27,15 +43,43 @@ function PositionenTabelle({ positionen, kuerzungsarten, akteId, abid, onUpdate,
     onUpdate(pos.id, { fuer_klage_vorgemerkt: neu });
   };
 
-  const setKuerzungsart = async (pos, kid) => {
+  const sendeKuerzungsart = async (pos, kid, freitext, typQuelle) => {
+    const payload = { kuerzungsart_id: kid };
+    if (kid) {
+      payload.typ_quelle = typQuelle || "manuell";
+      if (freitext != null) payload.kuerzung_freitext = freitext;
+    }
+    setSpeichert(true);
     try {
-      await apiAbrechnungen.updatePos(akteId, abid, pos.id, { kuerzungsart_id: kid || null });
-    } catch { /* Demo */ }
+      await apiAbrechnungen.updatePos(akteId, abid, pos.id, payload);
+    } catch (e) {
+      setSpeichert(false);
+      setToast(e?.message || "Speichern fehlgeschlagen — Begründung ist Pflicht.");
+      return false;
+    }
+    setSpeichert(false);
     const art = kid ? kuerzungsarten.find(k => k.id === parseInt(kid)) : null;
     onUpdate(pos.id, {
       kuerzungsart_id: kid ? parseInt(kid) : null,
       kuerzungsart_bezeichnung: art?.bezeichnung || null,
+      ...(kid && freitext != null ? { kuerzung_freitext: freitext } : {}),
     });
+    setEntwurf(null);
+    return true;
+  };
+
+  const setKuerzungsart = (pos, kid) => {
+    if (!kid) { sendeKuerzungsart(pos, null); return; }
+    if ((pos.kuerzung_freitext || "").trim()) {
+      sendeKuerzungsart(pos, parseInt(kid), null, "manuell");
+      return;
+    }
+    setEntwurf({ posId: pos.id, kuerzungsartId: parseInt(kid), freitext: "", typQuelle: "manuell" });
+  };
+
+  const uebernehmeVorschlag = (pos, v) => {
+    setEntwurf({ posId: pos.id, kuerzungsartId: v.kuerzungsart_id,
+                 freitext: v.snippet || "", typQuelle: v.quelle || "regel" });
   };
 
   if (!positionen.length) return (
@@ -45,6 +89,8 @@ function PositionenTabelle({ positionen, kuerzungsarten, akteId, abid, onUpdate,
   );
 
   return (
+    <>
+    {toast && <Toast msg={toast} onDone={() => setToast("")} />}
     <div style={{ overflowX:"auto" }}>
       <table style={{ width:"100%", borderCollapse:"collapse", fontFamily:T.fontBody, fontSize:"0.875rem" }}>
         <thead>
@@ -59,8 +105,12 @@ function PositionenTabelle({ positionen, kuerzungsarten, akteId, abid, onUpdate,
             const kuerzung = positionKuerzungBetrag(pos);
             const istAbzug = POSITION_IST_ABZUG[pos.position_key];
             const isLast = i === positionen.length - 1;
+            const istEntwurf = entwurf?.posId === pos.id;
+            const zeigeVorschlaege = kuerzung > 0 && !pos.kuerzungsart_id && !readOnly
+              && !istEntwurf && vorschlaege.length > 0;
             return (
-              <tr key={pos.id ?? i} style={{ borderBottom:isLast?"none":`1px solid ${T.border}`, background:pos.fuer_klage_vorgemerkt?"rgba(160,107,74,0.06)":"transparent" }}>
+              <React.Fragment key={pos.id ?? i}>
+              <tr style={{ borderBottom:(isLast && !zeigeVorschlaege && !istEntwurf)?"none":`1px solid ${T.border}`, background:pos.fuer_klage_vorgemerkt?"rgba(160,107,74,0.06)":"transparent" }}>
                 <td style={{ padding:"8px 12px", color:T.text, fontWeight:500 }}>
                   {POSITION_LABELS_FE[pos.position_key] || pos.position_key}
                   {pos.sv_stellungnahme_ausstehend && (
@@ -81,7 +131,7 @@ function PositionenTabelle({ positionen, kuerzungsarten, akteId, abid, onUpdate,
                 <td style={{ padding:"8px 12px", minWidth:180 }}>
                   {kuerzung > 0 && !readOnly ? (
                     <select
-                      value={pos.kuerzungsart_id || ""}
+                      value={istEntwurf ? String(entwurf.kuerzungsartId) : (pos.kuerzungsart_id || "")}
                       onChange={e => setKuerzungsart(pos, e.target.value)}
                       style={{ width:"100%", padding:"4px 6px", border:`1px solid ${T.border}`, borderRadius:5, fontSize:"0.82rem", background:T.surface, color:pos.kuerzungsart_id?T.text:T.textFaint, cursor:"pointer" }}
                     >
@@ -108,6 +158,59 @@ function PositionenTabelle({ positionen, kuerzungsarten, akteId, abid, onUpdate,
                   )}
                 </td>
               </tr>
+              {zeigeVorschlaege && (
+                <tr style={{ borderBottom:isLast?"none":`1px solid ${T.border}` }}>
+                  <td colSpan={6} style={{ padding:"4px 12px 8px", background:T.surface }}>
+                    <span style={{ fontSize:"0.75rem", color:T.textMuted, marginRight:8 }}>Vorschlag:</span>
+                    {vorschlaege.filter(v => v.kuerzungsart_id).map(v => {
+                      const art = kuerzungsarten.find(k => k.id === v.kuerzungsart_id);
+                      return (
+                        <button
+                          key={v.typ_code}
+                          onClick={() => uebernehmeVorschlag(pos, v)}
+                          title={v.snippet}
+                          style={{ marginRight:6, marginBottom:2, background:T.amberBg,
+                                   border:`1px solid ${T.amber}66`, borderRadius:12,
+                                   padding:"2px 10px", fontSize:"0.78rem", color:T.textMid,
+                                   cursor:"pointer", fontFamily:T.fontBody }}
+                        >
+                          {art?.bezeichnung || v.typ_code} ({v.typ_code})
+                        </button>
+                      );
+                    })}
+                  </td>
+                </tr>
+              )}
+              {istEntwurf && (
+                <tr style={{ borderBottom:isLast?"none":`1px solid ${T.border}` }}>
+                  <td colSpan={6} style={{ padding:"6px 12px 10px", background:T.surface }}>
+                    <div style={{ fontSize:"0.78rem", color:T.textMuted, marginBottom:4 }}>
+                      Begründung (Wortlaut des Versicherers) — Pflicht:
+                    </div>
+                    <textarea
+                      value={entwurf.freitext}
+                      onChange={e => setEntwurf({ ...entwurf, freitext: e.target.value })}
+                      rows={2}
+                      aria-label="Begründung"
+                      style={{ width:"100%", padding:"6px 8px", fontSize:"0.85rem",
+                               fontFamily:T.fontBody, borderRadius:5, resize:"vertical",
+                               border:`1px solid ${entwurf.freitext.trim() ? T.border : T.red}` }}
+                    />
+                    <div style={{ display:"flex", gap:8, marginTop:4 }}>
+                      <Btn size="sm" variant="primary"
+                        disabled={!entwurf.freitext.trim() || speichert}
+                        onClick={() => sendeKuerzungsart(pos, entwurf.kuerzungsartId,
+                                                         entwurf.freitext.trim(), entwurf.typQuelle)}>
+                        {speichert ? "⟳ Speichere…" : "Übernehmen"}
+                      </Btn>
+                      <Btn size="sm" variant="secondary" onClick={() => setEntwurf(null)}>
+                        Abbrechen
+                      </Btn>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              </React.Fragment>
             );
           })}
         </tbody>
@@ -130,6 +233,7 @@ function PositionenTabelle({ positionen, kuerzungsarten, akteId, abid, onUpdate,
         </tfoot>
       </table>
     </div>
+    </>
   );
 }
 

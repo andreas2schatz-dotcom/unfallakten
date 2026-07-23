@@ -200,6 +200,23 @@ def update_position(akte_id: str, abid: int, pid: int):
     if "sv_stellungnahme_ausstehend" in daten: felder["sv_stellungnahme_ausstehend"] = int(bool(daten["sv_stellungnahme_ausstehend"]))
     if not felder:  # Bug 6
         return _err("Keine aktualisierbaren Felder im Request-Body.", 422)
+
+    # Task 8: Kürzungsart setzen erzwingt eine Begründung (Wortlaut des
+    # Versicherers) — im Payload oder bereits in der Zeile vorhanden.
+    if daten.get("kuerzungsart_id"):
+        freitext = daten.get("kuerzung_freitext")
+        if freitext is None:
+            with get_connection() as conn:
+                row = conn.execute(
+                    "SELECT kuerzung_freitext FROM regulierung_positionen WHERE id = ?",
+                    (pid,)).fetchone()
+            freitext = row["kuerzung_freitext"] if row else None
+        if not (freitext or "").strip():
+            return _err("Begründung (Wortlaut des Versicherers) ist Pflicht", 400)
+        typ_quelle = daten.get("typ_quelle") or "manuell"
+        if typ_quelle not in ("regel", "llm", "manuell"):
+            return _err("typ_quelle muss 'regel', 'llm' oder 'manuell' sein.", 422)
+        felder["typ_quelle"] = typ_quelle
     try:
         pos = aktualisiere_position(pid, abid=abid, akte_id=akte_id, **felder)  # Bug 4
     except PositionNichtGefunden as e:
@@ -207,6 +224,54 @@ def update_position(akte_id: str, abid: int, pid: int):
     if pos is None:
         return _err(f"Position {pid} nicht gefunden.", 404)
     return _j({"position": pos.as_dict()})
+
+
+def _dokument_volltext(dokument_id: int) -> str:
+    import os as _os
+    from ..parsers.pdf_utils import extract_text_from_pdf, normalize_text
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT dateipfad FROM dokumente WHERE id = ?", (dokument_id,)).fetchone()
+    pfad = row["dateipfad"] if row else None
+    if not pfad or not _os.path.exists(pfad):
+        return ""
+    text, _seiten, _ist_image = extract_text_from_pdf(pfad)
+    return normalize_text(text or "")
+
+
+@abrechnung_bp.route("/<int:abid>/typ-vorschlaege", methods=["GET"])
+@login_erforderlich
+def typ_vorschlaege(akte_id: str, abid: int):
+    """Task 8: Typ-Vorschläge aus dem verketteten Begründungsdokument
+    (Prüfbericht bevorzugt, sonst das Abrechnungs-PDF selbst)."""
+    from dataclasses import asdict
+    from ..services.kuerzungstyp_matching import schlage_typen_vor
+    if not _pruefe_akte(akte_id):
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    with get_connection() as conn:
+        ab = conn.execute(
+            "SELECT id, dokument_id FROM abrechnungsschreiben "
+            "WHERE id = ? AND akte_id = ?", (abid, akte_id)).fetchone()
+        if not ab:
+            return _err(f"Abrechnungsschreiben {abid} nicht gefunden.", 404)
+        pb = conn.execute(
+            "SELECT dokument_id FROM pruefberichte "
+            "WHERE abrechnungsschreiben_id = ? AND dokument_id IS NOT NULL "
+            "ORDER BY datum DESC, id DESC LIMIT 1", (abid,)).fetchone()
+
+    if pb and pb["dokument_id"]:
+        quelle_dokument_id, klasse = pb["dokument_id"], "pruefbericht"
+    elif ab["dokument_id"]:
+        quelle_dokument_id, klasse = ab["dokument_id"], "abrechnungsschreiben"
+    else:
+        return _j({"vorschlaege": [], "quelle_dokument_id": None})
+
+    text = _dokument_volltext(quelle_dokument_id)
+    if not text:
+        return _j({"vorschlaege": [], "quelle_dokument_id": quelle_dokument_id})
+    vorschlaege = schlage_typen_vor(text, dokumentklasse=klasse)
+    return _j({"vorschlaege": [asdict(v) for v in vorschlaege],
+               "quelle_dokument_id": quelle_dokument_id})
 
 
 @abrechnung_bp.route("/klagebetrag", methods=["GET"])

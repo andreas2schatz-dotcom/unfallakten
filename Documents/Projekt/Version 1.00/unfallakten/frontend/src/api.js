@@ -631,6 +631,8 @@ export const abrechnungen = {
     request(`/akten/${akteId}/abrechnungen/${abid}/positionen/${pid}`,
       { method: "PATCH", body: JSON.stringify(daten) }),
   klagebetrag: (akteId)      => request(`/akten/${akteId}/abrechnungen/klagebetrag`),
+  typVorschlaege: (akteId, abid) =>
+    request(`/akten/${akteId}/abrechnungen/${abid}/typ-vorschlaege`),
 };
 
 /** Prüfberichte */

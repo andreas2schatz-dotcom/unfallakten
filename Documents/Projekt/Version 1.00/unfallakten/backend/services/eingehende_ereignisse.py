@@ -92,6 +92,7 @@ def _regulierungs_wirkungen(
                 "wirkung": "abgelehnt",
                 "betrag": round(gefordert, 2),
                 "kuerzungsart_id": kart,
+                "begruendung_roh": p.get("kuerzung_freitext"),
             })
             continue
 
@@ -111,6 +112,7 @@ def _regulierungs_wirkungen(
                     "wirkung": "abgelehnt",
                     "betrag": round(gefordert, 2),
                     "kuerzungsart_id": kart,
+                    "begruendung_roh": p.get("kuerzung_freitext"),
                 })
             elif kart is not None:
                 ergebnis.append({
@@ -118,6 +120,7 @@ def _regulierungs_wirkungen(
                     "wirkung": "gekuerzt",
                     "betrag": diff,
                     "kuerzungsart_id": kart,
+                    "begruendung_roh": p.get("kuerzung_freitext"),
                 })
             # Ohne Kuerzungsart: bewusst KEIN gekuerzt/abgelehnt-
             # Ereignis -- die Alt-Tabelle behaelt die Zahl, aber der

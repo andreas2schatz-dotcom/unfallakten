@@ -130,10 +130,11 @@ def schreibe_ereignis(
             wk = pos["wirkung"]
             pcur = conn.execute(
                 "INSERT INTO ereignis_positionen "
-                "(ereignis_id, position_key, wirkung, betrag, kuerzungsart_id) "
-                "VALUES (?, ?, ?, ?, ?)",
+                "(ereignis_id, position_key, wirkung, betrag, kuerzungsart_id, "
+                " begruendung_roh) VALUES (?, ?, ?, ?, ?, ?)",
                 (neue_id, pk, wk,
-                 pos.get("betrag"), pos.get("kuerzungsart_id")),
+                 pos.get("betrag"), pos.get("kuerzungsart_id"),
+                 pos.get("begruendung_roh")),
             )
             neue_pos_ids_je_key[pk] = int(pcur.lastrowid)
             conn.execute(

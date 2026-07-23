@@ -472,6 +472,7 @@ def aktualisiere_position(
     erlaubt = {
         "betrag_gefordert", "betrag_reguliert", "kuerzungsart_id",
         "kuerzung_freitext", "fuer_klage_vorgemerkt", "sv_stellungnahme_ausstehend",
+        "typ_quelle",
     }
     updates = {k: v for k, v in felder.items() if k in erlaubt}
     if not updates:
