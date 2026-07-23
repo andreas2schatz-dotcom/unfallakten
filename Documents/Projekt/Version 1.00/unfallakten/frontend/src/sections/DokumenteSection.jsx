@@ -1693,7 +1693,7 @@ function KandidatenDebugDialog({ kandidaten, uebersprungen = {}, onClose }) {
                   return (
                     <div key={i} style={{
                       padding:"6px 8px", borderRadius:6, marginBottom:4,
-                      background: isWinner ? T.green+"12" : (i%2===0 ? "#fafafa" : "#fff"),
+                      background: isWinner ? T.green+"12" : (i%2===0 ? T.surface : T.cardBg),
                       border: isWinner ? `1px solid ${T.green}44` : "1px solid transparent",
                       fontFamily:T.fontBody,
                       fontWeight: isWinner ? 700 : 400,

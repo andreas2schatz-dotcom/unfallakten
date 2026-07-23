@@ -133,7 +133,7 @@ function EakteHoverPopover({ az, anchor, daten, akteObj, onOpenAkte, onMouseEnte
       {/* Footer */}
       {!daten.loading && !daten.error && daten.docs.length > 0 && (
         <div style={{
-          padding: "7px 14px", background: "#fafaf8",
+          padding: "7px 14px", background: T.surface,
           borderTop: `1px solid ${T.borderSoft}`, textAlign: "center",
         }}>
           <button onClick={oeffnen}
@@ -648,9 +648,9 @@ function AktensucheView({ onOpenAkte }) {
                 <tbody>
                   {treffer.map((t, i) => (
                     <tr key={t.az + i}
-                      style={{ borderBottom: `1px solid ${T.borderSoft}`, background: i % 2 === 0 ? T.cardBg : "#fafaf8", transition: "background 0.12s", cursor: "default" }}
-                      onMouseEnter={e => { e.currentTarget.style.background = "#f6f4ef"; handleRowEnter(e, t); }}
-                      onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 0 ? T.cardBg : "#fafaf8"; handleRowLeave(); }}>
+                      style={{ borderBottom: `1px solid ${T.borderSoft}`, background: i % 2 === 0 ? T.cardBg : T.surface, transition: "background 0.12s", cursor: "default" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = T.offWhite; handleRowEnter(e, t); }}
+                      onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 0 ? T.cardBg : T.surface; handleRowLeave(); }}>
                       <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
                         <button onClick={() => onOpenAkte({ id: t.az_roh, az: t.az, az_roh: t.az_roh, status: t.status || "offen", unfalldatum: t.unfalldatum || "", unfallort: t.unfallort || "", hq: t.haftungsquote || 100, brutto: 0 })}
                           style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "ui-monospace,monospace", fontSize: "0.875rem", fontWeight: 600, color: T.navy, textDecoration: "underline", textDecorationColor: "rgba(27,42,74,0.3)" }}>

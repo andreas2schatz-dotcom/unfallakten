@@ -2762,7 +2762,7 @@ function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, s
                       {/* Zahlungshistorie (aufgeklappt) */}
                       {isExpanded && pos.zahlungen.map((z, zi) => (
                         <tr key={`${pos.key}-z${zi}`} style={{
-                          background: idx%2===0 ? "#fafaf8" : "#f5f3ef",
+                          background: idx%2===0 ? T.surface : T.offWhite,
                           borderBottom:`1px solid ${T.borderSoft}` }}>
                           <td />
                           <td style={{ padding:"5px 12px 5px 28px",

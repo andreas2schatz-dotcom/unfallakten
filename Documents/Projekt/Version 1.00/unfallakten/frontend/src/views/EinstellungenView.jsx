@@ -921,7 +921,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                       onClick={() => setSvAusgewaehlt(sv.adressnr)}
                       style={{ padding:"9px 12px", cursor:"pointer",
                         borderBottom:`1px solid ${T.borderSoft}`,
-                        background: istAusgewaehlt ? "#eff6ff" : "transparent",
+                        background: istAusgewaehlt ? T.blueBg : "transparent",
                         borderRight: istAusgewaehlt ? `3px solid ${T.accent}` : "3px solid transparent",
                         display:"flex", alignItems:"center", gap:8,
                         opacity: sv.portal_aktiv ? 1 : 0.5 }}>

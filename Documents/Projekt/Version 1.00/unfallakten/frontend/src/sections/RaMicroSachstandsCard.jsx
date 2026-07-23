@@ -102,7 +102,7 @@ function RaMicroSachstandsCard({ akte, inGrid = false }) {
               <button onClick={generieren} disabled={laedt}
                 style={{ marginTop:4, display:"flex", alignItems:"center", gap:7,
                   padding:"9px 16px",
-                  background: erstellt ? "#f0fdf4" : T.navy,
+                  background: erstellt ? T.greenBg : T.navy,
                   color:      erstellt ? T.greenText : T.white,
                   border:     erstellt ? "1.5px solid #6ee7b7" : "none",
                   borderRadius:8, fontFamily:T.fontBody, fontSize:"0.935rem", fontWeight:600,

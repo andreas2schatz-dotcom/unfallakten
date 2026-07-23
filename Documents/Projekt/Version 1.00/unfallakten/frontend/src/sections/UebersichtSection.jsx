@@ -618,7 +618,7 @@ function ForderungshistorieKarte({ akteId }) {
               {isOffen && (
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.855rem" }}>
                   <thead>
-                    <tr style={{ background: "#f9fafb" }}>
+                    <tr style={{ background: T.surface }}>
                       {["Position", "Gefordert", "Reguliert", "Status", "Klage"].map((h, i) => (
                         <th key={h} style={{ padding: "7px 12px", textAlign: i === 0 ? "left" : "right",
                           fontSize: "0.74rem", fontWeight: 600, color: T.textMuted,
@@ -1824,7 +1824,7 @@ function PhasenStrip({ phase }) {
         const fertig  = phasenFertig[p.id];
         const isAktiv = aktiv === p.id;
         const last    = i === PHASEN.length - 1;
-        const bg    = fertig ? T.greenBg  : isAktiv ? "#EEF3FF"  : T.cardBg;
+        const bg    = fertig ? T.greenBg  : isAktiv ? T.blueBg  : T.cardBg;
         const color = fertig ? T.greenText : isAktiv ? T.accent   : T.textFaint;
         const icon  = fertig ? "✓"        : isAktiv ? "▶"        : "○";
         return (

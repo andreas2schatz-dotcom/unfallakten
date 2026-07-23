@@ -2068,7 +2068,7 @@ const PsKlappSection = ({label, field, form, upd, children, addLabel, onAdd}) =>
         <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:8 }}>
           {aktiv && onAdd && (
             <button onClick={e => { e.stopPropagation(); onAdd(); }}
-              style={{ background:"#fefce8", border:"1px solid #fbbf24", borderRadius:6,
+              style={{ background:T.amberBg, border:"1px solid #fbbf24", borderRadius:6,
                 padding:"2px 9px", fontFamily:T.fontBody, fontSize:"0.78rem",
                 fontWeight:600, color:T.amberText, cursor:"pointer" }}>
               {addLabel || "+ Beteiligter"}

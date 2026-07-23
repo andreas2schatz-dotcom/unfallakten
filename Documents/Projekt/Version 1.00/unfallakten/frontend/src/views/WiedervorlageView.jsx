@@ -148,7 +148,7 @@ function WiedervorlageView({ onOpenAkte }) {
   const Marker = ({ erstellt }) => erstellt
     ? <span title="Sachstandsanfrage bereits erstellt" style={{
         display:"inline-flex", alignItems:"center", gap:4,
-        background:"#d1fae5", color:T.greenText,
+        background:T.greenBg, color:T.greenText,
         border:"1.5px solid #6ee7b7",
         borderRadius:20, padding:"3px 10px 3px 7px",
         fontFamily:T.fontBody, fontSize:"0.8rem", fontWeight:600,
@@ -183,7 +183,7 @@ function WiedervorlageView({ onOpenAkte }) {
     return (
       <div style={{
         display:"flex", alignItems:"center", gap:10,
-        background: isOk ? "#f0fdf4" : isDeak ? T.amberBg : "#fff1f2",
+        background: isOk ? T.greenBg : isDeak ? T.amberBg : "#fff1f2",
         border: `1px solid ${isOk ? T.greenLight : isDeak ? "#fcd34d" : T.redLight}`,
         borderRadius:10, padding:"10px 16px", marginBottom:"1.25rem",
         fontFamily:T.fontBody, fontSize:"0.885rem",
@@ -361,9 +361,9 @@ function WiedervorlageView({ onOpenAkte }) {
                   const istUeberfaellig = wv.datum < new Date().toISOString().slice(0,10);
                   return (
                     <tr key={wv.guid}
-                      style={{ background: istAusgewaehlt ? "#f0f4ff" : idx % 2 === 0 ? T.cardBg : "#fafaf8", borderBottom:`1px solid ${T.border}`, transition:"background 0.12s" }}
-                      onMouseEnter={e => { if (!istAusgewaehlt) e.currentTarget.style.background = "#f6f4ef"; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = istAusgewaehlt ? "#f0f4ff" : idx % 2 === 0 ? T.cardBg : "#fafaf8"; }}>
+                      style={{ background: istAusgewaehlt ? T.blueBg : idx % 2 === 0 ? T.cardBg : T.surface, borderBottom:`1px solid ${T.border}`, transition:"background 0.12s" }}
+                      onMouseEnter={e => { if (!istAusgewaehlt) e.currentTarget.style.background = T.offWhite; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = istAusgewaehlt ? T.blueBg : idx % 2 === 0 ? T.cardBg : T.surface; }}>
 
                       {/* Checkbox */}
                       <td style={{ padding:"10px 14px", textAlign:"center" }}>

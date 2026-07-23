@@ -569,7 +569,7 @@ export default function SchmerzensgelDialog({ az, kl_nom, onClose, onUebernehmen
               {fehler && (
                 <div style={{
                   marginTop: "0.75rem", padding: "0.5rem 0.75rem",
-                  background: "#fee2e2", border: "1px solid #f87171",
+                  background: T.redBg, border: "1px solid #f87171",
                   borderRadius: 6, fontSize: "0.8rem", color: T.redText,
                 }}>
                   {fehler}
