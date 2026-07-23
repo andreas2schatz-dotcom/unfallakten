@@ -64,6 +64,7 @@ def lade_kuerzungstypen(pfad: Optional[str] = None, *,
         data.setdefault("keywords_erfordert", [])
         data.setdefault("llm_hinweis", "")
         data.setdefault("baustein_pfad", True)
+        data.setdefault("kategorie_label", KATEGORIEN_AF[data["kategorie_code"]])
         typen[data["typ_code"]] = data
     reg = KuerzungstypRegistry(version=h.hexdigest()[:16], pfad=p, typen=typen)
     _cache[p] = reg

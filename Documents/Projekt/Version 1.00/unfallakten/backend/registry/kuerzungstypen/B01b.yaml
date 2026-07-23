@@ -3,8 +3,7 @@ name: "Rechnungskürzung trotz Reparatur (Variante)"
 kategorie_code: "B"
 kategorie_label: "Reparaturkosten konkret"
 baustein_pfad: true
-keywords:
-- "Reparaturrechnung"
+keywords: []
 keywords_erfordert: []
 llm_hinweis: "Kürzung der Reparaturrechnung trotz nachgewiesener durchgeführter Reparatur"
 verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

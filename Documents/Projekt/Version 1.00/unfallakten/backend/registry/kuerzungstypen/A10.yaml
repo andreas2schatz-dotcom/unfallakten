@@ -2,7 +2,7 @@ typ_code: "A10"
 name: "Reparaturbestätigung"
 kategorie_code: "A"
 kategorie_label: "Reparaturkosten fiktiv"
-baustein_pfad: false
+baustein_pfad: true
 keywords:
 - "Reparaturbestätigung"
 - "Reparaturnachweis"

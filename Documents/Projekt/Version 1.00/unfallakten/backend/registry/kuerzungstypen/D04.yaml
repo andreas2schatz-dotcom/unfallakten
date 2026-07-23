@@ -6,7 +6,7 @@ baustein_pfad: false
 keywords:
 - "Mietwagenrechnung"
 - "Mietwagenkosten"
-- "Mietwagen"
+- "Mietwagentarif"
 keywords_erfordert: []
 llm_hinweis: "Kürzung der Mietwagenrechnung durch den Versicherer"
 verifiziert_am: "handgeprüft RA Schatz, Juli 2026"

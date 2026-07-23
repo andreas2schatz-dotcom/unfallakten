@@ -31,3 +31,9 @@ class TestKuerzungstypRegistry(unittest.TestCase):
         reg = lade_kuerzungstypen(reload=True)
         erwartet = set(_TYP_CODES_BESTAND.values()) | {c for _, _, c, _ in _KUERZUNGSARTEN_NEU}
         self.assertEqual(set(reg.typen), erwartet)
+
+    def test_baustein_pfad_exaktes_false_set(self):
+        from backend.services.kuerzungstyp_registry import lade_kuerzungstypen
+        reg = lade_kuerzungstypen(reload=True)
+        ohne_baustein = {c for c, t in reg.typen.items() if not t["baustein_pfad"]}
+        self.assertEqual(ohne_baustein, {"A07", "A09", "D04", "E05c", "F03"})
