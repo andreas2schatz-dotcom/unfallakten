@@ -15,6 +15,8 @@ Konzeptionelle Session (Kritik + Codebasis-Verifikation des Papiers `handover/KO
 - **3 DECISIONS-Einträge** (2026-07-23): Phase 1 vor V11 (Editor-Komponente entsteht in Phase 1) · Urteilscheck für Bestand entfällt (handverifiziert) · kommentarlose Zahlungen als Kaskade Betrags-Matching → Versicherer-Anfrage → protokollierte Not-Zuordnung.
 - **Bugfix (TDD):** `EinwaendeAuswahl.uebernehmen()` erzeugte bei Kürzungsart ohne `textbaustein`/`standard_gegenargument` eine Überschrift ohne Argumentation. Jetzt sichtbarer `[FEHLT: Kein Textbaustein zur Kürzungsart „…" hinterlegt]`-Marker; neue Tests `KlageWizard.einwaende-fehlt.test.jsx` (3). Frontend-Suite **342/342** grün.
 - TODO.md: PRD-39 als „durch PRD-27 abgedeckt" umgeschrieben; Kürzungstaxonomie Phase 0 (Handtest) als nächstes Vorhaben eingetragen; V11 wartet bewusst.
+- **Browser-Nachtests RA Schatz (gleiche Session): Paket 2 (UI-Führung: Status-Symbole, Schließen-Dialog, Vertreter-Lookup) und Paket 3 (Gesamtvorschau-E2E inkl. DOCX-Kontrolle) BESTANDEN** — inkl. Sichtprüfung des neuen [FEHLT]-Markers. Klage-Wizard-Runde damit abgeschlossen bis auf V11 (wartet auf Phase 1).
+- `main` erstmals seit Wochen gepusht (58 Commits, bis `80e2f044`).
 
 ---
 
