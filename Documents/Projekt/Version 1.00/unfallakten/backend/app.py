@@ -42,6 +42,7 @@ from .routers.pruefberichte_routes import pruefberichte_bp
 from .routers.ramicro_akte_routes import ramicro_akte_bp
 from .routers.schaden_routes import schaden_bp, regulierung_bp
 from .routers.sta_routes import sta_bp
+from .routers.standardtexte_routes import standardtexte_bp
 from .routers.sv_portal_routes import sv_portal_bp
 from .routers.stellungnahme_routes import stellungnahme_bp
 from .routers.todos_routes import todos_bp
@@ -211,6 +212,7 @@ def erstelle_app(test_config: dict = None) -> Flask:
     app.register_blueprint(ramicro_akte_bp)
     app.register_blueprint(regulierung_bp)
     app.register_blueprint(schaden_bp)
+    app.register_blueprint(standardtexte_bp)
     app.register_blueprint(sta_bp)
     app.register_blueprint(sv_portal_bp)
     app.register_blueprint(stellungnahme_bp)
