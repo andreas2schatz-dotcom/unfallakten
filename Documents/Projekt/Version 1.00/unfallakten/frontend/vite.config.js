@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => ({
       '/aktensuche':    { target: process.env.VITE_BACKEND_URL || 'http://localhost:5000', changeOrigin: true },
       '/ramicro':       { target: process.env.VITE_BACKEND_URL || 'http://localhost:5000', changeOrigin: true },
       '/kuerzungsarten':{ target: process.env.VITE_BACKEND_URL || 'http://localhost:5000', changeOrigin: true },
+      '/klage-standardtexte':{ target: process.env.VITE_BACKEND_URL || 'http://localhost:5000', changeOrigin: true },
       '/firmen':        { target: process.env.VITE_BACKEND_URL || 'http://localhost:5000', changeOrigin: true },
       '/distanz':       { target: process.env.VITE_BACKEND_URL || 'http://localhost:5000', changeOrigin: true },
       '/stellungnahme': { target: process.env.VITE_BACKEND_URL || 'http://localhost:5000', changeOrigin: true },

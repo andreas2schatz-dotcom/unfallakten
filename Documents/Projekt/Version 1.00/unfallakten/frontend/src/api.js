@@ -623,6 +623,15 @@ export const kuerzungsarten = {
     request("/kuerzungsarten/vorschau", { method: "POST", body: JSON.stringify({ text }) }),
 };
 
+/** Standardtexte Klageschrift (V11) */
+export const apiStandardtexte = {
+  liste:      ()                      => request('/klage-standardtexte'),
+  speichern:  (key, text, bestaetigt) => request(`/klage-standardtexte/${key}`, { method: 'PUT', body: JSON.stringify({ text, bestaetigt: !!bestaetigt }) }),
+  reset:      (key)                   => request(`/klage-standardtexte/${key}`, { method: 'DELETE' }),
+  vorschau:   (key, text)             => request('/klage-standardtexte/vorschau', { method: 'POST', body: JSON.stringify({ key, text }) }),
+  aufgeloest: ()                      => request('/klage-standardtexte/aufgeloest'),
+};
+
 /** Abrechnungsschreiben */
 export const abrechnungen = {
   liste:     (akteId)        => request(`/akten/${akteId}/abrechnungen`),

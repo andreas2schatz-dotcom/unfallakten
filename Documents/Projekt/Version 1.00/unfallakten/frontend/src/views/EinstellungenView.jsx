@@ -10,6 +10,7 @@ import {
   apiSystem,
 } from "../api.js";
 import { getThemePrefs, setThemePrefs } from "../theme/themePrefs.js";
+import StandardtexteTab from "./StandardtexteTab.jsx";
 
 function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
   const [tab, setTab]           = useState(initialTab || "versicherer");
@@ -290,6 +291,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
             ["fristen",       "⏱ Fristen"],
             ["ki",            "✦ KI-Assistent"],
             ["zustaendigkeit","⚖ Zuständigkeit"],
+            ["standardtexte", "📄 Standardtexte"],
             ["system_status",  "⚙ System-Status"],
           ].map(([id, label]) => (
             <button key={id} onClick={() => { setTab(id); setSuche(""); }}
@@ -299,7 +301,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                 borderBottom: tab===id ? `2px solid ${T.accent}` : "2px solid transparent",
                 marginBottom:-1 }}>
               {label}
-              {id !== "imap" && id !== "fristen" && id !== "ki" && id !== "zustaendigkeit" && id !== "sv_portal" && id !== "system_status" && (
+              {id !== "imap" && id !== "fristen" && id !== "ki" && id !== "zustaendigkeit" && id !== "sv_portal" && id !== "system_status" && id !== "standardtexte" && (
                 <span style={{ marginLeft:6, background:T.surface, color:T.textMuted,
                   borderRadius:10, padding:"1px 7px", fontSize:"0.8rem", fontWeight:400 }}>
                   {id === "versicherer" ? vorlagen.filter(v => v.kategorie==="versicherung").length
@@ -1172,6 +1174,8 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
           </div>
         )}
 
+        {tab === "standardtexte" && <StandardtexteTab />}
+
         {tab === "system_status" && (
           <div style={{ maxWidth: 680 }}>
             <Card style={{ marginBottom: "1.25rem" }}>
@@ -1414,7 +1418,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
         )}
 
         {/* Versicherer / Gutachter / Alle Vorlagen Tabs */}
-        {tab !== "imap" && tab !== "fristen" && tab !== "ki" && tab !== "zustaendigkeit" && tab !== "sv_portal" && tab !== "system_status" && (
+        {tab !== "imap" && tab !== "fristen" && tab !== "ki" && tab !== "zustaendigkeit" && tab !== "sv_portal" && tab !== "system_status" && tab !== "standardtexte" && (
           <div>
             {/* Neue Vorlage anlegen */}
             <Card style={{ marginBottom:"1.25rem" }}>
