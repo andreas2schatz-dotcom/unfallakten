@@ -163,6 +163,11 @@ def erstelle_app(test_config: dict = None) -> Flask:
     _rausch = _lade_rausch(reload=True)
     logger.info("Rausch-Absender-Registry geladen: %d Absender", len(_rausch))
 
+    # ── Klage-Standardtext-Registry: Fail-Loud vor DB-Init ────────────────────
+    from .services.standardtext_registry import lade_standardtexte as _lade_standardtexte
+    _standardtexte = _lade_standardtexte(reload=True)
+    logger.info("Klage-Standardtext-Registry geladen: %d Bausteine", len(_standardtexte))
+
     # ── Datenbank initialisieren ───────────────────────────────────────────────
     with app.app_context():
         init_db()

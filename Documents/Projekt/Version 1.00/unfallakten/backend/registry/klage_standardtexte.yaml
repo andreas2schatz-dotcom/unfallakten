@@ -1,0 +1,305 @@
+# V11 Standardtexte Klageschrift (Stufe 1: Kategorien A+B).
+# Aenderungen hier aendern die STANDARDS; Kanzlei-Anpassungen laufen ueber
+# standardtext_override (Einstellungen-UI). Platzhalter-Syntax: <GROSS_MIT_UNTERSTRICH>.
+
+platzhalter:
+  GESAMTSCHADEN:       {beschreibung: "Gesamtschaden laut Schadentabelle (100 %)", beispiel: "5.000,00 €"}
+  MITHAFTUNGSQUOTE:    {beschreibung: "Mithaftungsquote der Klägerseite in Prozent", beispiel: "30"}
+  HAFTUNGSQUOTE:       {beschreibung: "Haftungsquote der Beklagtenseite in Prozent", beispiel: "70"}
+  ERSATZFAEHIG:        {beschreibung: "Ersatzfähiger Betrag nach Quotierung", beispiel: "3.500,00 €"}
+  ZAHLUNGEN:           {beschreibung: "Summe der geleisteten Zahlungen", beispiel: "1.000,00 €"}
+  KLAGEBETRAG:         {beschreibung: "Betrag des Klageantrags zu 1", beispiel: "2.500,00 €"}
+  BETRAG:              {beschreibung: "Betrag in Euro", beispiel: "2.000,00 €"}
+  HAFTUNGSBEGRUENDUNG: {beschreibung: "Haftungsbegründung aus dem Wizard (leer → Standardformulierung sein schuldhaftes Verhalten)", beispiel: "sein schuldhaftes Verhalten"}
+  ANLAGE_NR:           {beschreibung: "Laufende Anlagen-Nummer", beispiel: "K 2"}
+  VERZUGSDATUM:        {beschreibung: "Datum des Verzugseintritts", beispiel: "04.05.2026"}
+  SCHREIBEN_DATUM:     {beschreibung: "Datum des Fristsetzungs-Schreibens", beispiel: "20.04.2026"}
+  ERMITTLUNGS_AZ:      {beschreibung: "Aktenzeichen der Ermittlungsakte", beispiel: "35 Js 123/26"}
+  BEHOERDE:            {beschreibung: "Ermittelnde Behörde", beispiel: "Staatsanwaltschaft Darmstadt"}
+  VON:                 {beschreibung: "Beginn-Datum", beispiel: "01.03.2026"}
+  BIS:                 {beschreibung: "Ende-Datum", beispiel: "14.03.2026"}
+  KLINIK:              {beschreibung: "Name des Krankenhauses", beispiel: "Klinikum Offenbach"}
+  DAUERFOLGEN:         {beschreibung: "Beschreibung der Dauerfolgen", beispiel: "Bewegungseinschränkung der rechten Schulter"}
+  FAKTOR:              {beschreibung: "Gebührenfaktor (Nr. 2300 VV RVG)", beispiel: "1,3"}
+  ANTRAG_NR:           {beschreibung: "Nummer des Klageantrags zu den RVG-Gebühren", beispiel: "3"}
+  BEK_NOM:             {beschreibung: "Beklagte, Nominativ großgeschrieben (Die Beklagte / Der Beklagte / Die Beklagten) — Beispiel-Akte: zwei Beklagte", beispiel: "Die Beklagten"}
+  BEK_HAT:             {beschreibung: "Verbform hat/haben passend zur Beklagtenzahl", beispiel: "haben"}
+  BEK_NOM_KLEIN:       {beschreibung: "Beklagte, Nominativ kleingeschrieben", beispiel: "die Beklagten"}
+  BEK_HAFTEN:          {beschreibung: "Verbform haftet/haften passend zur Beklagtenzahl", beispiel: "haften"}
+
+bausteine:
+  - key: antraege_versaeumnis_einleitung
+    abschnitt: antraege
+    beschreibung: "Versäumnisurteil-Block: Einleitungssatz"
+    text: |-
+      Für den Fall der Anordnung des schriftlichen Vorverfahrens bitten wir, für den Fall der Nichteinlassung der Beklagten:
+  - key: antraege_versaeumnis_titel
+    abschnitt: antraege
+    beschreibung: "Versäumnisurteil-Block: zentrierte fette Zeile"
+    text: |-
+      Versäumnisurteil
+  - key: antraege_versaeumnis_schluss
+    abschnitt: antraege
+    beschreibung: "Versäumnisurteil-Block: Schlusszeile"
+    text: |-
+      ohne mündliche Verhandlung zu erlassen.
+
+  - key: sachverhalt_auslandsunfall
+    abschnitt: sachverhalt
+    beschreibung: "Auslandsunfall: Hinweis auf EuGH C 463/06 und BGH VI ZR 200/05 (Gerichtsstand am Wohnort)"
+    text: |-
+      Wir machen auf die Entscheidung des EuGH vom 13.12.2007 – Az. C 463/06 –
+      und die Vorlage des BGH im Verfahren vom 26.9.2006 zu VI ZR 200/05 aufmerksam. Der EuGH hat in der Entscheidung festgestellt, dass dem Geschädigten auch der Rechtsweg am Gericht seines Wohnortes eröffnet ist.
+
+  - key: unfallhergang_schilderung_fehlt
+    abschnitt: unfallhergang
+    beschreibung: "Platzhalter-Absatz, wenn keine Unfallschilderung vorliegt"
+    text: |-
+      [Unfallschilderung – bitte aus RA-Micro WDM laden]
+  - key: unfallhergang_beweis_rekonstruktion
+    abschnitt: unfallhergang
+    beschreibung: "Beweisantritt Unfallrekonstruktionsgutachten"
+    text: |-
+      Unfallrekonstruktionsgutachten
+  - key: unfallhergang_beweis_ermittlungsakte
+    abschnitt: unfallhergang
+    beschreibung: "Beweisantritt Beiziehung der Ermittlungsakte (mit Behörde)"
+    platzhalter: [ERMITTLUNGS_AZ, BEHOERDE]
+    pflicht: [ERMITTLUNGS_AZ, BEHOERDE]
+    text: |-
+      Beiziehung der Ermittlungsakte <ERMITTLUNGS_AZ> bei der <BEHOERDE>
+  - key: unfallhergang_beweis_ermittlungsakte_kurz
+    abschnitt: unfallhergang
+    beschreibung: "Beweisantritt Beiziehung der Ermittlungsakte (ohne Behörde)"
+    platzhalter: [ERMITTLUNGS_AZ]
+    pflicht: [ERMITTLUNGS_AZ]
+    text: |-
+      Beiziehung der Ermittlungsakte <ERMITTLUNGS_AZ>
+
+  - key: schaden_einleitung
+    abschnitt: schaden
+    beschreibung: "Einleitungssatz vor der Schadentabelle"
+    text: |-
+      Durch den Unfall ist ein Schaden entstanden, der sich wie folgt zusammensetzt:
+  - key: schaden_beweis_gutachten
+    abschnitt: schaden
+    beschreibung: "Beweisantritt Schadengutachten"
+    platzhalter: [ANLAGE_NR]
+    pflicht: [ANLAGE_NR]
+    text: |-
+      Schadengutachten (Anlage <ANLAGE_NR>)
+  - key: schaden_beweis_gerichtsgutachten
+    abschnitt: schaden
+    beschreibung: "Beweisantritt gerichtliches Sachverständigengutachten (fett)"
+    text: |-
+      Einholung eines gerichtlichen Sachverständigengutachtens.
+  - key: schaden_zahlungen_vorspann
+    abschnitt: schaden
+    beschreibung: "Vorspann vor der Zahlungstabelle"
+    platzhalter: [BEK_NOM, BEK_HAT]
+    pflicht: [BEK_NOM, BEK_HAT]
+    text: |-
+      <BEK_NOM> <BEK_HAT> folgende Zahlungen auf den Schaden geleistet:
+  - key: schaden_fallb_geklemmt
+    abschnitt: schaden
+    beschreibung: "Fall B (eigene Quote): Zahlungen decken den quotierten Anspruch vollständig"
+    platzhalter: [GESAMTSCHADEN, MITHAFTUNGSQUOTE, HAFTUNGSQUOTE, ERSATZFAEHIG, ZAHLUNGEN]
+    pflicht: [GESAMTSCHADEN, ERSATZFAEHIG, ZAHLUNGEN]
+    text: |-
+      Von dem Gesamtschaden in Höhe von <GESAMTSCHADEN> sind unter Berücksichtigung der Mithaftungsquote von <MITHAFTUNGSQUOTE> % <HAFTUNGSQUOTE> %, mithin <ERSATZFAEHIG>, ersatzfähig. Hierauf wurden bereits Zahlungen in Höhe von <ZAHLUNGEN> geleistet; der ersatzfähige Betrag ist damit vollständig ausgeglichen.
+  - key: schaden_fallb_offen
+    abschnitt: schaden
+    beschreibung: "Fall B (eigene Quote): nach Abzug der Zahlungen verbleibt der Klagebetrag"
+    platzhalter: [GESAMTSCHADEN, MITHAFTUNGSQUOTE, HAFTUNGSQUOTE, ERSATZFAEHIG, ZAHLUNGEN, KLAGEBETRAG]
+    pflicht: [GESAMTSCHADEN, KLAGEBETRAG]
+    text: |-
+      Von dem Gesamtschaden in Höhe von <GESAMTSCHADEN> sind unter Berücksichtigung der Mithaftungsquote von <MITHAFTUNGSQUOTE> % <HAFTUNGSQUOTE> %, mithin <ERSATZFAEHIG>, ersatzfähig. Abzüglich der geleisteten Zahlungen in Höhe von <ZAHLUNGEN> verbleiben <KLAGEBETRAG>, die mit dem Klageantrag zu 1 geltend gemacht werden.
+  - key: schaden_fallb_voll
+    abschnitt: schaden
+    beschreibung: "Fall B (eigene Quote): keine Zahlungen, voller quotierter Betrag wird eingeklagt"
+    platzhalter: [GESAMTSCHADEN, MITHAFTUNGSQUOTE, HAFTUNGSQUOTE, ERSATZFAEHIG]
+    pflicht: [GESAMTSCHADEN, ERSATZFAEHIG]
+    text: |-
+      Von dem Gesamtschaden in Höhe von <GESAMTSCHADEN> sind unter Berücksichtigung der Mithaftungsquote von <MITHAFTUNGSQUOTE> % <HAFTUNGSQUOTE> %, mithin <ERSATZFAEHIG>, ersatzfähig. Dieser Betrag wird mit dem Klageantrag zu 1 geltend gemacht.
+  - key: schaden_differenz
+    abschnitt: schaden
+    beschreibung: "Differenz-Satz: Gesamtbetrag abzüglich Zahlungen ergibt den Klagebetrag"
+    platzhalter: [GESAMTSCHADEN, ZAHLUNGEN, KLAGEBETRAG]
+    pflicht: [GESAMTSCHADEN, ZAHLUNGEN, KLAGEBETRAG]
+    text: |-
+      Die Differenz des geforderten Gesamtbetrages in Höhe von <GESAMTSCHADEN> abzgl. der oben gezeigten geleisteten Zahlungen in Höhe von <ZAHLUNGEN> beträgt <KLAGEBETRAG> und wird mit dem Klageantrag zu 1 geltend gemacht.
+  - key: schaden_gesamtbetrag
+    abschnitt: schaden
+    beschreibung: "Ohne Zahlungen: der volle Gesamtbetrag wird eingeklagt"
+    platzhalter: [GESAMTSCHADEN]
+    pflicht: [GESAMTSCHADEN]
+    text: |-
+      Der Gesamtbetrag in Höhe von <GESAMTSCHADEN> wird mit dem Klageantrag zu 1 geltend gemacht.
+
+  - key: wuerdigung_grundhaftung
+    abschnitt: wuerdigung
+    beschreibung: "Grundhaftungssatz mit Haftungsbegründung und Quote"
+    platzhalter: [HAFTUNGSBEGRUENDUNG, HAFTUNGSQUOTE]
+    pflicht: [HAFTUNGSQUOTE]
+    text: |-
+      Der bei der Beklagten versicherte Unfallgegner verursachte den Unfall durch <HAFTUNGSBEGRUENDUNG>. Die Haftungsquote beträgt <HAFTUNGSQUOTE> %.
+  - key: wuerdigung_teilregulierung
+    abschnitt: wuerdigung
+    beschreibung: "Hinweis auf erfolgte Teilregulierung"
+    platzhalter: [BEK_NOM, BEK_HAT, BETRAG]
+    pflicht: [BEK_NOM, BEK_HAT, BETRAG]
+    text: |-
+      <BEK_NOM> <BEK_HAT> eine Teilregulierung in Höhe von <BETRAG> vorgenommen. Die verbleibenden Kürzungen sind nicht gerechtfertigt, sodass die Klage in Höhe des offenen Restbetrages erhoben wird.
+  - key: wuerdigung_keine_regulierung
+    abschnitt: wuerdigung
+    beschreibung: "Hinweis: bislang keine Regulierung trotz Fristsetzung"
+    platzhalter: [BEK_NOM, BEK_HAT]
+    pflicht: [BEK_NOM, BEK_HAT]
+    text: |-
+      <BEK_NOM> <BEK_HAT> bislang keine Regulierung vorgenommen. Da trotz mehrfacher Fristsetzung keine Zahlung erfolgte, war die Klage notwendig.
+  - key: wuerdigung_alleinhaftung_bestritten
+    abschnitt: wuerdigung
+    beschreibung: "Gegnerische Mithaftungsquote wird bestritten (Klage ungekürzt)"
+    platzhalter: [MITHAFTUNGSQUOTE]
+    pflicht: [MITHAFTUNGSQUOTE]
+    text: |-
+      Die Beklagtenseite geht von einer Mithaftungsquote von <MITHAFTUNGSQUOTE> % auf Klägerseite aus. Dies wird bestritten; die Beklagtenseite haftet in vollem Umfang. Die Klageforderung ist ungekürzt geltend gemacht.
+
+  - key: sg_beweis_atteste
+    abschnitt: schmerzensgeld
+    beschreibung: "Beweisantritt ärztliche Atteste (auch im Forderungsschreiben verwendet)"
+    platzhalter: [ANLAGE_NR]
+    pflicht: [ANLAGE_NR]
+    text: |-
+      Ärztliche Atteste und Befundberichte (Anlage <ANLAGE_NR>)
+  - key: sg_krankenhaus_mit_klinik
+    abschnitt: schmerzensgeld
+    beschreibung: "Stationärer Aufenthalt mit Klinikname"
+    platzhalter: [VON, BIS, KLINIK]
+    pflicht: [VON, BIS, KLINIK]
+    text: |-
+      Vom <VON> bis <BIS> war ein stationärer Aufenthalt im <KLINIK> erforderlich.
+  - key: sg_krankenhaus
+    abschnitt: schmerzensgeld
+    beschreibung: "Stationärer Aufenthalt ohne Klinikname"
+    platzhalter: [VON, BIS]
+    pflicht: [VON, BIS]
+    text: |-
+      Vom <VON> bis <BIS> war ein stationärer Aufenthalt erforderlich.
+  - key: sg_arbeitsunfaehigkeit
+    abschnitt: schmerzensgeld
+    beschreibung: "Zeitraum der Arbeitsunfähigkeit"
+    platzhalter: [VON, BIS]
+    pflicht: [VON, BIS]
+    text: |-
+      Eine Arbeitsunfähigkeit bestand vom <VON> bis <BIS>.
+  - key: sg_dauerfolgen_mit_text
+    abschnitt: schmerzensgeld
+    beschreibung: "Dauerfolgen mit Beschreibung"
+    platzhalter: [DAUERFOLGEN]
+    pflicht: [DAUERFOLGEN]
+    text: |-
+      Es bestehen unfallbedingte Dauerfolgen: <DAUERFOLGEN>.
+  - key: sg_dauerfolgen
+    abschnitt: schmerzensgeld
+    beschreibung: "Dauerfolgen ohne Beschreibung"
+    text: |-
+      Es bestehen unfallbedingte Dauerfolgen.
+  - key: sg_begruendung_mindestbetrag
+    abschnitt: schmerzensgeld
+    beschreibung: "Schmerzensgeld-Begründung mit Mindestbetrag"
+    platzhalter: [BETRAG]
+    pflicht: [BETRAG]
+    text: |-
+      Die erlittenen Verletzungen und Beeinträchtigungen rechtfertigen ein Schmerzensgeld von mindestens <BETRAG>.
+  - key: sg_begruendung_angemessen
+    abschnitt: schmerzensgeld
+    beschreibung: "Schmerzensgeld-Begründung ohne Mindestbetrag"
+    text: |-
+      Die erlittenen Verletzungen und Beeinträchtigungen rechtfertigen ein angemessenes Schmerzensgeld.
+
+  - key: verzug_mit_datum
+    abschnitt: verzug
+    beschreibung: "Verzugseintritt mit Datum"
+    platzhalter: [VERZUGSDATUM]
+    pflicht: [VERZUGSDATUM]
+    text: |-
+      Der Verzug ist nach Ablauf der Zahlungsfrist bzw. dem ernsthaften und endgültigen Verweigern der Leistung am <VERZUGSDATUM> eingetreten.
+  - key: verzug_beweis_schreiben
+    abschnitt: verzug
+    beschreibung: "Beweisantritt Fristsetzungs-Schreiben"
+    platzhalter: [SCHREIBEN_DATUM]
+    pflicht: [SCHREIBEN_DATUM]
+    text: |-
+      Schreiben vom <SCHREIBEN_DATUM>
+  - key: verzug_rechtshaengigkeit
+    abschnitt: verzug
+    beschreibung: "Verzug ohne Datum (Rechtshängigkeit)"
+    text: |-
+      Verzug ist mit Rechtshängigkeit eingetreten.
+
+  - key: gebuehren_begruendung_anspruch
+    abschnitt: gebuehren
+    beschreibung: "RVG-Begründung Absatz 1 (Anspruchsgrundlage, Waffengleichheit)"
+    platzhalter: [ANTRAG_NR, BEK_NOM_KLEIN, BEK_HAFTEN]
+    pflicht: [ANTRAG_NR, BEK_NOM_KLEIN, BEK_HAFTEN]
+    text: |-
+      Der Klageantrag zu <ANTRAG_NR>. ergibt sich aus den vorgerichtlich entstandenen Gebühren, für die <BEK_NOM_KLEIN> ebenfalls <BEK_HAFTEN>. Der Anspruch auf Zahlung vorgerichtlicher Rechtsverfolgungskosten folgt aus § 249 ff. BGB unabhängig von einem etwaigen Verzugseintritt. Der Geschädigte sieht sich im Regelfall einem in der Regulierung von Unfallschäden versierten Sachbearbeiter des Haftpflichtversicherers gegenüber. Unter dem Aspekt der Waffengleichheit wird deshalb eine Erstattungsfähigkeit der Rechtsanwaltskosten im Rahmen der Rechtsverfolgungskosten grundsätzlich bejaht (Berz/Buhrmann Straßenverkehrsrecht – Hdb/Ziegenhardt, 48. EL August 2023 5. C. Rn. 82, Beck-online).
+  - key: gebuehren_begruendung_kontakt
+    abschnitt: gebuehren
+    beschreibung: "RVG-Begründung Absatz 2 (vorgerichtlicher Kontakt)"
+    text: |-
+      Der Prozessbevollmächtigte war bereits vorgerichtlich mit der Gegenseite in Kontakt getreten. Letztmalig, als man die Gegenseite unter Fristsetzung zur Zahlung aufforderte.
+  - key: gebuehren_begruendung_berechnung
+    abschnitt: gebuehren
+    beschreibung: "RVG-Begründung Absatz 3 (Überleitung zur Tabelle)"
+    text: |-
+      Die hieraus vorgerichtlich entstandenen Rechtsanwaltsgebühren sind zu ersetzen. Die Gebühren berechnen sich wie folgt:
+  - key: gebuehren_zeile_gegenstandswert
+    abschnitt: gebuehren
+    beschreibung: "RVG-Tabellenzeile: Gegenstandswert"
+    text: |-
+      Gegenstandswert:
+  - key: gebuehren_zeile_geschaeftsgebuehr
+    abschnitt: gebuehren
+    beschreibung: "RVG-Tabellenzeile: Geschäftsgebühr"
+    platzhalter: [FAKTOR]
+    pflicht: [FAKTOR]
+    text: |-
+      Geschäftsgebühr §§ 13, 14, Nr. 2300 VV RVG (<FAKTOR>):
+  - key: gebuehren_zeile_post
+    abschnitt: gebuehren
+    beschreibung: "RVG-Tabellenzeile: Post- und Telekommunikationspauschale"
+    text: |-
+      Post u. Telekommunikation Nr. 7002 VV RVG:
+  - key: gebuehren_zeile_zwischensumme
+    abschnitt: gebuehren
+    beschreibung: "RVG-Tabellenzeile: Zwischensumme netto"
+    text: |-
+      Zwischensumme netto:
+  - key: gebuehren_zeile_ust
+    abschnitt: gebuehren
+    beschreibung: "RVG-Tabellenzeile: Umsatzsteuer"
+    text: |-
+      19 % Umsatzsteuer:
+  - key: gebuehren_zeile_gesamt
+    abschnitt: gebuehren
+    beschreibung: "RVG-Tabellenzeile: Gesamtbetrag"
+    text: |-
+      Gesamtbetrag:
+  - key: gebuehren_zeile_gezahlt
+    abschnitt: gebuehren
+    beschreibung: "RVG-Tabellenzeile: bereits gezahlte Kosten"
+    text: |-
+      abzüglich bereits gezahlter Kosten:
+  - key: gebuehren_zeile_offen
+    abschnitt: gebuehren
+    beschreibung: "RVG-Tabellenzeile: offener Klageanteil"
+    text: |-
+      Klageanteil (offen):
+
+  - key: schluss_hinweis
+    abschnitt: schluss
+    beschreibung: "Schlussformel: Bitte um richterlichen Hinweis"
+    text: |-
+      Sollte das Gericht noch weiteren Vortrag für notwendig erachten, so wird um einen richterlichen Hinweis gebeten.
