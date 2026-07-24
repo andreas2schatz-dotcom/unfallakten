@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import T from "../config/theme.js";
-import { Card, CardHead, Btn } from "../components/common.jsx";
+import { Card, Btn } from "../components/common.jsx";
 import TextbausteinEditor, { pruefePlatzhalter } from "../components/TextbausteinEditor.jsx";
 import { apiStandardtexte } from "../api.js";
 
@@ -58,10 +58,14 @@ export default function StandardtexteTab() {
   };
 
   const zuruecksetzen = async (b) => {
-    await apiStandardtexte.reset(b.key);
-    setEntwurf(b.standard_text);
-    setMeldung("Auf Standard zurückgesetzt.");
-    laden();
+    try {
+      await apiStandardtexte.reset(b.key);
+      setEntwurf(b.standard_text);
+      setMeldung("Auf Standard zurückgesetzt.");
+      laden();
+    } catch (e) {
+      setMeldung(`Zurücksetzen fehlgeschlagen: ${e.message}`);
+    }
   };
 
   return (
