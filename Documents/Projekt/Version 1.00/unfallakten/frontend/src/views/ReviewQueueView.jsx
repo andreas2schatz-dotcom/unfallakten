@@ -1270,6 +1270,9 @@ export default function ReviewQueueView({ onOpenAkte }) {
   const [klassen, setKlassen] = useState([]);
   const [ansicht, setAnsicht] = useState("queue");  // "queue" | "papierkorb"
   const [papierkorb, setPapierkorb] = useState([]);
+  const [sortAbsteigend, setSortAbsteigend] = useState(
+    () => localStorage.getItem("reviewQueueSortAbsteigend") === "true"
+  );
 
   // Ereignistypen aus der Registry einmalig laden (fuer Freigabe-Dropdown).
   useEffect(() => {
@@ -1334,6 +1337,14 @@ export default function ReviewQueueView({ onOpenAkte }) {
     }
   }, [verwerfenDok, aktivId, laden]);
 
+  const toggleSortRichtung = useCallback(() => {
+    setSortAbsteigend(v => {
+      const next = !v;
+      localStorage.setItem("reviewQueueSortAbsteigend", String(next));
+      return next;
+    });
+  }, []);
+
   const bereit = useMemo(
     () => queue.filter(q => q.queue_status === "bereit_zur_review"),
     [queue],
@@ -1341,6 +1352,11 @@ export default function ReviewQueueView({ onOpenAkte }) {
   const fehler = useMemo(
     () => queue.filter(q => q.queue_status === "pipeline_fehler"),
     [queue],
+  );
+
+  const gruppen = useMemo(
+    () => sortiereGruppen(gruppiereQueue(queue), sortAbsteigend),
+    [queue, sortAbsteigend],
   );
 
   const onFreigegeben = useCallback((akteAz) => {
@@ -1382,6 +1398,16 @@ export default function ReviewQueueView({ onOpenAkte }) {
               </button>
             ))}
           </div>
+          {ansicht === "queue" && (
+            <button onClick={toggleSortRichtung}
+              style={{
+                width: "100%", marginTop: 6, padding: "4px 8px", fontSize: T.textXs,
+                fontWeight: 600, cursor: "pointer", borderRadius: 4,
+                border: `1px solid ${T.white}40`, background: "transparent", color: T.white,
+              }}>
+              {sortAbsteigend ? "🕓 Neueste zuerst" : "🕓 Älteste zuerst"}
+            </button>
+          )}
         </div>
 
         <div style={{ flex: 1, overflow: "auto" }}>
@@ -1397,7 +1423,7 @@ export default function ReviewQueueView({ onOpenAkte }) {
                   Queue leer — alles freigegeben.
                 </div>
               )}
-              {gruppiereQueue(queue).map(gruppe => (
+              {gruppen.map(gruppe => (
                 <React.Fragment key={gruppe.eintrag.id}>
                   <QueueEintrag item={gruppe.eintrag}
                     aktiv={aktivId === gruppe.eintrag.id}
