@@ -610,6 +610,8 @@ def _beklagten_grammatik(beklagte_gef: list) -> dict:
             "kosten":       "Die Beklagten tragen die Kosten des Rechtsstreits.",
             "nom_klein":    "die Beklagten",
             "haftet":       "haften",
+            "nom_gross":    "Die Beklagten",
+            "hat":          "haben",
         }
     if beklagte_gef and _ist_maennliche_privatperson(beklagte_gef[0]):
         return {
@@ -618,6 +620,8 @@ def _beklagten_grammatik(beklagte_gef: list) -> dict:
             "kosten":       "Der Beklagte trägt die Kosten des Rechtsstreits.",
             "nom_klein":    "der Beklagte",
             "haftet":       "haftet",
+            "nom_gross":    "Der Beklagte",
+            "hat":          "hat",
         }
     return {
         "verurteilt":   "Die Beklagte wird verurteilt",
@@ -625,6 +629,8 @@ def _beklagten_grammatik(beklagte_gef: list) -> dict:
         "kosten":       "Die Beklagte trägt die Kosten des Rechtsstreits.",
         "nom_klein":    "die Beklagte",
         "haftet":       "haftet",
+        "nom_gross":    "Die Beklagte",
+        "hat":          "hat",
     }
 
 
@@ -1570,7 +1576,7 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
         # fallb_zahlungen) - stattdessen die echte Summe nennen, gleiche Rundung wie :1119.
         _fallb_geklemmt = klagebetrag == 0.0 and fallb_zahlungen > _ersatzfaehig
         if _fallb_geklemmt or _zahlungen_anzeige > 0:
-            schaden_xml += _p("Die Beklagte hat folgende Zahlungen auf den Schaden geleistet:")
+            schaden_xml += _p(f"{bek_gram['nom_gross']} {bek_gram['hat']} folgende Zahlungen auf den Schaden geleistet:")
             if reg_tbl_xml:
                 schaden_xml += reg_tbl_xml
             schaden_xml += _lz()
@@ -1605,7 +1611,7 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
         _zahlungen = round(schaden_gesamt - klagebetrag, 2)
         if _zahlungen > 0:
             schaden_xml += _lz()
-            schaden_xml += _p("Die Beklagte hat folgende Zahlungen auf den Schaden geleistet:")
+            schaden_xml += _p(f"{bek_gram['nom_gross']} {bek_gram['hat']} folgende Zahlungen auf den Schaden geleistet:")
             if reg_tbl_xml:
                 schaden_xml += reg_tbl_xml
             schaden_xml += _lz()
@@ -1645,14 +1651,14 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
             gesamt_reguliert = sum(float(a.get("gesamt_reguliert") or 0) for a in abrechnungen)
             if gesamt_reguliert > 0:
                 rw_xml += _p(
-                    f"Die Beklagte hat eine Teilregulierung in Höhe von {_eur_str(gesamt_reguliert)} "
-                    f"vorgenommen. Die verbleibenden Kürzungen sind nicht gerechtfertigt, "
-                    f"sodass die Klage in Höhe des offenen Restbetrages erhoben wird."
+                    f"{bek_gram['nom_gross']} {bek_gram['hat']} eine Teilregulierung in Höhe von "
+                    f"{_eur_str(gesamt_reguliert)} vorgenommen. Die verbleibenden Kürzungen sind "
+                    f"nicht gerechtfertigt, sodass die Klage in Höhe des offenen Restbetrages erhoben wird."
                 )
             else:
                 rw_xml += _p(
-                    "Die Beklagte hat bislang keine Regulierung vorgenommen. "
-                    "Da trotz mehrfacher Fristsetzung keine Zahlung erfolgte, war die Klage notwendig."
+                    f"{bek_gram['nom_gross']} {bek_gram['hat']} bislang keine Regulierung vorgenommen. "
+                    f"Da trotz mehrfacher Fristsetzung keine Zahlung erfolgte, war die Klage notwendig."
                 )
         # KW-03: "entsprechend gekürzt" nur im Fall B (eigene Quote) wahr -
         # im Fall gegnerisch wird die Mithaftungsquote bestritten.

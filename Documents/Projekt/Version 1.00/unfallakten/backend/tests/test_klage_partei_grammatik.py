@@ -114,6 +114,21 @@ class TestBeklagtenGrammatik(unittest.TestCase):
         self.assertEqual(_beklagten_rolle(self.FRAU), "Beklagte")
         self.assertEqual(_beklagten_rolle(self.VERS), "Beklagte")
 
+    def test_nom_gross_und_hat_mehrere(self):
+        g = _beklagten_grammatik([{"versicherung": "X AG"}, {"anrede": "1"}])
+        self.assertEqual(g["nom_gross"], "Die Beklagten")
+        self.assertEqual(g["hat"], "haben")
+
+    def test_nom_gross_und_hat_maennlich(self):
+        g = _beklagten_grammatik([{"anrede": "1", "name": "Huber"}])
+        self.assertEqual(g["nom_gross"], "Der Beklagte")
+        self.assertEqual(g["hat"], "hat")
+
+    def test_nom_gross_und_hat_default_feminin(self):
+        g = _beklagten_grammatik([{"versicherung": "X AG"}])
+        self.assertEqual(g["nom_gross"], "Die Beklagte")
+        self.assertEqual(g["hat"], "hat")
+
 
 class TestVertreterSuffix(unittest.TestCase):
     def test_kw16_feminine_funktion(self):
