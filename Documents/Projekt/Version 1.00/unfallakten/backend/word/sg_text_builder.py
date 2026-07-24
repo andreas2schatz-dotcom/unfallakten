@@ -40,7 +40,7 @@ def _fmt_datum(s: str) -> str:
 
 
 def baue_sg_abschnitt(ps_data: dict, kl_nom: str, sg_mind: float, verb_hat: str = "hat",
-                       anlage_nr: str = "K 2"):
+                       anlage_nr: str = "K 2", texte: dict = None):
     """
     Baut den Schmerzensgeld-Abschnitt aus den personenschaden-Daten.
 
@@ -51,10 +51,17 @@ def baue_sg_abschnitt(ps_data: dict, kl_nom: str, sg_mind: float, verb_hat: str 
         verb_hat  – Verbform „hat"/„haben" je nach Numerus (Default „hat")
         anlage_nr – Anlagen-Nummer fuer die Atteste (KW-12, Default „K 2" haelt
                     den Forderungsschreiben-Pfad byte-gleich)
+        texte     – vorab geladene Standardtexte (Registry); None laedt selbst
+                    (Forderungsschreiben-Pfad bleibt aufrufkompatibel)
 
     Rückgabe: (absaetze: list[str], beweis: str, vgl: str|None)
     """
-    beweis = f"BEWEIS: Ärztliche Atteste und Befundberichte (Anlage {anlage_nr})"
+    if texte is None:
+        from ..services.standardtext_registry import hole_texte_aufgeloest
+        texte = hole_texte_aufgeloest()
+    from .stellungnahme_service import ersetze_platzhalter as _fuelle
+
+    beweis = "BEWEIS: " + _fuelle(texte["sg_beweis_atteste"], {"ANLAGE_NR": anlage_nr})
 
     if not ps_data:
         # Fallback ohne Daten
@@ -105,14 +112,14 @@ def baue_sg_abschnitt(ps_data: dict, kl_nom: str, sg_mind: float, verb_hat: str 
     # Absatz 2: Behandlung (Krankenhaus + AU)
     behandlung_teile = []
     if kh_von and kh_bis:
-        kh_teil = f"Vom {kh_von} bis {kh_bis} war ein stationärer Aufenthalt"
         if kh_name:
-            kh_teil += f" im {kh_name}"
-        kh_teil += " erforderlich."
-        behandlung_teile.append(kh_teil)
+            behandlung_teile.append(_fuelle(texte["sg_krankenhaus_mit_klinik"],
+                                             {"VON": kh_von, "BIS": kh_bis, "KLINIK": kh_name}))
+        else:
+            behandlung_teile.append(_fuelle(texte["sg_krankenhaus"], {"VON": kh_von, "BIS": kh_bis}))
     if au_von and au_bis:
         behandlung_teile.append(
-            f"Eine Arbeitsunfähigkeit bestand vom {au_von} bis {au_bis}."
+            _fuelle(texte["sg_arbeitsunfaehigkeit"], {"VON": au_von, "BIS": au_bis})
         )
     if behandlung_teile:
         absaetze.append(" ".join(behandlung_teile))
@@ -121,20 +128,16 @@ def baue_sg_abschnitt(ps_data: dict, kl_nom: str, sg_mind: float, verb_hat: str 
     schluss_teile = []
     if dauerfolgen:
         if dauerfolgen_txt:
-            schluss_teile.append(f"Es bestehen unfallbedingte Dauerfolgen: {dauerfolgen_txt}.")
+            schluss_teile.append(_fuelle(texte["sg_dauerfolgen_mit_text"], {"DAUERFOLGEN": dauerfolgen_txt}))
         else:
-            schluss_teile.append("Es bestehen unfallbedingte Dauerfolgen.")
+            schluss_teile.append(_fuelle(texte["sg_dauerfolgen"], {}))
 
     if sg_mind > 0:
         schluss_teile.append(
-            f"Die erlittenen Verletzungen und Beeinträchtigungen rechtfertigen "
-            f"ein Schmerzensgeld von mindestens {_eur_str(sg_mind)}."
+            _fuelle(texte["sg_begruendung_mindestbetrag"], {"BETRAG": _eur_str(sg_mind)})
         )
     else:
-        schluss_teile.append(
-            "Die erlittenen Verletzungen und Beeinträchtigungen rechtfertigen "
-            "ein angemessenes Schmerzensgeld."
-        )
+        schluss_teile.append(_fuelle(texte["sg_begruendung_angemessen"], {}))
 
     if schluss_teile:
         absaetze.append(" ".join(schluss_teile))

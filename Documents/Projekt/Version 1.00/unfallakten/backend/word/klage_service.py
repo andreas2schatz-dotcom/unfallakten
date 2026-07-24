@@ -885,6 +885,13 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
     reg_agg         = akte_daten.get("reg_agg") or {}
     ps_data         = akte_daten.get("personenschaden") or {}  # PRD-29
 
+    from ..services.standardtext_registry import hole_texte_aufgeloest
+    from .stellungnahme_service import ersetze_platzhalter as _fuelle
+    _texte = hole_texte_aufgeloest()
+
+    def _st(key, kontext=None):
+        return _fuelle(_texte[key], kontext or {})
+
     # ── Beklagte / GHPV ──────────────────────────────────────────────────────
     beklagte_liste = cfg.get("beklagte") or []
     # Erste gecheckte, nicht-klagende Partei = GHPV (KW-40: gleiches Filtermuster
@@ -1192,12 +1199,11 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
 
     _versaeumnis_block = (
         _lz()
-        + _p("Für den Fall der Anordnung des schriftlichen Vorverfahrens bitten wir, "
-             "für den Fall der Nichteinlassung der Beklagten:")
+        + _p(_st("antraege_versaeumnis_einleitung"))
         + _lz()
-        + _p("Versäumnisurteil", fett=True, center=True)
+        + _p(_st("antraege_versaeumnis_titel"), fett=True, center=True)
         + _lz()
-        + _p("ohne mündliche Verhandlung zu erlassen.")
+        + _p(_st("antraege_versaeumnis_schluss"))
     )
 
     if antraege_override:
@@ -1426,17 +1432,17 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
     if schilderung:
         unfall_xml += _p(schilderung)
     else:
-        unfall_xml += _p("[Unfallschilderung – bitte aus RA-Micro WDM laden]")
+        unfall_xml += _p(_st("unfallhergang_schilderung_fehlt"))
     unfall_xml += _lz()
     unfall_xml += _beweis(f"Parteivernahme, hilfsweise informatorische Anhörung "
                           f"{kl_art} {kl_bez}.")
     for z in zeugen:
         unfall_xml += _p(f"Zeugnis: {z}", einzug=True)
-    unfall_xml += _p("Unfallrekonstruktionsgutachten", einzug=True)
+    unfall_xml += _p(_st("unfallhergang_beweis_rekonstruktion"), einzug=True)
     if ea_az and ea_beh:
-        unfall_xml += _p(f"Beiziehung der Ermittlungsakte {ea_az} bei der {ea_beh}", einzug=True)
+        unfall_xml += _p(_st("unfallhergang_beweis_ermittlungsakte", {"ERMITTLUNGS_AZ": ea_az, "BEHOERDE": ea_beh}), einzug=True)
     elif ea_az:
-        unfall_xml += _p(f"Beiziehung der Ermittlungsakte {ea_az}", einzug=True)
+        unfall_xml += _p(_st("unfallhergang_beweis_ermittlungsakte_kurz", {"ERMITTLUNGS_AZ": ea_az}), einzug=True)
 
     # ── {{SCHADEN}} ───────────────────────────────────────────────────────
     # KW-04: eine Rechenquelle - Tabelle wird auf die checked cfg-Positionen
@@ -1552,12 +1558,12 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
     )
 
     schaden_xml  = _lz() + _abschnitt_kopf("Unfallschaden")
-    schaden_xml += _p("Durch den Unfall ist ein Schaden entstanden, der sich wie folgt zusammensetzt:")
+    schaden_xml += _p(_st("schaden_einleitung"))
     schaden_xml += tabelle_xml
     schaden_xml += _lz()
-    schaden_xml += _beweis(f"Schadengutachten (Anlage {anlagen.naechste()})")
+    schaden_xml += _beweis(_st("schaden_beweis_gutachten", {"ANLAGE_NR": anlagen.naechste()}))
     schaden_xml += _lz()
-    schaden_xml += _p("Einholung eines gerichtlichen Sachverständigengutachtens.", fett=True)
+    schaden_xml += _p(_st("schaden_beweis_gerichtsgutachten"), fett=True)
 
     if fallb_aktiv:
         # KW-03 Fall B: eigene Quote - der Satz zeigt schaden_gesamt (Tabelle) als
@@ -1576,33 +1582,34 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
         # fallb_zahlungen) - stattdessen die echte Summe nennen, gleiche Rundung wie :1119.
         _fallb_geklemmt = klagebetrag == 0.0 and fallb_zahlungen > _ersatzfaehig
         if _fallb_geklemmt or _zahlungen_anzeige > 0:
-            schaden_xml += _p(f"{bek_gram['nom_gross']} {bek_gram['hat']} folgende Zahlungen auf den Schaden geleistet:")
+            schaden_xml += _p(_st("schaden_zahlungen_vorspann", {"BEK_NOM": bek_gram["nom_gross"], "BEK_HAT": bek_gram["hat"]}))
             if reg_tbl_xml:
                 schaden_xml += reg_tbl_xml
             schaden_xml += _lz()
         if _fallb_geklemmt:
-            schaden_xml += _p(
-                f"Von dem Gesamtschaden in Höhe von {_eur_str(schaden_gesamt)} sind unter "
-                f"Berücksichtigung der Mithaftungsquote von {_pct_str(100 - hq)} % {_pct_str(hq)} %, "
-                f"mithin {_eur_str(_ersatzfaehig)}, ersatzfähig. Hierauf wurden bereits Zahlungen "
-                f"in Höhe von {_eur_str(fallb_zahlungen)} geleistet; der ersatzfähige Betrag ist "
-                f"damit vollständig ausgeglichen."
-            )
+            schaden_xml += _p(_st("schaden_fallb_geklemmt", {
+                "GESAMTSCHADEN": _eur_str(schaden_gesamt),
+                "MITHAFTUNGSQUOTE": _pct_str(100 - hq),
+                "HAFTUNGSQUOTE": _pct_str(hq),
+                "ERSATZFAEHIG": _eur_str(_ersatzfaehig),
+                "ZAHLUNGEN": _eur_str(fallb_zahlungen),
+            }))
         elif _zahlungen_anzeige > 0:
-            schaden_xml += _p(
-                f"Von dem Gesamtschaden in Höhe von {_eur_str(schaden_gesamt)} sind unter "
-                f"Berücksichtigung der Mithaftungsquote von {_pct_str(100 - hq)} % {_pct_str(hq)} %, "
-                f"mithin {_eur_str(_ersatzfaehig)}, ersatzfähig. Abzüglich der geleisteten Zahlungen "
-                f"in Höhe von {_eur_str(_zahlungen_anzeige)} verbleiben {_eur_str(klagebetrag)}, "
-                f"die mit dem Klageantrag zu 1 geltend gemacht werden."
-            )
+            schaden_xml += _p(_st("schaden_fallb_offen", {
+                "GESAMTSCHADEN": _eur_str(schaden_gesamt),
+                "MITHAFTUNGSQUOTE": _pct_str(100 - hq),
+                "HAFTUNGSQUOTE": _pct_str(hq),
+                "ERSATZFAEHIG": _eur_str(_ersatzfaehig),
+                "ZAHLUNGEN": _eur_str(_zahlungen_anzeige),
+                "KLAGEBETRAG": _eur_str(klagebetrag),
+            }))
         else:
-            schaden_xml += _p(
-                f"Von dem Gesamtschaden in Höhe von {_eur_str(schaden_gesamt)} sind unter "
-                f"Berücksichtigung der Mithaftungsquote von {_pct_str(100 - hq)} % {_pct_str(hq)} %, "
-                f"mithin {_eur_str(_ersatzfaehig)}, ersatzfähig. Dieser Betrag wird mit dem "
-                f"Klageantrag zu 1 geltend gemacht."
-            )
+            schaden_xml += _p(_st("schaden_fallb_voll", {
+                "GESAMTSCHADEN": _eur_str(schaden_gesamt),
+                "MITHAFTUNGSQUOTE": _pct_str(100 - hq),
+                "HAFTUNGSQUOTE": _pct_str(hq),
+                "ERSATZFAEHIG": _eur_str(_ersatzfaehig),
+            }))
     else:
         # KW-04: Differenz-Satz aus einer Quelle - Zahlungen ergeben sich aus
         # schaden_gesamt (Tabelle, 100 %) und klagebetrag (Antrag 1), nicht mehr
@@ -1611,21 +1618,20 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
         _zahlungen = round(schaden_gesamt - klagebetrag, 2)
         if _zahlungen > 0:
             schaden_xml += _lz()
-            schaden_xml += _p(f"{bek_gram['nom_gross']} {bek_gram['hat']} folgende Zahlungen auf den Schaden geleistet:")
+            schaden_xml += _p(_st("schaden_zahlungen_vorspann", {"BEK_NOM": bek_gram["nom_gross"], "BEK_HAT": bek_gram["hat"]}))
             if reg_tbl_xml:
                 schaden_xml += reg_tbl_xml
             schaden_xml += _lz()
-            schaden_xml += _p(
-                f"Die Differenz des geforderten Gesamtbetrages in Höhe von {_eur_str(schaden_gesamt)} "
-                f"abzgl. der oben gezeigten geleisteten Zahlungen in Höhe von {_eur_str(_zahlungen)} "
-                f"beträgt {_eur_str(klagebetrag)} und wird mit dem Klageantrag zu 1 geltend gemacht."
-            )
+            schaden_xml += _p(_st("schaden_differenz", {
+                "GESAMTSCHADEN": _eur_str(schaden_gesamt),
+                "ZAHLUNGEN": _eur_str(_zahlungen),
+                "KLAGEBETRAG": _eur_str(klagebetrag),
+            }))
         else:
             schaden_xml += _lz()
-            schaden_xml += _p(
-                f"Der Gesamtbetrag in Höhe von {_eur_str(schaden_gesamt)} wird mit dem "
-                f"Klageantrag zu 1 geltend gemacht."
-            )
+            schaden_xml += _p(_st("schaden_gesamtbetrag", {
+                "GESAMTSCHADEN": _eur_str(schaden_gesamt),
+            }))
 
     # ── {{RECHTLICHE_WUERDIGUNG}} ─────────────────────────────────────────
     rw_text_override = (details.get("rw_text_override") or "").strip()
@@ -1643,23 +1649,24 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
         haftungsbegruendung = details.get("haftungsbegruendung") or ""
 
         rw_xml  = _lz() + _abschnitt_kopf("Rechtliche Würdigung")
-        rw_xml += _p(f"Der bei der Beklagten versicherte Unfallgegner verursachte den Unfall "
-                     f"durch {haftungsbegruendung or 'sein schuldhaftes Verhalten'}. "
-                     f"Die Haftungsquote beträgt {_pct_str(hq)} %.")
+        rw_xml += _p(_st("wuerdigung_grundhaftung", {
+            "HAFTUNGSBEGRUENDUNG": haftungsbegruendung or "sein schuldhaftes Verhalten",
+            "HAFTUNGSQUOTE": _pct_str(hq),
+        }))
         # Regulierungshinweis nur wenn keine positions-genaue Tabelle vorhanden
         if not reg_tbl_xml:
             gesamt_reguliert = sum(float(a.get("gesamt_reguliert") or 0) for a in abrechnungen)
             if gesamt_reguliert > 0:
-                rw_xml += _p(
-                    f"{bek_gram['nom_gross']} {bek_gram['hat']} eine Teilregulierung in Höhe von "
-                    f"{_eur_str(gesamt_reguliert)} vorgenommen. Die verbleibenden Kürzungen sind "
-                    f"nicht gerechtfertigt, sodass die Klage in Höhe des offenen Restbetrages erhoben wird."
-                )
+                rw_xml += _p(_st("wuerdigung_teilregulierung", {
+                    "BEK_NOM": bek_gram["nom_gross"],
+                    "BEK_HAT": bek_gram["hat"],
+                    "BETRAG": _eur_str(gesamt_reguliert),
+                }))
             else:
-                rw_xml += _p(
-                    f"{bek_gram['nom_gross']} {bek_gram['hat']} bislang keine Regulierung vorgenommen. "
-                    f"Da trotz mehrfacher Fristsetzung keine Zahlung erfolgte, war die Klage notwendig."
-                )
+                rw_xml += _p(_st("wuerdigung_keine_regulierung", {
+                    "BEK_NOM": bek_gram["nom_gross"],
+                    "BEK_HAT": bek_gram["hat"],
+                }))
         # KW-03: "entsprechend gekürzt" nur im Fall B (eigene Quote) wahr -
         # im Fall gegnerisch wird die Mithaftungsquote bestritten.
         if hq < 100:
@@ -1669,12 +1676,9 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
                     f"Die Klageforderung ist entsprechend gekürzt."
                 )
             else:
-                rw_xml += _p(
-                    f"Die Beklagtenseite geht von einer Mithaftungsquote von "
-                    f"{_pct_str(100 - hq)} % auf Klägerseite aus. Dies wird bestritten; die "
-                    f"Beklagtenseite haftet in vollem Umfang. Die Klageforderung ist ungekürzt "
-                    f"geltend gemacht."
-                )
+                rw_xml += _p(_st("wuerdigung_alleinhaftung_bestritten", {
+                    "MITHAFTUNGSQUOTE": _pct_str(100 - hq),
+                }))
 
     # ── {{SCHMERZENSGELD}} ────────────────────────────────────────────────
     if mit_sg:
@@ -1682,7 +1686,7 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
         sg_absaetze, sg_beweis, sg_vgl = baue_sg_abschnitt(
             ps_data, kl_nom, sg_mind,
             verb_hat="haben" if mehrere_klaeger else "hat",
-            anlage_nr=anlagen.naechste())
+            anlage_nr=anlagen.naechste(), texte=_texte)
         for absatz in sg_absaetze:
             sg_xml += _p(absatz)
         if sg_vgl:
@@ -1707,17 +1711,14 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
                 verzug_body_xml += _p(_line)
     else:
         if verzugsdatum:
-            verzug_body_xml = _p(
-                f"Der Verzug ist nach Ablauf der Zahlungsfrist bzw. dem ernsthaften "
-                f"und endgültigen Verweigern der Leistung am {verzugsdatum} eingetreten."
-            )
+            verzug_body_xml = _p(_st("verzug_mit_datum", {"VERZUGSDATUM": verzugsdatum}))
             # S4-M5: BEWEIS nur wenn verzug_schreiben_datum explizit gesetzt ist -
             # vorher Fallback aufs Eintrittsdatum, divergierte vom Frontend
             # (buildVerzugAutoText laesst den Satz ohne Schreibdatum ebenfalls weg).
             if cfg.get("verzug_schreiben_datum"):
-                verzug_body_xml += _beweis(f"Schreiben vom {verzug_schreiben}")
+                verzug_body_xml += _beweis(_st("verzug_beweis_schreiben", {"SCHREIBEN_DATUM": verzug_schreiben}))
         else:
-            verzug_body_xml = _p("Verzug ist mit Rechtshängigkeit eingetreten.")
+            verzug_body_xml = _p(_st("verzug_rechtshaengigkeit"))
 
     # KW-32: eigene Überschrift, nur wenn der Block tatsächlich Inhalt hat.
     if verzug_body_xml:
@@ -1753,18 +1754,18 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
         '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/>'
         '<w:insideH w:val="single" w:sz="2" w:space="0" w:color="CCCCCC"/>'
         '</w:tblBorders></w:tblPr>'
-        + _rvg_tbl_zeile(f"Gegenstandswert:", _eur_str(sw_ausserg), fett=True)
-        + _rvg_tbl_zeile(f"Geschäftsgebühr §§ 13, 14, Nr. 2300 VV RVG "
-                         f"({str(rvg_fuer_tab.get('faktor', 1.3)).replace('.', ',')}):",
+        + _rvg_tbl_zeile(_st("gebuehren_zeile_gegenstandswert"), _eur_str(sw_ausserg), fett=True)
+        + _rvg_tbl_zeile(_st("gebuehren_zeile_geschaeftsgebuehr",
+                             {"FAKTOR": str(rvg_fuer_tab.get('faktor', 1.3)).replace('.', ',')}),
                          _eur_str(rvg_fuer_tab.get("gebuehr_netto", 0)))
-        + _rvg_tbl_zeile("Post u. Telekommunikation Nr. 7002 VV RVG:",
+        + _rvg_tbl_zeile(_st("gebuehren_zeile_post"),
                          _eur_str(rvg_fuer_tab.get("post_pauschale", 0)))
-        + _rvg_tbl_zeile("Zwischensumme netto:", _eur_str(rvg_fuer_tab.get("zwischen_netto", 0)), fett=True)
-        + _rvg_tbl_zeile("19 % Umsatzsteuer:", _eur_str(rvg_fuer_tab.get("ust", 0)))
-        + _rvg_tbl_zeile("Gesamtbetrag:", _eur_str(rvg_brutto), fett=True)
+        + _rvg_tbl_zeile(_st("gebuehren_zeile_zwischensumme"), _eur_str(rvg_fuer_tab.get("zwischen_netto", 0)), fett=True)
+        + _rvg_tbl_zeile(_st("gebuehren_zeile_ust"), _eur_str(rvg_fuer_tab.get("ust", 0)))
+        + _rvg_tbl_zeile(_st("gebuehren_zeile_gesamt"), _eur_str(rvg_brutto), fett=True)
         + (
-            _rvg_tbl_zeile("abzüglich bereits gezahlter Kosten:", f"- {_eur_str(rvg_bereits_gezahlt)}")
-            + _rvg_tbl_zeile("Klageanteil (offen):", _eur_str(rvg_antrag_betrag), fett=True)
+            _rvg_tbl_zeile(_st("gebuehren_zeile_gezahlt"), f"- {_eur_str(rvg_bereits_gezahlt)}")
+            + _rvg_tbl_zeile(_st("gebuehren_zeile_offen"), _eur_str(rvg_antrag_betrag), fett=True)
             if rvg_bereits_gezahlt > 0 else ""
           )
         + '</w:tbl>'
@@ -1781,27 +1782,15 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
     vk_xml = ""
     if rvg_antrag_betrag > 0:
         vk_xml  = _lz() + _abschnitt_kopf("Vorgerichtliche Rechtsanwaltsgebühren")
-        vk_xml += _p(
-            f"Der Klageantrag zu {rvg_antrag_nr}. ergibt sich aus den vorgerichtlich entstandenen "
-            f"Gebühren, für die {bek_nom} ebenfalls {bek_haften}. "
-            f"Der Anspruch auf Zahlung vorgerichtlicher Rechtsverfolgungskosten folgt aus § 249 ff. BGB "
-            f"unabhängig von einem etwaigen Verzugseintritt. Der Geschädigte sieht sich im Regelfall "
-            f"einem in der Regulierung von Unfallschäden versierten Sachbearbeiter des "
-            f"Haftpflichtversicherers gegenüber. Unter dem Aspekt der Waffengleichheit wird deshalb "
-            f"eine Erstattungsfähigkeit der Rechtsanwaltskosten im Rahmen der Rechtsverfolgungskosten "
-            f"grundsätzlich bejaht (Berz/Buhrmann Straßenverkehrsrecht \u2013 Hdb/Ziegenhardt, "
-            f"48. EL August 2023 5. C. Rn. 82, Beck-online)."
-        )
+        vk_xml += _p(_st("gebuehren_begruendung_anspruch", {
+            "ANTRAG_NR": str(rvg_antrag_nr),
+            "BEK_NOM_KLEIN": bek_nom,
+            "BEK_HAFTEN": bek_haften,
+        }))
         vk_xml += _lz()
-        vk_xml += _p(
-            "Der Prozessbevollmächtigte war bereits vorgerichtlich mit der Gegenseite in Kontakt "
-            "getreten. Letztmalig, als man die Gegenseite unter Fristsetzung zur Zahlung aufforderte."
-        )
+        vk_xml += _p(_st("gebuehren_begruendung_kontakt"))
         vk_xml += _lz()
-        vk_xml += _p(
-            "Die hieraus vorgerichtlich entstandenen Rechtsanwaltsgebühren sind zu ersetzen. "
-            "Die Gebühren berechnen sich wie folgt:"
-        )
+        vk_xml += _p(_st("gebuehren_begruendung_berechnung"))
         vk_xml += rvg_tabelle
 
     # ── {{SCHLUSSFORMEL}} ─────────────────────────────────────────────────
@@ -1820,8 +1809,7 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
         t = f'<w:t xml:space="preserve">{_esc(text)}</w:t>' if text else "<w:t/>"
         return f'<w:p>{PPR_SL}<w:r>{RPR_SL}{t}</w:r></w:p>'
 
-    sl_xml  = _p("Sollte das Gericht noch weiteren Vortrag für notwendig erachten, "
-                 "so wird um einen richterlichen Hinweis gebeten.")
+    sl_xml  = _p(_st("schluss_hinweis"))
     sl_xml += f'<w:p>{PPR_SL}</w:p>'
     if unterschrift:
         sl_xml += (f'<w:p>{PPR_SL}<w:r><w:rPr><w:noProof/></w:rPr>'
