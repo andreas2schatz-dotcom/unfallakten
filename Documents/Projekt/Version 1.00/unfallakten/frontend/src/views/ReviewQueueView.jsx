@@ -69,6 +69,10 @@ export function gruppiereQueue(eintraege) {
   return gruppen;
 }
 
+export function sortiereGruppen(gruppen, absteigend) {
+  return absteigend ? [...gruppen].reverse() : gruppen;
+}
+
 export function TextVorschau({ text }) {
   return (
     <pre style={{
