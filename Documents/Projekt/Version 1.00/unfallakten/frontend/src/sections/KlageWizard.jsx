@@ -61,6 +61,7 @@ export function beklagtenGrammatik(beklagte) {
   const gef = kanonischeBeklagte(beklagte);
   if (gef.length > 1) {
     return { anzahl: gef.length, mehrere: true,
+      nomGross: "Die Beklagten", hat: "haben",
       verurteilt: "Die Beklagten werden als Gesamtschuldner verurteilt",
       verpflichtet: "die Beklagten als Gesamtschuldner verpflichtet sind",
       kosten: "Die Beklagten tragen die Kosten des Rechtsstreits." };
@@ -69,11 +70,13 @@ export function beklagtenGrammatik(beklagte) {
   const maennlich = !!b && !b.versicherung && !b.firma && anredeNorm(b.anrede) === "herr";
   if (maennlich) {
     return { anzahl: gef.length, mehrere: false,
+      nomGross: "Der Beklagte", hat: "hat",
       verurteilt: "Der Beklagte wird verurteilt",
       verpflichtet: "der Beklagte verpflichtet ist",
       kosten: "Der Beklagte trägt die Kosten des Rechtsstreits." };
   }
   return { anzahl: gef.length, mehrere: false,
+    nomGross: "Die Beklagte", hat: "hat",
     verurteilt: "Die Beklagte wird verurteilt",
     verpflichtet: "die Beklagte verpflichtet ist",
     kosten: "Die Beklagte trägt die Kosten des Rechtsstreits." };
@@ -273,14 +276,15 @@ export function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguli
     );
   }
 
+  const gram = beklagtenGrammatik(beklagte);
   if (gesamtReguliert > 0) {
     lines.push(
-      `Die Beklagte${versichererSuffix(beklagte)} hat eine Teilregulierung in Höhe von ${fmtEuro(gesamtReguliert)} vorgenommen. ` +
+      `${gram.nomGross} ${gram.hat} eine Teilregulierung in Höhe von ${fmtEuro(gesamtReguliert)} vorgenommen. ` +
       `Die verbleibenden Kürzungen sind nicht gerechtfertigt, sodass die Klage in Höhe des offenen Restbetrages erhoben wird.`
     );
   } else {
     lines.push(
-      `Die Beklagte${versichererSuffix(beklagte)} hat bislang keine Regulierung vorgenommen. ` +
+      `${gram.nomGross} ${gram.hat} bislang keine Regulierung vorgenommen. ` +
       `Da trotz mehrfacher Fristsetzung keine Zahlung erfolgte, war die Klage notwendig.`
     );
   }
