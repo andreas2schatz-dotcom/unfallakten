@@ -7,6 +7,26 @@
 
 ---
 
+## 2026-07-24 — Klage-Wizard Paket 4: Standardtexte pflegbar, V11 Stufe 1 (Branch `standardtexte-v11`)
+
+Plan `docs/superpowers/plans/2026-07-19-klage-wizard-standardtexte-design.md` (Stufe 1 = 44 Bausteine Kategorie A+B; Kategorie C/vorflektierte Platzhalter bewusst als Stufe 2 vertagt, siehe TODO.md). Baut auf der `TextbausteinEditor`-Komponente der Kürzungstaxonomie Phase 1 auf.
+
+- **Task 1** `497d9caf` Golden-Paritäts-Matrix (16 Szenarien, `test_klage_standardtexte_golden.py` + `backend/tests/golden/klage_standardtexte/*.txt`) als Regressionsschutz **vor** dem Registry-Umbau; Aktualisierung der Golden-Files über `KLAGE_GOLDEN_UPDATE=1`.
+- **Task 2** `ff9aa8f3`+`2013df3b` Nebenbefund-Fix Beklagten-Grammatik: bei mehreren Beklagten heißt es jetzt einheitlich „Die Beklagten haben …" (`nom_gross`/`hat`) statt „Die Beklagte zu 2) hat …" — das „zu N)"-Suffix entfällt in genau diesen zwei Sätzen (Fall-B-/Regulierungssatz), BE (`klage_service.py`) und FE-Spiegel (`buildRwVorschau`) wortgleich nachgezogen.
+- **Task 3** `adc811b1` YAML-Registry `backend/registry/klage_standardtexte.yaml` (44 Bausteine, 23 Platzhalter) + fail-loud Loader `backend/services/standardtext_registry.py` (App-Start bricht bei defektem YAML, wie bei der Kürzungstyp-Registry).
+- **Task 4** `513aa47b` Migration 65: Tabelle `standardtext_override` + Model, je Akte/Baustein überschreibbar.
+- **Task 5** `29701bec` `klage_service.py`/`sg_text_builder.py` beziehen 36 Call-Sites aus der Registry statt aus eingebranntem Text — golden-paritätisch, **null YAML-Korrekturen nötig** (Matrix aus Task 1 blieb durchgehend grün).
+- **Task 6** `59bc7751` REST `/klage-standardtexte` (5 Routen: Liste, Override, Reset, Vorschau, `/aufgeloest`), 422/409-Validierung für unbekannte Bausteine/Platzhalter.
+- **Task 7** `a140d203`+`6e3cdfaf` Einstellungen-Tab „📄 Standardtexte" (`StandardtexteTab.jsx`, Wiederverwendung des `TextbausteinEditor`), Vite-Proxy ergänzt; Fehlerbehandlung Zurücksetzen + toter Import nachgezogen.
+- **Task 8+9** `a21439b1`+`81f7284a` Klage-Wizard bezieht die 8 Stufe-1-Texte live über `/klage-standardtexte/aufgeloest` (Fetch aus `KlageWizard` in `KlageSection` geliftet, Seed-Race-Fix, sichtbarer Fehlerzustand statt stillem Fallback).
+- **Wichtige Befunde:**
+  1. Der Teilregulierungssatz ist im Backend strukturell unerreichbar (`klage_service.py`, KW-04-Altlast) — im Golden-Test (`teilregulierung.txt`) dokumentiert, kein neuer Bug, nicht in dieser Runde behoben.
+  2. `sg_text_builder` wirkt auch im Forderungsschreiben mit — Overrides der Schmerzensgeld-Bausteine ändern **beide** Dokumente (bewusst, freigegeben: einheitliche Formulierungen).
+- Endabnahme: Backend voller Lauf **204f/1277p/18s + 88 Subtests** (Alt-Cluster identisch verteilt: `test_modul3/4/7` 151, `test_modul2` 16, `test_modul5` 15, `test_dashboard_uebersicht` 9, `test_modul1` 6, `test_sv_portal` 4, `test_prd27`/`test_modul6`/`test_migration_46` je 1 — exakt wie Bestand, keine neue Datei im Failure-Set); Frontend **382/382** grün.
+- **Offen zur Abnahme RA Schatz:** Browser-Handprobe (Einstellungen-Tab „Standardtexte" + Wizard-Vorschau mit den 8 Stufe-1-Texten im echten Betrieb) steht noch aus.
+
+---
+
 ## 2026-07-23 — Phase-1-Nachtrag: Genus-Platzhalter (Weg 2, Freigabe RA Schatz)
 
 18 Genus-Platzhalter für die Mandantschaft (`<PRON>`, `<POSS_EM>`, `<ANREDE_DEKL>`, `<MANDANT_NOM>`, `<UNSERES>` …), gespeist aus RA-MICRO `sAnrede` (Erkennung wiederverwendet: `bestimme_geschlecht` aus `forderungsschreiben_wv._grammatik_vars` extrahiert, verhaltensgleich). Stellungnahme-Kontext löst sie akten-genau auf (ohne Anrede-Daten bewusst maskulin = Bestandsverhalten); Klage-Einwände lösen sie über den neuen wortgleichen FE-Helfer `platzhalterLogik.js` (`weiblich`-Flag des Wizards) auf, Unauflösbares wird sichtbarer `[FEHLT: <X>]`-Marker.

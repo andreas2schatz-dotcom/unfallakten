@@ -13,7 +13,7 @@ Empfohlene Reihenfolge 1→2→3→4 (3+4 teilen sich den Textaufbau-Umbau/V11 �
 1. **Entwurf speichern** — ✅ umgesetzt + in `main` (2026-07-19). Detail → CHANGELOG.
 2. **UI-Führung** — ✅ KOMPLETT (Browser-Nachtest bestanden 2026-07-23: Status-Symbole, Schließen-Dialog, Vertreter-Lookup im Wizard). In `main`, gepusht. Detail → CHANGELOG.
 3. **Gesamtvorschau** — ✅ KOMPLETT (Browser-E2E bestanden 2026-07-23: Vorschau → Sachverhalt-Edit → Übernehmen → DOCX mit geändertem Text). In `main`, gepusht. Spec: `docs/superpowers/specs/2026-07-19-klage-wizard-gesamtvorschau-design.md`.
-4. **Standardtexte pflegbar (V11)** — **wartet bewusst** (Entscheidung 2026-07-23, DECISIONS.md): Phase 1 der Kürzungstaxonomie kommt zuerst und baut die gemeinsame Editor-Komponente; V11 erbt sie. Spec bleibt gültig: `docs/superpowers/specs/2026-07-19-klage-wizard-standardtexte-design.md`.
+4. **Standardtexte pflegbar (V11)** — ✅ Stufe 1 umgesetzt (Branch `standardtexte-v11`). Detail → CHANGELOG.
 
 ### Kürzungstaxonomie — Phase 0 ✅ · Phase 1 ✅ · **in `main` gemergt + gepusht (2026-07-24, `febe6f06`)**
 Alle 12 Tasks + Genus-Platzhalter-Nachtrag (Weg 2). Abnahme: Bausteine von RA Schatz gegengelesen ✅; Katalog-Editor, Wizard-Zitat, Genus-Formen, Speichern-Sperre per Playwright-E2E bestanden ✅ (2026-07-24). Protokoll → `docs/CHANGELOG.md`.
@@ -21,7 +21,6 @@ Alle 12 Tasks + Genus-Platzhalter-Nachtrag (Weg 2). Abnahme: Bausteine von RA Sc
 - **Messung Zielwerte (~2026-08-20, nach ~4 Wochen Betrieb):** `docker exec unfallakten-backend-dev python /app/tools/kuerzungsmatching_report.py` — Zielwerte: Abdeckung ≥ 90 %, Trefferquote ≥ 75 %, Positionszuordnung ≥ 90 % (DECISIONS 2026-07-23). Baseline siehe CHANGELOG.
 - **Fehlablage-Entscheidung RA Schatz (aus Phase 0):** Dok 41478 + 43429 aus Akten 971/25 / 980/25 löschen? (FEHLABLAGE-Vermerk gesetzt; 852/25 nur in RA-MICRO, 418/28 existiert nirgends.)
 - **Runden-Kachel im echten Betrieb** sichten, sobald die erste Akte 2 Abrechnungsrunden hat (Test-Abdeckung vorhanden, echter Fall noch nicht).
-- **V11 Standardtexte** kann jetzt starten — `TextbausteinEditor` liegt vor (Spec `docs/superpowers/specs/2026-07-19-klage-wizard-standardtexte-design.md`).
 Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, Vorgangsautomat — Konzept `handover/KONZEPT-Kuerzungstaxonomie-Vorgangsautomat.md` Abschnitt 12.
 
 ---
@@ -41,6 +40,7 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 6. **Reiter KI-Assistent:** Das LLM für OCR (GLM-OCR) muss dort ebenfalls einstellbar UND testbar sein (analog zum bestehenden Modell-Switcher).
 
 ### Mittel
+- **V11 Stufe 2 — Kategorie C über vorflektierte Platzhalter (eigener Plan):** Stufe 1 (44 Bausteine A+B) ist umgesetzt; Stufe 2 baut auf derselben Registry/Editor-Infrastruktur auf, braucht aber eigenes Brainstorming (vorflektierte statt regelbasierte Platzhalter).
 - **PRD-39 – Stellungnahme zum Abrechnungsschreiben (DOCX): bereits durch PRD-27 abgedeckt** (verifiziert 2026-07-23: 4 aktive Routen in `stellungnahme_routes.py`, voller DOCX-Generator, Tabelle `stellungnahme_texte`/Mig 40). Offen ist NUR die Trigger-Umkehr (Queue liefert fertigen Entwurf statt manuellem Wizard-Aufruf) — Teil von Phase 2 der Kürzungstaxonomie, kein eigenes Vorhaben.
 - **Dokumentenklasse „Klagedrohung" mit `frist_datum` → Verzugs-Automatik im Klage-Wizard:** Fristsetzungs-Schreiben bekommen eigene Klasse + strukturiertes Fristdatum; Verzugseintritt-Vorbelegung = Tag nach Fristablauf. Zwei Befüllungswege (selbst erzeugte Schreiben stempeln die Frist exakt; importierte via Parser). `verzug_dokumente` um `frist_datum` erweitern; optional Kopplung an Fristen-System (PRD-25a). Berührt Intake + Generator — eigenes Vorhaben.
 - **PRD-32 Phase 2 – Rechnungstypen Beleg-Mapping:** erkannte Typen automatisch der Schadenposition zuordnen (Standkosten→Standgeld usw.). Plan: `handover/PRD-32_Rechnungstypen_Parser.md`.
