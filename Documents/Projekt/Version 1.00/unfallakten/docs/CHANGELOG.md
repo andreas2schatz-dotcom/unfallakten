@@ -9,12 +9,12 @@
 
 ## 2026-07-24 — Klage-Wizard Paket 4: Standardtexte pflegbar, V11 Stufe 1 (Branch `standardtexte-v11`)
 
-Plan `docs/superpowers/plans/2026-07-19-klage-wizard-standardtexte-design.md` (Stufe 1 = 44 Bausteine Kategorie A+B; Kategorie C/vorflektierte Platzhalter bewusst als Stufe 2 vertagt, siehe TODO.md). Baut auf der `TextbausteinEditor`-Komponente der Kürzungstaxonomie Phase 1 auf.
+Plan `docs/superpowers/plans/2026-07-24-klage-wizard-standardtexte-v11-stufe1.md` (Design-Spec: `docs/superpowers/specs/2026-07-19-klage-wizard-standardtexte-design.md`; Stufe 1 = 44 Bausteine Kategorie A+B; Kategorie C/vorflektierte Platzhalter bewusst als Stufe 2 vertagt, siehe TODO.md). Baut auf der `TextbausteinEditor`-Komponente der Kürzungstaxonomie Phase 1 auf.
 
 - **Task 1** `497d9caf` Golden-Paritäts-Matrix (16 Szenarien, `test_klage_standardtexte_golden.py` + `backend/tests/golden/klage_standardtexte/*.txt`) als Regressionsschutz **vor** dem Registry-Umbau; Aktualisierung der Golden-Files über `KLAGE_GOLDEN_UPDATE=1`.
 - **Task 2** `ff9aa8f3`+`2013df3b` Nebenbefund-Fix Beklagten-Grammatik: bei mehreren Beklagten heißt es jetzt einheitlich „Die Beklagten haben …" (`nom_gross`/`hat`) statt „Die Beklagte zu 2) hat …" — das „zu N)"-Suffix entfällt in genau diesen zwei Sätzen (Fall-B-/Regulierungssatz), BE (`klage_service.py`) und FE-Spiegel (`buildRwVorschau`) wortgleich nachgezogen.
 - **Task 3** `adc811b1` YAML-Registry `backend/registry/klage_standardtexte.yaml` (44 Bausteine, 23 Platzhalter) + fail-loud Loader `backend/services/standardtext_registry.py` (App-Start bricht bei defektem YAML, wie bei der Kürzungstyp-Registry).
-- **Task 4** `513aa47b` Migration 65: Tabelle `standardtext_override` + Model, je Akte/Baustein überschreibbar.
+- **Task 4** `513aa47b` Migration 65: Tabelle `standardtext_override` + Model, kanzleiweit je Baustein überschreibbar (ein Override pro Baustein, gilt kanzleiweit — nicht je Akte).
 - **Task 5** `29701bec` `klage_service.py`/`sg_text_builder.py` beziehen 36 Call-Sites aus der Registry statt aus eingebranntem Text — golden-paritätisch, **null YAML-Korrekturen nötig** (Matrix aus Task 1 blieb durchgehend grün).
 - **Task 6** `59bc7751` REST `/klage-standardtexte` (5 Routen: Liste, Override, Reset, Vorschau, `/aufgeloest`), 422/409-Validierung für unbekannte Bausteine/Platzhalter.
 - **Task 7** `a140d203`+`6e3cdfaf` Einstellungen-Tab „📄 Standardtexte" (`StandardtexteTab.jsx`, Wiederverwendung des `TextbausteinEditor`), Vite-Proxy ergänzt; Fehlerbehandlung Zurücksetzen + toter Import nachgezogen.
