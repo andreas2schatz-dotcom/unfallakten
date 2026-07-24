@@ -23,7 +23,7 @@ Plan `docs/superpowers/plans/2026-07-24-klage-wizard-standardtexte-v11-stufe1.md
   1. Der Teilregulierungssatz ist im Backend strukturell unerreichbar (`klage_service.py`, KW-04-Altlast) — im Golden-Test (`teilregulierung.txt`) dokumentiert, kein neuer Bug, nicht in dieser Runde behoben.
   2. `sg_text_builder` wirkt auch im Forderungsschreiben mit — Overrides der Schmerzensgeld-Bausteine ändern **beide** Dokumente (bewusst, freigegeben: einheitliche Formulierungen).
 - Endabnahme: Backend voller Lauf **204f/1277p/18s + 88 Subtests** (Alt-Cluster identisch verteilt: `test_modul3/4/7` 151, `test_modul2` 16, `test_modul5` 15, `test_dashboard_uebersicht` 9, `test_modul1` 6, `test_sv_portal` 4, `test_prd27`/`test_modul6`/`test_migration_46` je 1 — exakt wie Bestand, keine neue Datei im Failure-Set); Frontend **382/382** grün.
-- **Offen zur Abnahme RA Schatz:** Browser-Handprobe (Einstellungen-Tab „Standardtexte" + Wizard-Vorschau mit den 8 Stufe-1-Texten im echten Betrieb) steht noch aus.
+- **Browser-E2E per Playwright BESTANDEN (2026-07-24, 24/24 Checks):** Einstellungen-Tab komplett (Gruppen, Suche, Chip-Einfügung, Live-Vorschau mit Beispielwerten, Speichern-Sperre bei unbekanntem Platzhalter, Override + „geändert"-Badge, Reset), Wizard an Akte 285/26 (Schritt 9 Verzug-Text aus Registry, Gesamtvorschau Schritt 11 zeigt Override im Schlusssatz), Test-Override danach entfernt (System unverändert). Nach dem Merge-Checkout zusätzlich CRLF-Falle gefixt: `.gitattributes eol=lf` für die Golden-Fixtures (core.autocrlf hätte sie bei jedem frischen Checkout mit CRLF materialisiert und den Byte-Vergleich gebrochen). Sichtabnahme RA Schatz im Betrieb weiterhin sinnvoll, aber kein Blocker mehr.
 
 ---
 
