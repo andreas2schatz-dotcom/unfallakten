@@ -15,13 +15,12 @@ Empfohlene Reihenfolge 1→2→3→4 (3+4 teilen sich den Textaufbau-Umbau/V11 �
 3. **Gesamtvorschau** — ✅ KOMPLETT (Browser-E2E bestanden 2026-07-23: Vorschau → Sachverhalt-Edit → Übernehmen → DOCX mit geändertem Text). In `main`, gepusht. Spec: `docs/superpowers/specs/2026-07-19-klage-wizard-gesamtvorschau-design.md`.
 4. **Standardtexte pflegbar (V11)** — **wartet bewusst** (Entscheidung 2026-07-23, DECISIONS.md): Phase 1 der Kürzungstaxonomie kommt zuerst und baut die gemeinsame Editor-Komponente; V11 erbt sie. Spec bleibt gültig: `docs/superpowers/specs/2026-07-19-klage-wizard-standardtexte-design.md`.
 
-### Kürzungstaxonomie — Phase 0 ✅ · Phase 1 ✅ KOMPLETT (2026-07-23, Branch `kuerzungstaxonomie-phase1`)
-Alle 12 Tasks umgesetzt (Migration 64, YAML-Registry 32 A–F-Typen, Baustein-Import, Matching+LLM-Fallback, Verkettung, Typ-UI mit Pflicht-Begründung, Runden-Vergleich, TextbausteinEditor, Baustein-Konsistenz+ZITAT, Messanker-Tool). Protokoll mit Commits → `docs/CHANGELOG.md`. Plan: `docs/superpowers/plans/2026-07-23-kuerzungstaxonomie-phase1.md`.
+### Kürzungstaxonomie — Phase 0 ✅ · Phase 1 ✅ · **in `main` gemergt + gepusht (2026-07-24, `febe6f06`)**
+Alle 12 Tasks + Genus-Platzhalter-Nachtrag (Weg 2). Abnahme: Bausteine von RA Schatz gegengelesen ✅; Katalog-Editor, Wizard-Zitat, Genus-Formen, Speichern-Sperre per Playwright-E2E bestanden ✅ (2026-07-24). Protokoll → `docs/CHANGELOG.md`.
 **Offen:**
-- **Abnahme RA Schatz (Browser):** Kürzungskatalog-Editor (Chip einfügen, Vorschau, Speichern-Sperre), Typ-Vorschlag-Chips + Pflicht-Begründung in der Regulierung, Runden-Kachel (braucht Akte mit 2 Abrechnungsrunden), Versicherer-Zitat im Stellungnahme-Wizard, **Genus-Platzhalter** (Stellungnahme-Vorschau bei einer Akte mit Mandantin: „unsere Mandantin/sie/ihrem"; die 7 umgestellten Bausteine 1/6/16/21/24/28/32 im Katalog gegenlesen).
-- **Branch-Integration:** `kuerzungstaxonomie-phase1` → `main` mergen nach Abnahme.
 - **Messung Zielwerte (~2026-08-20, nach ~4 Wochen Betrieb):** `docker exec unfallakten-backend-dev python /app/tools/kuerzungsmatching_report.py` — Zielwerte: Abdeckung ≥ 90 %, Trefferquote ≥ 75 %, Positionszuordnung ≥ 90 % (DECISIONS 2026-07-23). Baseline siehe CHANGELOG.
 - **Fehlablage-Entscheidung RA Schatz (aus Phase 0):** Dok 41478 + 43429 aus Akten 971/25 / 980/25 löschen? (FEHLABLAGE-Vermerk gesetzt; 852/25 nur in RA-MICRO, 418/28 existiert nirgends.)
+- **Runden-Kachel im echten Betrieb** sichten, sobald die erste Akte 2 Abrechnungsrunden hat (Test-Abdeckung vorhanden, echter Fall noch nicht).
 - **V11 Standardtexte** kann jetzt starten — `TextbausteinEditor` liegt vor (Spec `docs/superpowers/specs/2026-07-19-klage-wizard-standardtexte-design.md`).
 Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, Vorgangsautomat — Konzept `handover/KONZEPT-Kuerzungstaxonomie-Vorgangsautomat.md` Abschnitt 12.
 
