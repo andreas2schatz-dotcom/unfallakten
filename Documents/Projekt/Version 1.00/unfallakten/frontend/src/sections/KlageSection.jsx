@@ -66,6 +66,33 @@ export async function gerichtSpeichernOderWarnen(akteId, gericht) {
   }
 }
 
+// V11 Standardtexte-Nachzug: schliesst die Race, bei der der Wizard bereits offen
+// ist, bevor der Standardtexte-Fetch aufgeloest hat (Step 7/9 haben – anders als
+// Step 3/StepAktLeg – keinen eigenen Auto-Generierungs-Effekt und wurden beim
+// initialen Seed daher mit "" belegt). Liefert nur die Felder zurueck, die
+// tatsaechlich noch leer sind – ueberschreibt NIE manuelle/echte Inhalte.
+export function berechneNachgezogeneStandardtexte({
+  standardtexte, wizardRwText, wizardVerzugText, wizardVerzugManuell,
+  wizardHb, wizardHq, wizardHqTyp, beklagte, daten,
+  wizardVerzugDokDatum, wizardVerzugDatum,
+}) {
+  const ergebnis = {};
+  if (!standardtexte) return ergebnis;
+
+  if (wizardRwText === "") {
+    const gesReg = (daten?.abrechnungen || []).reduce((s, a) => s + (parseFloat(a.gesamt_reguliert) || 0), 0);
+    const klaegerObj = (beklagte || []).find(b => b.rolle_klage === "klaeger");
+    const weiblich = (klaegerObj?.anrede || "").toLowerCase() === "frau";
+    ergebnis.wizardRwText = buildRwVorschau(wizardHb, wizardHq, gesReg, weiblich, wizardHqTyp, beklagte, standardtexte);
+  }
+
+  if (wizardVerzugText === "" && !wizardVerzugManuell) {
+    ergebnis.wizardVerzugText = buildVerzugAutoText(wizardVerzugDokDatum, wizardVerzugDatum, standardtexte);
+  }
+
+  return ergebnis;
+}
+
 export async function entwurfSpeichernRemote(akteId, entwurf) {
   try {
     const r = await apiKlage.entwurfSpeichern(akteId, {
@@ -256,11 +283,12 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [wizardVerzugDokDatum, setWizardVerzugDokDatum] = useState("");
   const [wizardVerzugManuell, setWizardVerzugManuell] = useState(false);
   const [standardtexte, setStandardtexte] = useState(null);
+  const [standardtexteFehler, setStandardtexteFehler] = useState(false);
 
   useEffect(() => {
     apiStandardtexte.aufgeloest()
-      .then(r => setStandardtexte(r.texte))
-      .catch(() => setStandardtexte(null));
+      .then(r => { setStandardtexte(r.texte); setStandardtexteFehler(false); })
+      .catch(() => { setStandardtexte(null); setStandardtexteFehler(true); });
   }, []);
 
   const waehleVerzugDok = (dokId) => {
@@ -293,6 +321,18 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [wizardGebuehrenText, setWizardGebuehrenText]   = useState("");
   const [wizardGebuehrenManuell, setWizardGebuehrenManuell] = useState(false);
   const [gespeichertGb, setGespeichertGb]               = useState(null); // PRD-28: gespeicherte Gebührenberechnung
+
+  // ── Standardtexte-Nachzieheffekt (V11) ─────────────────────────────────
+  useEffect(() => {
+    if (!wizardOffen) return;
+    const nachgezogen = berechneNachgezogeneStandardtexte({
+      standardtexte, wizardRwText, wizardVerzugText, wizardVerzugManuell,
+      wizardHb, wizardHq, wizardHqTyp, beklagte, daten,
+      wizardVerzugDokDatum, wizardVerzugDatum,
+    });
+    if (nachgezogen.wizardRwText !== undefined) setWizardRwText(nachgezogen.wizardRwText);
+    if (nachgezogen.wizardVerzugText !== undefined) setWizardVerzugText(nachgezogen.wizardVerzugText);
+  }, [standardtexte]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Entwurf speichern (Paket 1) ─────────────────────────────────────────
   const [entwurfLetzterStand, setEntwurfLetzterStand]   = useState(null);
@@ -859,6 +899,9 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           entwurfLaeuft={entwurfLaeuft}
           entwurfAenderungen={entwurfAenderungen}
           onAenderungenGelesen={() => setEntwurfAenderungen([])}
+          // Standardtexte (V11, ein Fetch in KlageSection, per Prop an KlageWizard)
+          standardtexte={standardtexte}
+          standardtexteFehler={standardtexteFehler}
         />
       )}
       {showSgAssistent && (() => {

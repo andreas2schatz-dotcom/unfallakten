@@ -20,7 +20,7 @@ import React, { useEffect, useRef, useState } from "react";
 import T from "../config/theme.js";
 import { fmtEuro, fmtDatumDe } from "../config/utils.js";
 import { KLAGE_KEY_MAP } from "../config/klagePositionKeys.js";
-import { apiGebuehren, apiStandardtexte } from "../api.js";
+import { apiGebuehren } from "../api.js";
 import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
 import { formatGespeichertAm } from "./klageEntwurfLogik.js";
 import { istPersonPartei, parteiAnzeigeName, organBezeichnung, kanonischeBeklagte } from "./parteiLogik.js";
@@ -2714,6 +2714,8 @@ export default function KlageWizard({
   // Entwurf speichern
   onEntwurfSpeichern, entwurfDirty, entwurfGespeichertAm, entwurfFehler, entwurfLaeuft,
   entwurfAenderungen, onAenderungenGelesen,
+  // Standardtexte (V11, geliftet aus KlageSection – ein Fetch, eine Map)
+  standardtexte, standardtexteFehler,
 }) {
   const backdropRef = useRef(null);
   const [zeigeSchliessenGuard, setZeigeSchliessenGuard] = useState(false);
@@ -2721,13 +2723,6 @@ export default function KlageWizard({
     if (entwurfDirty) setZeigeSchliessenGuard(true);
     else onClose();
   };
-
-  const [standardtexte, setStandardtexte] = useState(null);
-  useEffect(() => {
-    apiStandardtexte.aufgeloest()
-      .then(r => setStandardtexte(r.texte))
-      .catch(() => setStandardtexte(null));
-  }, []);
 
   useEffect(() => {
     const handler = e => { if (e.key === "Escape" && !laedt) schliessenAnfordern(); };
@@ -2830,7 +2825,9 @@ export default function KlageWizard({
                 borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "1rem",
                 fontFamily: PLEX, fontSize: "0.85rem", color: T.amberText,
               }}>
-                Standardtexte werden geladen … Sollte diese Meldung bestehen bleiben, bitte Seite neu laden.
+                {standardtexteFehler
+                  ? "Standardtexte konnten nicht geladen werden – Seite neu laden."
+                  : "Standardtexte werden geladen … Sollte diese Meldung bestehen bleiben, bitte Seite neu laden."}
               </div>
             )}
             <Fortschrittsbalken step={step} maxStep={wizardMaxStep} onStepChange={onStepChange}
