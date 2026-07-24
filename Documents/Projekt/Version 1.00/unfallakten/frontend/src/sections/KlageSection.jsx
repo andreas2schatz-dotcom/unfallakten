@@ -14,6 +14,7 @@ import {
   apiGebuehren,
   apiFirmen,
   beteiligte as apiBeteiligte,
+  apiStandardtexte,
 } from "../api.js";
 import {
   ENTWURF_FORMAT_VERSION,
@@ -254,6 +255,13 @@ function KlageSection({ akteId, akte, st, dispatch }) {
   const [wizardVerzugDatum, setWizardVerzugDatum]     = useState("");
   const [wizardVerzugDokDatum, setWizardVerzugDokDatum] = useState("");
   const [wizardVerzugManuell, setWizardVerzugManuell] = useState(false);
+  const [standardtexte, setStandardtexte] = useState(null);
+
+  useEffect(() => {
+    apiStandardtexte.aufgeloest()
+      .then(r => setStandardtexte(r.texte))
+      .catch(() => setStandardtexte(null));
+  }, []);
 
   const waehleVerzugDok = (dokId) => {
     setVerzugDokId(dokId);
@@ -262,7 +270,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setWizardVerzugDokDatum(fmtDatumDe(daten.dokDatum));
     setWizardVerzugDatum(daten.eintritt);
     if (!wizardVerzugManuell) {
-      setWizardVerzugText(buildVerzugAutoText(daten.dokDatum, daten.eintritt));
+      setWizardVerzugText(standardtexte ? buildVerzugAutoText(daten.dokDatum, daten.eintritt, standardtexte) : "");
     }
   };
 
@@ -514,12 +522,12 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     setWizardHq(hq);
     setWizardHqTyp("gegnerisch");
     setWizardHb(hb);
-    setWizardRwText(buildRwVorschau(hb, hq, gesReg, weiblich, "gegnerisch", beklagte));
+    setWizardRwText(standardtexte ? buildRwVorschau(hb, hq, gesReg, weiblich, "gegnerisch", beklagte, standardtexte) : "");
     setWizardEinwaendeBlock("");
 
     const dok = wizardVerzugDokDatum || "";
     const ein = wizardVerzugDatum || "";
-    setWizardVerzugText(buildVerzugAutoText(dok, ein));
+    setWizardVerzugText(standardtexte ? buildVerzugAutoText(dok, ein, standardtexte) : "");
     setWizardVerzugManuell(false);
 
     // PRD-26: neue States initialisieren

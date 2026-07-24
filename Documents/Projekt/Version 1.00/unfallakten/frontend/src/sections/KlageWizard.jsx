@@ -20,7 +20,7 @@ import React, { useEffect, useRef, useState } from "react";
 import T from "../config/theme.js";
 import { fmtEuro, fmtDatumDe } from "../config/utils.js";
 import { KLAGE_KEY_MAP } from "../config/klagePositionKeys.js";
-import { apiGebuehren } from "../api.js";
+import { apiGebuehren, apiStandardtexte } from "../api.js";
 import SchmerzensgelDialog from "../components/SchmerzensgelDialog.jsx";
 import { formatGespeichertAm } from "./klageEntwurfLogik.js";
 import { istPersonPartei, parteiAnzeigeName, organBezeichnung, kanonischeBeklagte } from "./parteiLogik.js";
@@ -136,7 +136,7 @@ export function buildSachverhaltText({
   klaeger, vorsteuer, unfalldatum, unfallort,
   beklagte,
   aktLegTyp, aktLegFreigabe, aktLegDatum, mandantKz, mandantIstFahrer,
-  auslandsunfall,
+  auslandsunfall, auslandsunfallText,
 }) {
   const weiblich    = klaeger.startsWith("Die");
   const kl_bez      = weiblich ? "Klägerin" : "Kläger";
@@ -182,8 +182,8 @@ export function buildSachverhaltText({
   }
 
   // ── Auslandsunfall ────────────────────────────────────────────────────
-  if (auslandsunfall) {
-    text += "\n\nWir machen auf die Entscheidung des EuGH vom 13.12.2007 – Az. C 463/06 –\nund die Vorlage des BGH im Verfahren vom 26.9.2006 zu VI ZR 200/05 aufmerksam. Der EuGH hat in der Entscheidung festgestellt, dass dem Geschädigten auch der Rechtsweg am Gericht seines Wohnortes eröffnet ist.";
+  if (auslandsunfall && auslandsunfallText) {
+    text += "\n\n" + auslandsunfallText;
   }
 
   return text;
@@ -249,7 +249,8 @@ export function parseBetragOderNull(value) {
 /**
  * Erstellt den Vorschautext für die Rechtliche Würdigung.
  */
-export function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguliert, weiblich, hqTyp = "gegnerisch", beklagte = []) {
+export function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguliert,
+                                weiblich, hqTyp = "gegnerisch", beklagte = [], texte) {
   const hq     = parseFloat(haftungsquote) || 100;
   const kl_nom = weiblich ? "Die Klägerin" : "Der Kläger";
   const lines  = [];
@@ -269,24 +270,21 @@ export function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguli
       ` Der Unfall wurde allein schuldhaft von dem ${bek_dat_pp} Beklagten${nrSuffix} versicherten Fahrzeug verursacht.`
     );
   } else {
-    lines.push(
-      `Der bei der Beklagten versicherte Unfallgegner verursachte den Unfall durch ` +
-      `${(haftungsbegruendung || "").trim() || "sein schuldhaftes Verhalten"}. ` +
-      `Die Haftungsquote beträgt ${pctStr(hq)} %.`
-    );
+    lines.push(ersetzePlatzhalter(texte.wuerdigung_grundhaftung, {
+      HAFTUNGSBEGRUENDUNG: (haftungsbegruendung || "").trim() || "sein schuldhaftes Verhalten",
+      HAFTUNGSQUOTE: pctStr(hq),
+    }));
   }
 
   const gram = beklagtenGrammatik(beklagte);
   if (gesamtReguliert > 0) {
-    lines.push(
-      `${gram.nomGross} ${gram.hat} eine Teilregulierung in Höhe von ${fmtEuro(gesamtReguliert)} vorgenommen. ` +
-      `Die verbleibenden Kürzungen sind nicht gerechtfertigt, sodass die Klage in Höhe des offenen Restbetrages erhoben wird.`
-    );
+    lines.push(ersetzePlatzhalter(texte.wuerdigung_teilregulierung, {
+      BEK_NOM: gram.nomGross, BEK_HAT: gram.hat, BETRAG: fmtEuro(gesamtReguliert),
+    }));
   } else {
-    lines.push(
-      `${gram.nomGross} ${gram.hat} bislang keine Regulierung vorgenommen. ` +
-      `Da trotz mehrfacher Fristsetzung keine Zahlung erfolgte, war die Klage notwendig.`
-    );
+    lines.push(ersetzePlatzhalter(texte.wuerdigung_keine_regulierung, {
+      BEK_NOM: gram.nomGross, BEK_HAT: gram.hat,
+    }));
   }
 
   if (hq < 100) {
@@ -296,11 +294,9 @@ export function buildRwVorschau(haftungsbegruendung, haftungsquote, gesamtReguli
         `Die Klageforderung ist entsprechend gekürzt.`
       );
     } else {
-      lines.push(
-        `Die Beklagtenseite geht von einer Mithaftungsquote von ${pctStr(100 - hq)} % auf Klägerseite aus. ` +
-        `Dies wird bestritten; die Beklagtenseite haftet in vollem Umfang. ` +
-        `Die Klageforderung ist ungekürzt geltend gemacht.`
-      );
+      lines.push(ersetzePlatzhalter(texte.wuerdigung_alleinhaftung_bestritten, {
+        MITHAFTUNGSQUOTE: pctStr(100 - hq),
+      }));
     }
   }
 
@@ -681,7 +677,7 @@ export function StepAktLeg({
   klaeger,
   // Neu: kombinierter Sachverhalt
   vorsteuer, unfalldatum, unfallort, beklagte,
-  auslandsunfall, onAuslandsunfall,
+  auslandsunfall, onAuslandsunfall, auslandsunfallText,
   sachverhaltText, onSachverhaltText,
   sachverhaltManuell, onSachverhaltManuell,
 }) {
@@ -692,14 +688,14 @@ export function StepAktLeg({
       klaeger, vorsteuer, unfalldatum, unfallort,
       beklagte,
       aktLegTyp, aktLegFreigabe, aktLegDatum, mandantKz, mandantIstFahrer,
-      auslandsunfall,
+      auslandsunfall, auslandsunfallText,
     });
   }
 
   useEffect(() => {
     if (sachverhaltManuell) return;
     if (onSachverhaltText) onSachverhaltText(buildAuto());
-  }, [aktLegTyp, aktLegFreigabe, aktLegDatum, mandantIstFahrer, auslandsunfall]); // eslint-disable-line
+  }, [aktLegTyp, aktLegFreigabe, aktLegDatum, mandantIstFahrer, auslandsunfall, auslandsunfallText]); // eslint-disable-line
 
   function handleReset() {
     onSachverhaltManuell(false);
@@ -1335,17 +1331,19 @@ export function EinwaendeAuswahl({ abrechnungen, kuerzungsarten, beklagte, onUeb
 
 export function StepRw({ hq, onHq, hqTyp = "gegnerisch", onHqTyp, hb, onHb, abrechnungen, weiblich,
                   rwText, onRwText, beklagte,
-                  onKiHaftung, kiLaedt, onEinwaendeReset }) {
+                  onKiHaftung, kiLaedt, onEinwaendeReset, standardtexte }) {
   const gesamtReg = (abrechnungen || []).reduce((s, ab) => s + (parseFloat(ab.gesamt_reguliert) || 0), 0);
 
   function neuGenerieren() {
-    onRwText(buildRwVorschau(hb, hq, gesamtReg, weiblich, hqTyp, beklagte));
+    if (!standardtexte) return;
+    onRwText(buildRwVorschau(hb, hq, gesamtReg, weiblich, hqTyp, beklagte, standardtexte));
     onEinwaendeReset && onEinwaendeReset();
   }
 
   function fallauswaehlen(neuerTyp) {
     onHqTyp(neuerTyp);
-    onRwText(buildRwVorschau(hb, hq, gesamtReg, weiblich, neuerTyp, beklagte));
+    if (!standardtexte) return;
+    onRwText(buildRwVorschau(hb, hq, gesamtReg, weiblich, neuerTyp, beklagte, standardtexte));
     onEinwaendeReset && onEinwaendeReset();
   }
 
@@ -1527,12 +1525,13 @@ export function StepEinwaende({ abrechnungen, kuerzungsarten, beklagte,
 
 // ── Step 9: Verzug & Kosten ────────────────────────────────────────────────────
 
-export function buildVerzugAutoText(dokDatum, eintrittDatum) {
+export function buildVerzugAutoText(dokDatum, eintrittDatum, texte) {
   const vDat = fmtDatumDe(eintrittDatum);
   const bDat = fmtDatumDe(dokDatum);
-  if (!vDat) return "Verzug ist mit Rechtshängigkeit eingetreten.";
-  const basis = `Der Verzug ist nach Ablauf der Zahlungsfrist bzw. dem ernsthaften und endgültigen Verweigern der Leistung am ${vDat} eingetreten.`;
-  return bDat ? `${basis}\n\nBEWEIS: Schreiben vom ${bDat}` : basis;
+  if (!vDat) return texte.verzug_rechtshaengigkeit;
+  const basis = ersetzePlatzhalter(texte.verzug_mit_datum, { VERZUGSDATUM: vDat });
+  if (!bDat) return basis;
+  return `${basis}\n\nBEWEIS: ${ersetzePlatzhalter(texte.verzug_beweis_schreiben, { SCHREIBEN_DATUM: bDat })}`;
 }
 
 export function StepVerzug({ zinsenAb, weiblich,
@@ -1540,7 +1539,8 @@ export function StepVerzug({ zinsenAb, weiblich,
                       wizardVerzugDokDatum, onWizardVerzugDokDatum,
                       wizardVerzugText, onWizardVerzugText,
                       manuelleBearbeitung, onManuelleBearbeitung,
-                      verzugDokListe, verzugDokId, onVerzugDokId }) {
+                      verzugDokListe, verzugDokId, onVerzugDokId,
+                      standardtexte }) {
   const pickerEinRef  = useRef(null);
   const pickerDokRef  = useRef(null);
 
@@ -1555,8 +1555,8 @@ export function StepVerzug({ zinsenAb, weiblich,
   }
 
   function rebuildText(dokDat, einDat) {
-    if (manuelleBearbeitung) return;
-    onWizardVerzugText(buildVerzugAutoText(dokDat, einDat));
+    if (manuelleBearbeitung || !standardtexte) return;
+    onWizardVerzugText(buildVerzugAutoText(dokDat, einDat, standardtexte));
   }
 
   function handleEintrittChange(val) {
@@ -1571,7 +1571,8 @@ export function StepVerzug({ zinsenAb, weiblich,
 
   function handleReset() {
     onManuelleBearbeitung(false);
-    onWizardVerzugText(buildVerzugAutoText(wizardVerzugDokDatum, wizardVerzugDatum));
+    if (!standardtexte) return;
+    onWizardVerzugText(buildVerzugAutoText(wizardVerzugDokDatum, wizardVerzugDatum, standardtexte));
   }
 
   const CalIcon = () => (
@@ -1713,7 +1714,7 @@ export function StepVerzug({ zinsenAb, weiblich,
         </button>
       </div>
 
-      <EditorMitDiff autoText={buildVerzugAutoText(wizardVerzugDokDatum, wizardVerzugDatum)}
+      <EditorMitDiff autoText={standardtexte ? buildVerzugAutoText(wizardVerzugDokDatum, wizardVerzugDatum, standardtexte) : ""}
         text={wizardVerzugText}
         onText={val => { onManuelleBearbeitung(true); onWizardVerzugText(val); }} />
     </div>
@@ -2721,6 +2722,13 @@ export default function KlageWizard({
     else onClose();
   };
 
+  const [standardtexte, setStandardtexte] = useState(null);
+  useEffect(() => {
+    apiStandardtexte.aufgeloest()
+      .then(r => setStandardtexte(r.texte))
+      .catch(() => setStandardtexte(null));
+  }, []);
+
   useEffect(() => {
     const handler = e => { if (e.key === "Escape" && !laedt) schliessenAnfordern(); };
     document.addEventListener("keydown", handler);
@@ -2732,7 +2740,9 @@ export default function KlageWizard({
   const weiblich   = klaeger.startsWith("Die");
 
   const gesamtReg = (abrechnungen || []).reduce((s, ab) => s + (parseFloat(ab.gesamt_reguliert) || 0), 0);
-  const grundhaftungsText = buildRwVorschau(wizardHb, wizardHq, gesamtReg, weiblich, wizardHqTyp, beklagte);
+  const grundhaftungsText = standardtexte
+    ? buildRwVorschau(wizardHb, wizardHq, gesamtReg, weiblich, wizardHqTyp, beklagte, standardtexte)
+    : "";
 
   const antraegeOpts = {
     positionen, mitSG, sgMind, beklagte, weiblich,
@@ -2814,6 +2824,15 @@ export default function KlageWizard({
 
           {/* Body */}
           <div style={{ flex: 1, overflowY: "auto", padding: "1.5rem" }}>
+            {standardtexte === null && (
+              <div style={{
+                background: `${T.amber}10`, border: `1.5px solid ${T.amber}50`,
+                borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "1rem",
+                fontFamily: PLEX, fontSize: "0.85rem", color: T.amberText,
+              }}>
+                Standardtexte werden geladen … Sollte diese Meldung bestehen bleiben, bitte Seite neu laden.
+              </div>
+            )}
             <Fortschrittsbalken step={step} maxStep={wizardMaxStep} onStepChange={onStepChange}
               springenErlaubt={(nr) => kannSpringen(nr, step, { gerichtBestaetigt, positionen })}
               statusFuer={(nr) => schrittStatus(nr, statusCtx)} />
@@ -2857,6 +2876,7 @@ export default function KlageWizard({
                 beklagte={beklagte}
                 auslandsunfall={auslandsunfall}
                 onAuslandsunfall={onAuslandsunfall}
+                auslandsunfallText={standardtexte?.sachverhalt_auslandsunfall}
               />
             )}
 
@@ -2911,6 +2931,7 @@ export default function KlageWizard({
                 beklagte={beklagte}
                 onKiHaftung={onKiHaftung} kiLaedt={kiLaedt}
                 onEinwaendeReset={() => onWizardEinwaendeBlock("")}
+                standardtexte={standardtexte}
               />
             )}
 
@@ -2941,6 +2962,7 @@ export default function KlageWizard({
                 onManuelleBearbeitung={onWizardVerzugManuell}
                 verzugDokListe={verzugDokListe}
                 verzugDokId={verzugDokId}       onVerzugDokId={onVerzugDokId}
+                standardtexte={standardtexte}
               />
             )}
 

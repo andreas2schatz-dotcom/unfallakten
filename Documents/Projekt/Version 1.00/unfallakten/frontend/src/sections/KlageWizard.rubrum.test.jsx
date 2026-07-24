@@ -3,6 +3,7 @@ import {
   anredeNorm, kanonischeBeklagte, beklagtenGrammatik, versichererSuffix,
   buildSachverhaltText, buildRwVorschau, baueAntraegeText, ANTRAEGE_PLACEHOLDER,
 } from "./KlageWizard.jsx";
+import { STANDARDTEXTE_FIXTURE as TEXTE } from "../test/standardtexteFixture.js";
 
 const VERS = { rolle_klage: "beklagter", versicherung: "Test-Versicherung AG", checked: true };
 const MANN = { rolle_klage: "beklagter", name: "Huber", vorname: "Hans", anrede: "Herr", checked: true };
@@ -98,7 +99,7 @@ describe("Firmen-Halter-Klassifikation (Abschluss-Review-Fix)", () => {
 
 describe("buildRwVorschau hq=100 Referenzpartei (Fix-Wave)", () => {
   it("Nummer UND Genus zeigen auf die Versicherung, auch wenn sie nicht erste ist", () => {
-    const text = buildRwVorschau("", 100, 0, false, "gegnerisch", [MANN, VERS]);
+    const text = buildRwVorschau("", 100, 0, false, "gegnerisch", [MANN, VERS], TEXTE);
     expect(text).toContain("Die alleinige Haftung der Beklagten zu 2) steht außer Frage.");
     expect(text).toContain("bei der Beklagten zu 2) versicherten Fahrzeug");
     expect(text).not.toContain("des Beklagten zu 2)");

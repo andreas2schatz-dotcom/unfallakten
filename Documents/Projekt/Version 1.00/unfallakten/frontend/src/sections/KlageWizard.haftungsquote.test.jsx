@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { apiGebuehren } from "../api.js";
+import { STANDARDTEXTE_FIXTURE as TEXTE } from "../test/standardtexteFixture.js";
 import {
   berechneKlagebetrag,
   berechneSwAussergEffektiv,
@@ -97,7 +98,7 @@ describe("baueAntraegeText – KW-03 quotierter Klagebetrag im Antragstext", () 
 
 describe("buildRwVorschau – KW-03 oeffneWizard-Initialtext (Review-Fix)", () => {
   it("hq=75 gegnerisch: enthält 'bestritten', NICHT 'wurde entsprechend gekürzt', Prozent '25' via pctStr", () => {
-    const text = buildRwVorschau("sein schuldhaftes Verhalten", 75, 0, false, "gegnerisch");
+    const text = buildRwVorschau("sein schuldhaftes Verhalten", 75, 0, false, "gegnerisch", [], TEXTE);
     expect(text).toContain("bestritten");
     expect(text).not.toContain("wurde entsprechend gekürzt");
     expect(text).toContain("25 %");
@@ -106,7 +107,7 @@ describe("buildRwVorschau – KW-03 oeffneWizard-Initialtext (Review-Fix)", () =
 
 describe("buildRwVorschau – KW-36 hq=0-Guard bei hqTyp=eigen", () => {
   it("hq=0 mit hqTyp eigen erzeugt keinen Anrechnungs-Baustein (Regressions-Pin)", () => {
-    const text = buildRwVorschau("", 0, 0, false, "eigen");
+    const text = buildRwVorschau("", 0, 0, false, "eigen", [], TEXTE);
     expect(text).not.toMatch(/anrechnen|Mithaftungsquote von 0/);
   });
 });
@@ -116,7 +117,7 @@ describe("buildRwVorschau – KW-03 alleinige-Haftung-Satz (hq=100, genus-/anzah
     const beklagte = [
       { rolle_klage: "beklagter", checked: true, anrede: "Herr", firma: false, versicherung: false },
     ];
-    const text = buildRwVorschau("", 100, 0, false, "gegnerisch", beklagte);
+    const text = buildRwVorschau("", 100, 0, false, "gegnerisch", beklagte, TEXTE);
     expect(text).toContain("Die alleinige Haftung des Beklagten steht außer Frage.");
     expect(text).toContain("von dem bei dem Beklagten versicherten Fahrzeug verursacht.");
     expect(text).not.toContain("(zu 1)");
@@ -127,7 +128,7 @@ describe("buildRwVorschau – KW-03 alleinige-Haftung-Satz (hq=100, genus-/anzah
       { rolle_klage: "beklagter", checked: true, anrede: "Herr", firma: "Mustermann GmbH", versicherung: false },
       { rolle_klage: "beklagter", checked: true, anrede: "Herr", firma: false, versicherung: false },
     ];
-    const text = buildRwVorschau("", 100, 0, false, "gegnerisch", beklagte);
+    const text = buildRwVorschau("", 100, 0, false, "gegnerisch", beklagte, TEXTE);
     expect(text).toContain("Die alleinige Haftung der Beklagten zu 1) steht außer Frage.");
     expect(text).toContain("von dem bei der Beklagten zu 1) versicherten Fahrzeug verursacht.");
   });
@@ -142,6 +143,7 @@ describe("StepRw – KW-03 Step-7-Fallauswahl Gegnerisch/Eigen", () => {
     rwText: "", onRwText: vi.fn(),
     kuerzungsarten: [], beklagte: [],
     onKiHaftung: vi.fn(), kiLaedt: false,
+    standardtexte: TEXTE,
   };
 
   it("zeigt die Fallauswahl nur bei hq < 100", () => {

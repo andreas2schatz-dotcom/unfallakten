@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { DiffAnsicht, EditorMitDiff, TextVeraltetBadge, StepVerzug, StepAntraege, StepGebuehren, buildVerzugAutoText } from "./KlageWizard.jsx";
+import { STANDARDTEXTE_FIXTURE as TEXTE } from "../test/standardtexteFixture.js";
 
 describe("DiffAnsicht", () => {
   it("markiert Ergaenzungen gruen und Streichungen durchgestrichen", () => {
@@ -60,13 +61,14 @@ describe("TextVeraltetBadge mit Diff-Link", () => {
 
 describe("Diff-Integration", () => {
   it("StepVerzug zeigt Umschalter bei manuell geaendertem Text", () => {
-    const auto = buildVerzugAutoText("2026-05-01", "2026-05-15");
+    const auto = buildVerzugAutoText("2026-05-01", "2026-05-15", TEXTE);
     render(<StepVerzug zinsenAb="verzug" weiblich={false}
       wizardVerzugDatum="2026-05-15" onWizardVerzugDatum={() => {}}
       wizardVerzugDokDatum="2026-05-01" onWizardVerzugDokDatum={() => {}}
       wizardVerzugText={auto + " Zusatz."} onWizardVerzugText={() => {}}
       manuelleBearbeitung onManuelleBearbeitung={() => {}}
-      verzugDokListe={[]} verzugDokId={null} onVerzugDokId={() => {}} />);
+      verzugDokListe={[]} verzugDokId={null} onVerzugDokId={() => {}}
+      standardtexte={TEXTE} />);
     fireEvent.click(screen.getByText(/Änderungen anzeigen/));
     expect(screen.getByTestId("diff-ansicht").textContent).toContain("Zusatz.");
   });

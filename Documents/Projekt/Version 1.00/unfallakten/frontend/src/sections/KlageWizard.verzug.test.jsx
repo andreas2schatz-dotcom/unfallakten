@@ -2,18 +2,19 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { buildVerzugAutoText, StepVerzug } from "./KlageWizard.jsx";
 import { verzugEintrittDefault } from "../config/utils.js";
+import { STANDARDTEXTE_FIXTURE as TEXTE } from "../test/standardtexteFixture.js";
 
 describe("buildVerzugAutoText (KW-10)", () => {
   it("nutzt Eintritt fuer den Eintrittssatz und Schreibdatum fuer den BEWEIS", () => {
-    const t = buildVerzugAutoText("04.05.2026", "19.05.2026");
+    const t = buildVerzugAutoText("04.05.2026", "19.05.2026", TEXTE);
     expect(t).toContain("am 19.05.2026 eingetreten");
     expect(t).toContain("BEWEIS: Schreiben vom 04.05.2026");
   });
   it("ohne Eintritt -> Rechtshaengigkeit (Schreibdatum behauptet KEINEN Eintritt mehr)", () => {
-    expect(buildVerzugAutoText("04.05.2026", "")).toBe("Verzug ist mit Rechtshängigkeit eingetreten.");
+    expect(buildVerzugAutoText("04.05.2026", "", TEXTE)).toBe("Verzug ist mit Rechtshängigkeit eingetreten.");
   });
   it("mit Eintritt, ohne Schreibdatum -> kein BEWEIS-Satz", () => {
-    const t = buildVerzugAutoText("", "19.05.2026");
+    const t = buildVerzugAutoText("", "19.05.2026", TEXTE);
     expect(t).toContain("am 19.05.2026 eingetreten");
     expect(t).not.toContain("BEWEIS");
   });
@@ -40,6 +41,7 @@ const STEP_VERZUG_BASIS_PROPS = {
   verzugDokListe: [{ id: 5, dateiname: "mahnschreiben.pdf" }, { id: 9, dateiname: "verzugsschreiben.pdf" }],
   verzugDokId: null,
   onVerzugDokId: vi.fn(),
+  standardtexte: TEXTE,
 };
 
 describe("StepVerzug – KW-28 Step-8-Select-Wiring", () => {
