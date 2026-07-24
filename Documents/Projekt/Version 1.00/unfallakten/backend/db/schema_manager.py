@@ -316,6 +316,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     62: "-- migration_62_firmen_vertreter",  # Handled by _run_migration_62 (globaler Firmen-Vertreter-Speicher)
     63: "-- migration_63_beteiligte_vertreter",  # Handled by _run_migration_63 (Schema-Drift-Fix)
     64: "-- migration_64_kuerzungstaxonomie",  # Handled by _run_migration_64
+    65: "-- migration_65_standardtext_override",  # Handled by _run_migration_65
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -1176,6 +1177,30 @@ _PRUEFDIENSTLEISTER_SEEDS = [
 VERIFIKATIONS_STEMPEL = "handgeprüft RA Schatz, Juli 2026"
 
 
+def _run_migration_65(conn: sqlite3.Connection) -> None:
+    """
+    Migration 65 - standardtext_override (V11 Standardtexte Klageschrift).
+
+    Speichert nur Abweichungen vom YAML-Standard (klage_standardtexte.yaml);
+    Reset = DELETE der Zeile. Kein executescript, explizite Commits um DDL
+    (Reloader-Falle, feedback_migration_executescript).
+    """
+    conn.commit()
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS standardtext_override ("
+        " id            INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " baustein_key  TEXT NOT NULL UNIQUE,"
+        " text          TEXT NOT NULL,"
+        " geaendert_am  TEXT NOT NULL DEFAULT (datetime('now', 'localtime')))"
+    )
+    conn.commit()
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
+        (65, "Migration 65 - standardtext_override (V11 Standardtexte)"),
+    )
+    logger.info("Migration 65 abgeschlossen (standardtext_override).")
+
+
 def _run_migration_64(conn: sqlite3.Connection) -> None:
     """
     Migration 64 - Kürzungstaxonomie Phase 1:
@@ -1673,6 +1698,8 @@ def run_migrations() -> None:
                 _run_migration_63(conn)
             elif version == 64:
                 _run_migration_64(conn)
+            elif version == 65:
+                _run_migration_65(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
