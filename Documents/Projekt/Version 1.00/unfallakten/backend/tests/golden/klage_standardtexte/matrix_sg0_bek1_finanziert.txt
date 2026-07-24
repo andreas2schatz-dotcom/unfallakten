@@ -1,0 +1,105 @@
+== aktenzeichen ==
+55/26
+
+== gericht ==
+AN DAS ZUSTÄNDIGE GERICHT
+
+== klaeger ==
+Max Mustermann, Musterstr. 1, 63067 Offenbach
+– Kläger –
+
+Prozessbevollmächtigte: Koch, Schatz & Kollegen, Tulpenhofstr. 1, 63067 Offenbach
+
+== beklagte ==
+Test-Versicherung AG, Teststr. 2, 12345 Teststadt, vertreten durch den Vorstand
+– Beklagte –
+
+== antraege ==
+Namens und in Vollmacht des Klägers erheben wir Klage, bitten um Anordnung des schriftlichen Vorverfahrens und werden beantragen:
+
+1.	Die Beklagte wird verurteilt, an den Kläger 3.000,00 € nebst Zinsen in Höhe von 5 Prozentpunkten über dem jeweiligen Basiszinssatz seit dem 04.05.2026 zu zahlen.
+
+2.	Die Beklagte wird verurteilt, an den Kläger weitere 388,12 € nebst Zinsen von 5 Prozentpunkten über dem Basiszinssatz seit Rechtshängigkeit zu zahlen.
+
+3.	Die Beklagte trägt die Kosten des Rechtsstreits.
+
+Für den Fall der Anordnung des schriftlichen Vorverfahrens bitten wir, für den Fall der Nichteinlassung der Beklagten:
+
+Versäumnisurteil
+
+ohne mündliche Verhandlung zu erlassen.
+
+== sachverhalt ==
+1.) Sachverhalt
+Der Kläger macht Schadensersatzforderungen aus einem Verkehrsunfall geltend. Die Beklagte ist die Haftpflichtversicherung des unfallverursachenden Fahrzeugs. Der Kläger ist Halter und unmittelbarer Besitzer des bei dem Unfall beschädigten Fahrzeugs.
+
+== aktivlegitimation ==
+Das Fahrzeug befindet sich im Eigentum der finanzierenden Bank. Der Kläger ist jedoch aufgrund der vorliegenden Freigabeerklärung der Bank aktivlegitimiert, den Schaden im eigenen Namen und auf eigene Rechnung geltend zu machen.
+
+BEWEIS:	Freigabeerklärung vom TT.MM.JJJJ, Anlage K 1
+
+== unfallhergang ==
+2.) Unfallhergang
+Der Beklagte fuhr auf das Fahrzeug auf.
+
+BEWEIS:	Parteivernahme, hilfsweise informatorische Anhörung des Klägers.
+Unfallrekonstruktionsgutachten
+
+== schaden ==
+3.) Unfallschaden
+Durch den Unfall ist ein Schaden entstanden, der sich wie folgt zusammensetzt:
+Der entstandene Schaden berechnet sich wie folgt:
+
+Schadenposition
+Betrag
+
+Gesamtschaden
+0,00 €
+
+Die Geltendmachung weiterer Schadenpositionen bleibt vorbehalten.
+
+BEWEIS:	Schadengutachten (Anlage K 2)
+
+Einholung eines gerichtlichen Sachverständigengutachtens.
+
+Der Gesamtbetrag in Höhe von 0,00 € wird mit dem Klageantrag zu 1 geltend gemacht.
+
+== wuerdigung ==
+4.) Rechtliche Würdigung
+Der bei der Beklagten versicherte Unfallgegner verursachte den Unfall durch sein schuldhaftes Verhalten. Die Haftungsquote beträgt 100 %.
+Die Beklagte hat bislang keine Regulierung vorgenommen. Da trotz mehrfacher Fristsetzung keine Zahlung erfolgte, war die Klage notwendig.
+
+== verzug ==
+5.) Verzug
+Der Verzug ist nach Ablauf der Zahlungsfrist bzw. dem ernsthaften und endgültigen Verweigern der Leistung am 04.05.2026 eingetreten.
+
+== vorger_kosten ==
+6.) Vorgerichtliche Rechtsanwaltsgebühren
+Der Klageantrag zu 2. ergibt sich aus den vorgerichtlich entstandenen Gebühren, für die die Beklagte ebenfalls haftet. Der Anspruch auf Zahlung vorgerichtlicher Rechtsverfolgungskosten folgt aus § 249 ff. BGB unabhängig von einem etwaigen Verzugseintritt. Der Geschädigte sieht sich im Regelfall einem in der Regulierung von Unfallschäden versierten Sachbearbeiter des Haftpflichtversicherers gegenüber. Unter dem Aspekt der Waffengleichheit wird deshalb eine Erstattungsfähigkeit der Rechtsanwaltskosten im Rahmen der Rechtsverfolgungskosten grundsätzlich bejaht (Berz/Buhrmann Straßenverkehrsrecht – Hdb/Ziegenhardt, 48. EL August 2023 5. C. Rn. 82, Beck-online).
+
+Der Prozessbevollmächtigte war bereits vorgerichtlich mit der Gegenseite in Kontakt getreten. Letztmalig, als man die Gegenseite unter Fristsetzung zur Zahlung aufforderte.
+
+Die hieraus vorgerichtlich entstandenen Rechtsanwaltsgebühren sind zu ersetzen. Die Gebühren berechnen sich wie folgt:
+Gegenstandswert:
+3.000,00 €
+
+Geschäftsgebühr §§ 13, 14, Nr. 2300 VV RVG (1,3):
+306,15 €
+
+Post u. Telekommunikation Nr. 7002 VV RVG:
+20,00 €
+
+Zwischensumme netto:
+326,15 €
+
+19 % Umsatzsteuer:
+61,97 €
+
+Gesamtbetrag:
+388,12 €
+
+== schlussformel ==
+Sollte das Gericht noch weiteren Vortrag für notwendig erachten, so wird um einen richterlichen Hinweis gebeten.
+
+Kanzlei Koch, Schatz & Kollegen
+Rechtsanwälte
