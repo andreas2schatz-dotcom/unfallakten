@@ -7,6 +7,18 @@
 
 ---
 
+## 2026-07-28 — Review-Queue: Sortier-Toggle Eingangsdatum (Branch `review-queue-sortierung`, in `main`)
+
+Design-Spec `docs/superpowers/specs/2026-07-24-review-queue-sortierung-design.md`, Plan `docs/superpowers/plans/2026-07-24-review-queue-sortierung.md`. Anlass: manuell importierte Dokumente waren in der Review-Queue (fest sortiert nach `erstellt_am ASC`) schwer wiederzufinden.
+
+- **Task 1** `23d0f8bc` reiner Helfer `sortiereGruppen(gruppen, absteigend)` in `ReviewQueueView.jsx` (kehrt die von `gruppiereQueue()` gelieferten Gruppen-Blöcke um, keine Backend-Änderung), 3 Unit-Tests.
+- **Task 2** `edb4f763` State/Toggle-Button „🕓 Älteste zuerst" ↔ „🕓 Neueste zuerst" im Queue-Header (nur in der Queue-Ansicht, nicht im Papierkorb), Persistenz über `localStorage` (`reviewQueueSortAbsteigend`).
+- Subagent-Driven Development: 2 Tasks je Implementierung+Review (Spec ✅/Approved), Abschluss-Review „Ready to merge" — keine Critical/Important-Funde.
+- **Browser-Nachtest (Playwright, gegen echte Dev-DB, 111 aktive Queue-Einträge, rein lesend)** 11/11 PASS. Wichtig: Umkehrung wirkt auf **Gruppen-Ebene** (E-Mail-Anhang-Blöcke bleiben zusammen, nur ihre Reihenfolge untereinander dreht sich um), nicht als flache Element-Umkehr — mit den 20 Mehrfach-Dokument-Gruppen der Live-Queue verifiziert.
+- Fast-Forward-Merge nach `main` (`cc415175..edb4f763`), Branch gelöscht. `main` nicht gepusht.
+
+---
+
 ## 2026-07-24 — Klage-Wizard Paket 4: Standardtexte pflegbar, V11 Stufe 1 (Branch `standardtexte-v11`)
 
 Plan `docs/superpowers/plans/2026-07-24-klage-wizard-standardtexte-v11-stufe1.md` (Design-Spec: `docs/superpowers/specs/2026-07-19-klage-wizard-standardtexte-design.md`; Stufe 1 = 44 Bausteine Kategorie A+B; Kategorie C/vorflektierte Platzhalter bewusst als Stufe 2 vertagt, siehe TODO.md). Baut auf der `TextbausteinEditor`-Komponente der Kürzungstaxonomie Phase 1 auf.
