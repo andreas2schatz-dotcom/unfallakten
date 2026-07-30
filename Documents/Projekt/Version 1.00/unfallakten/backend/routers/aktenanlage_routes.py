@@ -6,7 +6,7 @@ from flask import Blueprint, g, jsonify, request
 from ..auth.middleware import login_erforderlich
 from ..db.database import get_connection
 from ..ramicro.adress_service import (akten_zu_adresse, hole_adresse_details,
-                                      suche_adressen)
+                                      suche_adressen_status)
 from ..services.aktenanlage_service import (
     VorgangExistiertFehler, brich_vorgang_ab, hole_offene_vorgaenge,
     lege_vorgang_an, schliesse_vorgang_ab)
@@ -71,7 +71,8 @@ def post_abschliessen(vorgang_id: int):
 @login_erforderlich
 def get_adressen():
     q = (request.args.get("q") or "").strip()
-    return _j({"treffer": suche_adressen(q)})
+    erg = suche_adressen_status(q)
+    return _j({"treffer": erg["treffer"], "verfuegbar": erg["verfuegbar"]})
 
 
 @aktenanlage_bp.route("/adresse/<int:adressnr>", methods=["GET"])

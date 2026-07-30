@@ -849,7 +849,7 @@ def post_freigabe(intake_id: int):
         aktenanlage_info = schliesse_vorgaenge_bei_freigabe(intake_id, akte_az)
     except Exception as exc:
         logger.warning("Aktenanlage-Abschluss nach Freigabe fehlgeschlagen: %s",
-                       exc)
+                       exc, exc_info=True)
 
     logger.info("Freigabe intake=%s -> Akte %s (dokument_id=%s, freigabe_id=%s)",
                 intake_id, akte_az, dokument_id, freigabe_id)

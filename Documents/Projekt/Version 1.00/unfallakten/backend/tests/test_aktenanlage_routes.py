@@ -4,7 +4,6 @@ import os
 import shutil
 import sys
 import tempfile
-import time
 import unittest
 from unittest.mock import patch
 
@@ -304,13 +303,28 @@ class TestAdressEndpoints(unittest.TestCase):
         self.headers = _auth_header(self.client)
 
     def test_adressen_suche(self):
-        with patch("backend.routers.aktenanlage_routes.suche_adressen",
-                   return_value=[{"adressnr": 12345, "name": "Achkour Zejli",
-                                  "vorname": "Abdessamad", "email": ""}]):
+        with patch("backend.routers.aktenanlage_routes.suche_adressen_status",
+                   return_value={"verfuegbar": True,
+                                 "treffer": [{"adressnr": 12345,
+                                              "name": "Achkour Zejli",
+                                              "vorname": "Abdessamad",
+                                              "email": ""}]}):
             r = self.client.get("/aktenanlage/adressen?q=Achkour",
                                 headers=self.headers)
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.get_json()["treffer"][0]["adressnr"], 12345)
+        d = r.get_json()
+        self.assertEqual(d["treffer"][0]["adressnr"], 12345)
+        self.assertIs(d["verfuegbar"], True)
+
+    def test_adressen_suche_offline(self):
+        with patch("backend.routers.aktenanlage_routes.suche_adressen_status",
+                   return_value={"verfuegbar": False, "treffer": []}):
+            r = self.client.get("/aktenanlage/adressen?q=Achkour",
+                                headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        d = r.get_json()
+        self.assertIs(d["verfuegbar"], False)
+        self.assertEqual(d["treffer"], [])
 
     def test_adress_detail_mit_akten(self):
         with patch("backend.routers.aktenanlage_routes.hole_adresse_details",
@@ -392,16 +406,21 @@ class TestFreigabeHook(unittest.TestCase):
                 "UPDATE aktenanlage_vorgaenge "
                 "SET status='akte_erkannt', erkanntes_az='310/26' "
                 "WHERE id=?", (vid,))
-        return vid, gutachten, rechnung
+        return vid, gutachten, rechnung, body
 
     def test_freigabe_auf_erkanntes_az_schliesst_und_uebernimmt(self):
-        vid, gutachten, _ = self._vorgang_mit_gruppe()
+        # Erste Freigabe der Gruppe: Gutachten+Rechnung(nur Rechnung noch
+        # offen, Body noch offen) -- Geschwister sind noch nicht freigegeben,
+        # der Vorgang bleibt daher offen. Die Unfalldaten-Uebernahme greift
+        # trotzdem sofort (Spec 3.4/5.4).
+        vid, gutachten, _, _ = self._vorgang_mit_gruppe()
         r = self.client.post(f"/intake/dokument/{gutachten}/freigabe",
                              headers=self.headers,
                              json={"akte_az": "310/26"})
         self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
         d = r.get_json()
-        self.assertIn(vid, d["aktenanlage"]["geschlossen"])
+        self.assertEqual(d["aktenanlage"]["geschlossen"], [])
+        self.assertIsNone(d["aktenanlage"]["hinweis"])
         from backend.db.database import get_connection
         with get_connection() as conn:
             v = conn.execute(
@@ -410,27 +429,74 @@ class TestFreigabeHook(unittest.TestCase):
             akte = conn.execute(
                 "SELECT unfalldatum, unfallort FROM unfallakte WHERE az=?",
                 ("310/26",)).fetchone()
-        self.assertEqual(v["status"], "abgeschlossen")
+        self.assertEqual(v["status"], "akte_erkannt")
         self.assertEqual(akte["unfalldatum"], "2026-04-10")
         self.assertEqual(akte["unfallort"], "Offenbach")
 
+    def test_letzte_freigabe_schliesst_vorgang(self):
+        vid, gutachten, rechnung, body = self._vorgang_mit_gruppe()
+        r1 = self.client.post(f"/intake/dokument/{gutachten}/freigabe",
+                              headers=self.headers,
+                              json={"akte_az": "310/26"})
+        self.assertEqual(r1.get_json()["aktenanlage"]["geschlossen"], [])
+
+        r2 = self.client.post(f"/intake/dokument/{rechnung}/freigabe",
+                              headers=self.headers,
+                              json={"akte_az": "310/26"})
+        self.assertEqual(r2.get_json()["aktenanlage"]["geschlossen"], [])
+
+        r3 = self.client.post(f"/intake/dokument/{body}/freigabe",
+                              headers=self.headers,
+                              json={"akte_az": "310/26"})
+        self.assertEqual(r3.status_code, 200)
+        self.assertIn(vid, r3.get_json()["aktenanlage"]["geschlossen"])
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            v = conn.execute(
+                "SELECT status FROM aktenanlage_vorgaenge WHERE id=?",
+                (vid,)).fetchone()
+        self.assertEqual(v["status"], "abgeschlossen")
+
     def test_geschwister_freigabe_schliesst_vorgang_der_gruppe(self):
-        vid, _, rechnung = self._vorgang_mit_gruppe()
+        # Nur die Rechnung wird freigegeben -- Gutachten und Body sind noch
+        # offen, der Vorgang bleibt daher unveraendert offen.
+        vid, _, rechnung, _ = self._vorgang_mit_gruppe()
         r = self.client.post(f"/intake/dokument/{rechnung}/freigabe",
                              headers=self.headers,
                              json={"akte_az": "310/26"})
         self.assertEqual(r.status_code, 200)
-        self.assertIn(vid, r.get_json()["aktenanlage"]["geschlossen"])
+        d = r.get_json()["aktenanlage"]
+        self.assertEqual(d["geschlossen"], [])
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            v = conn.execute(
+                "SELECT status FROM aktenanlage_vorgaenge WHERE id=?",
+                (vid,)).fetchone()
+        self.assertEqual(v["status"], "akte_erkannt")
 
     def test_freigabe_auf_anderes_az_liefert_hinweis(self):
-        vid, gutachten, _ = self._vorgang_mit_gruppe()
-        r = self.client.post(f"/intake/dokument/{gutachten}/freigabe",
-                             headers=self.headers,
-                             json={"akte_az": "44/22"})
-        self.assertEqual(r.status_code, 200)
-        d = r.get_json()["aktenanlage"]
-        self.assertIn(vid, d["geschlossen"])
-        self.assertIn("310/26", d["hinweis"])
+        vid, gutachten, rechnung, body = self._vorgang_mit_gruppe()
+        r1 = self.client.post(f"/intake/dokument/{gutachten}/freigabe",
+                              headers=self.headers,
+                              json={"akte_az": "44/22"})
+        d1 = r1.get_json()["aktenanlage"]
+        self.assertEqual(d1["geschlossen"], [])
+        self.assertIsNone(d1["hinweis"])
+
+        r2 = self.client.post(f"/intake/dokument/{rechnung}/freigabe",
+                              headers=self.headers,
+                              json={"akte_az": "44/22"})
+        d2 = r2.get_json()["aktenanlage"]
+        self.assertEqual(d2["geschlossen"], [])
+        self.assertIsNone(d2["hinweis"])
+
+        r3 = self.client.post(f"/intake/dokument/{body}/freigabe",
+                              headers=self.headers,
+                              json={"akte_az": "44/22"})
+        self.assertEqual(r3.status_code, 200)
+        d3 = r3.get_json()["aktenanlage"]
+        self.assertIn(vid, d3["geschlossen"])
+        self.assertIn("310/26", d3["hinweis"])
 
     def test_freigabe_ohne_vorgang_liefert_null(self):
         did = _lege_intake_an("h4")

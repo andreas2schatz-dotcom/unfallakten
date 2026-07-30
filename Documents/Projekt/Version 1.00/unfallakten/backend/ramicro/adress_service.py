@@ -37,10 +37,10 @@ def hole_adresse_by_nr(adressnr: int) -> dict | None:
         return None
 
 
-def suche_adressen(q: str) -> list[dict]:
+def suche_adressen_status(q: str) -> dict:
     q = q.strip()
     if not q:
-        return []
+        return {"verfuegbar": True, "treffer": []}
     try:
         with get_ramicro_connection() as conn:
             cur = conn.cursor()
@@ -72,7 +72,7 @@ def suche_adressen(q: str) -> list[dict]:
                     (f"%{q}%", f"%{q}%"),
                 )
             rows = cur.fetchall()
-            return [
+            return {"verfuegbar": True, "treffer": [
                 {
                     "adressnr": r["adressnr"],
                     "name":     r["name"]    or "",
@@ -80,13 +80,17 @@ def suche_adressen(q: str) -> list[dict]:
                     "email":    r["email"]   or "",
                 }
                 for r in rows
-            ]
+            ]}
     except (RaMicroNichtAktiv, RaMicroVerbindungsFehler) as e:
         logger.warning("Adressen-Suche nicht möglich: %s", e)
-        return []
+        return {"verfuegbar": False, "treffer": []}
     except Exception as e:
         logger.warning("Adressen-Suche fehlgeschlagen (q=%s): %s", q, e)
-        return []
+        return {"verfuegbar": False, "treffer": []}
+
+
+def suche_adressen(q: str) -> list[dict]:
+    return suche_adressen_status(q)["treffer"]
 
 
 def hole_adresse_details(adressnr: int) -> dict | None:

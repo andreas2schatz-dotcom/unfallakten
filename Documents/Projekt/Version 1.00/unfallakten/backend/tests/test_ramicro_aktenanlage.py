@@ -75,6 +75,14 @@ class TestHoleAdresseDetails(unittest.TestCase):
             self.assertIsNone(adress_service.hole_adresse_details(1))
 
 
+class TestSucheAdressenStatus(unittest.TestCase):
+    def test_offline_liefert_nicht_verfuegbar(self):
+        with patch.object(adress_service, "get_ramicro_connection",
+                          _offline()):
+            erg = adress_service.suche_adressen_status("Zejli")
+        self.assertEqual(erg, {"verfuegbar": False, "treffer": []})
+
+
 class TestAktenZuAdresse(unittest.TestCase):
     def test_liefert_akten(self):
         rows = [{"az": "285/26", "kurzbezeichnung": "Zejli ./. KRAVAG"}]

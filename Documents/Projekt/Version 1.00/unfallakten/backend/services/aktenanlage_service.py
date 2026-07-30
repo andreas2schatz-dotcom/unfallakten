@@ -76,7 +76,11 @@ def lege_vorgang_an(formular: dict, intake_dokument_id=None,
                 "  AND status IN ('laeuft','akte_erkannt')",
                 (intake_dokument_id,)).fetchone()
             if offen:
-                Path(xml_pfad).unlink(missing_ok=True)
+                try:
+                    Path(xml_pfad).unlink(missing_ok=True)
+                except OSError as exc:
+                    logger.warning("XML %s nicht loeschbar (409-Pfad): %s",
+                                   xml_pfad, exc)
                 raise VorgangExistiertFehler(
                     f"Für dieses Dokument läuft bereits Aktenanlage-Vorgang "
                     f"{offen['id']}.")
@@ -185,6 +189,24 @@ def schliesse_vorgang_ab(vorgang_id: int) -> bool:
         return cur.rowcount > 0
 
 
+def _hat_offene_geschwister(gruppe: int) -> bool:
+    """True, wenn in der E-Mail-Gruppe noch ein Dokument auf Freigabe wartet.
+
+    Das soeben freigegebene Dokument hat zum Hook-Zeitpunkt bereits
+    queue_status='freigegeben' (post_freigabe setzt das VOR dem Aufruf
+    dieses Hooks) und zaehlt damit korrekt nicht als offen mit.
+    """
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM zustellungen z "
+            "JOIN intake_dokumente d ON d.id = z.intake_dokument_id "
+            "WHERE COALESCE(z.parent_id, z.id) = ? "
+            "  AND d.queue_status = 'bereit_zur_review' "
+            "  AND d.verworfen_am IS NULL "
+            "LIMIT 1", (gruppe,)).fetchone()
+    return row is not None
+
+
 def schliesse_vorgaenge_bei_freigabe(intake_dokument_id: int,
                                      akte_az: str) -> dict | None:
     with get_connection() as conn:
@@ -203,17 +225,28 @@ def schliesse_vorgaenge_bei_freigabe(intake_dokument_id: int,
 
     if not rows:
         return None
+
     geschlossen = []
     hinweis = None
     for row in rows:
+        # Unfalldaten-Uebernahme ist unabhaengig vom Schliessen und
+        # idempotent (Leer-Guards in _uebernimm_unfalldaten) -- greift bei
+        # JEDER Freigabe auf das erkannte AZ, auch wenn Geschwister noch
+        # offen sind (Spec 3.4).
+        if row["erkanntes_az"] and row["erkanntes_az"] == akte_az:
+            _uebernimm_unfalldaten(akte_az, row["formular_json"])
+
+        # Kein ermittelbares Gruppen-Kriterium (keine Zustellung zum
+        # freigegebenen Dokument) -> wie bisher sofort schliessen.
+        if gruppe is not None and _hat_offene_geschwister(gruppe):
+            continue
+
         with get_connection() as conn:
             conn.execute(
                 "UPDATE aktenanlage_vorgaenge SET status='abgeschlossen' "
                 "WHERE id=?", (row["id"],))
         geschlossen.append(row["id"])
-        if row["erkanntes_az"] and row["erkanntes_az"] == akte_az:
-            _uebernimm_unfalldaten(akte_az, row["formular_json"])
-        elif row["erkanntes_az"]:
+        if row["erkanntes_az"] and row["erkanntes_az"] != akte_az:
             hinweis = (f"Aktenanlage-Vorgang {row['id']} geschlossen; die in "
                        f"RA-MICRO angelegte Akte {row['erkanntes_az']} "
                        "bleibt bestehen.")
