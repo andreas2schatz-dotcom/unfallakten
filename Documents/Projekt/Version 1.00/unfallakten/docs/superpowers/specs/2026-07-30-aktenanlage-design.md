@@ -52,7 +52,7 @@ Feldgruppen, angelehnt an die OMA-Struktur, vorbefüllt soweit das Gutachten-Par
 | **Unfall** | **Unfalldatum**, Unfallort, amtl. Kennzeichen | Unfalldatum | Gutachten-Parse |
 | **Gegner** (optional) | Name, Adresse, Kennzeichen | — | Gutachten-Parse, falls vorhanden |
 | **Gegnerische Versicherung** (optional) | Name, Schadennummer | — | Gutachten-Parse, falls vorhanden |
-| **Gutachter** | Bezeichnung, Adresse, Gutachten-Nummer | — | Identifier-Treffer; Adresse via `ramicro_adressnr` aus `tblAdressen`, sonst Firmen-Stammdaten |
+| **Gutachter** | Bezeichnung, Adresse, Gutachten-Nummer | — | Identifier-Treffer; Adresse via `ramicro_adressnr` aus `tblAdressen`, sonst manuell (eine lokale Firmen-Stammdatentabelle mit Adressen existiert nicht) |
 
 Buttons: **„Akte anlegen"** (erzeugt die XML) und „Abbrechen". Nach Erfolg kurze Bestätigung „XML geschrieben — RA-MICRO legt die Akte an", dann schließt der Dialog.
 
@@ -67,7 +67,7 @@ Hinweis Unfalldaten: Die OMA-XML hat kein eigenes Feld für Unfalldatum/-ort/Ken
 
 ## 5. Technik
 
-### 5.1 Neue Tabelle `aktenanlage_vorgaenge` (SQLite, nächste freie Migrationsnummer)
+### 5.1 Neue Tabelle `aktenanlage_vorgaenge` (SQLite, Migration 66)
 Spalten: `id` (PK), `intake_dokument_id` (nullable, FK `intake_dokumente`), `zustellung_id` (nullable, für die E-Mail-Gruppe), `status` CHECK(`laeuft` | `akte_erkannt` | `abgeschlossen` | `abgebrochen`), `formular_json` (die eingegebenen Daten), `xml_pfad`, `mandant_nachname`, `mandant_vorname`, `mandant_adressnr` (nullable), `erkanntes_az` (nullable), `angelegt_am`, `angelegt_von`, `erkannt_am` (nullable).
 
 Migrations-Regeln beachten: kein `executescript()`, explizites `conn.commit()`, Migration atomar in einem Edit (siehe Feedback-Memories Migration-Bugs).
