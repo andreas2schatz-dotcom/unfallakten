@@ -83,13 +83,18 @@ class TestErzeugeOmaXml(unittest.TestCase):
         self.assertIn("Müller &amp; Söhne", xml_text)
         ET.fromstring(xml_text)
 
+    def test_leere_elemente_nicht_selbstschliessend(self):
+        xml_text = erzeuge_oma_xml(FORMULAR)
+        self.assertIn('<Nr typ="data"></Nr>', xml_text)
+        self.assertNotIn("<Nr typ=\"data\" />", xml_text)
+
     def test_zusatzangaben_name_attribute_verbatim(self):
         root = self._root()
         el = root.find("Zusatzangaben/VerbindlicheAnfrageAkzeptiert")
         self.assertIn("rechtsverbindliche Anfrage", el.get("name"))
         self.assertIn("14-tägigen Widerrufsfrist", el.get("name"))
         el2 = root.find("Zusatzangaben/DatenschutzVereinbarungAkzeptiert")
-        self.assertIn("Datenschutzerklärung", el2.get("name"))
+        self.assertIn("RA-MICRO Server", el2.get("name"))
 
     def test_gegner_volles_geruest(self):
         f = {**FORMULAR,

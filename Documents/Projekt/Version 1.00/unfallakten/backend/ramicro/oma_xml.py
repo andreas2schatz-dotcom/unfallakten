@@ -156,8 +156,7 @@ def erzeuge_oma_xml(formular: dict) -> str:
     if (versicherung.get("name") or "").strip():
         b = ET.SubElement(bliste, "Beteiligter", {
             "typ": "gruppe", "name": "Beteiligter: Versicherung"})
-        nr_b = ET.SubElement(b, "Nr", {"typ": "data"})
-        nr_b.text = ""
+        ET.SubElement(b, "Nr", {"typ": "data"})
         vgrp = ET.SubElement(b, "Versicherung", {
             "typ": "gruppe", "name": "Versicherung"})
         _feld(vgrp, "Bezeichnung", "Bezeichnung", versicherung.get("name"))
@@ -166,8 +165,7 @@ def erzeuge_oma_xml(formular: dict) -> str:
     if (gutachter.get("bezeichnung") or "").strip():
         b = ET.SubElement(bliste, "Beteiligter", {
             "typ": "gruppe", "name": "Beteiligter: Gutachter"})
-        nr_g = ET.SubElement(b, "Nr", {"typ": "data"})
-        nr_g.text = ""
+        ET.SubElement(b, "Nr", {"typ": "data"})
         agrp = ET.SubElement(b, "Andere", {
             "typ": "gruppe", "name": "Andere Beteiligte"})
         _feld(agrp, "Bezeichnung", "Bezeichnung", gutachter.get("bezeichnung"))
@@ -197,7 +195,8 @@ def erzeuge_oma_xml(formular: dict) -> str:
     ET.SubElement(root, "tvm")
 
     return ('<?xml version="1.0" encoding="utf-8"?>\n'
-            + ET.tostring(root, encoding="unicode"))
+            + ET.tostring(root, encoding="unicode",
+                          short_empty_elements=False))
 
 
 def _slug(text: str) -> str:
