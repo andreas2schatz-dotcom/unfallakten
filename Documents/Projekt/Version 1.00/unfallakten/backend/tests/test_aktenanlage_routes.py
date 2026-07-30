@@ -507,6 +507,33 @@ class TestFreigabeHook(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertIsNone(r.get_json()["aktenanlage"])
 
+    def test_geschwister_in_pipeline_fehler_blockiert_schliessen(self):
+        vid, gutachten, rechnung, body = self._vorgang_mit_gruppe()
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            conn.execute(
+                "UPDATE intake_dokumente SET queue_status='pipeline_fehler' "
+                "WHERE id=?", (rechnung,))
+        # Body-Dokument der Gruppe verwerfen, damit nur der pipeline_fehler-
+        # Geschwister (Rechnung) offen bleibt.
+        r_verwerfen = self.client.post(
+            f"/intake/dokument/{body}/verwerfen", headers=self.headers,
+            json={"grund": "sonstiges"})
+        self.assertEqual(r_verwerfen.status_code, 200,
+                         r_verwerfen.get_data(as_text=True))
+
+        r = self.client.post(f"/intake/dokument/{gutachten}/freigabe",
+                             headers=self.headers,
+                             json={"akte_az": "310/26"})
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        d = r.get_json()["aktenanlage"]
+        self.assertEqual(d["geschlossen"], [])
+        with get_connection() as conn:
+            v = conn.execute(
+                "SELECT status FROM aktenanlage_vorgaenge WHERE id=?",
+                (vid,)).fetchone()
+        self.assertEqual(v["status"], "akte_erkannt")
+
 
 class TestQueueAbsenderKategorie(unittest.TestCase):
     def setUp(self):

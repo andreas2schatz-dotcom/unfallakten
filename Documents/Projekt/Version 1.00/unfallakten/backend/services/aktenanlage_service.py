@@ -201,7 +201,7 @@ def _hat_offene_geschwister(gruppe: int) -> bool:
             "SELECT 1 FROM zustellungen z "
             "JOIN intake_dokumente d ON d.id = z.intake_dokument_id "
             "WHERE COALESCE(z.parent_id, z.id) = ? "
-            "  AND d.queue_status = 'bereit_zur_review' "
+            "  AND d.queue_status != 'freigegeben' "
             "  AND d.verworfen_am IS NULL "
             "LIMIT 1", (gruppe,)).fetchone()
     return row is not None

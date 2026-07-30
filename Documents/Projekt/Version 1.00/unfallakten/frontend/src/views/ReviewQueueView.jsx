@@ -883,7 +883,7 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
       const form = naechsterFormState(d, { skipFormReset });
       if (form) {
         setDirty(form.dirty);
-        setGewaehlteAkte(form.gewaehlteAkte);
+        setGewaehlteAkte(g => g || form.gewaehlteAkte);
         setEreignisse(form.ereignisse);
         setBezeichnung(form.bezeichnung);
       }

@@ -93,6 +93,7 @@ export default function AktenanlageDialog({
     if (q.length < 2 || felder.mandant.bekannt_adressnr) {
       suchLauf.current += 1;
       setAdressTreffer(null);
+      setSucheVerfuegbar(true);
       return;
     }
     suchTimer.current = setTimeout(async () => {

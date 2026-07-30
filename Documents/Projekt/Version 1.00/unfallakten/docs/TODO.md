@@ -21,6 +21,7 @@ Empfohlene Reihenfolge 1→2→3→4 (3+4 teilen sich den Textaufbau-Umbau/V11 �
 - Adressnummer-Referenz: Kann „Bekannt = Ja" (+ Adressnummer) in der OMA-XML eine bestehende RA-MICRO-Adresse referenzieren (keine Dublette)?
 - Konkreter `OMA_EXPORT_HOST_PFAD` (überwachter Windows-Share) muss von RA Schatz benannt und in `.env` eingetragen werden, dann `docker compose up -d --force-recreate backend`.
 - Options-Labels/Datumsformat: `FRAU`/`FIRMA` als Anrede-Werte + ISO-Datum kommen beim RA-MICRO-Import korrekt an, inkl. Prüfung der `dtAnlage`-Spalte beim ersten echten Import.
+- Abnahme-Szenario Geschwister: Gutachten auf erkanntes AZ freigeben, dann Rechnung/Body öffnen — AZ muss vorausgewählt bleiben (kein Zurückspringen auf leer).
 
 ### Kürzungstaxonomie — Phase 0 ✅ · Phase 1 ✅ · **in `main` gemergt + gepusht (2026-07-24, `febe6f06`)**
 Alle 12 Tasks + Genus-Platzhalter-Nachtrag (Weg 2). Abnahme: Bausteine von RA Schatz gegengelesen ✅; Katalog-Editor, Wizard-Zitat, Genus-Formen, Speichern-Sperre per Playwright-E2E bestanden ✅ (2026-07-24). Protokoll → `docs/CHANGELOG.md`.
