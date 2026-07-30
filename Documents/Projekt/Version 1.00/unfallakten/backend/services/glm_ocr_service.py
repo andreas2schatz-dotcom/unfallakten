@@ -23,6 +23,61 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+_BASE_URL = os.environ.get("OCR_LLM_BASE_URL", "http://host.docker.internal:1235/v1").rstrip("/")
+
+# ── Modell-Verwaltung (zur Laufzeit umschaltbar, analog llm_service.py) ────────
+_DEFAULT_MODEL = os.environ.get("OCR_LLM_MODEL", "glm-ocr").strip()
+_aktives_modell: str = _DEFAULT_MODEL
+
+_VERFUEGBARE_MODELLE: list = [
+    m.strip()
+    for m in os.environ.get("OCR_LLM_MODELS", _DEFAULT_MODEL).split(",")
+    if m.strip()
+]
+if _aktives_modell not in _VERFUEGBARE_MODELLE:
+    _VERFUEGBARE_MODELLE.insert(0, _aktives_modell)
+
+
+def get_active_model() -> str:
+    """Gibt das aktuell aktive GLM-OCR-Modell zurueck."""
+    return _aktives_modell
+
+
+def set_active_model(model: str) -> None:
+    """Setzt das aktive GLM-OCR-Modell zur Laufzeit (kein Container-Neustart noetig)."""
+    global _aktives_modell
+    _aktives_modell = model
+    logger.info("GLM-OCR-Modell gewechselt zu: %s", model)
+
+
+def get_available_models() -> list:
+    """Gibt die Liste aller konfigurierten GLM-OCR-Modelle zurueck."""
+    return list(_VERFUEGBARE_MODELLE)
+
+
+def init_from_db() -> None:
+    """Laedt das gespeicherte GLM-OCR-Modell aus der DB (App-Start, wie llm_service)."""
+    try:
+        from ..db.database import get_connection
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT wert FROM konfiguration WHERE schluessel='glm_ocr_aktives_modell'"
+            ).fetchone()
+            if row and row["wert"]:
+                set_active_model(row["wert"])
+    except Exception as e:
+        logger.warning("GLM-OCR-Modell-Init aus DB fehlgeschlagen (nicht kritisch): %s", e)
+
+
+def is_available() -> bool:
+    """True wenn der GLM-OCR-Endpunkt erreichbar ist (GET /models, Timeout 3s)."""
+    try:
+        import requests
+        resp = requests.get(f"{_BASE_URL}/models", timeout=3)
+        return resp.status_code == 200
+    except Exception:
+        return False
+
 
 def _bool_env(name: str) -> bool:
     v = os.environ.get(name, "").strip().lower()
@@ -38,11 +93,9 @@ def _make_client():
     """Kapselt die openai-Client-Instanziierung, damit sie in Tests
     ueberschrieben werden kann."""
     from openai import OpenAI
-    base_url = os.environ.get("OCR_LLM_BASE_URL",
-                              "http://host.docker.internal:1235/v1")
     # LM Studio verlangt einen (belanglosen) API-Key
     api_key = os.environ.get("OCR_LLM_API_KEY", "lm-studio-local")
-    return OpenAI(base_url=base_url, api_key=api_key)
+    return OpenAI(base_url=_BASE_URL, api_key=api_key)
 
 
 def _bild_zu_base64(bild) -> str:
@@ -51,6 +104,39 @@ def _bild_zu_base64(bild) -> str:
     bild.save(buf, format="PNG")
     b64 = base64.b64encode(buf.getvalue()).decode("ascii")
     return f"data:image/png;base64,{b64}"
+
+
+def _ocr_bild(bild, prompt: str, max_tokens: int = 4096,
+              timeout_s: Optional[int] = None) -> Optional[str]:
+    """Kapselt den eigentlichen Vision-Aufruf, unabhaengig vom Feature-Flag."""
+    try:
+        client = _make_client()
+    except Exception as exc:
+        logger.error("GLM-OCR: Client-Init fehlgeschlagen: %s", exc)
+        return None
+
+    if timeout_s is None:
+        timeout_s = int(os.environ.get("OCR_LLM_TIMEOUT", "120"))
+
+    try:
+        antwort = client.chat.completions.create(
+            model=get_active_model(),
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url",
+                     "image_url": {"url": _bild_zu_base64(bild)}},
+                ],
+            }],
+            temperature=0.0,
+            max_tokens=max_tokens,
+            timeout=timeout_s,
+        )
+        return (antwort.choices[0].message.content or "").strip()
+    except Exception as exc:
+        logger.error("GLM-OCR-Aufruf fehlgeschlagen: %s", exc)
+        return None
 
 
 def glm_ocr_seite(bild, lang: str = "de",
@@ -76,31 +162,22 @@ def glm_ocr_seite(bild, lang: str = "de",
             "Extract the full page text in reading order. Text only."
         )
 
-    try:
-        client = _make_client()
-    except Exception as exc:
-        logger.error("GLM-OCR: Client-Init fehlgeschlagen: %s", exc)
-        return None
+    return _ocr_bild(bild, prompt)
 
-    modell = os.environ.get("OCR_LLM_MODEL", "glm-ocr")
-    timeout_s = int(os.environ.get("OCR_LLM_TIMEOUT", "120"))
 
-    try:
-        antwort = client.chat.completions.create(
-            model=modell,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url",
-                     "image_url": {"url": _bild_zu_base64(bild)}},
-                ],
-            }],
-            temperature=0.0,
-            max_tokens=4096,
-            timeout=timeout_s,
-        )
-        return (antwort.choices[0].message.content or "").strip()
-    except Exception as exc:
-        logger.error("GLM-OCR-Aufruf fehlgeschlagen: %s", exc)
-        return None
+def test_verbindung() -> Optional[str]:
+    """Verbindungstest fuer die Einstellungen-Seite (analog llm_service.chat()).
+
+    Erzeugt ein Testbild mit bekanntem Text und schickt es durch den
+    Vision-Endpunkt. Ignoriert bewusst das Feature-Flag GLM_OCR_ENABLED,
+    damit der Verbindungstest auch vor der Aktivierung moeglich ist.
+    """
+    from PIL import Image, ImageDraw
+    bild = Image.new("RGB", (400, 100), "white")
+    ImageDraw.Draw(bild).text((10, 35), "Testverbindung 12345", fill="black")
+    return _ocr_bild(
+        bild,
+        "Extrahiere den Text im Bild. Nur der Text, keine Erklaerungen.",
+        max_tokens=256,
+        timeout_s=30,
+    )

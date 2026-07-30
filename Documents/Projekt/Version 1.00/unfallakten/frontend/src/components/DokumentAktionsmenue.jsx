@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
+import ReactDOM from 'react-dom';
 import T from '../config/theme.js';
 import { API_BASE, tokenStore } from '../api.js';
+
+const MENU_BREITE = 340;
 
 /**
  * P1.7 — Dokument-Scope-Aktionsmenü.
@@ -9,12 +12,18 @@ import { API_BASE, tokenStore } from '../api.js';
  * Backend vorgeschlagenen Aktionen (GET /akten/<az>/aktionen?dokument_id=…).
  * Parallel zum bestehenden handleInlineAnnehmen (Plan §6.3 — Alt-Weg
  * bleibt zunächst erhalten).
+ *
+ * Popover wird per Portal in document.body gerendert (position:fixed,
+ * Koordinaten aus getBoundingClientRect des Kebab-Buttons) — sonst wird
+ * es von umliegenden Karten mit overflow:hidden am Rand abgeschnitten.
  */
 export default function DokumentAktionsmenue({ az, dokumentId, onAktion = () => {} }) {
   const [offen, setOffen] = useState(false);
   const [daten, setDaten] = useState(null);
   const [fehler, setFehler] = useState(null);
-  const boxRef = useRef(null);
+  const [pos, setPos] = useState(null);
+  const btnRef = useRef(null);
+  const menuRef = useRef(null);
 
   useEffect(() => {
     if (!offen || daten || !az || dokumentId == null) return;
@@ -33,18 +42,35 @@ export default function DokumentAktionsmenue({ az, dokumentId, onAktion = () => 
   useEffect(() => {
     if (!offen) return;
     const klick = (ev) => {
-      if (boxRef.current && !boxRef.current.contains(ev.target)) setOffen(false);
+      if (btnRef.current?.contains(ev.target) || menuRef.current?.contains(ev.target)) return;
+      setOffen(false);
     };
+    const schliessen = () => setOffen(false);
     document.addEventListener('mousedown', klick);
-    return () => document.removeEventListener('mousedown', klick);
+    window.addEventListener('scroll', schliessen, true);
+    window.addEventListener('resize', schliessen);
+    return () => {
+      document.removeEventListener('mousedown', klick);
+      window.removeEventListener('scroll', schliessen, true);
+      window.removeEventListener('resize', schliessen);
+    };
   }, [offen]);
 
+  const toggleOffen = () => {
+    if (!offen && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+    }
+    setOffen(o => !o);
+  };
+
   return (
-    <span ref={boxRef} style={{ position: 'relative', display: 'inline-block' }}>
+    <span style={{ display: 'inline-block' }}>
       <button
+        ref={btnRef}
         aria-label="Aktionen"
         title="Vorgeschlagene Aktionen"
-        onClick={(e) => { e.stopPropagation(); setOffen(o => !o); }}
+        onClick={(e) => { e.stopPropagation(); toggleOffen(); }}
         style={{
           background: offen ? T.accentPale : 'transparent',
           border: `1px solid ${offen ? T.accent : 'transparent'}`,
@@ -54,13 +80,13 @@ export default function DokumentAktionsmenue({ az, dokumentId, onAktion = () => 
         }}
       >⋮</button>
 
-      {offen && (
-        <div style={{
-          position: 'absolute', top: '110%', right: 0, width: 340,
+      {offen && pos && ReactDOM.createPortal(
+        <div ref={menuRef} style={{
+          position: 'fixed', top: pos.top, right: pos.right, width: MENU_BREITE,
           background: T.cardBg, border: `1px solid ${T.border}`,
           borderRadius: 10,
           boxShadow: '0 8px 24px rgba(27,42,74,0.14), 0 2px 6px rgba(27,42,74,0.06)',
-          padding: 8, zIndex: 20,
+          padding: 8, zIndex: 1000,
           fontFamily: T.fontBody,
         }}>
           <div style={{
@@ -127,7 +153,8 @@ export default function DokumentAktionsmenue({ az, dokumentId, onAktion = () => 
               }}>{a.positions_scope ? 'position' : 'dokument'}</span>
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </span>
   );

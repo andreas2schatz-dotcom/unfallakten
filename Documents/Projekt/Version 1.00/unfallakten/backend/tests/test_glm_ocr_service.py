@@ -81,5 +81,56 @@ class TestFeatureFlag(unittest.TestCase):
             self.assertTrue(ist_aktiviert())
 
 
+class TestModellVerwaltung(unittest.TestCase):
+    def test_get_set_active_model(self):
+        from backend.services import glm_ocr_service
+        urspruenglich = glm_ocr_service.get_active_model()
+        try:
+            glm_ocr_service.set_active_model("glm-ocr-vision-v2")
+            self.assertEqual(glm_ocr_service.get_active_model(), "glm-ocr-vision-v2")
+        finally:
+            glm_ocr_service.set_active_model(urspruenglich)
+
+    def test_get_available_models_enthaelt_aktives_modell(self):
+        from backend.services import glm_ocr_service
+        self.assertIn(glm_ocr_service.get_active_model(), glm_ocr_service.get_available_models())
+
+
+class TestVerbindungstest(unittest.TestCase):
+    def test_test_verbindung_ignoriert_feature_flag(self):
+        """Verbindungstest muss auch bei GLM_OCR_ENABLED=false funktionieren."""
+        from backend.services import glm_ocr_service
+
+        class FakeResponse:
+            def __init__(self, content):
+                self.choices = [mock.MagicMock(
+                    message=mock.MagicMock(content=content)
+                )]
+
+        class FakeClient:
+            def __init__(self, base_url, api_key):
+                self.chat = mock.MagicMock()
+                self.chat.completions = mock.MagicMock()
+                self.chat.completions.create = lambda **kw: FakeResponse("Testverbindung 12345")
+
+        with mock.patch.dict(os.environ, {"GLM_OCR_ENABLED": "false"}, clear=False), \
+             mock.patch.object(glm_ocr_service, "_make_client",
+                                lambda: FakeClient("http://x", "y")):
+            antwort = glm_ocr_service.test_verbindung()
+
+        self.assertIsNotNone(antwort)
+        self.assertIn("Testverbindung", antwort)
+
+    def test_test_verbindung_liefert_none_bei_fehler(self):
+        from backend.services import glm_ocr_service
+
+        def _raise():
+            raise ConnectionError("nicht erreichbar")
+
+        with mock.patch.object(glm_ocr_service, "_make_client", _raise):
+            antwort = glm_ocr_service.test_verbindung()
+        self.assertIsNone(antwort)
+
+
 if __name__ == "__main__":
     unittest.main()

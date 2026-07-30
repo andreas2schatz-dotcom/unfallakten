@@ -13,7 +13,8 @@ import { getThemePrefs, setThemePrefs } from "../theme/themePrefs.js";
 import StandardtexteTab from "./StandardtexteTab.jsx";
 
 function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
-  const [tab, setTab]           = useState(initialTab || "versicherer");
+  const [tab, setTab]           = useState(initialTab || "email_identifier");
+  const [emailIdTab, setEmailIdTab] = useState("versicherer");
   useEffect(() => {
     if (initialTab) {
       onTabMounted?.();
@@ -59,6 +60,13 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
   const [llmTestPrompt, setLlmTestPrompt] = useState("Erkläre in einem Satz was du bist.");
   const [llmTestLaedt, setLlmTestLaedt] = useState(false);
   const [llmTestAntwort, setLlmTestAntwort] = useState("");
+
+  // GLM-OCR
+  const [glmOcr,          setGlmOcr]          = useState({ env_konfiguriert: false, verfuegbar: false, aktives_modell: "", modelle: [], base_url: "" });
+  const [glmOcrLaedt,     setGlmOcrLaedt]     = useState(false);
+  const [glmOcrModellWechsel, setGlmOcrModellWechsel] = useState(false);
+  const [glmOcrTestLaedt, setGlmOcrTestLaedt] = useState(false);
+  const [glmOcrTestAntwort, setGlmOcrTestAntwort] = useState("");
 
   // LG-Zuständigkeitsgrenze
   const [lgGrenzwert,      setLgGrenzwert]      = useState(10000);
@@ -175,6 +183,11 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
       .then(d => setLlm(d))
       .catch(() => {})
       .finally(() => setLlmLaedt(false));
+    setGlmOcrLaedt(true);
+    apiEinstellungen.glmOcrStatus()
+      .then(d => setGlmOcr(d))
+      .catch(() => {})
+      .finally(() => setGlmOcrLaedt(false));
   }, []);
 
   useEffect(() => {
@@ -252,8 +265,8 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
 
   // Gefiltert nach Tab + Suche
   const gefiltertVorlagen = vorlagen.filter(v => {
-    const katFilter = tab === "versicherer" ? v.kategorie === "versicherung"
-                    : tab === "gutachter"   ? v.kategorie === "gutachter"
+    const katFilter = tab === "email_identifier"
+                    ? (emailIdTab === "versicherer" ? v.kategorie === "versicherung" : v.kategorie === "gutachter")
                     : tab === "absender"    ? true : true;
     if (!katFilter) return false;
     if (!suche) return true;
@@ -283,8 +296,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
         <div style={{ display:"flex", gap:4, marginBottom:"1.5rem",
           borderBottom:`1px solid ${T.border}` }}>
           {[
-            ["versicherer",   "🏦 Versicherer"],
-            ["gutachter",     "🔍 Gutachter"],
+            ["email_identifier", "📧 E-Mail-Identifier"],
             ["sv_portal",      "🔗 SV-Portal"],
             ["absender",      "📋 Alle Vorlagen"],
             ["imap",          "📧 IMAP"],
@@ -304,8 +316,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
               {id !== "imap" && id !== "fristen" && id !== "ki" && id !== "zustaendigkeit" && id !== "sv_portal" && id !== "system_status" && id !== "standardtexte" && (
                 <span style={{ marginLeft:6, background:T.surface, color:T.textMuted,
                   borderRadius:10, padding:"1px 7px", fontSize:"0.8rem", fontWeight:400 }}>
-                  {id === "versicherer" ? vorlagen.filter(v => v.kategorie==="versicherung").length
-                   : id === "gutachter" ? vorlagen.filter(v => v.kategorie==="gutachter").length
+                  {id === "email_identifier" ? vorlagen.filter(v => v.kategorie==="versicherung" || v.kategorie==="gutachter").length
                    : vorlagen.length}
                 </span>
               )}
@@ -731,6 +742,126 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                       lineHeight:1.6, whiteSpace:"pre-wrap",
                     }}>
                       {llmTestAntwort}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </Card>
+
+            {/* ── GLM-OCR ──────────────────────────────────────────────── */}
+            <Card style={{ marginTop:"1.25rem" }}>
+              <CardHead title="🖼 GLM-OCR – Bilderkennung" />
+              <div style={{ padding:"1rem 1.25rem", display:"flex", flexDirection:"column", gap:"1.1rem" }}>
+
+                {/* Status-Zeile */}
+                <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+                  <span style={{
+                    padding:"3px 10px", borderRadius:5, fontSize:12, fontWeight:600,
+                    background: glmOcr.env_konfiguriert ? "rgba(34,197,94,0.12)" : "rgba(156,163,175,0.12)",
+                    color: glmOcr.env_konfiguriert ? T.green : T.textFaint,
+                    border: `1px solid ${glmOcr.env_konfiguriert ? "rgba(34,197,94,0.3)" : T.border}`,
+                  }}>
+                    {glmOcr.env_konfiguriert ? "● Per .env aktiviert" : "○ Per .env deaktiviert"}
+                  </span>
+
+                  <span style={{
+                    padding:"3px 10px", borderRadius:5, fontSize:12, fontWeight:600,
+                    background: glmOcr.verfuegbar ? "rgba(34,197,94,0.12)" : "rgba(156,163,175,0.12)",
+                    color: glmOcr.verfuegbar ? T.green : T.textFaint,
+                    border: `1px solid ${glmOcr.verfuegbar ? "rgba(34,197,94,0.3)" : T.border}`,
+                  }}>
+                    {glmOcrLaedt ? "Prüfe …" : glmOcr.verfuegbar ? "● Endpunkt erreichbar" : "○ Nicht erreichbar"}
+                  </span>
+
+                  <Btn style={{ marginLeft:"auto", background:"transparent",
+                    color:T.textMuted, border:`1px solid ${T.border}`, fontSize:12, padding:"4px 12px" }}
+                    onClick={() => {
+                      setGlmOcrLaedt(true);
+                      apiEinstellungen.glmOcrStatus().then(d => setGlmOcr(d)).catch(() => {}).finally(() => setGlmOcrLaedt(false));
+                    }} disabled={glmOcrLaedt}>
+                    ↺ Status prüfen
+                  </Btn>
+                </div>
+
+                {/* Modell-Auswahl */}
+                <div>
+                  <label style={{ display:"block", fontFamily:T.fontBody,
+                    fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:6 }}>
+                    Aktives Modell
+                  </label>
+                  <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                    <select
+                      value={glmOcr.aktives_modell || ""}
+                      onChange={async e => {
+                        const m = e.target.value;
+                        if (!m || glmOcrModellWechsel) return;
+                        setGlmOcrModellWechsel(true);
+                        try {
+                          await apiEinstellungen.glmOcrModellSetzen(m);
+                          setGlmOcr(p => ({ ...p, aktives_modell: m }));
+                          setToast(`GLM-OCR-Modell gewechselt: ${m}`);
+                        } catch { setToast("Fehler beim Modellwechsel."); }
+                        finally { setGlmOcrModellWechsel(false); }
+                      }}
+                      disabled={glmOcrModellWechsel || glmOcr.modelle.length === 0}
+                      style={{ ...inputStyle, flex:1, fontFamily:"ui-monospace,monospace",
+                        fontSize:"0.825rem" }}>
+                      {(glmOcr.modelle.length ? glmOcr.modelle : [glmOcr.aktives_modell || "—"]).map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                    {glmOcrModellWechsel && (
+                      <span style={{ fontSize:12, color:T.textMuted }}>Wechsle …</span>
+                    )}
+                  </div>
+                  <div style={{ marginTop:6, fontFamily:"ui-monospace,monospace",
+                    fontSize:"0.775rem", color:T.textFaint }}>
+                    URL: {glmOcr.base_url || "—"}
+                  </div>
+                  {!glmOcr.env_konfiguriert && (
+                    <div style={{ marginTop:6, fontSize:"0.8rem", color:T.amber,
+                      fontFamily:T.fontBody }}>
+                      ⚠ GLM_OCR_ENABLED=true fehlt in <code>.env</code> — Tesseract bleibt Primärquelle.
+                    </div>
+                  )}
+                </div>
+
+                {/* Verbindungstest */}
+                <div>
+                  <label style={{ display:"block", fontFamily:T.fontBody,
+                    fontSize:"0.825rem", fontWeight:600, color:T.textMuted, marginBottom:6 }}>
+                    Verbindungstest
+                  </label>
+                  <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+                    <Btn
+                      onClick={async () => {
+                        setGlmOcrTestLaedt(true);
+                        setGlmOcrTestAntwort("");
+                        try {
+                          const res = await apiEinstellungen.glmOcrTest();
+                          setGlmOcrTestAntwort(res.antwort || "");
+                        } catch(e) {
+                          setGlmOcrTestAntwort("Fehler: " + (e?.message || "Verbindung fehlgeschlagen"));
+                        } finally { setGlmOcrTestLaedt(false); }
+                      }}
+                      disabled={glmOcrTestLaedt}>
+                      {glmOcrTestLaedt ? "Warte …" : "Testbild senden"}
+                    </Btn>
+                  </div>
+                  <div style={{ marginBottom:8, fontSize:"0.8rem", color:T.textFaint, fontFamily:T.fontBody }}>
+                    Schickt ein Testbild mit bekanntem Text ("Testverbindung 12345") an den Endpunkt.
+                  </div>
+                  {glmOcrTestAntwort && (
+                    <div style={{
+                      background: glmOcrTestAntwort.startsWith("Fehler") ? "#2a1500" : T.offWhite,
+                      border:`1px solid ${glmOcrTestAntwort.startsWith("Fehler") ? "rgba(245,158,11,0.3)" : T.border}`,
+                      borderRadius:7, padding:"0.75rem 1rem",
+                      fontFamily:T.fontBody, fontSize:"0.875rem",
+                      color: glmOcrTestAntwort.startsWith("Fehler") ? T.amber : T.text,
+                      lineHeight:1.6, whiteSpace:"pre-wrap",
+                    }}>
+                      {glmOcrTestAntwort}
                     </div>
                   )}
                 </div>
@@ -1420,10 +1551,34 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
         {/* Versicherer / Gutachter / Alle Vorlagen Tabs */}
         {tab !== "imap" && tab !== "fristen" && tab !== "ki" && tab !== "zustaendigkeit" && tab !== "sv_portal" && tab !== "system_status" && tab !== "standardtexte" && (
           <div>
+            {/* Subreiter Versicherer / Gutachter */}
+            {tab === "email_identifier" && (
+              <div style={{ display:"flex", borderBottom:`2px solid ${T.border}`, marginBottom:"1.25rem" }}>
+                {[
+                  { id:"versicherer", label:"🏦 Versicherer" },
+                  { id:"gutachter",   label:"🔍 Gutachter"   },
+                ].map(st => (
+                  <button key={st.id} onClick={() => { setEmailIdTab(st.id); setSuche(""); }} style={{
+                    padding:"9px 22px", border:"none", background:"none", cursor:"pointer",
+                    fontFamily:T.fontBody, fontSize:"0.935rem",
+                    fontWeight: emailIdTab===st.id ? 700 : 500,
+                    color: emailIdTab===st.id ? T.navy : T.textMuted,
+                    borderBottom: emailIdTab===st.id ? `2px solid ${T.accent}` : "2px solid transparent",
+                    marginBottom:-2 }}>
+                    {st.label}
+                    <span style={{ marginLeft:6, background:T.surface, color:T.textMuted,
+                      borderRadius:10, padding:"1px 7px", fontSize:"0.8rem", fontWeight:400 }}>
+                      {st.id === "versicherer" ? vorlagen.filter(v => v.kategorie==="versicherung").length
+                       : vorlagen.filter(v => v.kategorie==="gutachter").length}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Neue Vorlage anlegen */}
             <Card style={{ marginBottom:"1.25rem" }}>
-              <CardHead title={tab === "versicherer" ? "Neuen Versicherer anlegen"
-                             : tab === "gutachter"   ? "Neuen Gutachter anlegen"
+              <CardHead title={tab === "email_identifier" ? (emailIdTab === "versicherer" ? "Neuen Versicherer anlegen" : "Neuen Gutachter anlegen")
                              : "Neue Vorlage anlegen"} />
               <div style={{ padding:"1rem 1.25rem",
                 display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"0.75rem", alignItems:"end" }}>

@@ -135,6 +135,33 @@ class TestOutputAdapterSchreibeDokument(unittest.TestCase):
             ).fetchone()
         self.assertEqual(row["typ"], "gutachten")
 
+    def test_dateipfad_ist_ohne_upload_dir_praefix_lesbar(self):
+        # Bug: schreibe_dokument() speicherte dateipfad relativ zu UPLOAD_DIR
+        # ('<akte>/<datei>'). hole_dokument_datei() (Basis fuer die Vorschau/
+        # den Download in der Dokumente-Kachel) oeffnet Path(dateipfad) aber
+        # direkt, ohne mit UPLOAD_DIR zu joinen -- das loest relativ zum
+        # Prozess-Arbeitsverzeichnis auf, nicht zum Upload-Ordner, und schlaegt
+        # dort fehl. Direkt hochgeladene Dokumente sind nicht betroffen, weil
+        # verarbeite_upload() dort einen absoluten Pfad speichert.
+        from backend.ramicro.output_adapter import schreibe_dokument
+        from backend.pdf.upload_service import hole_dokument_datei
+        from backend.db.database import get_connection
+
+        did = self._lege_intake_an("abrechnungsschreiben")
+        with get_connection() as conn:
+            intake = dict(conn.execute(
+                "SELECT * FROM intake_dokumente WHERE id=?", (did,)
+            ).fetchone())
+
+        dokument_id = schreibe_dokument(intake, "31/21", freigegeben_von=1)
+
+        ergebnis = hole_dokument_datei(dokument_id)
+        self.assertIsNotNone(
+            ergebnis,
+            "hole_dokument_datei() findet die Datei nicht -- dateipfad ist "
+            "vermutlich relativ statt absolut gespeichert."
+        )
+
     def test_arbeitskopie_fehlt_wirft(self):
         from backend.ramicro.output_adapter import schreibe_dokument
 

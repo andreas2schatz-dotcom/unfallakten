@@ -39,13 +39,6 @@ def _upload_verzeichnis() -> Path:
     return pfad
 
 
-def _relativer_pfad(absolut: Path, base: Path) -> str:
-    try:
-        return str(absolut.relative_to(base))
-    except ValueError:
-        return str(absolut)
-
-
 def schreibe_dokument(intake_dok: Dict[str, Any], akte_az: str,
                       freigegeben_von: Optional[int],
                       bezeichnung: Optional[str] = None) -> int:
@@ -82,7 +75,6 @@ def schreibe_dokument(intake_dok: Dict[str, Any], akte_az: str,
     if quell_pfad.resolve() != ziel_pfad.resolve():
         shutil.copy2(quell_pfad, ziel_pfad)
 
-    relpfad = _relativer_pfad(ziel_pfad, upload_dir)
     ext = ziel_pfad.suffix.lower().lstrip(".")
     dateityp = ext if ext in ("pdf", "docx", "jpg", "png") else "sonstiges"
     if ext == "jpeg":
@@ -92,7 +84,7 @@ def schreibe_dokument(intake_dok: Dict[str, Any], akte_az: str,
         akte_id=akte_az,
         typ=typ,
         dateiname=ziel_pfad.name,
-        dateipfad=relpfad,
+        dateipfad=str(ziel_pfad),
         bearbeiter_id=freigegeben_von,
         dateityp=dateityp,
         dateigroesse=ziel_pfad.stat().st_size if ziel_pfad.exists() else None,

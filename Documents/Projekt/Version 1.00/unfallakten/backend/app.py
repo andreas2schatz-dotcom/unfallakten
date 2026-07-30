@@ -181,6 +181,13 @@ def erstelle_app(test_config: dict = None) -> Flask:
         except Exception as _e:
             logger.warning("LLM-Init übersprungen: %s", _e)
 
+        # ── GLM-OCR-Modell aus DB laden ────────────────────────────────────────
+        try:
+            from .services.glm_ocr_service import init_from_db as _glm_ocr_init
+            _glm_ocr_init()
+        except Exception as _e:
+            logger.warning("GLM-OCR-Init übersprungen: %s", _e)
+
         # ── Initialen Admin anlegen falls keine Benutzer vorhanden ────────────
         _ensure_admin_exists(app)
 

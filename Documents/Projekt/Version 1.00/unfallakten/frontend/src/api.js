@@ -966,6 +966,13 @@ export const apiEinstellungen = {
   llmModellSetzen: (modell)   => request('/einstellungen/llm-modell', {
     method: 'PUT', body: JSON.stringify({ modell }),
   }),
+  glmOcrStatus:      ()           => request('/einstellungen/glm-ocr-status'),
+  glmOcrModellSetzen: (modell)   => request('/einstellungen/glm-ocr-modell', {
+    method: 'PUT', body: JSON.stringify({ modell }),
+  }),
+  glmOcrTest:        ()           => request('/einstellungen/glm-ocr-test', {
+    method: 'POST',
+  }),
 };
 
 // ── PRD-25d: Intelligente Sachstandsanfrage ───────────────────────────────────

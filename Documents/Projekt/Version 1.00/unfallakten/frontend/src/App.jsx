@@ -234,9 +234,9 @@ function AppShell({ user, onLogout }) {
                     fontFamily:T.fontBody, fontSize:"1rem",
                     fontWeight:isA?600:400, textAlign:"left", transition:"all 0.12s", marginBottom:2,
                     ...(isA ? { boxShadow:`inset 2px 0 0 ${T.accent}` } : {}) }}
-                  onMouseEnter={e => { if (!isA) e.currentTarget.style.background="rgba(255,255,255,0.06)"; }}
-                  onMouseLeave={e => { if (!isA) e.currentTarget.style.background="transparent"; }}>
-                  <span style={{ fontSize:"1rem", flexShrink:0 }}>{item.icon}</span>
+                  onMouseEnter={e => { if (!isA) { e.currentTarget.style.background="rgba(255,255,255,0.14)"; e.currentTarget.style.boxShadow=`inset 2px 0 0 rgba(255,255,255,0.35)`; } }}
+                  onMouseLeave={e => { if (!isA) { e.currentTarget.style.background="transparent"; e.currentTarget.style.boxShadow="none"; } }}>
+                  <span style={{ fontSize:"1rem", width:20, flexShrink:0, display:"inline-flex", alignItems:"center", justifyContent:"flex-start" }}>{item.icon}</span>
                   <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.label}</span>
                 </button>
               );

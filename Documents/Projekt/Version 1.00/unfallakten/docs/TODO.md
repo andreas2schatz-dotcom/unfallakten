@@ -31,14 +31,6 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 - **PRD-NEW – Onboarding-Wizard (Neue-Akte-Anlage):** Stub `NeueAkteModal` existiert (AZ, Unfalldatum, -ort, Notizen), echte Anlage-Logik fehlt. Braucht eigenes Brainstorming.
 - **PRD-25c – Automatische Mandantenkommunikation:** `MandantenEmailDialog` nach Generierung von Forderungs-/Regulierungsschreiben; 3 Textbausteine je Trigger, neue Tabelle `mandanten_emails`. PRD: `handover/PRD-25c_Mandantenkommunikation.md`.
 
-### UI-Kleinkram / Bugs (gemeldet RA Schatz 2026-07-23)
-1. **Systemstatus-Kachel defekt:** Im Systemstatus-Reiter der Einstellungen-Section ist die Kachel nicht mehr ausklappbar — es wird nichts mehr angezeigt.
-2. **Navigationsleiste links:** Alle Symbole gerade linksbündig ausrichten.
-3. **Navigationsleiste links:** Hover-Effekt stärker ausprägen.
-4. **E-Mail-Identifier zusammenführen:** In der Einstellungen-Section existieren „Versicherer" und „Gutachter" getrennt für E-Mail-Identifier → zu EINEM Reiter zusammenfassen mit Subreitern Versicherer/Gutachter (Muster: Personenschaden/Sachschaden).
-5. **Dabei prüfen:** Welche Gutachter werden bereits als E-Mail-Identifier vom System verwendet? (Bestandsaufnahme vor dem Umbau von Punkt 4.)
-6. **Reiter KI-Assistent:** Das LLM für OCR (GLM-OCR) muss dort ebenfalls einstellbar UND testbar sein (analog zum bestehenden Modell-Switcher).
-
 ### Mittel
 - **PRD-39 – Stellungnahme zum Abrechnungsschreiben (DOCX): bereits durch PRD-27 abgedeckt** (verifiziert 2026-07-23: 4 aktive Routen in `stellungnahme_routes.py`, voller DOCX-Generator, Tabelle `stellungnahme_texte`/Mig 40). Offen ist NUR die Trigger-Umkehr (Queue liefert fertigen Entwurf statt manuellem Wizard-Aufruf) — Teil von Phase 2 der Kürzungstaxonomie, kein eigenes Vorhaben.
 - **Dokumentenklasse „Klagedrohung" mit `frist_datum` → Verzugs-Automatik im Klage-Wizard:** Fristsetzungs-Schreiben bekommen eigene Klasse + strukturiertes Fristdatum; Verzugseintritt-Vorbelegung = Tag nach Fristablauf. Zwei Befüllungswege (selbst erzeugte Schreiben stempeln die Frist exakt; importierte via Parser). `verzug_dokumente` um `frist_datum` erweitern; optional Kopplung an Fristen-System (PRD-25a). Berührt Intake + Generator — eigenes Vorhaben.
@@ -93,6 +85,7 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 
 | Datum | Feature |
 |---|---|
+| 2026-07-29 | UI-Kleinkram-Runde (6 Punkte, gemeldet 2026-07-23): Systemstatus-Kachel-Bug war Caching-Problem (Nutzer bestätigt behoben); Navigationsleiste Icon-Ausrichtung + Hover-Effekt verstärkt; E-Mail-Identifier Versicherer/Gutachter zu einem Reiter mit Subreitern zusammengeführt (Muster Personenschaden/Sachschaden); Bestandsaufnahme Gutachter-Identifier (2: Ninnivaggi, Cassese); GLM-OCR-Karte im KI-Assistent-Reiter (Modellauswahl + Verbindungstest, analog Lokales-LLM-Switcher) |
 | 2026-07-28 | Review-Queue: Sortier-Toggle Eingangsdatum (auf/ab, localStorage-Persistenz) — in `main`, Browser-Nachtest 11/11 bestanden |
 | 2026-07-23 | Kürzungstaxonomie **Phase 1 komplett** (12 Tasks: Mig 64, YAML-Registry A–F, Matching+LLM, Verkettung, Typ-UI, Runden-Vergleich, TextbausteinEditor, ZITAT, Messanker) — Branch `kuerzungstaxonomie-phase1` |
 | 2026-07-23 | Kürzungstaxonomie-Konzept verifiziert + Prozess revidiert (Papier Abschnitt 12, 3 DECISIONS-Einträge); Klage-Wizard-Fix [FEHLT]-Marker; Browser-Nachtests Paket 2+3 bestanden; main gepusht (58 Commits) |

@@ -320,6 +320,67 @@ def post_llm_test():
     return jsonify({"antwort": antwort, "modell": get_active_model()})
 
 
+@einstellungen_bp.route("/glm-ocr-status", methods=["GET"])
+@login_erforderlich
+def get_glm_ocr_status():
+    """
+    GET /einstellungen/glm-ocr-status
+    Gibt zurück ob GLM-OCR per .env aktiviert, der Endpunkt erreichbar ist
+    und welche Modelle konfiguriert sind.
+    """
+    from ..services import glm_ocr_service
+    with get_connection() as conn:
+        row_modell = conn.execute(
+            "SELECT wert FROM konfiguration WHERE schluessel='glm_ocr_aktives_modell'"
+        ).fetchone()
+        if row_modell and row_modell["wert"]:
+            glm_ocr_service.set_active_model(row_modell["wert"])
+    return jsonify({
+        "env_konfiguriert": glm_ocr_service.ist_aktiviert(),
+        "verfuegbar":       glm_ocr_service.is_available(),
+        "aktives_modell":   glm_ocr_service.get_active_model(),
+        "modelle":          glm_ocr_service.get_available_models(),
+        "base_url":         glm_ocr_service._BASE_URL,
+    })
+
+
+@einstellungen_bp.route("/glm-ocr-modell", methods=["PUT"])
+@login_erforderlich
+def put_glm_ocr_modell():
+    """PUT /einstellungen/glm-ocr-modell  Body: { "modell": "glm-ocr" }"""
+    from ..services import glm_ocr_service
+    body   = request.get_json(silent=True) or {}
+    modell = (body.get("modell") or "").strip()
+    if not modell:
+        return jsonify({"fehler": "Kein Modell angegeben."}), 400
+    if modell not in glm_ocr_service.get_available_models():
+        return jsonify({"fehler": f"Unbekanntes Modell: {modell}. In OCR_LLM_MODELS eintragen."}), 400
+    glm_ocr_service.set_active_model(modell)
+    with get_connection() as conn:
+        conn.execute(
+            """INSERT INTO konfiguration (schluessel, wert, geaendert_am)
+               VALUES ('glm_ocr_aktives_modell', ?, datetime('now','localtime'))
+               ON CONFLICT(schluessel) DO UPDATE SET
+                   wert=excluded.wert, geaendert_am=excluded.geaendert_am""",
+            (modell,)
+        )
+    return jsonify({"ok": True, "aktives_modell": modell})
+
+
+@einstellungen_bp.route("/glm-ocr-test", methods=["POST"])
+@login_erforderlich
+def post_glm_ocr_test():
+    """
+    POST /einstellungen/glm-ocr-test
+    Schickt ein Testbild an GLM-OCR und gibt den erkannten Text zurück.
+    """
+    from ..services import glm_ocr_service
+    antwort = glm_ocr_service.test_verbindung()
+    if antwort is None:
+        return jsonify({"fehler": "Keine Antwort vom GLM-OCR-Endpunkt – läuft der Server?"}), 503
+    return jsonify({"antwort": antwort, "modell": glm_ocr_service.get_active_model()})
+
+
 @einstellungen_bp.route("/lg-grenzwert", methods=["GET"])
 @login_erforderlich
 def get_lg_grenzwert():

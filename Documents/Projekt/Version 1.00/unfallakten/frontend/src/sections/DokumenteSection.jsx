@@ -26,6 +26,9 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
   const [bezText, setBezText] = useState("");
   const inputRef              = useRef(null);
   const bezAbbrechenRef       = useRef(false);
+  const [dokVorschau, setDokVorschau]     = useState(null); // dok_id in Inline-Vorschau (Dokumente-Liste)
+  const [dokVorschauUrl, setDokVorschauUrl] = useState(null);
+  const [dokVorschauLaden, setDokVorschauLaden] = useState(false);
 
   // ── E-Akte (RA-Micro) ──────────────────────────────────────────────────
   const [eakteDoks, setEakteDoks]       = useState([]);
@@ -147,6 +150,24 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
       })
       .catch(() => {});
   }, [akteId]);
+
+  // Dokumente-Liste Inline-Vorschau (Blob-URL)
+  useEffect(() => {
+    if (!dokVorschau) {
+      if (dokVorschauUrl) { URL.revokeObjectURL(dokVorschauUrl); setDokVorschauUrl(null); }
+      return;
+    }
+    setDokVorschauLaden(true);
+    const token = tokenStore.getAccess();
+    fetch(`${API_BASE}/akten/${akteId}/dokumente/${dokVorschau}/datei`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then(r => { if (!r.ok) throw new Error(); return r.blob(); })
+      .then(blob => setDokVorschauUrl(URL.createObjectURL(blob)))
+      .catch(() => { setDokVorschauUrl(null); setDokVorschau(null); setToast("Vorschau fehlgeschlagen"); })
+      .finally(() => setDokVorschauLaden(false));
+    return () => { if (dokVorschauUrl) URL.revokeObjectURL(dokVorschauUrl); };
+  }, [dokVorschau]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Beleg-Vorschau (Blob-URL)
   useEffect(() => {
@@ -705,226 +726,6 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
 
       <div style={{ display:"flex", flexDirection:"column", gap:"1.25rem" }}>
 
-        {/* Upload */}
-        <Card style={{ padding:"1.25rem 1.4rem" }}>
-          <div style={{ marginBottom:"1rem", maxWidth:250 }}>
-            <FieldSelect label="Dokumenttyp" value={uploadTyp} onChange={setTyp} options={DOK_TYPEN} />
-          </div>
-          <div
-            onDragOver={e => { e.preventDefault(); setDrag(true); }}
-            onDragLeave={() => setDrag(false)}
-            onDrop={e => { e.preventDefault(); setDrag(false); fakeUpload([...e.dataTransfer.files]); }}
-            onClick={() => !uploading && inputRef.current?.click()}
-            style={{ border:`2px dashed ${dragging?T.accent:T.border}`, borderRadius:12, padding:"2.5rem 1.5rem", textAlign:"center", cursor:uploading?"default":"pointer", background:dragging?T.accentPale:"transparent", transition:"all 0.2s" }}>
-            <input ref={inputRef} type="file" accept=".pdf,.docx,.jpg,.jpeg,.png" style={{ display:"none" }} onChange={e => fakeUpload([...e.target.files])} />
-            {uploading ? (
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
-                <div style={{ width:32, height:32, border:`3px solid ${T.accentTrim}`, borderTopColor:T.accent, borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
-                <div style={{ fontFamily:T.fontBody, fontSize:"0.975rem", color:T.textMuted }}>Hochladen und analysieren …</div>
-                {uploadProgress > 0 && uploadProgress < 100 && (
-                  <div style={{ width:200 }}>
-                    <div style={{ height:4, background:T.border, borderRadius:4, overflow:"hidden" }}>
-                      <div style={{ height:"100%", width:`${uploadProgress}%`, background:`linear-gradient(90deg,${T.accent},${T.accentLight})`, borderRadius:4, transition:"width 0.3s" }}/>
-                    </div>
-                    <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.825rem", color:T.textFaint, textAlign:"center", marginTop:3 }}>{uploadProgress} %</div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}>
-                <span style={{ color:dragging?T.accent:T.textFaint }}>{Ic.upload}</span>
-                <div style={{ fontFamily:T.fontBody, fontSize:"1.025rem", fontWeight:600, color:dragging?T.accent:T.textMid }}>Datei hier ablegen oder klicken</div>
-                <div style={{ fontFamily:T.fontBody, fontSize:"0.905rem", color:T.textFaint }}>PDF, DOCX, JPG, PNG · max. 20 MB · PDFs werden automatisch geparst</div>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {/* ── Schadenbelege-Übersicht (PRD-23a) ── nur für Referat 04 */}
-        {istVerkehrsunfall && <Card>
-          <CardHead
-            title={`Schadenbelege (${belegAnzahl} von ${belegTotal})`}
-            action={
-              <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                {alleNehmbareAnzahl > 0 && (
-                  <Btn size="sm" variant="gold" onClick={handleAlleAnnehmen}
-                    disabled={uebernehmenLaden === "__alle__"}
-                    title={`${alleNehmbareAnzahl} Kandidat(en) mit Konfidenz ≥ 80 % übernehmen`}>
-                    {uebernehmenLaden === "__alle__" ? "Speichert …" : `← Alle (${alleNehmbareAnzahl})`}
-                  </Btn>
-                )}
-                <Btn size="sm" variant="secondary" onClick={handleBatchParser} disabled={batchParserLaden}
-                  title="Alle Dokumente automatisch klassifizieren und Positionen zuordnen (PRD-23b)">
-                  {batchParserLaden ? `${batchParserFortschritt} / ${batchParserTotal || "?"} …` : "🤖 Auto-Zuordnung"}
-                </Btn>
-                {letzteKandidaten !== null && (
-                  <Btn size="sm" variant="secondary" onClick={() => setDebugKandidaten(letzteKandidaten)}
-                    title="Kandidaten-Übersicht anzeigen" style={{ padding:"5px 8px" }}>
-                    🔍
-                  </Btn>
-                )}
-              </div>
-            }
-          />
-          <div style={{ padding:"0.5rem 1.4rem 1rem" }}>
-            {SCHADEN_F.map((f, i) => {
-              const beleg = belegMap[f.k];
-              const kand  = !beleg ? kandidatMap[f.k] : null;
-              const isLoading = uebernehmenLaden === f.k || uebernehmenLaden === "__alle__";
-              const isHigh = (kand?.konfidenz || 0) >= 0.85;
-              return (
-                <div key={f.k} style={{ display:"flex", alignItems:"center", gap:10,
-                  padding:"7px 0", borderBottom: i < SCHADEN_F.length - 1 ? `1px solid ${T.borderSoft}` : "none",
-                  background: highlightPos === f.k ? T.greenBg : "transparent",
-                  transition:"background 0.4s" }}>
-
-                  {/* Positions-Label */}
-                  <div style={{ width:178, flexShrink:0, fontFamily:T.fontBody, fontSize:"0.845rem",
-                    fontWeight:500, color: beleg ? T.text : kand ? T.textMid : T.textFaint }}>
-                    {f.l}
-                  </div>
-
-                  {beleg ? (
-                    /* ── Bereits belegt ─────────────────────────────────── */
-                    <div style={{ flex:1, display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
-                      <button onClick={() => setBelegVorschau(beleg.dokument_id)}
-                        style={{ display:"flex", alignItems:"center", gap:5, background:"none", border:"none",
-                          cursor:"pointer", padding:"2px 4px", minWidth:0, overflow:"hidden" }}
-                        onMouseEnter={e => e.currentTarget.querySelector("span").style.textDecoration="underline"}
-                        onMouseLeave={e => e.currentTarget.querySelector("span").style.textDecoration="none"}>
-                        <span style={{ color:T.red, fontSize:"0.9rem", flexShrink:0 }}>📄</span>
-                        <span style={{ fontFamily:T.fontBody, fontSize:"0.82rem", color:T.blue,
-                          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                          {beleg.dateiname}
-                        </span>
-                      </button>
-                      {beleg.betrag_aus_beleg > 0 && (
-                        <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.82rem",
-                          color:T.navy, fontWeight:600, flexShrink:0, marginLeft:"auto" }}>
-                          {fmtEuro(beleg.betrag_aus_beleg)}
-                        </span>
-                      )}
-                      <span style={{ fontSize:"0.7rem", color:T.green, background:T.greenBg,
-                        border:`1px solid ${T.green}33`, borderRadius:10, padding:"1px 6px", flexShrink:0 }}>
-                        ✓
-                      </span>
-                      <button
-                        onClick={async () => {
-                          if (!confirm(`Zuordnung von "${beleg.dateiname}" entfernen?`)) return;
-                          try {
-                            await apiBelege.entfernen(akteId, beleg.id);
-                            const bRes = await apiBelege.liste(akteId);
-                            const nm = {};
-                            (bRes?.belege || []).forEach(bv => { nm[bv.position_key] = bv; });
-                            setBelegMap(nm);
-                          } catch(e) { setToast("Entfernen fehlgeschlagen: " + (e?.message || "")); }
-                        }}
-                        title="Zuordnung entfernen"
-                        style={{ background:"none", border:"none", cursor:"pointer", color:T.textFaint,
-                          fontSize:"0.72rem", padding:"0 2px", lineHeight:1, opacity:0.4, transition:"opacity 0.15s" }}
-                        onMouseEnter={e => e.currentTarget.style.opacity="1"}
-                        onMouseLeave={e => e.currentTarget.style.opacity="0.4"}
-                      >✕</button>
-                    </div>
-
-                  ) : kand ? (
-                    /* ── Kandidat verfügbar ─────────────────────────────── */
-                    <div style={{ flex:1, display:"flex", alignItems:"center", gap:7, minWidth:0 }}>
-                      {/* Konfidenz-Dot */}
-                      <span style={{ width:7, height:7, borderRadius:"50%", flexShrink:0,
-                        background: isHigh ? T.green : T.amber }} />
-                      {/* Dateiname */}
-                      <span style={{ fontFamily:T.fontBody, fontSize:"0.8rem", color:T.textMid,
-                        overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1, minWidth:0 }}
-                        title={kand.dateiname}>
-                        {kand.dateiname || kand.lieferant || "Dokument"}
-                      </span>
-                      {/* Mit Betrag: Wert + Annehmen-Button */}
-                      {kand.betrag_vorschlag != null ? (
-                        <>
-                          <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.82rem",
-                            color:T.navy, fontWeight:600, flexShrink:0 }}>
-                            {fmtEuro(kand.betrag_vorschlag)}
-                          </span>
-                          <button
-                            onClick={() => handleKandidatAnnehmen(f.k, kand)}
-                            disabled={isLoading}
-                            style={{ padding:"3px 10px", borderRadius:5, border:"none",
-                              background: isLoading ? T.textFaint : T.accent,
-                              color:T.white, fontFamily:T.fontBody,
-                              fontSize:"0.78rem", fontWeight:600,
-                              cursor: isLoading ? "not-allowed" : "pointer", flexShrink:0,
-                              transition:"background 0.12s" }}>
-                            {isLoading ? "…" : "← Annehmen"}
-                          </button>
-                        </>
-                      ) : (
-                        /* Ohne Betrag: Inline-Eingabe */
-                        <>
-                          <input
-                            type="number" step="0.01" min="0" placeholder="Betrag €"
-                            value={inlineBetrag[f.k] || ""}
-                            onChange={e => setInlineBetrag(p => ({ ...p, [f.k]: e.target.value }))}
-                            style={{ width:88, fontFamily:T.fontBody, fontSize:"0.78rem",
-                              padding:"3px 7px", border:`1px solid ${T.border}`, borderRadius:5,
-                              outline:"none", color:T.text, background:T.surface, flexShrink:0 }}
-                          />
-                          <button
-                            onClick={() => handleKandidatAnnehmen(f.k, kand, inlineBetrag[f.k])}
-                            disabled={isLoading || !(parseFloat(inlineBetrag[f.k]) > 0)}
-                            style={{ padding:"3px 10px", borderRadius:5, border:"none",
-                              background: T.accent, color:T.white,
-                              fontFamily:T.fontBody, fontSize:"0.78rem", fontWeight:600,
-                              cursor:"pointer", flexShrink:0,
-                              opacity: (isLoading || !(parseFloat(inlineBetrag[f.k]) > 0)) ? 0.4 : 1 }}>
-                            {isLoading ? "…" : "Annehmen"}
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                  ) : (
-                    /* ── Kein Kandidat ──────────────────────────────────── */
-                    <div style={{ flex:1, fontFamily:T.fontBody,
-                      fontSize:"0.82rem", color:T.textFaint }}>—</div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </Card>}
-
-        {/* Beleg-Vorschau Modal */}
-        {belegVorschau && (
-          <>
-            <div onClick={() => setBelegVorschau(null)}
-              style={{ position:"fixed", top:0, left:0, right:0, bottom:0,
-                background:"rgba(0,0,0,0.4)", zIndex:950 }} />
-            <div style={{ position:"fixed", top:"5%", left:"10%", right:"10%", bottom:"5%",
-              zIndex:951, background:T.cardBg, borderRadius:12,
-              boxShadow:"0 20px 60px rgba(0,0,0,0.3)",
-              display:"flex", flexDirection:"column", overflow:"hidden" }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
-                padding:"12px 20px", borderBottom:`1px solid ${T.border}`, background:T.surface }}>
-                <span style={{ fontFamily:T.fontBody, fontSize:"0.9rem", fontWeight:600, color:T.navy,
-                  overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"70vw" }}>
-                  📄 {dokumente.find(d => d.id === belegVorschau)?.dateiname || "Vorschau"}
-                </span>
-                <button onClick={() => setBelegVorschau(null)}
-                  style={{ background:"none", border:"none", cursor:"pointer", fontSize:"1.2rem", color:T.textFaint, lineHeight:1 }}>✕</button>
-              </div>
-              {belegVorschauUrl ? (
-                <iframe src={belegVorschauUrl} style={{ flex:1, border:"none" }} title="Beleg" />
-              ) : (
-                <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", color:T.textMuted }}>
-                  <div style={{ width:24, height:24, border:`3px solid ${T.accentTrim}`, borderTopColor:T.accent, borderRadius:"50%", animation:"spin 0.8s linear infinite", marginRight:10 }} />
-                  PDF wird geladen…
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
         {/* Liste */}
         <Card>
           <CardHead
@@ -955,7 +756,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
             const betragV = gewKand?.betrag_vorschlag ?? null;
             return (
               <React.Fragment key={d.id}>
-              <div style={{ display:"flex", alignItems:"center", gap:13, padding:"11px 1.4rem", borderBottom: zeigPrompt ? "none" : (i<sichtbareDokumente.length-1?`1px solid ${T.borderSoft}`:"none"), transition:"background 0.1s" }}
+              <div style={{ display:"flex", alignItems:"center", gap:13, padding:"11px 1.4rem", borderBottom: (zeigPrompt || dokVorschau === d.id) ? "none" : (i<sichtbareDokumente.length-1?`1px solid ${T.borderSoft}`:"none"), transition:"background 0.1s" }}
                 onMouseEnter={e => e.currentTarget.style.background=T.surface}
                 onMouseLeave={e => e.currentTarget.style.background="transparent"}>
                 <div style={{ width:38, height:38, borderRadius:8, background:isPdf?T.redBg:T.blueBg, display:"flex", alignItems:"center", justifyContent:"center", color:isPdf?T.red:T.blue, flexShrink:0 }}>
@@ -1027,10 +828,10 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                   )}
                   {isPdf && (
                     <Btn size="sm" variant="secondary"
-                      onClick={() => setBelegVorschau(belegVorschau === d.id ? null : d.id)}
+                      onClick={() => setDokVorschau(dokVorschau === d.id ? null : d.id)}
                       title="Vorschau"
-                      style={{ background: belegVorschau === d.id ? T.accentPale : undefined }}>
-                      👁
+                      style={{ background: dokVorschau === d.id ? T.accentPale : undefined }}>
+                      {dokVorschau === d.id ? "✕" : "👁"}
                     </Btn>
                   )}
                   {isPdf && d.dokumentenklasse === "gutachten" && (
@@ -1068,6 +869,30 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                         }}>{Ic.trash}</Btn>
                 </div>
               </div>
+              {/* ── Inline-Vorschau ── */}
+              {dokVorschau === d.id && isPdf && (
+                <div style={{ borderBottom: zeigPrompt ? "none" : (i < sichtbareDokumente.length-1 ? `1px solid ${T.borderSoft}` : "none"), background:T.offWhite, padding:"12px 1.4rem" }}>
+                  {dokVorschauLaden && (
+                    <div style={{ height:200, display:"flex", alignItems:"center", justifyContent:"center", color:T.textMuted }}>
+                      <div style={{ width:24, height:24, border:`3px solid ${T.accentTrim}`, borderTopColor:T.accent, borderRadius:"50%", animation:"spin 0.8s linear infinite", marginRight:10 }} />
+                      PDF wird geladen…
+                    </div>
+                  )}
+                  {!dokVorschauLaden && dokVorschauUrl && (
+                    <iframe
+                      src={dokVorschauUrl}
+                      style={{ width:"100%", height:600, border:`1px solid ${T.border}`, borderRadius:8, background:T.cardBg }}
+                      title={d.bezeichnung || d.dateiname}
+                    />
+                  )}
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
+                    <span style={{ fontFamily:T.fontBody, fontSize:"0.82rem", color:T.textFaint }}>
+                      {d.bezeichnung || d.dateiname}
+                    </span>
+                    <Btn size="sm" variant="secondary" onClick={() => setDokVorschau(null)}>Vorschau schließen</Btn>
+                  </div>
+                </div>
+              )}
               {/* ── Inline Zuordnen-Prompt (PRD-34) ── */}
               {zeigPrompt && (
                 <div style={{ padding:"7px 1.4rem 7px 3.5rem", background:T.accentPale,
@@ -1134,19 +959,6 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
             );
           })}
         </Card>
-
-        {/* ── Gutachten KI-Vorschau Panel (PRD-31) ───────────────────── */}
-        {kiDialog && (
-          <GutachtenVorschau
-            erg={kiErgebnis}
-            laden={kiLaden}
-            wahl={kiWahl}
-            setWahl={setKiWahl}
-            speichert={kiSpeichert}
-            onSpeichern={speichereKiWahl}
-            onClose={() => setKiDialog(null)}
-          />
-        )}
 
         {/* ── E-Akte (RA-Micro) ──────────────────────────────────────── */}
         {String(akteId).includes("/") && (
@@ -1398,6 +1210,244 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
               </div>
             )}
           </Card>
+        )}
+
+        {/* Schadenbelege (links) + Upload (rechts, halbe Breite) */}
+        <div style={{ display:"flex", gap:"1.25rem" }}>
+
+          {/* ── Schadenbelege-Übersicht (PRD-23a) ── nur für Referat 04 */}
+          {istVerkehrsunfall && <Card style={{ flex:1, minWidth:0 }}>
+          <CardHead
+            title={`Schadenbelege (${belegAnzahl} von ${belegTotal})`}
+            action={
+              <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                {alleNehmbareAnzahl > 0 && (
+                  <Btn size="sm" variant="gold" onClick={handleAlleAnnehmen}
+                    disabled={uebernehmenLaden === "__alle__"}
+                    title={`${alleNehmbareAnzahl} Kandidat(en) mit Konfidenz ≥ 80 % übernehmen`}>
+                    {uebernehmenLaden === "__alle__" ? "Speichert …" : `← Alle (${alleNehmbareAnzahl})`}
+                  </Btn>
+                )}
+                <Btn size="sm" variant="secondary" onClick={handleBatchParser} disabled={batchParserLaden}
+                  title="Alle Dokumente automatisch klassifizieren und Positionen zuordnen (PRD-23b)">
+                  {batchParserLaden ? `${batchParserFortschritt} / ${batchParserTotal || "?"} …` : "🤖 Auto-Zuordnung"}
+                </Btn>
+                {letzteKandidaten !== null && (
+                  <Btn size="sm" variant="secondary" onClick={() => setDebugKandidaten(letzteKandidaten)}
+                    title="Kandidaten-Übersicht anzeigen" style={{ padding:"5px 8px" }}>
+                    🔍
+                  </Btn>
+                )}
+              </div>
+            }
+          />
+          <div style={{ padding:"0.5rem 1.4rem 1rem" }}>
+            {SCHADEN_F.map((f, i) => {
+              const beleg = belegMap[f.k];
+              const kand  = !beleg ? kandidatMap[f.k] : null;
+              const isLoading = uebernehmenLaden === f.k || uebernehmenLaden === "__alle__";
+              const isHigh = (kand?.konfidenz || 0) >= 0.85;
+              return (
+                <div key={f.k} style={{ display:"flex", alignItems:"center", gap:10,
+                  padding:"7px 0", borderBottom: i < SCHADEN_F.length - 1 ? `1px solid ${T.borderSoft}` : "none",
+                  background: highlightPos === f.k ? T.greenBg : "transparent",
+                  transition:"background 0.4s" }}>
+
+                  {/* Positions-Label */}
+                  <div style={{ width:178, flexShrink:0, fontFamily:T.fontBody, fontSize:"0.845rem",
+                    fontWeight:500, color: beleg ? T.text : kand ? T.textMid : T.textFaint }}>
+                    {f.l}
+                  </div>
+
+                  {beleg ? (
+                    /* ── Bereits belegt ─────────────────────────────────── */
+                    <div style={{ flex:1, display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
+                      <button onClick={() => setBelegVorschau(beleg.dokument_id)}
+                        style={{ display:"flex", alignItems:"center", gap:5, background:"none", border:"none",
+                          cursor:"pointer", padding:"2px 4px", minWidth:0, overflow:"hidden" }}
+                        onMouseEnter={e => e.currentTarget.querySelector("span").style.textDecoration="underline"}
+                        onMouseLeave={e => e.currentTarget.querySelector("span").style.textDecoration="none"}>
+                        <span style={{ color:T.red, fontSize:"0.9rem", flexShrink:0 }}>📄</span>
+                        <span style={{ fontFamily:T.fontBody, fontSize:"0.82rem", color:T.blue,
+                          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                          {beleg.dateiname}
+                        </span>
+                      </button>
+                      {beleg.betrag_aus_beleg > 0 && (
+                        <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.82rem",
+                          color:T.navy, fontWeight:600, flexShrink:0, marginLeft:"auto" }}>
+                          {fmtEuro(beleg.betrag_aus_beleg)}
+                        </span>
+                      )}
+                      <span style={{ fontSize:"0.7rem", color:T.green, background:T.greenBg,
+                        border:`1px solid ${T.green}33`, borderRadius:10, padding:"1px 6px", flexShrink:0 }}>
+                        ✓
+                      </span>
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Zuordnung von "${beleg.dateiname}" entfernen?`)) return;
+                          try {
+                            await apiBelege.entfernen(akteId, beleg.id);
+                            const bRes = await apiBelege.liste(akteId);
+                            const nm = {};
+                            (bRes?.belege || []).forEach(bv => { nm[bv.position_key] = bv; });
+                            setBelegMap(nm);
+                          } catch(e) { setToast("Entfernen fehlgeschlagen: " + (e?.message || "")); }
+                        }}
+                        title="Zuordnung entfernen"
+                        style={{ background:"none", border:"none", cursor:"pointer", color:T.textFaint,
+                          fontSize:"0.72rem", padding:"0 2px", lineHeight:1, opacity:0.4, transition:"opacity 0.15s" }}
+                        onMouseEnter={e => e.currentTarget.style.opacity="1"}
+                        onMouseLeave={e => e.currentTarget.style.opacity="0.4"}
+                      >✕</button>
+                    </div>
+
+                  ) : kand ? (
+                    /* ── Kandidat verfügbar ─────────────────────────────── */
+                    <div style={{ flex:1, display:"flex", alignItems:"center", gap:7, minWidth:0 }}>
+                      {/* Konfidenz-Dot */}
+                      <span style={{ width:7, height:7, borderRadius:"50%", flexShrink:0,
+                        background: isHigh ? T.green : T.amber }} />
+                      {/* Dateiname */}
+                      <span style={{ fontFamily:T.fontBody, fontSize:"0.8rem", color:T.textMid,
+                        overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1, minWidth:0 }}
+                        title={kand.dateiname}>
+                        {kand.dateiname || kand.lieferant || "Dokument"}
+                      </span>
+                      {/* Mit Betrag: Wert + Annehmen-Button */}
+                      {kand.betrag_vorschlag != null ? (
+                        <>
+                          <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.82rem",
+                            color:T.navy, fontWeight:600, flexShrink:0 }}>
+                            {fmtEuro(kand.betrag_vorschlag)}
+                          </span>
+                          <button
+                            onClick={() => handleKandidatAnnehmen(f.k, kand)}
+                            disabled={isLoading}
+                            style={{ padding:"3px 10px", borderRadius:5, border:"none",
+                              background: isLoading ? T.textFaint : T.accent,
+                              color:T.white, fontFamily:T.fontBody,
+                              fontSize:"0.78rem", fontWeight:600,
+                              cursor: isLoading ? "not-allowed" : "pointer", flexShrink:0,
+                              transition:"background 0.12s" }}>
+                            {isLoading ? "…" : "← Annehmen"}
+                          </button>
+                        </>
+                      ) : (
+                        /* Ohne Betrag: Inline-Eingabe */
+                        <>
+                          <input
+                            type="number" step="0.01" min="0" placeholder="Betrag €"
+                            value={inlineBetrag[f.k] || ""}
+                            onChange={e => setInlineBetrag(p => ({ ...p, [f.k]: e.target.value }))}
+                            style={{ width:88, fontFamily:T.fontBody, fontSize:"0.78rem",
+                              padding:"3px 7px", border:`1px solid ${T.border}`, borderRadius:5,
+                              outline:"none", color:T.text, background:T.surface, flexShrink:0 }}
+                          />
+                          <button
+                            onClick={() => handleKandidatAnnehmen(f.k, kand, inlineBetrag[f.k])}
+                            disabled={isLoading || !(parseFloat(inlineBetrag[f.k]) > 0)}
+                            style={{ padding:"3px 10px", borderRadius:5, border:"none",
+                              background: T.accent, color:T.white,
+                              fontFamily:T.fontBody, fontSize:"0.78rem", fontWeight:600,
+                              cursor:"pointer", flexShrink:0,
+                              opacity: (isLoading || !(parseFloat(inlineBetrag[f.k]) > 0)) ? 0.4 : 1 }}>
+                            {isLoading ? "…" : "Annehmen"}
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                  ) : (
+                    /* ── Kein Kandidat ──────────────────────────────────── */
+                    <div style={{ flex:1, fontFamily:T.fontBody,
+                      fontSize:"0.82rem", color:T.textFaint }}>—</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          </Card>}
+
+          {/* Upload */}
+          <Card style={{ flex: istVerkehrsunfall ? 1 : "0 1 50%", minWidth:0, marginLeft: istVerkehrsunfall ? 0 : "auto", padding:"1.25rem 1.4rem" }}>
+          <div style={{ marginBottom:"1rem", maxWidth:250 }}>
+            <FieldSelect label="Dokumenttyp" value={uploadTyp} onChange={setTyp} options={DOK_TYPEN} />
+          </div>
+          <div
+            onDragOver={e => { e.preventDefault(); setDrag(true); }}
+            onDragLeave={() => setDrag(false)}
+            onDrop={e => { e.preventDefault(); setDrag(false); fakeUpload([...e.dataTransfer.files]); }}
+            onClick={() => !uploading && inputRef.current?.click()}
+            style={{ border:`2px dashed ${dragging?T.accent:T.border}`, borderRadius:12, padding:"2.5rem 1.5rem", textAlign:"center", cursor:uploading?"default":"pointer", background:dragging?T.accentPale:"transparent", transition:"all 0.2s" }}>
+            <input ref={inputRef} type="file" accept=".pdf,.docx,.jpg,.jpeg,.png" style={{ display:"none" }} onChange={e => fakeUpload([...e.target.files])} />
+            {uploading ? (
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
+                <div style={{ width:32, height:32, border:`3px solid ${T.accentTrim}`, borderTopColor:T.accent, borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.975rem", color:T.textMuted }}>Hochladen und analysieren …</div>
+                {uploadProgress > 0 && uploadProgress < 100 && (
+                  <div style={{ width:200 }}>
+                    <div style={{ height:4, background:T.border, borderRadius:4, overflow:"hidden" }}>
+                      <div style={{ height:"100%", width:`${uploadProgress}%`, background:`linear-gradient(90deg,${T.accent},${T.accentLight})`, borderRadius:4, transition:"width 0.3s" }}/>
+                    </div>
+                    <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.825rem", color:T.textFaint, textAlign:"center", marginTop:3 }}>{uploadProgress} %</div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}>
+                <span style={{ color:dragging?T.accent:T.textFaint }}>{Ic.upload}</span>
+                <div style={{ fontFamily:T.fontBody, fontSize:"1.025rem", fontWeight:600, color:dragging?T.accent:T.textMid }}>Datei hier ablegen oder klicken</div>
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.905rem", color:T.textFaint }}>PDF, DOCX, JPG, PNG · max. 20 MB · PDFs werden automatisch geparst</div>
+              </div>
+            )}
+          </div>
+          </Card>
+
+        </div>
+
+        {/* Beleg-Vorschau Modal */}
+        {belegVorschau && (
+          <>
+            <div onClick={() => setBelegVorschau(null)}
+              style={{ position:"fixed", top:0, left:0, right:0, bottom:0,
+                background:"rgba(0,0,0,0.4)", zIndex:950 }} />
+            <div style={{ position:"fixed", top:"5%", left:"10%", right:"10%", bottom:"5%",
+              zIndex:951, background:T.cardBg, borderRadius:12,
+              boxShadow:"0 20px 60px rgba(0,0,0,0.3)",
+              display:"flex", flexDirection:"column", overflow:"hidden" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+                padding:"12px 20px", borderBottom:`1px solid ${T.border}`, background:T.surface }}>
+                <span style={{ fontFamily:T.fontBody, fontSize:"0.9rem", fontWeight:600, color:T.navy,
+                  overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"70vw" }}>
+                  📄 {dokumente.find(d => d.id === belegVorschau)?.dateiname || "Vorschau"}
+                </span>
+                <button onClick={() => setBelegVorschau(null)}
+                  style={{ background:"none", border:"none", cursor:"pointer", fontSize:"1.2rem", color:T.textFaint, lineHeight:1 }}>✕</button>
+              </div>
+              {belegVorschauUrl ? (
+                <iframe src={belegVorschauUrl} style={{ flex:1, border:"none" }} title="Beleg" />
+              ) : (
+                <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", color:T.textMuted }}>
+                  <div style={{ width:24, height:24, border:`3px solid ${T.accentTrim}`, borderTopColor:T.accent, borderRadius:"50%", animation:"spin 0.8s linear infinite", marginRight:10 }} />
+                  PDF wird geladen…
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ── Gutachten KI-Vorschau Panel (PRD-31) ───────────────────── */}
+        {kiDialog && (
+          <GutachtenVorschau
+            erg={kiErgebnis}
+            laden={kiLaden}
+            wahl={kiWahl}
+            setWahl={setKiWahl}
+            speichert={kiSpeichert}
+            onSpeichern={speichereKiWahl}
+            onClose={() => setKiDialog(null)}
+          />
         )}
 
       {/* ── E-Mail-Gruppe ──────────────────────────────────────────────────── */}
