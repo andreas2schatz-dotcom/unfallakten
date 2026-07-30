@@ -87,3 +87,71 @@ def suche_adressen(q: str) -> list[dict]:
     except Exception as e:
         logger.warning("Adressen-Suche fehlgeschlagen (q=%s): %s", q, e)
         return []
+
+
+def hole_adresse_details(adressnr: int) -> dict | None:
+    try:
+        with get_ramicro_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT TOP 1
+                    iAdressnummer     AS adressnr,
+                    sAnrede           AS anrede,
+                    sNachname         AS name,
+                    sVorname          AS vorname,
+                    sErsteAdresszeile AS firmenzeile,
+                    [sStraße]         AS strasse,
+                    sPLZ              AS plz,
+                    sOrt              AS ort,
+                    sTelefon          AS telefon,
+                    sEMail            AS email
+                FROM tblAdressen
+                WHERE iAdressnummer = %s
+                """,
+                (adressnr,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            return {k: (row[k] if k == "adressnr" else (row[k] or ""))
+                    for k in ("adressnr", "anrede", "name", "vorname",
+                              "firmenzeile", "strasse", "plz", "ort",
+                              "telefon", "email")}
+    except (RaMicroNichtAktiv, RaMicroVerbindungsFehler) as e:
+        logger.warning("Adress-Detail nicht möglich: %s", e)
+        return None
+    except Exception as e:
+        logger.warning("Adress-Detail fehlgeschlagen (adressnr=%s): %s",
+                       adressnr, e)
+        return None
+
+
+def akten_zu_adresse(adressnr: int) -> list[dict]:
+    try:
+        with get_ramicro_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT DISTINCT TOP 10
+                    a.sAktenNummer          AS az,
+                    a.sAktenKurzBezeichnung AS kurzbezeichnung
+                FROM tblAktenBeteiligte b
+                INNER JOIN tblAkten a ON a.GUIDAkte = b.GUIDAkte
+                WHERE b.iAdressnummer = %s
+                  AND b.bDeaktiviert = 0
+                  AND (a.dtAblage IS NULL
+                       OR CAST(a.dtAblage AS DATE) = '1899-12-30')
+                ORDER BY a.sAktenNummer DESC
+                """,
+                (adressnr,),
+            )
+            return [{"az": r["az"], "kurzbezeichnung": r["kurzbezeichnung"] or ""}
+                    for r in cur.fetchall()]
+    except (RaMicroNichtAktiv, RaMicroVerbindungsFehler) as e:
+        logger.warning("Akten-zu-Adresse nicht möglich: %s", e)
+        return []
+    except Exception as e:
+        logger.warning("Akten-zu-Adresse fehlgeschlagen (adressnr=%s): %s",
+                       adressnr, e)
+        return []
