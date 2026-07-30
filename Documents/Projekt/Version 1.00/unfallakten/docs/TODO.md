@@ -15,6 +15,13 @@ Empfohlene Reihenfolge 1→2→3→4 (3+4 teilen sich den Textaufbau-Umbau/V11 �
 3. **Gesamtvorschau** — ✅ KOMPLETT (Browser-E2E bestanden 2026-07-23: Vorschau → Sachverhalt-Edit → Übernehmen → DOCX mit geändertem Text). In `main`, gepusht. Spec: `docs/superpowers/specs/2026-07-19-klage-wizard-gesamtvorschau-design.md`.
 4. **Standardtexte pflegbar (V11)** — ✅ Stufe 1 umgesetzt (Branch `standardtexte-v11`). Detail → CHANGELOG.
 
+### Aktenanlage aus der ReviewQueue (PRD-NEW) — umgesetzt (Branch `aktenanlage`), Abnahme steht aus
+12 Tasks komplett (Migration 66, OMA-XML-Generator, RA-MICRO-Erkennung read-only, `/aktenanlage`-Blueprint, Freigabe-Hook, `AktenanlageDialog` ersetzt `NeueAkteModal`, ReviewQueue-Banner/Chip/Leiste). Backend 230f/1308p/15s (Alt-Cluster identisch verteilt, 49 neue aktenanlage-Tests alle grün), Frontend 404/404 grün. Spec `docs/superpowers/specs/2026-07-30-aktenanlage-design.md` · Plan `docs/superpowers/plans/2026-07-30-aktenanlage.md`. Detail → CHANGELOG.
+**Offen — manueller Abnahmetest RA Schatz am echten System (Spec Abschnitt 9):**
+- Adressnummer-Referenz: Kann „Bekannt = Ja" (+ Adressnummer) in der OMA-XML eine bestehende RA-MICRO-Adresse referenzieren (keine Dublette)?
+- Konkreter `OMA_EXPORT_HOST_PFAD` (überwachter Windows-Share) muss von RA Schatz benannt und in `.env` eingetragen werden, dann `docker compose up -d --force-recreate backend`.
+- Options-Labels/Datumsformat: `FRAU`/`FIRMA` als Anrede-Werte + ISO-Datum kommen beim RA-MICRO-Import korrekt an, inkl. Prüfung der `dtAnlage`-Spalte beim ersten echten Import.
+
 ### Kürzungstaxonomie — Phase 0 ✅ · Phase 1 ✅ · **in `main` gemergt + gepusht (2026-07-24, `febe6f06`)**
 Alle 12 Tasks + Genus-Platzhalter-Nachtrag (Weg 2). Abnahme: Bausteine von RA Schatz gegengelesen ✅; Katalog-Editor, Wizard-Zitat, Genus-Formen, Speichern-Sperre per Playwright-E2E bestanden ✅ (2026-07-24). Protokoll → `docs/CHANGELOG.md`.
 **Offen:**
@@ -28,7 +35,6 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 ## 📋 Backlog (nach Priorität)
 
 ### Kritisch / Bald
-- **PRD-NEW – Onboarding-Wizard (Neue-Akte-Anlage):** Stub `NeueAkteModal` existiert (AZ, Unfalldatum, -ort, Notizen), echte Anlage-Logik fehlt. Braucht eigenes Brainstorming.
 - **PRD-25c – Automatische Mandantenkommunikation:** `MandantenEmailDialog` nach Generierung von Forderungs-/Regulierungsschreiben; 3 Textbausteine je Trigger, neue Tabelle `mandanten_emails`. PRD: `handover/PRD-25c_Mandantenkommunikation.md`.
 
 ### Mittel
@@ -85,6 +91,7 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 
 | Datum | Feature |
 |---|---|
+| 2026-07-30 | Aktenanlage aus der ReviewQueue (PRD-NEW): Migration 66, OMA-XML-Generator, RA-MICRO-Erkennung read-only, `/aktenanlage`-Blueprint, Freigabe-Hook, `AktenanlageDialog` (ersetzt `NeueAkteModal`), ReviewQueue-Banner/Chip/Leiste, OMA-Export-Ordner in Compose/.env — Abnahme am echten System offen, siehe „In Arbeit" |
 | 2026-07-29 | UI-Kleinkram-Runde (6 Punkte, gemeldet 2026-07-23): Systemstatus-Kachel-Bug war Caching-Problem (Nutzer bestätigt behoben); Navigationsleiste Icon-Ausrichtung + Hover-Effekt verstärkt; E-Mail-Identifier Versicherer/Gutachter zu einem Reiter mit Subreitern zusammengeführt (Muster Personenschaden/Sachschaden); Bestandsaufnahme Gutachter-Identifier (2: Ninnivaggi, Cassese); GLM-OCR-Karte im KI-Assistent-Reiter (Modellauswahl + Verbindungstest, analog Lokales-LLM-Switcher) |
 | 2026-07-28 | Review-Queue: Sortier-Toggle Eingangsdatum (auf/ab, localStorage-Persistenz) — in `main`, Browser-Nachtest 11/11 bestanden |
 | 2026-07-23 | Kürzungstaxonomie **Phase 1 komplett** (12 Tasks: Mig 64, YAML-Registry A–F, Matching+LLM, Verkettung, Typ-UI, Runden-Vergleich, TextbausteinEditor, ZITAT, Messanker) — Branch `kuerzungstaxonomie-phase1` |

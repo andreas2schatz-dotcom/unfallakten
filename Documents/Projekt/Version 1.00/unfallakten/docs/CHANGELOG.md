@@ -7,6 +7,28 @@
 
 ---
 
+## 2026-07-30 — Aktenanlage aus der ReviewQueue (PRD-NEW, Branch `aktenanlage`)
+
+Design-Spec `docs/superpowers/specs/2026-07-30-aktenanlage-design.md` · Plan `docs/superpowers/plans/2026-07-30-aktenanlage.md`. Anlass: Kommt ein Gutachten per E-Mail herein und existieren Mandant/Unfall noch nicht im Bestand (Absender per Gutachter-Identifier bestätigt, keine Akten-Kandidaten), gab es bislang keinen Weg weiter — Freigabe blieb ohne `akte_az` gesperrt (422), die Akte musste manuell in RA-MICRO angelegt werden. 12 Tasks, Subagent-Driven Development, 20 Commits `b15c6669..ee486332` + Task 12 (diese Session).
+
+- **Task 1** `b15c6669` Migration 66: Tabelle `aktenanlage_vorgaenge` (`status` CHECK `laeuft|akte_erkannt|abgeschlossen|abgebrochen`, `formular_json`, `xml_pfad`, `mandant_*`, `erkanntes_az`, `angelegt_am/von`, `erkannt_am`).
+- **Task 2** `a8388b94`+`98c2eaa9`+`b96bf5af` OMA-XML-Generator `backend/ramicro/oma_xml.py` (`erzeuge_oma_xml`/`schreibe_oma_xml`) nach dem Muster `beispieloma.xml` — atomares Schreiben (Temp-Datei + `os.replace`), Mikrosekunden-genaue Dateinamen gegen Kollision, `short_empty_elements=False` für referenztreue Leerfeld-Serialisierung, Options-Labels `HERR`/`FRAU`/`FIRMA`, ISO-Datumsformat.
+- **Task 3** `e8e0d1f1`+`31afa74b` RA-MICRO-Helfer (strikt read-only): `adress_service.hole_adresse_details`/`akten_zu_adresse`, neues Modul `akten_erkennung.finde_neue_akten` (Read-Only-Abfrage auf `tblAkten`↔`tblAktenBeteiligte`↔`tblAdressen`, Adressnummer hat Vorrang vor Nachname-Suche).
+- **Task 4** `76173b0d`+`e688a4f7`+`20565355` Service `aktenanlage_service.py` + Blueprint `/aktenanlage` (`POST /aktenanlage`, `GET /aktenanlage/offen` inkl. lazy Erkennung im 30-s-Poll, `POST /aktenanlage/<id>/abbrechen`, `.../abschliessen`); 409-Guard gegen doppelten laufenden Vorgang pro Intake-Dokument (transaktional), Schattenakte wird beim leeren Einstieg **vor** dem Statuswechsel angelegt (Reihenfolge-Bugfix).
+- **Task 5** `2e193685`+`1994158b` `GET /aktenanlage/adressen?q=` (Dubletten-Check) + Gutachter-Vorlage aus dem Identifier-Treffer; Adressnr als Int, 422-Präzisierung.
+- **Task 6** `4659beaa` Freigabe-Hook in `post_freigabe`: schließt Aktenanlage-Vorgänge der E-Mail-Gruppe, übernimmt Unfalldatum/-ort aus `formular_json` in die Schattenakte, Response-Feld `aktenanlage`.
+- **Task 7** `1d5e5b42` Review-Queue liefert `absender_kategorie` aus `zustellungen.signale_json` (Banner-Voraussetzung: Klasse `gutachten` + `absender_kategorie=gutachter` + keine Akten-Kandidaten).
+- **Task 8** `2cc98de4` `gutachten.yaml`-Registry um Auftraggeber-Felder erweitert (Vorbefüllung des Dialogs aus dem Gutachten-Parse).
+- **Task 9** `d94f8929`+`015cfb35` `apiAktenanlage` (Frontend-API-Client) + neue Komponente `AktenanlageDialog.jsx` mit debouncter Dubletten-Suche gegen `tblAdressen`; Stale-Response-Guard per Generationszähler (schnelles Tippen wirft keine veralteten Treffer mehr an).
+- **Task 10** `6fe9bbbb`+`086ae420` ReviewQueue-Integration: Hinweis-Banner „Vermutlich neue Akte", Button „➕ Neue Akte anlegen" im Zuordnen-Abschnitt, Status-Chip (`⏳ läuft`/`✅ Akte … angelegt`), schmale Status-Leiste über der Queue-Liste; Null-Guard gegen Klicks auf durch den Poll bereits entfernte Einträge.
+- **Task 11** `91a3a054`+`ee486332` Aktensuche nutzt denselben `AktenanlageDialog` (leerer Einstieg ohne Vorbefüllung); die bisherige inline `NeueAkteModal`-Komponente in `AktensucheView.jsx` entfällt, toter `apiAkten`-Import entfernt.
+- **Task 12** (diese Session) Infrastruktur: `OMA_EXPORT_PFAD` (Container-Pfad `/app/oma_export`) in `docker-compose.yml`+`docker-compose.prod.yml` als Env+Volume ergänzt, Host-Pfad über `OMA_EXPORT_HOST_PFAD` (Default `./oma_export`) in `.env.example` dokumentiert.
+- **Kern-Invarianten:** RA-MICRO bleibt strikt read-only (geschrieben wird nur die XML-Datei + SQLite); Review-Freigabe bleibt der einzige Schreibweg für Dokumente (INTAKE_REVIEW_PFLICHT unangetastet); kein eigener Navigationspunkt.
+- **Endabnahme:** Backend voller Lauf (docker exec, force-recreate nach Compose-Änderung) **230 failed/1308 passed/15 skipped** — Failure-Set deckungsgleich mit dem seit Monaten bekannten lokalen Alt-Cluster (test_modul1-7/dashboard/sv_portal/prd27/migration_46, u. a. verursacht durch `_ensure_admin_exists`-Bootstrap-Kollision mit `/auth/register/erster` in den jeweiligen `setUp()`s, sowie — neu identifiziert — `test_modul6`-Konfigurationsdatei-Checks, die im Dev-Container strukturell nicht auflösbar sind, weil `docker-compose.yml`/`Dockerfile`/`nginx/`/`Makefile`/`.gitignore` dort nie gemountet werden; siehe DECISIONS/STATE bei Bedarf); **die 49 aktenanlage-spezifischen Tests (`test_aktenanlage_routes.py`, `test_oma_xml.py`, `test_ramicro_aktenanlage.py`) sind alle grün**, keine neue Datei im Failure-Set. Frontend **404/404** grün (61 Dateien, inkl. `AktenanlageDialog.test.jsx`, `ReviewQueueView.aktenanlage.test.jsx`).
+- **Offen (RA Schatz, außerhalb dieser Session):** manueller Abnahmetest am echten System — die drei Verifikationspunkte aus Spec Abschnitt 9 (Adressnummer-Referenz „Bekannt=Ja", konkreter `OMA_EXPORT_HOST_PFAD`, Options-Labels/ISO-Datum + `dtAnlage`-Spalte beim ersten echten Import). Siehe TODO.md.
+
+---
+
 ## 2026-07-28 — Review-Queue: Sortier-Toggle Eingangsdatum (Branch `review-queue-sortierung`, in `main`)
 
 Design-Spec `docs/superpowers/specs/2026-07-24-review-queue-sortierung-design.md`, Plan `docs/superpowers/plans/2026-07-24-review-queue-sortierung.md`. Anlass: manuell importierte Dokumente waren in der Review-Queue (fest sortiert nach `erstellt_am ASC`) schwer wiederzufinden.

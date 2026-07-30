@@ -34,10 +34,12 @@ services:
       # CORS_ORIGIN wird aus .env geladen (dort auf die echte Domain setzen,
       # z.B. https://anwalt-offenbach.de). In Prod läuft alles auf einer Domain,
       # daher ist CORS nur als Sicherheitsnetz nötig.
+      OMA_EXPORT_PFAD: /app/oma_export
     volumes:
       - prod-data:/app/data
       - prod-uploads:/app/uploads
       - prod-logs:/app/logs
+      - ${OMA_EXPORT_HOST_PFAD:-./oma_export}:/app/oma_export
     expose:
       - "5000"
     healthcheck:

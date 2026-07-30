@@ -47,6 +47,7 @@ services:
       CORS_ORIGIN: "http://localhost:5173"
       LOG_LEVEL: DEBUG
       EAKTE_BASE_PATH: /mnt/eakte
+      OMA_EXPORT_PFAD: /app/oma_export
     env_file:
       - path: .env
         required: false
@@ -56,6 +57,7 @@ services:
       - dev-data:/app/data
       - dev-uploads:/app/uploads
       - /mnt/eakte:/mnt/eakte:ro
+      - ${OMA_EXPORT_HOST_PFAD:-./oma_export}:/app/oma_export
     ports:
       - "5000:5000"
     healthcheck:
