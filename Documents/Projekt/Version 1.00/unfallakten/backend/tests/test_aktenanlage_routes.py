@@ -91,5 +91,161 @@ class TestMigration66(unittest.TestCase):
         self.assertGreaterEqual(row["v"], 66)
 
 
+def _lege_intake_an(sha_suffix="a", klasse="gutachten"):
+    from backend.db.database import get_connection
+    uploads = os.environ["UPLOAD_DIR"]
+    os.makedirs(uploads, exist_ok=True)
+    pfad = os.path.join(uploads, f"arbeit_{sha_suffix}.pdf")
+    with open(pfad, "wb") as f:
+        f.write(b"%PDF-1.4\n%dummy\n")
+    sha = (sha_suffix * 64)[:64]
+    with get_connection() as conn:
+        cur = conn.execute(
+            "INSERT INTO intake_dokumente "
+            "(sha256, arbeitskopie_pfad, klasse, klasse_quelle, konfidenz, "
+            " queue_status, parse_json, registry_version) "
+            "VALUES (?, ?, ?, 'auto', 0.9, 'bereit_zur_review', '{}', 'v1')",
+            (sha, pfad, klasse),
+        )
+        return cur.lastrowid
+
+
+def _lege_zustellung_an(intake_id, parent_id=None, absender="x@svb-cassese.de",
+                        signale=None):
+    from backend.db.database import get_connection
+    with get_connection() as conn:
+        cur = conn.execute(
+            "INSERT INTO zustellungen "
+            "(intake_dokument_id, quelle, absender, parent_id, signale_json) "
+            "VALUES (?, 'imap', ?, ?, ?)",
+            (intake_id, absender, parent_id,
+             json.dumps(signale or {})),
+        )
+        return cur.lastrowid
+
+
+class TestAktenanlageEndpoints(unittest.TestCase):
+    def setUp(self):
+        self.client = _setup("endpoints")
+        self.headers = _auth_header(self.client)
+
+    def _anlegen(self, intake_id=None, zustellung_id=None, formular=None):
+        return self.client.post("/aktenanlage", headers=self.headers, json={
+            "intake_dokument_id": intake_id,
+            "zustellung_id": zustellung_id,
+            "formular": formular or FORMULAR,
+        })
+
+    def test_anlegen_erzeugt_vorgang_und_xml(self):
+        r = self._anlegen()
+        self.assertEqual(r.status_code, 201, r.get_data(as_text=True))
+        v = r.get_json()["vorgang"]
+        self.assertEqual(v["status"], "laeuft")
+        self.assertEqual(v["mandant_name"], "Abdessamad Achkour Zejli")
+        xmls = [f for f in os.listdir(os.environ["OMA_EXPORT_PFAD"])
+                if f.endswith(".xml")]
+        self.assertEqual(len(xmls), 1)
+
+    def test_anlegen_ohne_nachname_422(self):
+        f = {**FORMULAR, "mandant": {**FORMULAR["mandant"], "nachname": ""}}
+        r = self._anlegen(formular=f)
+        self.assertEqual(r.status_code, 422)
+
+    def test_anlegen_ohne_unfalldatum_422(self):
+        f = {**FORMULAR, "unfall": {**FORMULAR["unfall"], "unfalldatum": ""}}
+        r = self._anlegen(formular=f)
+        self.assertEqual(r.status_code, 422)
+
+    def test_doppelter_vorgang_pro_intake_409(self):
+        did = _lege_intake_an("d")
+        zid = _lege_zustellung_an(did)
+        self.assertEqual(self._anlegen(did, zid).status_code, 201)
+        self.assertEqual(self._anlegen(did, zid).status_code, 409)
+
+    def test_offen_erkennung_eindeutig(self):
+        did = _lege_intake_an("e")
+        zid = _lege_zustellung_an(did)
+        self._anlegen(did, zid)
+        with patch("backend.services.aktenanlage_service.finde_neue_akten",
+                   return_value={"verfuegbar": True,
+                                 "treffer": [{"az": "301/26",
+                                              "kurzbezeichnung": "Zejli"}]}):
+            r = self.client.get("/aktenanlage/offen", headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        d = r.get_json()
+        self.assertTrue(d["ramicro_verfuegbar"])
+        v = d["vorgaenge"][0]
+        self.assertEqual(v["status"], "akte_erkannt")
+        self.assertEqual(v["erkanntes_az"], "301/26")
+
+    def test_offen_erkennung_mehrdeutig_bleibt_laeuft(self):
+        did = _lege_intake_an("f")
+        self._anlegen(did, _lege_zustellung_an(did))
+        with patch("backend.services.aktenanlage_service.finde_neue_akten",
+                   return_value={"verfuegbar": True,
+                                 "treffer": [{"az": "301/26",
+                                              "kurzbezeichnung": ""},
+                                             {"az": "302/26",
+                                              "kurzbezeichnung": ""}]}):
+            r = self.client.get("/aktenanlage/offen", headers=self.headers)
+        v = r.get_json()["vorgaenge"][0]
+        self.assertEqual(v["status"], "laeuft")
+        self.assertEqual([k["az"] for k in v["kandidaten"]],
+                         ["301/26", "302/26"])
+
+    def test_offen_ramicro_offline(self):
+        did = _lege_intake_an("g")
+        self._anlegen(did, _lege_zustellung_an(did))
+        with patch("backend.services.aktenanlage_service.finde_neue_akten",
+                   return_value={"verfuegbar": False, "treffer": []}):
+            r = self.client.get("/aktenanlage/offen", headers=self.headers)
+        d = r.get_json()
+        self.assertFalse(d["ramicro_verfuegbar"])
+        self.assertEqual(d["vorgaenge"][0]["status"], "laeuft")
+
+    def test_leerer_vorgang_erkannt_legt_schattenakte_an(self):
+        self._anlegen()
+        with patch("backend.services.aktenanlage_service.finde_neue_akten",
+                   return_value={"verfuegbar": True,
+                                 "treffer": [{"az": "305/26",
+                                              "kurzbezeichnung": ""}]}):
+            r = self.client.get("/aktenanlage/offen", headers=self.headers)
+        v = r.get_json()["vorgaenge"][0]
+        self.assertEqual(v["status"], "akte_erkannt")
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            akte = conn.execute(
+                "SELECT unfalldatum, unfallort FROM unfallakte WHERE az=?",
+                ("305/26",)).fetchone()
+        self.assertIsNotNone(akte)
+        self.assertEqual(akte["unfalldatum"], "2026-04-10")
+        self.assertEqual(akte["unfallort"], "Offenbach")
+
+    def test_abbrechen_loescht_xml(self):
+        r = self._anlegen()
+        vid = r.get_json()["vorgang"]["id"]
+        xmls_vor = [f for f in os.listdir(os.environ["OMA_EXPORT_PFAD"])
+                    if f.endswith(".xml")]
+        self.assertEqual(len(xmls_vor), 1)
+        r2 = self.client.post(f"/aktenanlage/{vid}/abbrechen",
+                              headers=self.headers)
+        self.assertEqual(r2.status_code, 200)
+        xmls_nach = [f for f in os.listdir(os.environ["OMA_EXPORT_PFAD"])
+                     if f.endswith(".xml")]
+        self.assertEqual(xmls_nach, [])
+        with patch("backend.services.aktenanlage_service.finde_neue_akten",
+                   return_value={"verfuegbar": True, "treffer": []}):
+            offen = self.client.get("/aktenanlage/offen",
+                                    headers=self.headers).get_json()
+        self.assertEqual(offen["vorgaenge"], [])
+
+    def test_abschliessen_nur_aus_akte_erkannt(self):
+        r = self._anlegen()
+        vid = r.get_json()["vorgang"]["id"]
+        r2 = self.client.post(f"/aktenanlage/{vid}/abschliessen",
+                              headers=self.headers)
+        self.assertEqual(r2.status_code, 409)
+
+
 if __name__ == "__main__":
     unittest.main()

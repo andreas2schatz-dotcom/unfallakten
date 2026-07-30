@@ -19,6 +19,7 @@ from flask_apscheduler import APScheduler
 from .db.schema_manager import init_db
 from .routers.abrechnungsschreiben_routes import abrechnung_bp, pruefbericht_bp
 from .routers.akten_routes import akten_bp
+from .routers.aktenanlage_routes import aktenanlage_bp
 from .routers.aktensuche_routes import aktensuche_bp
 from .routers.auth_routes import auth_bp
 from .routers.belege_routes import belege_bp
@@ -194,6 +195,7 @@ def erstelle_app(test_config: dict = None) -> Flask:
     # ── Blueprints registrieren ────────────────────────────────────────────────
     app.register_blueprint(abrechnung_bp)
     app.register_blueprint(akten_bp)
+    app.register_blueprint(aktenanlage_bp)
     app.register_blueprint(aktensuche_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(belege_bp)
