@@ -28,6 +28,7 @@ Tagesübersicht hell (Pergament-Tokens), Jetzt-dran-Leiste, Fristen links oben (
 Posteingang-Kachel entfernt, Lade/Fehler/Leer-Zustände je Kachel, Einträge als Buttons
 (Tastatur), SB-Filter persistiert (`dashboard.aktiveSB`), leere SB-Auswahl = Hinweis.
 Spec + Mockup: `docs/superpowers/specs/2026-07-30-dashboard-hell-*`.
+**Playwright-Browsertest 20/20 bestanden (2026-07-30, echte Dev-App):** helles Design + Hausschrift, alle Kacheln ohne Posteingang, SB-Persistenz über Reload, Fehlerblock statt falscher Entwarnung (Netzwerk-Abbruch simuliert) inkl. Erholung per „Erneut laden", Klick öffnet Akte. Skript: Session-Scratchpad `dashboard-e2e.js`.
 **Merge-Reihenfolge: erst `aktenanlage` → `main`, dann dieser Branch.**
 Offen danach (separat): Sidebar-Emoji-Icons App.jsx, SB-Klarnamen-Tooltips (Kürzel-Liste von RA Schatz nötig); totes pendingEmailId-Gerüst + ungenutzter nachrichtenNeu-Endpoint entfernen; A11y-Feinheiten (aria-pressed SB-Chips, role=alert Fehlerblock, aria-hidden Skeleton); type=button + Retry-Disable + Badge-Logik-Konsolidierung in boardUi.
 

@@ -23,6 +23,7 @@ Design-Spec + Mockup `docs/superpowers/specs/2026-07-30-dashboard-hell-*` (von R
 - **Review:** jeder Task einzeln subagent-reviewed (Spec + Qualität) — alle Approved.
 - **Offen:** Browser-Abnahme durch RA Schatz gegen das Mockup (siehe TODO.md). **Merge-Reihenfolge: erst `aktenanlage` → `main`, dann `dashboard-hell`.**
 - **Fixwelle (Whole-Branch-Review):** SB-Filter lässt Einträge ohne oder mit unbekanntem SB-Kürzel jetzt immer durch (`ActionBoardView`), `badgeText`-Guard in `FristenKachel` korrigiert (positive Tage zeigen „+N T" statt fälschlich „−N T"), CHANGELOG-Korrektur zum Fehlerzustand. Vollsuite **435/435 grün**.
+- **Playwright-Browsertest gegen die laufende Dev-App (2026-07-30): 20/20 bestanden.** Geprüft im echten Chromium: Pergament-Hintergrund + Bricolage-Titel, alle Kacheln inkl. Jetzt-dran, kein Posteingang, keine 3px-Streifen, Einträge als Buttons, SB-Persistenz über Reload, Fehlerblock bei abgebrochenem `/dashboard/fristen`-Request (kein falscher Leertext, Jetzt-dran ausgeblendet, Erholung per „Erneut laden"), Klick auf Eintrag öffnet Akte 97/25AS. Beobachtung (Bestand, nicht Teil des Umbaus): Die App verlangt nach jedem Browser-Reload einen erneuten Login (Benutzer nur im React-State).
 
 ---
 
