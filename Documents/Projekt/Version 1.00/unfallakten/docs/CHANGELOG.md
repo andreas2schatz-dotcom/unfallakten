@@ -19,7 +19,7 @@ Design-Spec + Mockup `docs/superpowers/specs/2026-07-30-dashboard-hell-*` (von R
 - **Task 6** `adaa7ed5` `JetztDranLeiste`: 3 dringendste Einträge aus Fristen + Wiedervorlagen, reine Client-seitige Ableitung ohne eigenen Endpoint.
 - **Task 7** `8e62bd08` `ActionBoardView`+`App.jsx`: Posteingang-Kachel ersatzlos entfernt (E-Mail-Arbeit läuft über E-Mail-Import/Review-Queue), Lade-/Fehler-/Leer-Zustand je Kachel (Fehlerzustand behält die zuletzt geladenen Daten sichtbar, Button „Erneut laden"), eine einzige Farbachse (Rot nur überfällig, Gelb heute), SB-Filter jetzt persistiert in `localStorage` (`dashboard.aktiveSB`) — leere Auswahl zeigt einen Hinweis statt der bisherigen Invertierungslogik.
 - **Task 8** `36e4581d` Aufräumen: verwaistes `openEmail` entfernt.
-- **Tests:** 26 neue Frontend-Tests (`boardUi` 5, `FristenKachel` 5, `WiedervorlagenKachel` 4, `TermineKachel` 3, `JetztDranLeiste` 5, `ActionBoardView` 6 — je vorher RED verifiziert), Vollsuite **434/434 grün**, Lint ohne neue Befunde.
+- **Tests:** 28 neue Frontend-Tests (`boardUi` 5, `FristenKachel` 5, `WiedervorlagenKachel` 4, `TermineKachel` 3, `JetztDranLeiste` 5, `ActionBoardView` 6 — je vorher RED verifiziert), Vollsuite **434/434 grün**, Lint ohne neue Befunde.
 - **Review:** jeder Task einzeln subagent-reviewed (Spec + Qualität) — alle Approved.
 - **Offen:** Browser-Abnahme durch RA Schatz gegen das Mockup (siehe TODO.md). **Merge-Reihenfolge: erst `aktenanlage` → `main`, dann `dashboard-hell`.**
 
