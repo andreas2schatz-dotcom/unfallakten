@@ -858,7 +858,8 @@ function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
 }
 
 function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
-                       ereignistypen, klassen, item, vorgang, onAktenanlage }) {
+                       ereignistypen, klassen, item, vorgang, onAktenanlage,
+                       uebernahmeAz }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState(null);
   const [meldung, setMeldung] = useState("");
@@ -892,12 +893,18 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
 
   useEffect(() => { if (id) laden(); }, [id, laden]);
 
+  const azVorbelegt = useRef(false);
   useEffect(() => {
     if (vorgang?.status === "akte_erkannt" && vorgang.erkanntes_az
-        && !gewaehlteAkte) {
+        && !gewaehlteAkte && !azVorbelegt.current) {
+      azVorbelegt.current = true;
       setGewaehlteAkte(vorgang.erkanntes_az);
     }
   }, [vorgang, gewaehlteAkte]);
+
+  useEffect(() => {
+    if (uebernahmeAz) setGewaehlteAkte(uebernahmeAz);
+  }, [uebernahmeAz]);
 
   // Fragebogen-Vorschau: nur laden, wenn Dokument ein Fragebogen ist und eine
   // Akte gewaehlt wurde; neu laden bei Akten-Wechsel.
@@ -1156,8 +1163,9 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
                         alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: "1.1rem" }}>🆕</span>
             <span style={{ flex: 1 }}>
-              Vermutlich neue Akte: Gutachten von bestätigtem Gutachter,
-              kein Treffer im Bestand.
+              Vermutlich neue Akte: Gutachten von{" "}
+              {item.absender || "bestätigtem Gutachter"}, kein Treffer im
+              Bestand.
             </span>
             <button onClick={onAktenanlage}
               style={{ padding: "6px 12px", background: T.accent,
@@ -1429,6 +1437,7 @@ export default function ReviewQueueView({ onOpenAkte }) {
   const [vorgaenge, setVorgaenge] = useState([]);
   const [ramicroVerfuegbar, setRamicroVerfuegbar] = useState(true);
   const [anlageDialog, setAnlageDialog] = useState(null);
+  const [uebernahmeAz, setUebernahmeAz] = useState(null);
 
   // Ereignistypen aus der Registry einmalig laden (fuer Freigabe-Dropdown).
   useEffect(() => {
@@ -1670,7 +1679,9 @@ export default function ReviewQueueView({ onOpenAkte }) {
                     ereignistypen={ereignistypen} klassen={klassen}
                     item={aktuellerEintrag}
                     vorgang={vorgangFuerEintrag(aktuellerEintrag, vorgaenge, queue)}
-                    onAktenanlage={() => aktuellerEintrag && setAnlageDialog({ item: aktuellerEintrag })} />
+                    onAktenanlage={() => aktuellerEintrag && setAnlageDialog({ item: aktuellerEintrag })}
+                    uebernahmeAz={uebernahmeAz && uebernahmeAz.id === aktivId
+                                  ? uebernahmeAz.az : null} />
 
       {verwerfenDok && (
         <VerwerfenDialog
@@ -1686,8 +1697,14 @@ export default function ReviewQueueView({ onOpenAkte }) {
           item={anlageDialog.item}
           onClose={() => setAnlageDialog(null)}
           onAngelegt={() => { setAnlageDialog(null); laden(); }}
-          onUebernehmeAz={az => { setAnlageDialog(null);
-                                  setAktivId(anlageDialog.item.id); }}
+          onUebernehmeAz={az => {
+            const item = anlageDialog?.item;
+            setAnlageDialog(null);
+            if (item) {
+              setUebernahmeAz({ id: item.id, az });
+              setAktivId(item.id);
+            }
+          }}
         />
       )}
     </div>

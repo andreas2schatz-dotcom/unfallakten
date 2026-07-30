@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 vi.mock("../api.js", () => ({
   apiAktenanlage: {
@@ -7,12 +8,14 @@ vi.mock("../api.js", () => ({
     adressSuche: vi.fn().mockResolvedValue({ treffer: [] }),
     adressDetail: vi.fn(),
     gutachterVorlage: vi.fn(),
+    offen: vi.fn().mockResolvedValue({ vorgaenge: [] }),
   },
 }));
 
 import AktenanlageDialog, {
   LEERES_FORMULAR, mischeVorbefuellung, validiereFormular, baueVorbefuellung,
 } from "./AktenanlageDialog.jsx";
+import { apiAktenanlage } from "../api.js";
 
 describe("validiereFormular", () => {
   it("meldet fehlenden Nachnamen und fehlendes Unfalldatum", () => {
@@ -83,5 +86,39 @@ describe("AktenanlageDialog Rendering", () => {
     expect(screen.getByText(/Unfalldatum/)).toBeTruthy();
     expect(screen.getByText("Akte anlegen")).toBeTruthy();
     expect(screen.getByText("Abbrechen")).toBeTruthy();
+  });
+
+  it("zeigt Pflichtfeld-Fehler bei leerem Formular, ohne offen-Aufruf", async () => {
+    const user = userEvent.setup();
+    render(<AktenanlageDialog onClose={() => {}} onAngelegt={() => {}} />);
+    await user.click(screen.getByText("Akte anlegen"));
+    const fehler = await screen.findAllByText("Pflichtfeld");
+    expect(fehler.length).toBeGreaterThan(0);
+    expect(apiAktenanlage.offen).not.toHaveBeenCalled();
+    expect(apiAktenanlage.anlegen).not.toHaveBeenCalled();
+  });
+
+  it("zeigt Namens-Warnung bei laufendem Vorgang; zweiter Klick legt trotzdem an", async () => {
+    apiAktenanlage.offen.mockResolvedValueOnce({
+      vorgaenge: [{ mandant_name: "Achkour Zejli" }],
+    });
+    apiAktenanlage.anlegen.mockResolvedValueOnce({ vorgang: { id: 1 } });
+    const onAngelegt = vi.fn();
+    const user = userEvent.setup();
+    render(<AktenanlageDialog onClose={() => {}} onAngelegt={onAngelegt} />);
+
+    const nachnameFeld = screen.getAllByLabelText(/Nachname/)[0];
+    await user.type(nachnameFeld, "achkour zejli");
+    await user.type(screen.getByLabelText(/Unfalldatum/), "2026-04-10");
+
+    await user.click(screen.getByText("Akte anlegen"));
+    expect(await screen.findByText(/läuft bereits eine Aktenanlage/))
+      .toBeTruthy();
+    expect(apiAktenanlage.anlegen).not.toHaveBeenCalled();
+
+    await user.click(screen.getByText("Akte anlegen"));
+    await waitFor(() =>
+      expect(apiAktenanlage.anlegen).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onAngelegt).toHaveBeenCalledTimes(1));
   });
 });

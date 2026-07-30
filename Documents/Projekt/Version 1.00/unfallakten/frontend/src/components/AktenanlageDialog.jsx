@@ -78,11 +78,15 @@ export default function AktenanlageDialog({
   const [speichert, setSpeichert] = useState(false);
   const [adressTreffer, setAdressTreffer] = useState(null);
   const [adressAkten, setAdressAkten] = useState(null);
+  const [sucheVerfuegbar, setSucheVerfuegbar] = useState(true);
+  const [namensWarnung, setNamensWarnung] = useState(null);
   const suchTimer = useRef(null);
   const suchLauf = useRef(0);
 
-  const set = (gruppe, key, wert) =>
+  const set = (gruppe, key, wert) => {
     setFelder(f => ({ ...f, [gruppe]: { ...f[gruppe], [key]: wert } }));
+    if (gruppe === "mandant" && key === "nachname") setNamensWarnung(null);
+  };
 
   useEffect(() => {
     const q = (felder.mandant.nachname || "").trim();
@@ -95,7 +99,10 @@ export default function AktenanlageDialog({
       const lauf = ++suchLauf.current;
       try {
         const d = await apiAktenanlage.adressSuche(q);
-        if (lauf === suchLauf.current) setAdressTreffer(d.treffer || []);
+        if (lauf === suchLauf.current) {
+          setAdressTreffer(d.treffer || []);
+          setSucheVerfuegbar(d.verfuegbar !== false);
+        }
       } catch {
         if (lauf === suchLauf.current) setAdressTreffer(null);
       }
@@ -128,6 +135,20 @@ export default function AktenanlageDialog({
   const anlegen = async () => {
     const errs = validiereFormular(felder);
     if (Object.keys(errs).length) { setFehler(errs); return; }
+
+    if (intakeDokumentId == null && !namensWarnung) {
+      try {
+        const d = await apiAktenanlage.offen();
+        const nachname = felder.mandant.nachname.trim().toLowerCase();
+        const treffer = (d.vorgaenge || []).find(v =>
+          (v.mandant_name || "").toLowerCase().includes(nachname));
+        if (treffer) {
+          setNamensWarnung(treffer.mandant_name);
+          return;
+        }
+      } catch { /* Warnpruefung optional */ }
+    }
+
     setSpeichert(true); setFehler({});
     try {
       const res = await apiAktenanlage.anlegen({
@@ -215,6 +236,15 @@ export default function AktenanlageDialog({
           {inp("mandant", "nachname", "Nachname",
                { pflicht: true, fehler: fehler.nachname })}
         </div>
+        {!sucheVerfuegbar && (
+          <div style={{ background: T.amberBg, color: T.amberText,
+                        border: `1px solid ${T.amber}`, borderRadius: 4,
+                        padding: "6px 10px", fontSize: T.textXs,
+                        marginBottom: 8 }}>
+            ⚠ RA-MICRO-Adresssuche nicht verfügbar — Dubletten-Prüfung
+            derzeit nicht möglich, Anlage bleibt möglich.
+          </div>
+        )}
         {felder.mandant.bekannt_adressnr && (
           <div style={{ background: T.blueBg, color: T.blueText,
                         borderRadius: 4, padding: "4px 8px",
@@ -344,6 +374,15 @@ export default function AktenanlageDialog({
                         padding: "8px 10px", fontSize: T.textSm,
                         marginBottom: 8 }}>
             {fehler.allgemein}
+          </div>
+        )}
+        {namensWarnung && (
+          <div style={{ background: T.amberBg, color: T.amberText,
+                        border: `1px solid ${T.amber}`, borderRadius: 4,
+                        padding: "8px 10px", fontSize: T.textSm,
+                        marginBottom: 8 }}>
+            ⚠ Für „{namensWarnung}" läuft bereits eine Aktenanlage. Erneut
+            auf „Akte anlegen" klicken, um trotzdem anzulegen.
           </div>
         )}
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end",
