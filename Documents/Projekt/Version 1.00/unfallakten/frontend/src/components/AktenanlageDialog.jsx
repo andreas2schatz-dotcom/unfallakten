@@ -79,22 +79,26 @@ export default function AktenanlageDialog({
   const [adressTreffer, setAdressTreffer] = useState(null);
   const [adressAkten, setAdressAkten] = useState(null);
   const suchTimer = useRef(null);
+  const suchLauf = useRef(0);
 
   const set = (gruppe, key, wert) =>
     setFelder(f => ({ ...f, [gruppe]: { ...f[gruppe], [key]: wert } }));
 
   useEffect(() => {
-    if (suchTimer.current) clearTimeout(suchTimer.current);
     const q = (felder.mandant.nachname || "").trim();
     if (q.length < 2 || felder.mandant.bekannt_adressnr) {
+      suchLauf.current += 1;
       setAdressTreffer(null);
       return;
     }
     suchTimer.current = setTimeout(async () => {
+      const lauf = ++suchLauf.current;
       try {
         const d = await apiAktenanlage.adressSuche(q);
-        setAdressTreffer(d.treffer || []);
-      } catch { setAdressTreffer(null); }
+        if (lauf === suchLauf.current) setAdressTreffer(d.treffer || []);
+      } catch {
+        if (lauf === suchLauf.current) setAdressTreffer(null);
+      }
     }, 300);
     return () => suchTimer.current && clearTimeout(suchTimer.current);
   }, [felder.mandant.nachname, felder.mandant.bekannt_adressnr]);
