@@ -839,6 +839,15 @@ def post_freigabe(intake_id: int):
                 "fehler": [{"abschnitt": "*", "fehler": str(exc)}],
             }
 
+    aktenanlage_info = None
+    try:
+        from ..services.aktenanlage_service import (
+            schliesse_vorgaenge_bei_freigabe)
+        aktenanlage_info = schliesse_vorgaenge_bei_freigabe(intake_id, akte_az)
+    except Exception as exc:
+        logger.warning("Aktenanlage-Abschluss nach Freigabe fehlgeschlagen: %s",
+                       exc)
+
     logger.info("Freigabe intake=%s -> Akte %s (dokument_id=%s, freigabe_id=%s)",
                 intake_id, akte_az, dokument_id, freigabe_id)
     return _j({
@@ -847,6 +856,7 @@ def post_freigabe(intake_id: int):
         "freigabe_id": freigabe_id,
         "akte_az": akte_az,
         "fragebogen_uebernahme": uebernahme_ergebnis,
+        "aktenanlage": aktenanlage_info,
     })
 
 
