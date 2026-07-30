@@ -1126,6 +1126,18 @@ export const apiIntake = {
   }),
 };
 
+export const apiAktenanlage = {
+  anlegen:      (payload) => request('/aktenanlage', {
+    method: 'POST', body: JSON.stringify(payload) }),
+  offen:        ()        => request('/aktenanlage/offen'),
+  abbrechen:    (id)      => request(`/aktenanlage/${id}/abbrechen`, { method: 'POST' }),
+  abschliessen: (id)      => request(`/aktenanlage/${id}/abschliessen`, { method: 'POST' }),
+  adressSuche:  (q)       => request(`/aktenanlage/adressen?q=${encodeURIComponent(q)}`),
+  adressDetail: (nr)      => request(`/aktenanlage/adresse/${nr}`),
+  gutachterVorlage: (zustellungId) =>
+    request(`/aktenanlage/gutachter-vorlage?zustellung_id=${zustellungId}`),
+};
+
 // ─────────────────────────────────────────────────────────────
 // SYSTEM HEALTH
 // ─────────────────────────────────────────────────────────────
