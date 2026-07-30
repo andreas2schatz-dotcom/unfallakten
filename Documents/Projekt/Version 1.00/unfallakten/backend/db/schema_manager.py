@@ -317,6 +317,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     63: "-- migration_63_beteiligte_vertreter",  # Handled by _run_migration_63 (Schema-Drift-Fix)
     64: "-- migration_64_kuerzungstaxonomie",  # Handled by _run_migration_64
     65: "-- migration_65_standardtext_override",  # Handled by _run_migration_65
+    66: "-- migration_66_aktenanlage",  # Handled by _run_migration_66
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -1201,6 +1202,46 @@ def _run_migration_65(conn: sqlite3.Connection) -> None:
     logger.info("Migration 65 abgeschlossen (standardtext_override).")
 
 
+def _run_migration_66(conn: sqlite3.Connection) -> None:
+    """
+    Migration 66 - aktenanlage_vorgaenge (Aktenanlage aus der ReviewQueue).
+
+    Ein Vorgang = eine erzeugte OMA-XML fuer den RA-MICRO-Import.
+    Kein executescript, explizite Commits um DDL (Reloader-Falle).
+    """
+    conn.commit()
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS aktenanlage_vorgaenge ("
+        " id                 INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " intake_dokument_id INTEGER REFERENCES intake_dokumente(id),"
+        " zustellung_id      INTEGER REFERENCES zustellungen(id),"
+        " status             TEXT NOT NULL DEFAULT 'laeuft'"
+        "   CHECK(status IN ('laeuft','akte_erkannt',"
+        "                    'abgeschlossen','abgebrochen')),"
+        " formular_json      TEXT NOT NULL,"
+        " xml_pfad           TEXT NOT NULL,"
+        " mandant_nachname   TEXT NOT NULL,"
+        " mandant_vorname    TEXT,"
+        " mandant_adressnr   TEXT,"
+        " erkanntes_az       TEXT,"
+        " angelegt_am        TEXT NOT NULL DEFAULT (datetime('now','localtime')),"
+        " angelegt_von       INTEGER,"
+        " erkannt_am         TEXT)"
+    )
+    conn.commit()
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_aktenanlage_status "
+        "ON aktenanlage_vorgaenge(status)"
+    )
+    conn.commit()
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (?, ?)",
+        (66, "Migration 66 - aktenanlage_vorgaenge (Aktenanlage ReviewQueue)"),
+    )
+    logger.info("Migration 66 abgeschlossen (aktenanlage_vorgaenge).")
+
+
 def _run_migration_64(conn: sqlite3.Connection) -> None:
     """
     Migration 64 - Kürzungstaxonomie Phase 1:
@@ -1700,6 +1741,8 @@ def run_migrations() -> None:
                 _run_migration_64(conn)
             elif version == 65:
                 _run_migration_65(conn)
+            elif version == 66:
+                _run_migration_66(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
