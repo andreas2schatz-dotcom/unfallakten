@@ -442,5 +442,27 @@ class TestFreigabeHook(unittest.TestCase):
         self.assertIsNone(r.get_json()["aktenanlage"])
 
 
+class TestQueueAbsenderKategorie(unittest.TestCase):
+    def setUp(self):
+        self.client = _setup("queuekat")
+        self.headers = _auth_header(self.client)
+
+    def test_queue_liefert_absender_kategorie(self):
+        did = _lege_intake_an("q1")
+        _lege_zustellung_an(did, signale={"absender_kategorie": "gutachter"})
+        r = self.client.get("/intake/queue", headers=self.headers)
+        eintrag = [e for e in r.get_json()["eintraege"]
+                   if e["id"] == did][0]
+        self.assertEqual(eintrag["absender_kategorie"], "gutachter")
+
+    def test_queue_ohne_signal_null(self):
+        did = _lege_intake_an("q2")
+        _lege_zustellung_an(did, signale={})
+        r = self.client.get("/intake/queue", headers=self.headers)
+        eintrag = [e for e in r.get_json()["eintraege"]
+                   if e["id"] == did][0]
+        self.assertIsNone(eintrag["absender_kategorie"])
+
+
 if __name__ == "__main__":
     unittest.main()

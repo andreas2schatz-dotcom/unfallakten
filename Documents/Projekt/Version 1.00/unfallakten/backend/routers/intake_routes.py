@@ -153,6 +153,8 @@ def hole_queue():
             "       z.parent_id AS parent_zustellung_id, "
             "       z.absender AS absender, "
             "       z.betreff AS betreff "
+            "       , json_extract(z.signale_json, '$.absender_kategorie') "
+            "         AS absender_kategorie "
             "FROM intake_dokumente i "
             "LEFT JOIN (SELECT intake_dokument_id, MIN(id) AS min_id "
             "           FROM zustellungen GROUP BY intake_dokument_id) ze "
@@ -188,6 +190,7 @@ def hole_queue():
             "parent_zustellung_id": r["parent_zustellung_id"],
             "absender": r["absender"],
             "betreff": r["betreff"],
+            "absender_kategorie": r["absender_kategorie"],
         })
     return _j({"eintraege": eintraege})
 
