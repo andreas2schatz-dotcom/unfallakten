@@ -60,6 +60,12 @@ regex_felder:
 schema:
   sv_buero: string
   gutachter: string
+  auftraggeber_anrede: string
+  auftraggeber_vorname: string
+  auftraggeber_nachname: string
+  auftraggeber_strasse: string
+  auftraggeber_plz: string
+  auftraggeber_ort: string
   auftragsnummer: string
   auftragsdatum: date
   besichtigungsdatum: date

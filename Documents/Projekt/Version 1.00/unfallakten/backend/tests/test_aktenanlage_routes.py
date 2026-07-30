@@ -464,5 +464,18 @@ class TestQueueAbsenderKategorie(unittest.TestCase):
         self.assertIsNone(eintrag["absender_kategorie"])
 
 
+class TestGutachtenSchema(unittest.TestCase):
+    def test_auftraggeber_felder_im_schema(self):
+        import yaml
+        pfad = os.path.join(os.path.dirname(__file__), "..",
+                            "registry", "klassen", "gutachten.yaml")
+        with open(pfad, encoding="utf-8") as f:
+            daten = yaml.safe_load(f)
+        for feld in ("auftraggeber_anrede", "auftraggeber_vorname",
+                     "auftraggeber_nachname", "auftraggeber_strasse",
+                     "auftraggeber_plz", "auftraggeber_ort"):
+            self.assertIn(feld, daten["schema"], feld)
+
+
 if __name__ == "__main__":
     unittest.main()
