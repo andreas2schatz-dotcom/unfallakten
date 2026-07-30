@@ -5,6 +5,20 @@ Format: Entscheidung → Grund → Alternative → Konsequenz.
 
 ---
 
+## Aktenanlage aus der ReviewQueue
+
+### Gruppen-Schließregel hat Vorrang vor dem ursprünglichen Spec-Wortlaut 5.4
+
+**Entscheidung:** Ein Aktenanlage-Vorgang wird erst geschlossen, wenn das **letzte** Dokument seiner E-Mail-Gruppe die Queue verlässt (freigegeben oder verworfen) — nicht schon beim ersten. Die Unfalldaten-Übernahme (`_uebernimm_unfalldaten`) läuft weiterhin bei jeder Freigabe auf das erkannte AZ, unabhängig vom Schließen.
+
+**Grund:** Spec-Abschnitt 3.4 verlangt, dass Geschwister-Dokumente (Gutachten + Rechnung + Auftrag derselben E-Mail) nacheinander ohne erneutes AZ-Tippen freigegeben werden können. Der ursprüngliche Wortlaut in Abschnitt 5.4 („... sobald das erste Dokument freigegeben wird") widersprach dem: Die erste Freigabe hätte den Vorgang geschlossen und damit die AZ-Vorauswahl für die restlichen Geschwister entfernt. Entschieden im Final-Review der Umsetzung (2026-07-30).
+
+**Alternative:** AZ-Vorauswahl unabhängig vom Vorgangsstatus am Queue-Eintrag cachen (z. B. eigenes Feld pro Dokument statt vorgangsgebunden).
+
+**Konsequenz:** `schliesse_vorgaenge_bei_freigabe` prüft je Freigabe, ob in der Gruppe noch ein Dokument mit `queue_status='bereit_zur_review'` offen ist; erst wenn keins mehr offen ist, wird geschlossen und ggf. der Hinweis auf eine abweichende RA-MICRO-Akte erzeugt. Spec 5.4 wurde entsprechend korrigiert. (2026-07-30)
+
+---
+
 ## Backend-Framework
 
 ### Flask statt FastAPI
