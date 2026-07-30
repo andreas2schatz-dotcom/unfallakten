@@ -79,7 +79,8 @@ Migrations-Regeln beachten: kein `executescript()`, explizites `conn.commit()`, 
 - **`GET /aktenanlage/adressen?q=`** — schlanke Route auf `suche_adressen()` für den Dubletten-Check (eigene Route statt Mitnutzung der SV-Portal-Route, um Kopplung zu vermeiden).
 
 ### 5.3 XML-Erzeugung
-- Vorlage: Struktur aus `beispieloma.xml` (`<Onlinemandat>`, Rechtsangelegenheit `VERKEHRSUNFALL`, Mandantenliste, Gegnerliste, Beteiligtenliste mit Versicherung/Gutachter, Zusatzangaben-Freitext).
+- Vorlage: Struktur aus `beispieloma.xml` (`<Onlinemandat>`, Rechtsangelegenheit `VERKEHRSUNFALL`, Mandantenliste, Gegnerliste, Beteiligtenliste mit Versicherung/Gutachter, Zusatzangaben-Freitext). Leere Elemente sind zulässig (das Beispiel enthält viele) — es wird das volle Gerüst geschrieben und nur Bekanntes befüllt; die `name`-Attribute sind Anzeigetexte und werden unverändert aus der Vorlage übernommen, ebenso das leere `<tvm/>`.
+- Options-Werte spiegelbildlich zu den RA-MICRO-Adress-Konventionen (Entscheidung RA Schatz 2026-07-30): Anrede-Codes `1=Herr, 2=Frau, 4=Firma` (Mapping existiert in `word/abrechnungsuebersicht_service.py:_anrede_text`), in der XML als Großbuchstaben-Label `HERR`/`FRAU`/`FIRMA`. Datumsangaben im ISO-Format `JJJJ-MM-TT` (wie das Zustellungsdatum im Beispiel).
 - Encoding UTF-8, korrektes XML-Escaping (Umlaute, `&`); Erzeugung über Stdlib (`xml.etree` bzw. Template) — Details im Implementierungsplan.
 - Dateiname eindeutig: `onlinemandat_<JJJJMMTT-HHMMSS>_<nachname>.xml`.
 - Zielordner aus `.env` (`OMA_EXPORT_PFAD`), als Volume in `docker-compose.yml` und `docker-compose.prod.yml` gemountet (Windows-Share, den RA-MICRO überwacht).
@@ -128,3 +129,4 @@ Migrations-Regeln beachten: kein `executescript()`, explizites `conn.commit()`, 
 
 1. **Adressnummer-Referenz:** Kann die OMA-XML über „Bekannt = Ja" (plus Mandanten-/Adressnummer) eine bestehende Adresse referenzieren, sodass RA-MICRO keine Adress-Dublette anlegt? Test beim Abnahmetest; falls nein, verhindert der Dubletten-Check nur die falsche Akten-Anlage, die Adress-Zusammenführung bleibt ein RA-MICRO-Handgriff.
 2. **Konkreter Ordnerpfad:** `OMA_EXPORT_PFAD` (Windows-Share, den RA-MICRO überwacht) muss vor dem Rollout von RA Schatz benannt und in `.env` + Compose-Mounts eingetragen werden.
+3. **Options-Labels und Datumsformat:** Bestätigen, dass `FRAU`/`FIRMA` als Anrede-Werte und das ISO-Datumsformat beim Import korrekt ankommen (das Beispiel zeigt nur `HERR` und mischt Datumsformate).
