@@ -1,111 +1,85 @@
 import React from "react";
+import T from "../../config/theme";
+import Ic from "../../config/icons";
+import { Kachel, KachelInhalt, Zeile, ZeileText, StufenBadge, AbschnittLabel, MehrKnopf, ZeilenListe } from "./boardUi";
 
-function WvEintrag({ e, onOpenAkte }) {
-  const istUeberfaellig = e.hat_wv && e.tage_bis < 0;
-  const istHeute        = e.hat_wv && e.tage_bis === 0;
-  const ohneWv          = !e.hat_wv;
+const OHNE_WV_LIMIT = 5;
 
-  let borderColor = "#f59e0b";
-  if (istUeberfaellig) borderColor = "#dc2626";
-  if (ohneWv)          borderColor = "#6366f1";
-
-  let badgeContent = null;
-  if (istUeberfaellig) badgeContent = (
-    <span style={{ background: "#dc2626", color: "white", borderRadius: 4, padding: "1px 5px", fontSize: 10, fontWeight: 600 }}>
-      {e.tage_bis}T
-    </span>
-  );
-  if (istHeute) badgeContent = (
-    <span style={{ background: "#f59e0b", color: "#1c1917", borderRadius: 4, padding: "1px 5px", fontSize: 10, fontWeight: 600 }}>
-      HEUTE
-    </span>
-  );
-  if (ohneWv) badgeContent = (
-    <span style={{ color: "#818cf8", fontSize: 10, fontWeight: 600 }}>⚠ keine WV</span>
-  );
-
-  return (
-    <div
-      onClick={() => onOpenAkte && onOpenAkte(e.az)}
-      style={{
-        background: "#132237",
-        borderRadius: 4,
-        padding: "7px 10px",
-        marginBottom: 5,
-        cursor: "pointer",
-        borderLeft: `3px solid ${borderColor}`,
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-      }}
-    >
-      <div>
-        <div style={{ color: "#e2e8f0", fontSize: 12, fontWeight: 500 }}>
-          {e.kurzbezeichnung || e.mandant || e.az}
-        </div>
-        <div style={{ color: "#94a3b8", fontSize: 10 }}>
-          {e.grund ? `${e.grund} · ` : ""}{e.az}
-        </div>
-      </div>
-      {badgeContent}
-    </div>
-  );
-}
-
-export default function WiedervorlagenKachel({ wv, ohne_wv, onOpenAkte }) {
+export default function WiedervorlagenKachel({ status, wv, ohne_wv, onOpenAkte, onRetry, onAlleOeffnen }) {
   const ueberfaellig = (wv || []).filter((e) => e.tage_bis < 0);
   const heute        = (wv || []).filter((e) => e.tage_bis === 0);
-  const gesamt       = (wv || []).length;
   const alleOhneWv   = ohne_wv || [];
-  const hatInhalt    = gesamt > 0 || alleOhneWv.length > 0;
+  const ohneWvSicht  = alleOhneWv.slice(0, OHNE_WV_LIMIT);
+  const ohneWvRest   = alleOhneWv.length - ohneWvSicht.length;
+  const hatInhalt    = ueberfaellig.length > 0 || heute.length > 0 || alleOhneWv.length > 0;
 
-  const S = {
-    kachel: { background: "#0c1929", border: "1px solid #1e3a5f", borderRadius: 6, padding: 12, display: "flex", flexDirection: "column", maxHeight: "calc(50vh - 90px)", overflow: "hidden" },
-    header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
-    titel:  { color: "#60a5fa", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" },
-    badge:  { background: "#1d4ed8", color: "white", borderRadius: 10, padding: "2px 8px", fontSize: 10, fontWeight: 600 },
-    label:  { color: "#6b7280", fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4, paddingLeft: 2 },
-    leer:   { color: "#4ade80", fontSize: 12, padding: "12px 0", textAlign: "center" },
-  };
+  const zusammenfassung = status === "ok" && hatInhalt ? (
+    <>
+      {ueberfaellig.length > 0 && <b style={{ color: T.redText, fontWeight: 600 }}>{ueberfaellig.length} überfällig · </b>}
+      {heute.length} heute
+    </>
+  ) : null;
 
-  if (!hatInhalt) {
+  function wvZeile(e) {
+    const stufe = e.tage_bis < 0 ? "rot" : "gelb";
     return (
-      <div style={S.kachel}>
-        <div style={S.header}><span style={S.titel}>🔁 Wiedervorlagen</span></div>
-        <div style={S.leer}>Alle Wiedervorlagen erledigt</div>
-      </div>
+      <Zeile
+        key={e.az + e.datum}
+        stufe={stufe}
+        onClick={() => onOpenAkte(e.az)}
+        links={
+          <ZeileText
+            titel={<><b className="tabular-nums">{e.az}</b> · {e.kurzbezeichnung || e.mandant || e.az}</>}
+            meta={e.grund || "Wiedervorlage"}
+            metaFarbe={stufe === "rot" ? T.redText : T.amberText}
+          />
+        }
+        rechts={<StufenBadge stufe={stufe}>{e.tage_bis < 0 ? `−${Math.abs(e.tage_bis)} T` : "heute"}</StufenBadge>}
+      />
     );
   }
 
   return (
-    <div style={S.kachel}>
-      <div style={S.header}>
-        <span style={S.titel}>🔁 Wiedervorlagen</span>
-        {gesamt > 0 && <span style={S.badge}>{gesamt} offen</span>}
-      </div>
-
-      <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
+    <Kachel icon={Ic.refresh} titel="Wiedervorlagen" zusammenfassung={zusammenfassung}>
+      <KachelInhalt
+        status={status}
+        fehlerText="Wiedervorlagen konnten nicht geladen werden"
+        onRetry={onRetry}
+        leer={!hatInhalt}
+        leerText="Alle Wiedervorlagen erledigt"
+      >
         {ueberfaellig.length > 0 && (
           <>
-            <div style={S.label}>Überfällig</div>
-            {ueberfaellig.map((e) => <WvEintrag key={e.az + e.datum} e={e} onOpenAkte={onOpenAkte} />)}
+            <AbschnittLabel>Überfällig</AbschnittLabel>
+            <ZeilenListe>{ueberfaellig.map(wvZeile)}</ZeilenListe>
           </>
         )}
-
         {heute.length > 0 && (
           <>
-            <div style={{ ...S.label, marginTop: ueberfaellig.length > 0 ? 8 : 0 }}>Heute fällig</div>
-            {heute.map((e) => <WvEintrag key={e.az + e.datum} e={e} onOpenAkte={onOpenAkte} />)}
+            <AbschnittLabel abstandOben={ueberfaellig.length > 0}>Heute fällig</AbschnittLabel>
+            <ZeilenListe>{heute.map(wvZeile)}</ZeilenListe>
           </>
         )}
-
         {alleOhneWv.length > 0 && (
           <>
-            <div style={{ ...S.label, marginTop: gesamt > 0 ? 8 : 0 }}>Keine Wiedervorlage gesetzt</div>
-            {alleOhneWv.map((e) => <WvEintrag key={e.az} e={e} onOpenAkte={onOpenAkte} />)}
+            <AbschnittLabel abstandOben={ueberfaellig.length > 0 || heute.length > 0}>Keine Wiedervorlage gesetzt</AbschnittLabel>
+            <ZeilenListe>
+              {ohneWvSicht.map((e) => (
+                <Zeile
+                  key={e.az}
+                  onClick={() => onOpenAkte(e.az)}
+                  links={<ZeileText titel={<><b className="tabular-nums">{e.az}</b> · {e.kurzbezeichnung || e.mandant || ""}</>} meta="keine WV gesetzt" />}
+                />
+              ))}
+            </ZeilenListe>
           </>
         )}
-      </div>
-    </div>
+        {(ohneWvRest > 0 || hatInhalt) && (
+          <MehrKnopf onClick={onAlleOeffnen}>
+            {ohneWvRest > 0 ? `+ ${ohneWvRest} weitere · Alle Wiedervorlagen öffnen` : "Alle Wiedervorlagen öffnen"}
+          </MehrKnopf>
+        )}
+      </KachelInhalt>
+    </Kachel>
   );
 }
