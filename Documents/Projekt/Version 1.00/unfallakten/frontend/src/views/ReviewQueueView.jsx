@@ -1670,7 +1670,7 @@ export default function ReviewQueueView({ onOpenAkte }) {
                     ereignistypen={ereignistypen} klassen={klassen}
                     item={aktuellerEintrag}
                     vorgang={vorgangFuerEintrag(aktuellerEintrag, vorgaenge, queue)}
-                    onAktenanlage={() => setAnlageDialog({ item: aktuellerEintrag })} />
+                    onAktenanlage={() => aktuellerEintrag && setAnlageDialog({ item: aktuellerEintrag })} />
 
       {verwerfenDok && (
         <VerwerfenDialog
