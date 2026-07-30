@@ -38,7 +38,7 @@ Kommen mehrere Dokumente in einer E-Mail (Gutachten + Rechnung + Auftrag), gilt 
 Oben in der ReviewQueue erscheint — nur wenn Vorgänge existieren — eine schmale Leiste: „⏳ 1 Aktenanlage läuft · ✅ 1 Akte erkannt". Klick springt zum betroffenen Eintrag. Vorgänge ohne Intake-Dokument (leerer Einstieg) erscheinen ebenfalls hier („✅ Akte <AZ> angelegt — öffnen").
 
 ### 3.6 Leerer Einstieg
-Der Button „+ Neue Akte" in der Aktensuche öffnet denselben Dialog ohne Vorbefüllung. Da kein Dokument freizugeben ist, legt das Backend bei Erkennung die Schattenakte direkt an (inkl. Unfalldaten) und schließt den Vorgang ab; die Leiste bietet „öffnen" an.
+Der Button „+ Neue Akte" in der Aktensuche öffnet denselben Dialog ohne Vorbefüllung. Da kein Dokument freizugeben ist, legt das Backend bei Erkennung die Schattenakte direkt an (inkl. Unfalldaten) und setzt den Vorgang auf `akte_erkannt`; die Leiste bietet „öffnen" an. Erst der Klick auf „öffnen" (oder Abbrechen) setzt den Vorgang auf `abgeschlossen` — so verschwindet er nicht aus der Leiste, bevor der Nutzer ihn gesehen hat.
 
 ## 4. Aktenanlage-Dialog
 
@@ -74,7 +74,7 @@ Migrations-Regeln beachten: kein `executescript()`, explizites `conn.commit()`, 
 
 ### 5.2 Neues Blueprint `aktenanlage_bp` (`/aktenanlage`)
 - **`POST /aktenanlage`** — validiert das Formular (Pflicht: Mandant-Nachname, Unfalldatum), erzeugt die XML nach dem `beispieloma.xml`-Muster und schreibt sie **atomar** (Temp-Datei + Rename, damit RA-MICRO nie eine halb geschriebene Datei einliest) in den überwachten Ordner. Legt den Vorgang mit Status `laeuft` an. Guard: pro `intake_dokument_id` nur ein laufender Vorgang (sonst 409). Ist der Ordner nicht beschreibbar → Fehler, kein Vorgang, keine Datei.
-- **`GET /aktenanlage/offen`** — liefert offene Vorgänge (für Leiste und Chips) und erledigt dabei die **Erkennung** (lazy, kein eigener Worker — die ReviewQueue pollt ohnehin alle 30 s): Für jeden laufenden Vorgang Read-Only-Abfrage, ob in RA-MICRO seit Vorgangsstart eine Akte angelegt wurde, deren Mandant passt (bevorzugt über `mandant_adressnr`, sonst Nachname; Join `tblAkten` ↔ `tblAktenBeteiligte` ↔ `tblAdressen`). Genau ein Treffer → `akte_erkannt` + `erkanntes_az`. Mehrere Treffer → keine Auto-Wahl, alle als Kandidaten ausliefern.
+- **`GET /aktenanlage/offen`** — liefert offene Vorgänge (für Leiste und Chips) und erledigt dabei die **Erkennung** (lazy, kein eigener Worker — die ReviewQueue pollt ohnehin alle 30 s): Für jeden laufenden Vorgang Read-Only-Abfrage, ob in RA-MICRO seit Vorgangsstart eine Akte angelegt wurde, deren Mandant passt (bevorzugt über `mandant_adressnr`, sonst Nachname; Join `tblAkten` ↔ `tblAktenBeteiligte` ↔ `tblAdressen`). Genau ein Treffer → `akte_erkannt` + `erkanntes_az`. Mehrere Treffer → keine Auto-Wahl, Status bleibt `laeuft`, die Treffer werden in der Antwort als Kandidaten mitgeliefert und im Zuordnen-Abschnitt angezeigt.
 - **`POST /aktenanlage/<id>/abbrechen`** — Vorgang auf `abgebrochen`; die XML wird, falls noch vorhanden, aus dem Ordner gelöscht.
 - **`GET /aktenanlage/adressen?q=`** — schlanke Route auf `suche_adressen()` für den Dubletten-Check (eigene Route statt Mitnutzung der SV-Portal-Route, um Kopplung zu vermeiden).
 
@@ -86,7 +86,7 @@ Migrations-Regeln beachten: kein `executescript()`, explizites `conn.commit()`, 
 
 ### 5.4 Abschluss und Schattenakte
 - **Mit Intake-Dokument:** Der Vorgang gilt als abgeschlossen, sobald das erste Dokument seiner E-Mail-Gruppe freigegeben wird. Bei Freigabe auf das erkannte AZ greift der bestehende Mechanismus (`erstelle_oder_hole_akte`, BUG-08); zusätzlich werden Unfalldatum/Unfallort aus `formular_json` in die Schattenakte übernommen. Wird auf ein **anderes** AZ freigegeben, wird der Vorgang ebenfalls geschlossen und die UI weist darauf hin, dass die in RA-MICRO angelegte Akte bestehen bleibt (dort ggf. manuell stornieren).
-- **Ohne Intake-Dokument (leerer Einstieg):** Bei Erkennung legt das Backend die Schattenakte direkt an (inkl. Unfalldaten) und setzt den Vorgang auf `abgeschlossen`.
+- **Ohne Intake-Dokument (leerer Einstieg):** Bei Erkennung legt das Backend die Schattenakte direkt an (inkl. Unfalldaten), der Vorgang steht auf `akte_erkannt`; „öffnen" in der Leiste (oder Abbrechen) setzt ihn auf `abgeschlossen` (siehe 3.6).
 - RA-MICRO bleibt strikt **read-only** — geschrieben wird ausschließlich die XML-Datei in den Ordner; das Anlegen macht RA-MICRO selbst.
 
 ### 5.5 Frontend-Änderungen (ReviewQueueView)
