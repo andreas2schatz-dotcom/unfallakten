@@ -292,10 +292,6 @@ class TestAktenanlageEndpoints(unittest.TestCase):
         did = _lege_intake_an("r2")
         zid = _lege_zustellung_an(did)
         self.assertEqual(self._anlegen(did, zid).status_code, 201)
-        # schreibe_oma_xml benennt Dateien auf Sekundengenauigkeit; ohne
-        # Verzögerung würde der zweite Aufruf dieselbe Datei überschreiben
-        # und der Duplikat-Check würde beide Aufrufe gemeinsam löschen.
-        time.sleep(1.1)
         self.assertEqual(self._anlegen(did, zid).status_code, 409)
         xmls = [f for f in os.listdir(os.environ["OMA_EXPORT_PFAD"])
                 if f.endswith(".xml")]

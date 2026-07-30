@@ -211,7 +211,7 @@ def schreibe_oma_xml(formular: dict, ziel_ordner) -> Path:
     if not ordner.is_dir():
         raise OSError(f"OMA-Export-Ordner existiert nicht: {ordner}")
     nachname = _slug((formular.get("mandant") or {}).get("nachname"))
-    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
     ziel = ordner / f"onlinemandat_{stamp}_{nachname}.xml"
     tmp = ziel.with_suffix(".tmp")
     tmp.write_text(erzeuge_oma_xml(formular), encoding="utf-8")

@@ -121,6 +121,14 @@ class TestSchreibeOmaXml(unittest.TestCase):
         with self.assertRaises(OSError):
             schreibe_oma_xml(FORMULAR, "/nicht/vorhanden/ordner_xyz")
 
+    def test_dateinamen_kollidieren_nicht(self):
+        ordner = tempfile.mkdtemp(prefix="oma_uniq_")
+        p1 = schreibe_oma_xml(FORMULAR, ordner)
+        p2 = schreibe_oma_xml(FORMULAR, ordner)
+        self.assertNotEqual(p1, p2)
+        self.assertEqual(
+            len([f for f in os.listdir(ordner) if f.endswith(".xml")]), 2)
+
 
 if __name__ == "__main__":
     unittest.main()
