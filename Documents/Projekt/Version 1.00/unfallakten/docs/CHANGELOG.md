@@ -7,6 +7,24 @@
 
 ---
 
+## 2026-07-30 — Dashboard-Hell-Umbau (Branch `dashboard-hell`, basiert auf `aktenanlage`)
+
+Design-Spec + Mockup `docs/superpowers/specs/2026-07-30-dashboard-hell-*` (von RA Schatz freigegeben, danach Umsetzung). Anlass: UI-Review des Dashboards (Nielsen-Score 14/40). P0-Befunde: komplett dunkler Viewport (~100 % statt Soll ~18 %) sowie stille API-Fehler, die eine grüne Entwarnung bei Fristen vortäuschten; automatischer Detektor fand 4× `borderLeft`-3px-Streifen als Farbcode-Krücke; 5 WCAG-Kontrast-Fails, schlimmster Wert 1,9:1. 8 Commits `5449beae..36e4581d`, Subagent-Driven Development.
+
+- **Task 1** `5449beae` Design-Spec + Mockup (Freigabe RA Schatz).
+- **Task 2** `49ce39e6` gemeinsame `boardUi`-Bausteine (`Kachel`/`KachelInhalt`/`Zeile`) als echte Buttons/Badges statt Divs mit Klick-Handler — Grundlage für die spätere Tastaturbedienung.
+- **Task 3** `c909f3e8` `FristenKachel` auf Pergament-Tokens (`tokens.css`) umgestellt, dadurch ohne Zusatzaufwand auch im clio-Scheme lesbar; Positionierung links oben im 3:2-Raster.
+- **Task 4** `09e493b8` `WiedervorlagenKachel`: gleiche Token-Umstellung, Liste ohne WV-Eintrag auf 5 gedeckelt + Sprung zur Vollansicht.
+- **Task 5** `2d7f6d41` `TermineKachel` auf Pergament-Tokens umgestellt.
+- **Task 6** `adaa7ed5` `JetztDranLeiste`: 3 dringendste Einträge aus Fristen + Wiedervorlagen, reine Client-seitige Ableitung ohne eigenen Endpoint.
+- **Task 7** `8e62bd08` `ActionBoardView`+`App.jsx`: Posteingang-Kachel ersatzlos entfernt (E-Mail-Arbeit läuft über E-Mail-Import/Review-Queue), Lade-/Fehler-/Leer-Zustand je Kachel (Fehlerzustand behält die zuletzt geladenen Daten sichtbar, Button „Erneut laden"), eine einzige Farbachse (Rot nur überfällig, Gelb heute), SB-Filter jetzt persistiert in `localStorage` (`dashboard.aktiveSB`) — leere Auswahl zeigt einen Hinweis statt der bisherigen Invertierungslogik.
+- **Task 8** `36e4581d` Aufräumen: verwaistes `openEmail` entfernt.
+- **Tests:** 26 neue Frontend-Tests (`boardUi` 5, `FristenKachel` 5, `WiedervorlagenKachel` 4, `TermineKachel` 3, `JetztDranLeiste` 5, `ActionBoardView` 6 — je vorher RED verifiziert), Vollsuite **434/434 grün**, Lint ohne neue Befunde.
+- **Review:** jeder Task einzeln subagent-reviewed (Spec + Qualität) — alle Approved.
+- **Offen:** Browser-Abnahme durch RA Schatz gegen das Mockup (siehe TODO.md). **Merge-Reihenfolge: erst `aktenanlage` → `main`, dann `dashboard-hell`.**
+
+---
+
 ## 2026-07-30 — Aktenanlage aus der ReviewQueue (PRD-NEW, Branch `aktenanlage`)
 
 Design-Spec `docs/superpowers/specs/2026-07-30-aktenanlage-design.md` · Plan `docs/superpowers/plans/2026-07-30-aktenanlage.md`. Anlass: Kommt ein Gutachten per E-Mail herein und existieren Mandant/Unfall noch nicht im Bestand (Absender per Gutachter-Identifier bestätigt, keine Akten-Kandidaten), gab es bislang keinen Weg weiter — Freigabe blieb ohne `akte_az` gesperrt (422), die Akte musste manuell in RA-MICRO angelegt werden. 12 Tasks, Subagent-Driven Development, 20 Commits `b15c6669..ee486332` + Task 12 (diese Session).
