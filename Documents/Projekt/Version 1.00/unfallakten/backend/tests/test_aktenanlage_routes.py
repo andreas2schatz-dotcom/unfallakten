@@ -298,5 +298,70 @@ class TestAktenanlageEndpoints(unittest.TestCase):
         self.assertEqual(len(xmls), 1)
 
 
+class TestAdressEndpoints(unittest.TestCase):
+    def setUp(self):
+        self.client = _setup("adressen")
+        self.headers = _auth_header(self.client)
+
+    def test_adressen_suche(self):
+        with patch("backend.routers.aktenanlage_routes.suche_adressen",
+                   return_value=[{"adressnr": 12345, "name": "Achkour Zejli",
+                                  "vorname": "Abdessamad", "email": ""}]):
+            r = self.client.get("/aktenanlage/adressen?q=Achkour",
+                                headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.get_json()["treffer"][0]["adressnr"], 12345)
+
+    def test_adress_detail_mit_akten(self):
+        with patch("backend.routers.aktenanlage_routes.hole_adresse_details",
+                   return_value={"adressnr": 12345, "anrede": "1",
+                                 "name": "Achkour Zejli",
+                                 "vorname": "Abdessamad", "firmenzeile": "",
+                                 "strasse": "Wiener Straße 61",
+                                 "plz": "60599", "ort": "Frankfurt",
+                                 "telefon": "", "email": ""}), \
+             patch("backend.routers.aktenanlage_routes.akten_zu_adresse",
+                   return_value=[{"az": "285/26",
+                                  "kurzbezeichnung": "Zejli ./. KRAVAG"}]):
+            r = self.client.get("/aktenanlage/adresse/12345",
+                                headers=self.headers)
+        d = r.get_json()
+        self.assertEqual(d["adresse"]["strasse"], "Wiener Straße 61")
+        self.assertEqual(d["akten"][0]["az"], "285/26")
+
+    def test_gutachter_vorlage(self):
+        from backend.db.database import get_connection
+        did = _lege_intake_an("gv")
+        zid = _lege_zustellung_an(did, absender="Büro <info@svb-cassese.de>")
+        with get_connection() as conn:
+            conn.execute(
+                "INSERT INTO email_absender_vorlagen "
+                "(name, domain, kategorie, ramicro_adressnr) "
+                "VALUES ('SV-Büro Cassese', 'svb-cassese.de', 'gutachter', "
+                "        '777')")
+        with patch("backend.routers.aktenanlage_routes.hole_adresse_details",
+                   return_value={"adressnr": 777, "anrede": "4",
+                                 "name": "Cassese", "vorname": "",
+                                 "firmenzeile": "SVB Cassese",
+                                 "strasse": "Frankfurter Straße 97",
+                                 "plz": "63067", "ort": "Offenbach",
+                                 "telefon": "", "email": ""}):
+            r = self.client.get(
+                f"/aktenanlage/gutachter-vorlage?zustellung_id={zid}",
+                headers=self.headers)
+        v = r.get_json()["vorlage"]
+        self.assertEqual(v["name"], "SV-Büro Cassese")
+        self.assertEqual(v["adresse"]["plz"], "63067")
+
+    def test_gutachter_vorlage_unbekannte_domain(self):
+        did = _lege_intake_an("gu")
+        zid = _lege_zustellung_an(did, absender="wer@unbekannt.de")
+        r = self.client.get(
+            f"/aktenanlage/gutachter-vorlage?zustellung_id={zid}",
+            headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        self.assertIsNone(r.get_json()["vorlage"])
+
+
 if __name__ == "__main__":
     unittest.main()
