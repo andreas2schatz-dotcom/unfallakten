@@ -1,13 +1,26 @@
 # Projektstatus – Momentaufnahme
 
-**Generiert:** 2026-05-02 · **Zuletzt aktualisiert:** 2026-07-20  
-**Schema-Version:** 63 (Migrationen laufend, siehe Deploy-Warnungen)
+**Generiert:** 2026-05-02 · **Zuletzt aktualisiert:** 2026-07-30  
+**Schema-Version:** 66 (Migrationen laufend, siehe Deploy-Warnungen)
 
 > ⚠️ **Abschnitte 1–3 unten sind Stand 2026-06-12 (Schema 42) und veraltet** — nur als grobe Modul-Übersicht lesen. Aktuelle Arbeit: `docs/TODO.md` · Umsetzungs-Historie: `docs/CHANGELOG.md` · Entscheidungen: `docs/DECISIONS.md`.
 
 ---
 
-## 0. Betrieb & Deploy-Warnungen (aktuell, 2026-07-23)
+## 0. Betrieb & Deploy-Warnungen (aktuell, 2026-07-30)
+
+### ⚠️ Branch `aktenanlage` — umgesetzt, NICHT gemergt, Dev läuft auf dem Branch (2026-07-30)
+Die Aktenanlage aus der ReviewQueue (PRD-NEW, Migration 66, Blueprint `/aktenanlage`) ist komplett auf Branch `aktenanlage` (26 Commits ab `main`). Die Dev-Container binden dieses Arbeitsverzeichnis — **die Dev-App zeigt das Feature bereits**. Merge in `main` erst nach dem manuellen Abnahmetest (Checkliste in `docs/TODO.md` „In Arbeit"). Bis dahin: Branch nicht wechseln, solange die Container laufen, sonst läuft die App auf anderem Code-Stand.
+
+### ⚠️ Aktenanlage: OMA-Export-Ordner konfigurieren (Deploy-Voraussetzung)
+- `.env`: `OMA_EXPORT_HOST_PFAD` = Host-Pfad des Ordners, den RA-MICRO auf OMA-XML überwacht (Default `./oma_export`, nur für Dev-Tests ohne RA-MICRO-Import). Container-Pfad ist fest `/app/oma_export` (`OMA_EXPORT_PFAD`, gesetzt in beiden Compose-Dateien).
+- Nach `.env`-Änderung wie immer: `docker compose up -d --force-recreate backend`.
+- `/oma_export/` ist in der Projekt-`.gitignore` (XML enthält personenbezogene Mandantendaten — nie committen).
+- Migration 66 (`aktenanlage_vorgaenge`) folgt der bestehenden Regel „Migration vor App-Code" (s. u.); läuft auf Bestands-DBs automatisch beim Start.
+- Erkennung neuer Akten nutzt `tblAkten.dtAnlage` (read-only) — Existenz der Spalte wird beim ersten echten Import verifiziert; bei Fehlern degradiert die Erkennung still auf „manuell zuordnen".
+
+### Backend-Vollsuite: vorbestehender Alt-Cluster (230 Failures, Stand 2026-07-30)
+`pytest backend/tests/` zeigt 230 Failures — **identisch auf `main` und `aktenanlage`** (Gegenlauf 2026-07-30), also nicht durch neue Arbeit verursacht. Ursachen u. a. Auth-Bootstrap-Kollision bei Gesamtlauf, `test_modul6`-Config-Checks im Container, `test_intake_akten_matching` Score-Drift. Deckt sich in Teilen mit den dokumentierten P-01–P-03 (Abschnitt 3). Sanierung = eigenes Vorhaben; bis dahin gilt: fokussierte Suiten je Feature sind maßgeblich.
 
 ### ⚠️ E-Akte-Mount nach jedem Docker-/PC-Neustart erneuern (2026-07-23 diagnostiziert)
 Der CIFS-Mount des E-Akte-Shares überlebt keinen Neustart und muss in der **Docker-Desktop-VM** gesetzt werden (`wsl -d docker-desktop`, NICHT die Standard-WSL-Distro — der Container bindet `/mnt/eakte` aus der VM). Exakter Befehl + Hinweise (Benutzername mit Leerzeichen → Quotes; danach `docker restart unfallakten-backend-dev`): Header von `docker-compose.yml`. Zugangsdaten: `EAKTE_SMB_USER`/`EAKTE_SMB_PASSWORD` in `.env` (unversioniert). Die früher dokumentierten Zugangsdaten `admin/passwort` waren ein Platzhalter und werden vom Server abgelehnt.
@@ -27,8 +40,8 @@ Der Flask-Reloader stempelt neue Migrationen mitten im inkrementellen Edit über
 ### Prod-Rollout intake-stufe1 — bewusst vertagt
 Git-Teil erledigt (2026-07-15): `intake-stufe1` → `main` per FF gemergt + gepusht, Backup-Tag `pre-rollout-main-20260715`. Deployment vertagt (kein Prod-Host, Go-Live später). Maßgebliches Runbook: `docs/ROLLOUT-intake-stufe1-prod.md` — Migration 49→61 einmal vorab, Prod-Backup zuerst, Schema-Verifikation auf v61 vor App-Start. Beim Cutover `EREIGNISMODELL_EINGEFUEHRT_AM` auf das echte Datum setzen.
 
-### Git-Push-Stand (2026-07-20)
-`main` ist mit `origin/main` synchron (gesichert). Der Feature-Branch `klage-wizard-ui-fuehrung` (Paket 2 UI-Führung + Doku-Umschichtung) ist ebenfalls nach `origin` gepusht und mit Upstream verbunden — bis zum Merge in main läuft die Arbeit dort. **Achtung:** Git-Wurzel liegt im Home-Verzeichnis (`C:\Users\HAL9000`) — NIE `git add -A` aus Home; Guardrail-`.gitignore` beachten.
+### Git-Push-Stand (2026-07-30)
+`main` ist lokal **25 Commits vor `origin/main`** (u. a. V11-Nachbefunde, Review-Queue-Sortier-Toggle, UI-Kleinkram-Runde 2026-07-29, Aktenanlage-Spec/Plan) — beim nächsten Anlass pushen. Der Feature-Branch `aktenanlage` existiert nur lokal (26 Commits, Merge nach Abnahme). **Achtung:** Git-Wurzel liegt im Home-Verzeichnis (`C:\Users\HAL9000`) — NIE `git add -A` aus Home; Guardrail-`.gitignore` beachten.
 
 ### Backup
 `scripts/backup.sh` (SQLite `.backup`, nicht `cp`), stündlich + täglich via Cron in `docker-compose.prod.yml`. `/data`-Mount muss **read-write** sein (WAL braucht `-shm`-Schreibzugriff, sonst „unable to open database file"). Guard-Test `test_modul6.py::TestBackupInfra`.
