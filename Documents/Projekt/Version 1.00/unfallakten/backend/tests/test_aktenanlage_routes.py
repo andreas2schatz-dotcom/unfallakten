@@ -4,6 +4,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -245,6 +246,60 @@ class TestAktenanlageEndpoints(unittest.TestCase):
         r2 = self.client.post(f"/aktenanlage/{vid}/abschliessen",
                               headers=self.headers)
         self.assertEqual(r2.status_code, 409)
+
+    def test_erkennung_ueberschreibt_abgebrochenen_vorgang_nicht(self):
+        did = _lege_intake_an("r1")
+        zid = _lege_zustellung_an(did)
+        r = self._anlegen(did, zid)
+        vid = r.get_json()["vorgang"]["id"]
+        from backend.db.database import get_connection
+
+        def _bricht_waehrend_erkennung_ab(*args, **kwargs):
+            with get_connection() as conn:
+                conn.execute(
+                    "UPDATE aktenanlage_vorgaenge SET status='abgebrochen' "
+                    "WHERE id=?", (vid,))
+            return {"verfuegbar": True,
+                    "treffer": [{"az": "399/26", "kurzbezeichnung": ""}]}
+
+        with patch("backend.services.aktenanlage_service.finde_neue_akten",
+                   side_effect=_bricht_waehrend_erkennung_ab):
+            self.client.get("/aktenanlage/offen", headers=self.headers)
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT status, erkanntes_az FROM aktenanlage_vorgaenge "
+                "WHERE id=?", (vid,)).fetchone()
+        self.assertEqual(row["status"], "abgebrochen")
+        self.assertIsNone(row["erkanntes_az"])
+
+    def test_schattenakte_fehler_vorgang_bleibt_laufend(self):
+        self._anlegen()
+        treffer = {"verfuegbar": True,
+                   "treffer": [{"az": "398/26", "kurzbezeichnung": ""}]}
+        with patch("backend.services.aktenanlage_service.finde_neue_akten",
+                   return_value=treffer), \
+             patch("backend.models.akte.erstelle_oder_hole_akte",
+                   side_effect=RuntimeError("DB kaputt")):
+            r = self.client.get("/aktenanlage/offen", headers=self.headers)
+        self.assertEqual(r.get_json()["vorgaenge"][0]["status"], "laeuft")
+        with patch("backend.services.aktenanlage_service.finde_neue_akten",
+                   return_value=treffer):
+            r2 = self.client.get("/aktenanlage/offen", headers=self.headers)
+        self.assertEqual(r2.get_json()["vorgaenge"][0]["status"],
+                         "akte_erkannt")
+
+    def test_doppel_409_hinterlaesst_keine_zweite_xml(self):
+        did = _lege_intake_an("r2")
+        zid = _lege_zustellung_an(did)
+        self.assertEqual(self._anlegen(did, zid).status_code, 201)
+        # schreibe_oma_xml benennt Dateien auf Sekundengenauigkeit; ohne
+        # Verzögerung würde der zweite Aufruf dieselbe Datei überschreiben
+        # und der Duplikat-Check würde beide Aufrufe gemeinsam löschen.
+        time.sleep(1.1)
+        self.assertEqual(self._anlegen(did, zid).status_code, 409)
+        xmls = [f for f in os.listdir(os.environ["OMA_EXPORT_PFAD"])
+                if f.endswith(".xml")]
+        self.assertEqual(len(xmls), 1)
 
 
 if __name__ == "__main__":

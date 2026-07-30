@@ -66,21 +66,20 @@ def lege_vorgang_an(formular: dict, intake_dokument_id=None,
     if not (unfall.get("unfalldatum") or "").strip():
         raise ValueError("Unfalldatum ist Pflicht.")
 
-    if intake_dokument_id is not None:
-        with get_connection() as conn:
+    xml_pfad = schreibe_oma_xml(formular, _export_ordner())
+
+    with get_connection() as conn:
+        if intake_dokument_id is not None:
             offen = conn.execute(
                 "SELECT id FROM aktenanlage_vorgaenge "
                 "WHERE intake_dokument_id=? "
                 "  AND status IN ('laeuft','akte_erkannt')",
                 (intake_dokument_id,)).fetchone()
-        if offen:
-            raise VorgangExistiertFehler(
-                f"Für dieses Dokument läuft bereits Aktenanlage-Vorgang "
-                f"{offen['id']}.")
-
-    xml_pfad = schreibe_oma_xml(formular, _export_ordner())
-
-    with get_connection() as conn:
+            if offen:
+                Path(xml_pfad).unlink(missing_ok=True)
+                raise VorgangExistiertFehler(
+                    f"Für dieses Dokument läuft bereits Aktenanlage-Vorgang "
+                    f"{offen['id']}.")
         cur = conn.execute(
             "INSERT INTO aktenanlage_vorgaenge "
             "(intake_dokument_id, zustellung_id, formular_json, xml_pfad, "
@@ -134,22 +133,27 @@ def hole_offene_vorgaenge() -> dict:
                 ramicro_ok = False
             elif len(erg["treffer"]) == 1:
                 az = erg["treffer"][0]["az"]
-                with get_connection() as conn:
-                    conn.execute(
-                        "UPDATE aktenanlage_vorgaenge "
-                        "SET status='akte_erkannt', erkanntes_az=?, "
-                        "    erkannt_am=datetime('now','localtime') "
-                        "WHERE id=?", (az, row["id"]))
-                row["status"] = "akte_erkannt"
-                row["erkanntes_az"] = az
+                schatten_ok = True
                 if row["intake_dokument_id"] is None:
                     try:
                         from ..models.akte import erstelle_oder_hole_akte
                         erstelle_oder_hole_akte(az)
                         _uebernimm_unfalldaten(az, row["formular_json"])
                     except Exception as exc:
+                        schatten_ok = False
                         logger.warning(
                             "Schattenakte für %s nicht anlegbar: %s", az, exc)
+                if schatten_ok:
+                    with get_connection() as conn:
+                        cur = conn.execute(
+                            "UPDATE aktenanlage_vorgaenge "
+                            "SET status='akte_erkannt', erkanntes_az=?, "
+                            "    erkannt_am=datetime('now','localtime') "
+                            "WHERE id=? AND status='laeuft'", (az, row["id"]))
+                        aktualisiert = cur.rowcount > 0
+                    if aktualisiert:
+                        row["status"] = "akte_erkannt"
+                        row["erkanntes_az"] = az
             elif len(erg["treffer"]) > 1:
                 kandidaten = erg["treffer"]
         vorgaenge.append(_vorgang_dict(row, kandidaten))
