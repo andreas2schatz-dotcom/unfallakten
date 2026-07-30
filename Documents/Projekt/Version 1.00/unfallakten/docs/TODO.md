@@ -29,7 +29,7 @@ Posteingang-Kachel entfernt, Lade/Fehler/Leer-Zustände je Kachel, Einträge als
 (Tastatur), SB-Filter persistiert (`dashboard.aktiveSB`), leere SB-Auswahl = Hinweis.
 Spec + Mockup: `docs/superpowers/specs/2026-07-30-dashboard-hell-*`.
 **Merge-Reihenfolge: erst `aktenanlage` → `main`, dann dieser Branch.**
-Offen danach (separat): Sidebar-Emoji-Icons App.jsx, SB-Klarnamen-Tooltips (Kürzel-Liste von RA Schatz nötig).
+Offen danach (separat): Sidebar-Emoji-Icons App.jsx, SB-Klarnamen-Tooltips (Kürzel-Liste von RA Schatz nötig); totes pendingEmailId-Gerüst + ungenutzter nachrichtenNeu-Endpoint entfernen; A11y-Feinheiten (aria-pressed SB-Chips, role=alert Fehlerblock, aria-hidden Skeleton); type=button + Retry-Disable + Badge-Logik-Konsolidierung in boardUi.
 
 ### Kürzungstaxonomie — Phase 0 ✅ · Phase 1 ✅ · **in `main` gemergt + gepusht (2026-07-24, `febe6f06`)**
 Alle 12 Tasks + Genus-Platzhalter-Nachtrag (Weg 2). Abnahme: Bausteine von RA Schatz gegengelesen ✅; Katalog-Editor, Wizard-Zitat, Genus-Formen, Speichern-Sperre per Playwright-E2E bestanden ✅ (2026-07-24). Protokoll → `docs/CHANGELOG.md`.

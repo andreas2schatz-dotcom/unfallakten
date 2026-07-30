@@ -74,12 +74,14 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
 
-  const sbFilter = (e) => aktiveSB.has(sbAusAz(e.az));
-  const sbFilterOhne = (e) => { const sb = sbAusAz(e.az); return !sb || aktiveSB.has(sb); };
+  const sbFilter = (e) => {
+    const sb = sbAusAz(e.az);
+    return !sb || !ALLE_SB.includes(sb) || aktiveSB.has(sb);
+  };
   const fristen = daten.fristen.eintraege.filter(sbFilter);
   const termine = daten.termine.eintraege.filter(sbFilter);
   const wv      = daten.wv.wv.filter(sbFilter);
-  const ohneWv  = daten.wv.ohne_wv.filter(sbFilterOhne);
+  const ohneWv  = daten.wv.ohne_wv.filter(sbFilter);
 
   return (
     <div style={{ flex: 1, overflow: "auto", background: T.offWhite, padding: "20px 24px 26px" }}>

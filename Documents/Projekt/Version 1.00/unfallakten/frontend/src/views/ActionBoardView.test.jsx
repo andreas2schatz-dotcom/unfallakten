@@ -85,4 +85,14 @@ describe("ActionBoardView", () => {
     expect(screen.getByText("Kein Sachbearbeiter ausgewählt")).toBeInTheDocument();
     expect(screen.queryByText(/Keine Fristen in den nächsten/)).toBeNull();
   });
+
+  it("versteckt Fristen ohne oder mit unbekanntem SB-Kürzel nie", async () => {
+    mockOk({ fristen: [
+      { az: "999/26", frist_art: "Berufung", frist_datum: "2026-08-01", tage_bis: 2, kurzbezeichnung: "Ohne Kürzel" },
+      { az: "888/26 XY", frist_art: "Stellungnahme", frist_datum: "2026-08-02", tage_bis: 3, kurzbezeichnung: "Unbekanntes Kürzel" },
+    ] });
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    expect(await screen.findByRole("button", { name: /999\/26/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /888\/26 XY/ })).toBeInTheDocument();
+  });
 });

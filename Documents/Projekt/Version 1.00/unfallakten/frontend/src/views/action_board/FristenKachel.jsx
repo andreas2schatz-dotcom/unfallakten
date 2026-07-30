@@ -5,7 +5,8 @@ import { fmtDatumDe } from "../../config/utils";
 import { Kachel, KachelInhalt, Zeile, ZeileText, StufenBadge, AbschnittLabel, ZeilenListe } from "./boardUi";
 
 function badgeText(tage) {
-  return tage === 0 ? "heute" : `−${Math.abs(tage)} T`;
+  if (tage === 0) return "heute";
+  return tage < 0 ? `−${-tage} T` : `+${tage} T`;
 }
 
 export default function FristenKachel({ status, eintraege, onOpenAkte, onRetry }) {
