@@ -7,7 +7,6 @@ import AktenanlageDialog from "../components/AktenanlageDialog.jsx";
 import {
   aktensuche as apiAktensuche,
   emailImport,
-  akten as apiAkten,
   eakte as apiEakte,
 } from "../api.js";
 
