@@ -19,6 +19,9 @@ venv/
 backend/data/
 backend/uploads/
 
+# Aktenanlage: OMA-Export-Ordner (enthaelt personenbezogene Daten)
+/oma_export/
+
 # Node / Frontend
 frontend/node_modules/
 frontend/dist/
