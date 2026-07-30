@@ -13,10 +13,11 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import T from "../config/theme.js";
-import { apiIntake, API_BASE, tokenStore } from "../api.js";
+import { apiIntake, apiAktenanlage, API_BASE, tokenStore } from "../api.js";
 import AktenLiveSuche from "../components/AktenLiveSuche.jsx";
 import SplitDialog from "./SplitDialog.jsx";
 import { istAufteilbar } from "./splitLogik.js";
+import AktenanlageDialog, { baueVorbefuellung } from "../components/AktenanlageDialog.jsx";
 
 // Fallback nur fuer den Fehlerfall des Klassen-Endpoints (BUG-26): im
 // Normalbetrieb laedt die View die Klassen dynamisch aus der Registry.
@@ -71,6 +72,104 @@ export function gruppiereQueue(eintraege) {
 
 export function sortiereGruppen(gruppen, absteigend) {
   return absteigend ? [...gruppen].reverse() : gruppen;
+}
+
+export function zeigeAktenanlageVorschlag(item) {
+  return item?.klasse === "gutachten"
+    && item?.absender_kategorie === "gutachter"
+    && !item?.akte_kandidat_top;
+}
+
+export function gruppenKey(item) {
+  return item?.parent_zustellung_id || item?.zustellung_id || null;
+}
+
+export function vorgangFuerEintrag(item, vorgaenge, queue) {
+  if (!item) return null;
+  const key = gruppenKey(item);
+  return (vorgaenge || []).find(v => {
+    if (v.intake_dokument_id === item.id) return true;
+    if (!key || v.intake_dokument_id == null) return false;
+    const traeger = (queue || []).find(q => q.id === v.intake_dokument_id);
+    return traeger ? gruppenKey(traeger) === key : false;
+  }) || null;
+}
+
+export function AnlageChip({ vorgang }) {
+  if (!vorgang) return null;
+  let text, farbe;
+  if (vorgang.status === "akte_erkannt") {
+    text = `✅ Akte ${vorgang.erkanntes_az} angelegt`;
+    farbe = T.green;
+  } else if (vorgang.warnung) {
+    text = "⚠ Aktenanlage läuft ungewöhnlich lange — in RA-MICRO prüfen";
+    farbe = T.amber;
+  } else {
+    text = "⏳ Aktenanlage läuft";
+    farbe = T.blue;
+  }
+  return (
+    <span style={{ fontSize: T.textXs, fontFamily: T.fontMono,
+                   background: farbe + "22", color: farbe,
+                   borderRadius: 8, padding: "1px 8px" }}>
+      {text}
+    </span>
+  );
+}
+
+export function AktenanlageLeiste({ vorgaenge, ramicroVerfuegbar,
+                                    onSpringe, onOeffneAkte, onAbbrechen }) {
+  if (!vorgaenge || vorgaenge.length === 0) return null;
+  const laufend = vorgaenge.filter(v => v.status === "laeuft");
+  const erkannt = vorgaenge.filter(v => v.status === "akte_erkannt");
+  return (
+    <div style={{ padding: "8px 14px", borderBottom: `1px solid ${T.border}`,
+                  background: T.blueBg, fontSize: T.textXs }}>
+      <div style={{ color: T.blueText, fontWeight: 600, marginBottom: 4 }}>
+        {laufend.length > 0 && `⏳ ${laufend.length} Aktenanlage läuft`}
+        {laufend.length > 0 && erkannt.length > 0 && " · "}
+        {erkannt.length > 0 && `✅ ${erkannt.length} Akte erkannt`}
+        {!ramicroVerfuegbar && (
+          <span style={{ color: T.amberText }}>
+            {" "}· RA-MICRO nicht erreichbar — Erkennung pausiert
+          </span>
+        )}
+      </div>
+      {vorgaenge.map(v => (
+        <div key={v.id} style={{ display: "flex", gap: 6,
+                                 alignItems: "center", padding: "2px 0" }}>
+          <span style={{ flex: 1, color: T.text }}>
+            {v.status === "akte_erkannt" ? "✅" : v.warnung ? "⚠" : "⏳"}{" "}
+            {v.mandant_name}
+            {v.erkanntes_az ? ` → ${v.erkanntes_az}` : ""}
+          </span>
+          {v.intake_dokument_id != null && (
+            <button onClick={() => onSpringe(v.intake_dokument_id)}
+              style={{ border: "none", background: "transparent",
+                       color: T.blueText, cursor: "pointer",
+                       textDecoration: "underline", fontSize: T.textXs }}>
+              zum Eintrag
+            </button>
+          )}
+          {v.intake_dokument_id == null && v.status === "akte_erkannt" && (
+            <button onClick={() => onOeffneAkte(v)}
+              style={{ border: "none", background: "transparent",
+                       color: T.blueText, cursor: "pointer",
+                       textDecoration: "underline", fontSize: T.textXs }}>
+              öffnen
+            </button>
+          )}
+          <button onClick={() => onAbbrechen(v.id)}
+            title="Vorgang abbrechen (XML wird gelöscht)"
+            style={{ border: "none", background: "transparent",
+                     color: T.redText, cursor: "pointer",
+                     fontSize: T.textXs }}>
+            ✕
+          </button>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function TextVorschau({ text }) {
@@ -215,7 +314,7 @@ function KonfidenzChip({ wert }) {
   );
 }
 
-function QueueEintrag({ item, aktiv, onClick, onVerwerfen, eingerueckt }) {
+function QueueEintrag({ item, aktiv, onClick, onVerwerfen, eingerueckt, vorgang }) {
   const kandidat = item.akte_kandidat_top;
   return (
     <div onClick={onClick}
@@ -235,6 +334,7 @@ function QueueEintrag({ item, aktiv, onClick, onVerwerfen, eingerueckt }) {
         <KonfidenzChip wert={item.konfidenz} />
         <OcrBadge item={item} />
         <DegradationBadge item={item} />
+        <AnlageChip vorgang={vorgang} />
         <BildseitenBadge item={item} />
         {item.klasse_quelle === "manuell" && (
           <span style={{ fontSize: T.textXs, color: T.textMuted }}>manuell</span>
@@ -758,7 +858,7 @@ function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
 }
 
 function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
-                       ereignistypen, klassen }) {
+                       ereignistypen, klassen, item, vorgang, onAktenanlage }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState(null);
   const [meldung, setMeldung] = useState("");
@@ -791,6 +891,13 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
   }, [id]);
 
   useEffect(() => { if (id) laden(); }, [id, laden]);
+
+  useEffect(() => {
+    if (vorgang?.status === "akte_erkannt" && vorgang.erkanntes_az
+        && !gewaehlteAkte) {
+      setGewaehlteAkte(vorgang.erkanntes_az);
+    }
+  }, [vorgang, gewaehlteAkte]);
 
   // Fragebogen-Vorschau: nur laden, wenn Dokument ein Fragebogen ist und eine
   // Akte gewaehlt wurde; neu laden bei Akten-Wechsel.
@@ -1041,6 +1148,44 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
           </div>
         </section>
 
+        {!vorgang && zeigeAktenanlageVorschlag(item) && (
+          <div style={{ padding: "10px 12px", marginBottom: 12,
+                        background: T.amberBg, color: T.amberText,
+                        border: `1px solid ${T.amber}`, borderRadius: 4,
+                        fontSize: T.textSm, display: "flex",
+                        alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: "1.1rem" }}>🆕</span>
+            <span style={{ flex: 1 }}>
+              Vermutlich neue Akte: Gutachten von bestätigtem Gutachter,
+              kein Treffer im Bestand.
+            </span>
+            <button onClick={onAktenanlage}
+              style={{ padding: "6px 12px", background: T.accent,
+                       color: T.white, border: "none", borderRadius: 4,
+                       cursor: "pointer", fontWeight: 600 }}>
+              Akte anlegen
+            </button>
+          </div>
+        )}
+        {vorgang && (
+          <div style={{ marginBottom: 12 }}>
+            <AnlageChip vorgang={vorgang} />
+            {vorgang.kandidaten?.length > 1 && (
+              <div style={{ marginTop: 6, fontSize: T.textXs }}>
+                Mehrere neue Akten gefunden — bitte wählen:{" "}
+                {vorgang.kandidaten.map(k => (
+                  <button key={k.az} onClick={() => setGewaehlteAkte(k.az)}
+                    style={{ marginRight: 6, border: `1px solid ${T.border}`,
+                             background: T.cardBg, borderRadius: 4,
+                             padding: "2px 8px", cursor: "pointer",
+                             fontFamily: T.fontMono, fontSize: T.textXs }}>
+                    {k.az}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {(meldung || pollAktiv) && (
           <div style={{
             padding: "8px 12px", marginBottom: 12,
@@ -1157,6 +1302,14 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
               fontFamily: T.fontMono, fontSize: T.textSm,
             }}
           />
+          <button onClick={onAktenanlage} disabled={!!vorgang}
+            style={{ marginTop: 8, padding: "6px 12px",
+                     background: "transparent", color: T.accent,
+                     border: `1px dashed ${T.accent}`, borderRadius: 4,
+                     cursor: vorgang ? "default" : "pointer",
+                     fontSize: T.textSm, width: "100%" }}>
+            ➕ Neue Akte anlegen (RA-MICRO)
+          </button>
         </section>
 
         <section style={{ marginBottom: 16 }}>
@@ -1273,6 +1426,9 @@ export default function ReviewQueueView({ onOpenAkte }) {
   const [sortAbsteigend, setSortAbsteigend] = useState(
     () => localStorage.getItem("reviewQueueSortAbsteigend") === "true"
   );
+  const [vorgaenge, setVorgaenge] = useState([]);
+  const [ramicroVerfuegbar, setRamicroVerfuegbar] = useState(true);
+  const [anlageDialog, setAnlageDialog] = useState(null);
 
   // Ereignistypen aus der Registry einmalig laden (fuer Freigabe-Dropdown).
   useEffect(() => {
@@ -1294,6 +1450,11 @@ export default function ReviewQueueView({ onOpenAkte }) {
       setQueue(d.eintraege || []);
       setLadeError(null);
     } catch (e) { setLadeError(e.message); }
+    try {
+      const a = await apiAktenanlage.offen();
+      setVorgaenge(a.vorgaenge || []);
+      setRamicroVerfuegbar(a.ramicro_verfuegbar !== false);
+    } catch { /* Leiste bleibt beim letzten Stand */ }
   }, []);
 
   useEffect(() => { laden(); }, [laden]);
@@ -1359,6 +1520,11 @@ export default function ReviewQueueView({ onOpenAkte }) {
     [queue, sortAbsteigend],
   );
 
+  const aktuellerEintrag = useMemo(
+    () => queue.find(q => q.id === aktivId) || null,
+    [queue, aktivId],
+  );
+
   const onFreigegeben = useCallback((akteAz) => {
     setAktivId(null);
     laden();
@@ -1410,6 +1576,22 @@ export default function ReviewQueueView({ onOpenAkte }) {
           )}
         </div>
 
+        <AktenanlageLeiste
+          vorgaenge={vorgaenge}
+          ramicroVerfuegbar={ramicroVerfuegbar}
+          onSpringe={id => setAktivId(id)}
+          onOeffneAkte={async v => {
+            await apiAktenanlage.abschliessen(v.id).catch(() => {});
+            onOpenAkte({ az: v.erkanntes_az, az_roh: v.erkanntes_az,
+                         label: v.erkanntes_az });
+            laden();
+          }}
+          onAbbrechen={async id => {
+            await apiAktenanlage.abbrechen(id).catch(() => {});
+            laden();
+          }}
+        />
+
         <div style={{ flex: 1, overflow: "auto" }}>
           {ladeError && (
             <div style={{ padding: 12, color: T.redText, background: T.redBg, fontSize: T.textSm }}>
@@ -1428,11 +1610,13 @@ export default function ReviewQueueView({ onOpenAkte }) {
                   <QueueEintrag item={gruppe.eintrag}
                     aktiv={aktivId === gruppe.eintrag.id}
                     onClick={() => setAktivId(gruppe.eintrag.id)}
-                    onVerwerfen={setVerwerfenDok} />
+                    onVerwerfen={setVerwerfenDok}
+                    vorgang={vorgangFuerEintrag(gruppe.eintrag, vorgaenge, queue)} />
                   {gruppe.kinder.map(k => (
                     <QueueEintrag key={k.id} item={k} aktiv={aktivId === k.id}
                       onClick={() => setAktivId(k.id)}
-                      onVerwerfen={setVerwerfenDok} eingerueckt />
+                      onVerwerfen={setVerwerfenDok} eingerueckt
+                      vorgang={vorgangFuerEintrag(k, vorgaenge, queue)} />
                   ))}
                 </React.Fragment>
               ))}
@@ -1483,7 +1667,10 @@ export default function ReviewQueueView({ onOpenAkte }) {
       <DetailPanel key={aktivId || "leer"} id={aktivId}
                     onFreigegeben={onFreigegeben} onOpenAkte={onOpenAkte}
                     onVerwerfen={setVerwerfenDok}
-                    ereignistypen={ereignistypen} klassen={klassen} />
+                    ereignistypen={ereignistypen} klassen={klassen}
+                    item={aktuellerEintrag}
+                    vorgang={vorgangFuerEintrag(aktuellerEintrag, vorgaenge, queue)}
+                    onAktenanlage={() => setAnlageDialog({ item: aktuellerEintrag })} />
 
       {verwerfenDok && (
         <VerwerfenDialog
@@ -1493,6 +1680,51 @@ export default function ReviewQueueView({ onOpenAkte }) {
           laeuft={verwerfenLaeuft}
         />
       )}
+
+      {anlageDialog && (
+        <AktenanlageDialogLoader
+          item={anlageDialog.item}
+          onClose={() => setAnlageDialog(null)}
+          onAngelegt={() => { setAnlageDialog(null); laden(); }}
+          onUebernehmeAz={az => { setAnlageDialog(null);
+                                  setAktivId(anlageDialog.item.id); }}
+        />
+      )}
     </div>
+  );
+}
+
+function AktenanlageDialogLoader({ item, onClose, onAngelegt,
+                                   onUebernehmeAz }) {
+  const [prefill, setPrefill] = useState(null);
+  const [geladen, setGeladen] = useState(false);
+  useEffect(() => {
+    let aktiv = true;
+    (async () => {
+      let detail = null, vorlage = null;
+      try { detail = await apiIntake.detail(item.id); } catch {}
+      if (item.zustellung_id) {
+        try {
+          const d = await apiAktenanlage.gutachterVorlage(item.zustellung_id);
+          vorlage = d.vorlage;
+        } catch {}
+      }
+      if (aktiv) {
+        setPrefill(baueVorbefuellung(detail, vorlage));
+        setGeladen(true);
+      }
+    })();
+    return () => { aktiv = false; };
+  }, [item]);
+  if (!geladen) return null;
+  return (
+    <AktenanlageDialog
+      intakeDokumentId={item.id}
+      zustellungId={item.zustellung_id}
+      prefill={prefill}
+      onClose={onClose}
+      onAngelegt={onAngelegt}
+      onUebernehmeAz={onUebernehmeAz}
+    />
   );
 }
