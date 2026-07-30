@@ -145,11 +145,6 @@ function AppShell({ user, onLogout }) {
     }
   }, [aktenState]);
 
-  const openEmail = useCallback(({ logId }) => {
-    setActive("email-import");
-    setPendingEmailId(logId);
-  }, []);
-
   const onEmailGeoffnet = useCallback(() => {
     setPendingEmailId(null);
   }, []);
