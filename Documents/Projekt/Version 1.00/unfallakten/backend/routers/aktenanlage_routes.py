@@ -83,14 +83,14 @@ def get_adresse(adressnr: int):
 
 def _domain_aus_absender(absender: str) -> str:
     m = re.search(r"@([A-Za-z0-9.-]+)", absender or "")
-    return m.group(1).lower().rstrip(">").strip() if m else ""
+    return m.group(1).lower() if m else ""
 
 
 @aktenanlage_bp.route("/gutachter-vorlage", methods=["GET"])
 @login_erforderlich
 def get_gutachter_vorlage():
     zustellung_id = request.args.get("zustellung_id", type=int)
-    if not zustellung_id:
+    if zustellung_id is None:
         return _err("zustellung_id fehlt", 422)
     with get_connection() as conn:
         zust = conn.execute(
@@ -105,12 +105,13 @@ def get_gutachter_vorlage():
                 (domain,)).fetchone()
     if not vorlage:
         return _j({"vorlage": None})
-    adresse = None
+    adressnr = None
     if vorlage["ramicro_adressnr"]:
         try:
-            adresse = hole_adresse_details(int(vorlage["ramicro_adressnr"]))
+            adressnr = int(vorlage["ramicro_adressnr"])
         except (TypeError, ValueError):
-            adresse = None
+            adressnr = None
+    adresse = hole_adresse_details(adressnr) if adressnr is not None else None
     return _j({"vorlage": {"name": vorlage["name"],
-                           "adressnr": vorlage["ramicro_adressnr"],
+                           "adressnr": adressnr,
                            "adresse": adresse}})

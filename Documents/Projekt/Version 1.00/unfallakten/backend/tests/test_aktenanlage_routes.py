@@ -345,13 +345,15 @@ class TestAdressEndpoints(unittest.TestCase):
                                  "firmenzeile": "SVB Cassese",
                                  "strasse": "Frankfurter Straße 97",
                                  "plz": "63067", "ort": "Offenbach",
-                                 "telefon": "", "email": ""}):
+                                 "telefon": "", "email": ""}) as mock_details:
             r = self.client.get(
                 f"/aktenanlage/gutachter-vorlage?zustellung_id={zid}",
                 headers=self.headers)
         v = r.get_json()["vorlage"]
         self.assertEqual(v["name"], "SV-Büro Cassese")
+        self.assertEqual(v["adressnr"], 777)
         self.assertEqual(v["adresse"]["plz"], "63067")
+        mock_details.assert_called_once_with(777)
 
     def test_gutachter_vorlage_unbekannte_domain(self):
         did = _lege_intake_an("gu")
@@ -361,6 +363,11 @@ class TestAdressEndpoints(unittest.TestCase):
             headers=self.headers)
         self.assertEqual(r.status_code, 200)
         self.assertIsNone(r.get_json()["vorlage"])
+
+    def test_gutachter_vorlage_ohne_zustellung_id_422(self):
+        r = self.client.get("/aktenanlage/gutachter-vorlage",
+                            headers=self.headers)
+        self.assertEqual(r.status_code, 422)
 
 
 if __name__ == "__main__":
