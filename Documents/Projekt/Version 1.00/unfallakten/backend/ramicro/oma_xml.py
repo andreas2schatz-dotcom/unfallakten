@@ -96,7 +96,8 @@ def erzeuge_oma_xml(formular: dict) -> str:
         "typ": "gruppe", "name": "Daten zum Mandant"})
     m = ET.SubElement(mliste, "Mandant", {
         "typ": "gruppe", "name": "1. Mandant"})
-    ET.SubElement(m, "Nr", {"typ": "data"}).text = "1"
+    nr = ET.SubElement(m, "Nr", {"typ": "data"})
+    nr.text = "1"
     if mandant.get("bekannt_adressnr"):
         _option(m, "Bekannt",
                 "Waren Sie schon einmal Mandant in unserer Kanzlei?",
@@ -125,17 +126,38 @@ def erzeuge_oma_xml(formular: dict) -> str:
     if (gegner.get("nachname") or "").strip():
         g = ET.SubElement(gliste, "Gegner", {
             "typ": "gruppe", "name": "1. Gegner"})
-        ET.SubElement(g, "Nr", {"typ": "data"}).text = "1"
+        nr = ET.SubElement(g, "Nr", {"typ": "data"})
+        nr.text = "1"
         _person_block(g, gegner)
         _adresse_block(g, gegner)
         _kontakt_block(g, gegner)
+        konto_g = ET.SubElement(g, "Konto")
+        _feld(konto_g, "IBAN", "IBAN")
+        _feld(konto_g, "Bank", "Bank")
+        _feld(konto_g, "BIC", "BIC")
+        vers_g = ET.SubElement(g, "Versicherung")
+        _feld(vers_g, "Name", "Name der Versicherung")
+        _feld(vers_g, "Schadennummer", "Schadennummer, Vertragsnummer, o.ä.")
+        hinweise_g = ET.SubElement(g, "Hinweise")
+        _feld(hinweise_g, "Text", "Weitere Hinweise")
+        anwalt_g = ET.SubElement(g, "Anwalt")
+        _feld(anwalt_g, "KanzleiBezeichnung", "Bezeichnung Kanzlei")
+        _feld(anwalt_g, "Strasse", "Straße Nr.")
+        _feld(anwalt_g, "Adresszusatz", "Adresszusatz")
+        _feld(anwalt_g, "PLZ", "PLZ")
+        _feld(anwalt_g, "Ort", "Ort")
+        _feld(anwalt_g, "Land", "Land", "Deutschland")
+        lkz = ET.SubElement(anwalt_g, "LKZ", {"typ": "data"})
+        lkz.text = "DE"
+        _feld(anwalt_g, "Aktenzeichen", "Aktenzeichen")
 
     bliste = ET.SubElement(root, "Beteiligtenliste", {
         "typ": "gruppe", "name": "Daten zu Beteiligten"})
     if (versicherung.get("name") or "").strip():
         b = ET.SubElement(bliste, "Beteiligter", {
             "typ": "gruppe", "name": "Beteiligter: Versicherung"})
-        ET.SubElement(b, "Nr", {"typ": "data"})
+        nr_b = ET.SubElement(b, "Nr", {"typ": "data"})
+        nr_b.text = ""
         vgrp = ET.SubElement(b, "Versicherung", {
             "typ": "gruppe", "name": "Versicherung"})
         _feld(vgrp, "Bezeichnung", "Bezeichnung", versicherung.get("name"))
@@ -144,7 +166,8 @@ def erzeuge_oma_xml(formular: dict) -> str:
     if (gutachter.get("bezeichnung") or "").strip():
         b = ET.SubElement(bliste, "Beteiligter", {
             "typ": "gruppe", "name": "Beteiligter: Gutachter"})
-        ET.SubElement(b, "Nr", {"typ": "data"})
+        nr_g = ET.SubElement(b, "Nr", {"typ": "data"})
+        nr_g.text = ""
         agrp = ET.SubElement(b, "Andere", {
             "typ": "gruppe", "name": "Andere Beteiligte"})
         _feld(agrp, "Bezeichnung", "Bezeichnung", gutachter.get("bezeichnung"))
@@ -162,11 +185,15 @@ def erzeuge_oma_xml(formular: dict) -> str:
 
     zusatz = ET.SubElement(root, "Zusatzangaben", {
         "typ": "gruppe", "name": "Daten an Anwalt senden"})
-    _feld(zusatz, "Text", "Weitere Hinweise", _zusatz_text(formular))
+    _feld(zusatz, "Text",
+          "Falls Ihnen weitere Informationen zu dieser Sache vorliegen, die nicht bereits in dem Formular abgefragt wurden, geben Sie sie bitte in dem Textfeld unten ein. Sofern Ihnen bereits eine Terminsladung zugestellt wurde, geben Sie dies bitte unter Nennung des Termins mit Datum und Uhrzeit hier an.",
+          _zusatz_text(formular))
     _feld(zusatz, "VerbindlicheAnfrageAkzeptiert",
-          "Rechtsverbindliche Anfrage", "X")
+          "Sie stellen eine rechtsverbindliche Anfrage. Sie sind damit einverstanden und verlangen ausdrücklich, dass vor Ende der 14-tägigen Widerrufsfrist mit der Bearbeitung des Mandats begonnen wird. Ihnen ist bekannt, dass Sie mit vollständiger Erledigung des Mandats Ihr Widerrufsrecht verlieren.",
+          "X")
     _feld(zusatz, "DatenschutzVereinbarungAkzeptiert",
-          "Datenschutzerklärung akzeptiert", "X")
+          "Hiermit bestätigen Sie, dass Sie die Datenschutzerklärung akzeptieren und der Weitergabe Ihrer Daten an RA-MICRO Server durch die Online Mandats-Aufnahme zustimmen.",
+          "X")
     ET.SubElement(root, "tvm")
 
     return ('<?xml version="1.0" encoding="utf-8"?>\n'

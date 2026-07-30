@@ -83,6 +83,22 @@ class TestErzeugeOmaXml(unittest.TestCase):
         self.assertIn("Müller &amp; Söhne", xml_text)
         ET.fromstring(xml_text)
 
+    def test_zusatzangaben_name_attribute_verbatim(self):
+        root = self._root()
+        el = root.find("Zusatzangaben/VerbindlicheAnfrageAkzeptiert")
+        self.assertIn("rechtsverbindliche Anfrage", el.get("name"))
+        self.assertIn("14-tägigen Widerrufsfrist", el.get("name"))
+        el2 = root.find("Zusatzangaben/DatenschutzVereinbarungAkzeptiert")
+        self.assertIn("Datenschutzerklärung", el2.get("name"))
+
+    def test_gegner_volles_geruest(self):
+        f = {**FORMULAR,
+             "gegner": {**FORMULAR["gegner"], "nachname": "Bicer"}}
+        g = self._root(f).find("Gegnerliste/Gegner")
+        for pfad in ("Konto/IBAN", "Versicherung/Name", "Hinweise/Text",
+                     "Anwalt/KanzleiBezeichnung", "Anwalt/Aktenzeichen"):
+            self.assertIsNotNone(g.find(pfad), pfad)
+
 
 class TestSchreibeOmaXml(unittest.TestCase):
     def test_atomar_geschrieben(self):
