@@ -290,7 +290,7 @@ function AppShell({ user, onLogout }) {
             </div>
           }>
           <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-            {active==="dashboard"        ? <ActionBoardView onOpenAkte={openAkte} onOpenEmail={openEmail} />
+            {active==="dashboard"        ? <ActionBoardView onOpenAkte={openAkte} onOpenWiedervorlage={() => setActive("wiedervorlage")} />
             : active==="statistiken"     ? <StatistikenView />
             : active==="aktensuche"      ? <AktensucheView onOpenAkte={openAkte} />
             : active==="email-import"    ? <EmailImportView onOpenAkte={openAkte} dispatch={dispatch} initialEmailId={pendingEmailId} onEmailGeoffnet={onEmailGeoffnet} />
