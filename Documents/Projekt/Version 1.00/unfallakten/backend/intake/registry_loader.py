@@ -245,3 +245,30 @@ def _validiere_eintrag(dateiname: str,
         raise RuntimeError(
             f"'schadenposition' muss ein nichtleerer String sein in {dateiname}"
         )
+
+
+_SV_VORSTEUER_MARKER = "__sv_kosten_vorsteuer__"
+
+
+def validiere_gegen_positionsmodell(klassen_reg, pos_reg) -> None:
+    """Kreuzvalidierung: ereignistyp muss existieren + eingehend sein,
+    schadenposition muss ein gueltiger position_key sein. Fail-Loud."""
+    for klasse, data in klassen_reg.klassen.items():
+        typ = data.get("ereignistyp")
+        if typ is not None:
+            spec = pos_reg.ereignistypen.get(typ)
+            if spec is None:
+                raise RuntimeError(
+                    f"Klasse {klasse!r}: ereignistyp {typ!r} existiert nicht"
+                )
+            if spec["richtung"] != "eingehend":
+                raise RuntimeError(
+                    f"Klasse {klasse!r}: ereignistyp {typ!r} ist nicht eingehend"
+                )
+        pos = data.get("schadenposition")
+        if pos is not None and pos != _SV_VORSTEUER_MARKER:
+            if pos not in pos_reg.positionsarten:
+                raise RuntimeError(
+                    f"Klasse {klasse!r}: schadenposition {pos!r} ist kein "
+                    "gueltiger position_key"
+                )

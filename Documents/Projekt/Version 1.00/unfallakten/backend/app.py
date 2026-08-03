@@ -139,6 +139,11 @@ def erstelle_app(test_config: dict = None) -> Flask:
     logger.info("Dokumentklassen-Registry geladen: %d Klassen (version=%s)",
                 len(_reg.klassen), _reg.version)
 
+    from .intake.registry_loader import validiere_gegen_positionsmodell
+    from .services.positionsmodell_registry import (
+        lade_positionsmodell, standard_pfad as _pm_pfad)
+    validiere_gegen_positionsmodell(_reg, lade_positionsmodell(_pm_pfad()))
+
     # ── Positionsmodell-Registry (P1.1): Fail-Loud vor DB-Init ────────────────
     # Analog S1.5 -- defektes positionsarten/ereignistypen/aktionen-YAML
     # bricht den App-Start ab.

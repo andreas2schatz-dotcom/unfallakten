@@ -216,5 +216,38 @@ def test_ereignistyp_muss_string_sein(tmp_path):
         registry_loader.lade_registry(str(tmp_path), reload=True)
 
 
+from types import SimpleNamespace
+from backend.intake.registry_loader import validiere_gegen_positionsmodell
+
+
+def _pos_reg_stub():
+    return SimpleNamespace(
+        ereignistypen={"rechnung_eingegangen": {"richtung": "eingehend"},
+                       "forderung_generiert": {"richtung": "ausgehend"}},
+        positionsarten={"mietwagenkosten": {}, "rep_rechnung_netto": {}},
+    )
+
+
+def test_ereignistyp_nicht_eingehend_wirft():
+    klassen_reg = SimpleNamespace(klassen={
+        "x": {"klasse": "x", "ereignistyp": "forderung_generiert"}})
+    with pytest.raises(RuntimeError, match="eingehend"):
+        validiere_gegen_positionsmodell(klassen_reg, _pos_reg_stub())
+
+
+def test_unbekannte_schadenposition_wirft():
+    klassen_reg = SimpleNamespace(klassen={
+        "x": {"klasse": "x", "schadenposition": "gibtsnicht"}})
+    with pytest.raises(RuntimeError, match="schadenposition"):
+        validiere_gegen_positionsmodell(klassen_reg, _pos_reg_stub())
+
+
+def test_sv_vorsteuer_marker_erlaubt():
+    klassen_reg = SimpleNamespace(klassen={
+        "sv_rechnung": {"klasse": "sv_rechnung",
+                        "schadenposition": "__sv_kosten_vorsteuer__"}})
+    validiere_gegen_positionsmodell(klassen_reg, _pos_reg_stub())  # kein Fehler
+
+
 if __name__ == "__main__":
     unittest.main()
