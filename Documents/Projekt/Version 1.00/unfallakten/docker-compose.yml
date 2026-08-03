@@ -57,7 +57,7 @@ services:
       - dev-data:/app/data
       - dev-uploads:/app/uploads
       - /mnt/eakte:/mnt/eakte:ro
-      - ${OMA_EXPORT_HOST_PFAD:-./oma_export}:/app/oma_export
+      - oma-share:/app/oma_export
     ports:
       - "5000:5000"
     healthcheck:
@@ -93,3 +93,15 @@ volumes:
   dev-data:
   dev-uploads:
   node_modules:
+  # OMA-Export: CIFS-Volume auf den von RA-MICRO ueberwachten Ordner.
+  # Docker mountet es bei jedem Start automatisch (ueberlebt Neustart, anders als der manuelle E-Akte-Mount).
+  # Zugangsdaten aus .env (EAKTE_SMB_USER/PASSWORD, gleicher ServerSQL-Share). Prod: gleiche Definition in docker-compose.prod.yml nachziehen.
+  # Ziel = der von RA-MICRO ueberwachte M-Plattform-Ordner: Windows Z:\RA\M-Plattform,
+  # wobei Z: auf \\192.168.10.100\ServerSQL gemappt ist -> Unterpfad ServerSQL/RA/M-Plattform
+  # (2026-08-03 korrigiert; vorher faelschlich .../ServerSQL/OMA, dort landete nur eine Test-XML, die RA-MICRO nicht einliest).
+  oma-share:
+    driver: local
+    driver_opts:
+      type: cifs
+      device: "//192.168.10.100/ServerSQL/RA/M-Plattform"
+      o: "username=${EAKTE_SMB_USER},password=${EAKTE_SMB_PASSWORD},rw,vers=3.1.1,uid=0,gid=0,file_mode=0777,dir_mode=0777,soft,nounix,serverino,mapposix"

@@ -15,6 +15,12 @@ Empfohlene Reihenfolge 1→2→3→4 (3+4 teilen sich den Textaufbau-Umbau/V11 �
 3. **Gesamtvorschau** — ✅ KOMPLETT (Browser-E2E bestanden 2026-07-23: Vorschau → Sachverhalt-Edit → Übernehmen → DOCX mit geändertem Text). In `main`, gepusht. Spec: `docs/superpowers/specs/2026-07-19-klage-wizard-gesamtvorschau-design.md`.
 4. **Standardtexte pflegbar (V11)** — ✅ Stufe 1 umgesetzt (Branch `standardtexte-v11`). Detail → CHANGELOG.
 
+### Aktenanlage aus der ReviewQueue (PRD-NEW) — ✅ in `main` gemergt (FF, 2026-08-03, `420fbffc`), Mechanismus live abgenommen
+**Merge erfolgt** (`aktenanlage → main`, dann `dashboard-hell → main`, beide FF). Live-Abnahme am echten RA-MICRO bestanden: Prefill Mandant, OMA-XML **strukturgleich** zum echten RA-MICRO-Onlinemandat-Export, **Dateiname muss mit `Oma_` beginnen** (Watcher-Filter), Import wird erkannt. Prefill-Bug (stale auftraggeber-Daten + Anrede-Normalisierung) + Migration-66-Reloader-Falle + OMA-Format/Dateiname alle gefixt. Details → Memory `project_unfallakten_aktenanlage`.
+**Offen (opportunistisch, kein Blocker):** echter End-to-End-Create-Test (Punkt 4 Adress-Dublette Mandant + DEKRA/Versicherung-Beteiligte, Punkt 5 Geschwister) beim **nächsten echten Neu-Mandanten** — mit Tatalovic (Bestandsakte 28/23) nicht testbar, da Test-Akten in RA-MICRO nicht löschbar. Beteiligten-Dublettencheck (DEKRA/Vers.) als eigene Erweiterung offen (RA-MICRO hat evtl. eigene OMA-Dublettenprüfung — erst am echten Import verifizieren).
+
+<details><summary>Historie (vor Merge)</summary>
+
 ### Aktenanlage aus der ReviewQueue (PRD-NEW) — umgesetzt (Branch `aktenanlage`, 26 Commits, NICHT gemergt), Abnahme steht aus
 12 Tasks + Final-Review-Fixwellen komplett (Migration 66, OMA-XML-Generator, RA-MICRO-Erkennung read-only, `/aktenanlage`-Blueprint, Freigabe-Hook mit Gruppen-Schließregel, `AktenanlageDialog` ersetzt `NeueAkteModal`, ReviewQueue-Banner/Chip/Leiste). 50 neue Backend-Tests grün (Vollsuite-Rot = vorbestehender Alt-Cluster, identisch auf `main` — Abgleich 2026-07-30), Frontend 406/406 grün. Dev-Container laufen auf dem Branch — die App zeigt das Feature bereits. Spec `docs/superpowers/specs/2026-07-30-aktenanlage-design.md` · Plan `docs/superpowers/plans/2026-07-30-aktenanlage.md`. Detail → CHANGELOG, Deploy-Hinweise → STATE Abschnitt 0. **Nach bestandener Abnahme: Merge in `main`.**
 **Offen — manueller Abnahmetest RA Schatz am echten System (Spec Abschnitt 9):**
@@ -22,6 +28,13 @@ Empfohlene Reihenfolge 1→2→3→4 (3+4 teilen sich den Textaufbau-Umbau/V11 �
 - Konkreter `OMA_EXPORT_HOST_PFAD` (überwachter Windows-Share) muss von RA Schatz benannt und in `.env` eingetragen werden, dann `docker compose up -d --force-recreate backend`.
 - Options-Labels/Datumsformat: `FRAU`/`FIRMA` als Anrede-Werte + ISO-Datum kommen beim RA-MICRO-Import korrekt an, inkl. Prüfung der `dtAnlage`-Spalte beim ersten echten Import.
 - Abnahme-Szenario Geschwister: Gutachten auf erkanntes AZ freigeben, dann Rechnung/Body öffnen — AZ muss vorausgewählt bleiben (kein Zurückspringen auf leer).
+
+</details>
+
+### Dashboard-Hell-Umbau — ✅ in `main` gemergt (FF, 2026-08-03, Teil von `420fbffc`)
+Browser-Abnahme war bereits bestanden (20/20). Mit dem Aktenanlage-Merge in `main` überführt. Offene Feinheiten unten bleiben als separate Nacharbeit.
+
+<details><summary>Historie (vor Merge)</summary>
 
 ### Dashboard-Hell-Umbau — umgesetzt (Branch `dashboard-hell`, basiert auf `aktenanlage`), Browser-Abnahme RA Schatz offen
 Tagesübersicht hell (Pergament-Tokens), Jetzt-dran-Leiste, Fristen links oben (3:2),
@@ -31,6 +44,8 @@ Spec + Mockup: `docs/superpowers/specs/2026-07-30-dashboard-hell-*`.
 **Playwright-Browsertest 20/20 bestanden (2026-07-30, echte Dev-App):** helles Design + Hausschrift, alle Kacheln ohne Posteingang, SB-Persistenz über Reload, Fehlerblock statt falscher Entwarnung (Netzwerk-Abbruch simuliert) inkl. Erholung per „Erneut laden", Klick öffnet Akte. Skript: Session-Scratchpad `dashboard-e2e.js`.
 **Merge-Reihenfolge: erst `aktenanlage` → `main`, dann dieser Branch.**
 Offen danach (separat): Sidebar-Emoji-Icons App.jsx, SB-Klarnamen-Tooltips (Kürzel-Liste von RA Schatz nötig); totes pendingEmailId-Gerüst + ungenutzter nachrichtenNeu-Endpoint entfernen; A11y-Feinheiten (aria-pressed SB-Chips, role=alert Fehlerblock, aria-hidden Skeleton); type=button + Retry-Disable + Badge-Logik-Konsolidierung in boardUi.
+
+</details>
 
 ### Kürzungstaxonomie — Phase 0 ✅ · Phase 1 ✅ · **in `main` gemergt + gepusht (2026-07-24, `febe6f06`)**
 Alle 12 Tasks + Genus-Platzhalter-Nachtrag (Weg 2). Abnahme: Bausteine von RA Schatz gegengelesen ✅; Katalog-Editor, Wizard-Zitat, Genus-Formen, Speichern-Sperre per Playwright-E2E bestanden ✅ (2026-07-24). Protokoll → `docs/CHANGELOG.md`.
@@ -93,6 +108,7 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 
 ## ❓ Unklar / zu klären
 - **PRD-29 DKz-Filter — erledigt oder offen?** Handover sagt „implementiert" (via Schlagwort `E-Brief`, da DKz-Feld in DB fehlt), v56 sagt „nicht gestartet". Ist das ursprüngliche Ziel als erfüllt zu betrachten?
+- **Zwei getrennte Positions-Modelle abgleichen (aus UX-Review 2026-07-31, Baustelle 3):** Das alte Schaden-Formular (`schadenpositionen`-Tabelle, füttert Forderung/Klage) und das neuere Ereignis-Modell (`ereignisse`/`ereignis_positionen`/`position_ereignis_cache`, füttert `PositionsDashboard`) laufen parallel und gleichen sich **nicht** automatisch ab; die `position_key`-Namensräume differieren (alt hat `_netto`-Varianten, Registry `positionsarten.yaml` nicht — im Code als „bis P1.7" vertagt, `belege_routes.py:135-152`). Zu klären: konsolidieren (eine SSOT) oder bewusst getrennt lassen? Kontext: `docs/superpowers/specs/2026-07-31-belege-zu-positionen-design.md` §9.
 
 ---
 
