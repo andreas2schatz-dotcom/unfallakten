@@ -43,8 +43,12 @@ validierungsregeln:
 
 fristrelevanz: false
 loeschfrist_jahre: 10
-label: Rechnung
+label: Rechnung (Auffang)
 bezeichnung_felder:
   aussteller: aussteller
   datum: rechnungsdatum
   betrag: bruttobetrag
+
+parser: rechnung
+richtung: eingehend
+ereignistyp: rechnung_eingegangen

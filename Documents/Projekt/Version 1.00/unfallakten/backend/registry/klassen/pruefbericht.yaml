@@ -50,3 +50,7 @@ loeschfrist_jahre: 6
 label: Prüfbericht
 bezeichnung_felder:
   aussteller: pruefdienstleister
+
+parser: pruefbericht
+richtung: eingehend
+ereignistyp: pruefbericht_eingegangen

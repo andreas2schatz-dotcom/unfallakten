@@ -46,8 +46,13 @@ validierungsregeln:
 
 fristrelevanz: false
 loeschfrist_jahre: 10
-label: SV-Rechnung
+label: SV-/Gutachterrechnung
 bezeichnung_felder:
   aussteller: sv_buero
   datum: rechnungsdatum
   betrag: bruttobetrag
+
+parser: rechnung
+richtung: eingehend
+ereignistyp: rechnung_eingegangen
+schadenposition: __sv_kosten_vorsteuer__

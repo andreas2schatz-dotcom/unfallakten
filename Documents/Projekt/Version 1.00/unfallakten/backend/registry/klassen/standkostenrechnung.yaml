@@ -52,3 +52,8 @@ bezeichnung_felder:
   aussteller: aussteller
   datum: rechnungsdatum
   betrag: bruttobetrag
+
+parser: rechnung
+richtung: eingehend
+ereignistyp: rechnung_eingegangen
+schadenposition: standkosten

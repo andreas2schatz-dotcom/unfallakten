@@ -117,3 +117,7 @@ label: Gutachten
 bezeichnung_felder:
   aussteller: sv_buero
   datum: besichtigungsdatum
+
+parser: gutachten
+richtung: eingehend
+ereignistyp: gutachten_eingegangen

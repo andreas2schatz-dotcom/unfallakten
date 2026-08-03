@@ -52,3 +52,7 @@ bezeichnung_felder:
   aussteller: versicherer
   datum: schreibdatum
   betrag: gesamtbetrag
+
+parser: abrechnungsschreiben
+richtung: eingehend
+ereignistyp: abrechnung_eingegangen
