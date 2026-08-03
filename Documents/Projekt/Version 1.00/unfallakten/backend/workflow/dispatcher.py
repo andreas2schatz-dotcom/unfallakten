@@ -690,16 +690,12 @@ def _parse_rechnung(norm_text, meta, versicherer_kuerzel,
     }
 
 
-# Klasse -> Parser-Funktion
-_PARSER_MAP = {
+# parser-Schluessel (aus Klassen-Registry) -> Parser-Funktion
+_PARSER_FUNKTIONEN = {
     "abrechnungsschreiben": _parse_abrechnungsschreiben,
     "pruefbericht":         _parse_pruefbericht,
     "gutachten":            _parse_gutachten,
-    "sv_rechnung":          _parse_rechnung,
     "rechnung":             _parse_rechnung,
-    "reparaturrechnung":    _parse_rechnung,
-    "mietwagenrechnung":    _parse_rechnung,
-    "werkstattrechnung":    _parse_rechnung,
 }
 
 
@@ -708,14 +704,15 @@ _PARSER_MAP = {
 def _fuehre_parser_aus(klasse, norm_text, meta, versicherer_kuerzel=None,
                        pruefdienstleister=None, has_image_pages=False):
     # type: (str, str, Any, Optional[str], Optional[str], bool) -> Optional[Dict]
-    """
-    Ruft den passenden Parser auf.
-    Gibt strukturiertes Ergebnis-Dict zurueck oder None wenn kein Parser existiert.
-    Neuen Parser registrieren: Eintrag in _PARSER_MAP hinzufuegen.
-    """
-    parser_fn = _PARSER_MAP.get(klasse)
+    """Routet ueber das 'parser'-Feld der Klassen-Registry.
+    Neue Klasse braucht nur einen 'parser:'-Eintrag in ihrer YAML."""
+    from ..intake.registry_loader import lade_registry, standard_pfad
+    reg = lade_registry(standard_pfad())
+    eintrag = reg.klassen.get(klasse) or {}
+    parser_id = eintrag.get("parser")
+    parser_fn = _PARSER_FUNKTIONEN.get(parser_id) if parser_id else None
     if parser_fn is None:
-        logger.info("Kein Parser fuer klasse=%s – nur Klassifikation gespeichert.", klasse)
+        logger.info("Kein Parser fuer klasse=%s (parser=%s).", klasse, parser_id)
         return None
     return parser_fn(norm_text, meta, versicherer_kuerzel, pruefdienstleister, has_image_pages)
 
