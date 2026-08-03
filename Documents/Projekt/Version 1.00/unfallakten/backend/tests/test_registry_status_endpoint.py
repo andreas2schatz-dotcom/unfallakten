@@ -49,14 +49,11 @@ class TestRegistryStatusEndpoint(unittest.TestCase):
         self.assertIsInstance(data["klassen"], list)
         self.assertIsInstance(data["fehler"], list)
 
-    def test_status_enthaelt_alle_startklassen(self):
+    def test_status_enthaelt_alle_registry_klassen(self):
         resp = self.client.get("/system/registry/status", headers=self._auth())
         data = json.loads(resp.data)
-        erwartet = {
-            "gutachten", "abrechnungsschreiben", "pruefbericht",
-            "rechnung", "sv_rechnung", "abschlepprechnung",
-            "standkostenrechnung", "sonstiges",
-        }
+        from backend.intake.registry_loader import lade_registry, standard_pfad
+        erwartet = set(lade_registry(standard_pfad()).klassen.keys())
         self.assertEqual(set(data["klassen"]), erwartet)
 
     def test_status_ohne_auth_ist_401(self):
