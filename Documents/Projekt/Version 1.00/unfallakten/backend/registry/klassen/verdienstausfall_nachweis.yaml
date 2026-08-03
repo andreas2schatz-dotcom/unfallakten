@@ -1,0 +1,22 @@
+klasse: verdienstausfall_nachweis
+
+marker:
+  - Verdienstausfall
+  - Lohnbescheinigung
+  - Gehaltsnachweis
+
+regex_felder: {}
+
+schema:
+  datum: date
+  aussteller: string
+
+pflichtfelder: []
+kritische_felder: []
+validierungsregeln: []
+fristrelevanz: false
+loeschfrist_jahre: 10
+label: Verdienstausfall-Nachweis
+richtung: eingehend
+bezeichnung_felder:
+  datum: datum

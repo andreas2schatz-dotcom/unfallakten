@@ -24,3 +24,17 @@ def test_bestandsklassen_haben_felder():
 def test_sv_rechnung_label_umbenannt():
     reg = lade_registry(standard_pfad(), reload=True)
     assert reg.klassen["sv_rechnung"]["label"] == "SV-/Gutachterrechnung"
+
+
+def test_neue_nichtmed_klassen():
+    reg = lade_registry(standard_pfad(), reload=True)
+    assert reg.klassen["reparaturrechnung"]["schadenposition"] == "rep_rechnung_netto"
+    assert reg.klassen["reparaturrechnung"]["label"] == "Reparatur-/Werkstattrechnung"
+    assert reg.klassen["mietwagenrechnung"]["schadenposition"] == "mietwagenkosten"
+    assert reg.klassen["klagedrohung"]["richtung"] == "beides"
+    assert reg.klassen["klagedrohung"]["fristrelevanz"] is True
+    assert reg.klassen["mahnschreiben"]["fristrelevanz"] is True
+    for aus in ("forderungsschreiben", "sachstandsanfrage", "klage"):
+        assert reg.klassen[aus]["richtung"] == "ausgehend"
+    for ablage in ("kaufvertrag", "verdienstausfall_nachweis"):
+        assert "parser" not in reg.klassen[ablage]

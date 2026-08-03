@@ -1,0 +1,21 @@
+klasse: kaufvertrag
+
+marker:
+  - Kaufvertrag
+  - Fahrzeug-Kaufvertrag
+
+regex_felder: {}
+
+schema:
+  datum: date
+  aussteller: string
+
+pflichtfelder: []
+kritische_felder: []
+validierungsregeln: []
+fristrelevanz: false
+loeschfrist_jahre: 6
+label: Kaufvertrag
+richtung: eingehend
+bezeichnung_felder:
+  datum: datum

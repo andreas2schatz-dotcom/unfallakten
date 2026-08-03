@@ -1,0 +1,22 @@
+klasse: klagedrohung
+
+marker:
+  - Klageandrohung
+  - gerichtliche Geltendmachung
+  - Klage einreichen
+  - letztmalige Frist
+
+regex_felder: {}
+
+schema:
+  datum: date
+
+pflichtfelder: []
+kritische_felder: []
+validierungsregeln: []
+fristrelevanz: true
+loeschfrist_jahre: 6
+label: Klagedrohung / Fristsetzung
+richtung: beides
+bezeichnung_felder:
+  datum: datum

@@ -1,0 +1,33 @@
+klasse: reparaturrechnung
+
+marker:
+  - Reparaturrechnung
+  - Reparatur-Rechnung
+  - Werkstattrechnung
+  - Reparaturkostenrechnung
+
+regex_felder:
+  rechnungsnummer:
+    - "Rechnungs?[\\-\\s]?nummer[:\\s]+([A-Z0-9\\-/]+)"
+  rechnungsdatum:
+    - "Rechnungsdatum[:\\s]+(\\d{2}\\.\\d{2}\\.\\d{4})"
+
+schema:
+  rechnungsnummer: string
+  rechnungsdatum: date
+  nettobetrag: number
+  bruttobetrag: number
+
+pflichtfelder: []
+kritische_felder:
+  - bruttobetrag
+validierungsregeln: []
+fristrelevanz: false
+loeschfrist_jahre: 6
+label: Reparatur-/Werkstattrechnung
+parser: rechnung
+richtung: eingehend
+ereignistyp: rechnung_eingegangen
+schadenposition: rep_rechnung_netto
+bezeichnung_felder:
+  datum: rechnungsdatum

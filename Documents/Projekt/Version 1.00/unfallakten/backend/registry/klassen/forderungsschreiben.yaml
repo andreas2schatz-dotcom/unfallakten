@@ -1,0 +1,18 @@
+klasse: forderungsschreiben
+
+marker: []
+
+regex_felder: {}
+
+schema:
+  datum: date
+
+pflichtfelder: []
+kritische_felder: []
+validierungsregeln: []
+fristrelevanz: false
+loeschfrist_jahre: 6
+label: Forderungsschreiben
+richtung: ausgehend
+bezeichnung_felder:
+  datum: datum
