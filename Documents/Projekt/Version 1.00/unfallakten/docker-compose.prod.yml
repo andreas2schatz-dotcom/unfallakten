@@ -39,7 +39,11 @@ services:
       - prod-data:/app/data
       - prod-uploads:/app/uploads
       - prod-logs:/app/logs
-      - ${OMA_EXPORT_HOST_PFAD:-./oma_export}:/app/oma_export
+      # OMA-Export: CIFS-Volume auf den von RA-MICRO ueberwachten Ordner
+      # Z:\RA\M-Plattform (= //192.168.10.100/ServerSQL/RA/M-Plattform),
+      # analog docker-compose.yml (dev). Loest den alten Bind-Mount
+      # (OMA_EXPORT_HOST_PFAD) ab -- der erreichte den Netzwerk-Share nicht.
+      - oma-share:/app/oma_export
     expose:
       - "5000"
     healthcheck:
@@ -138,3 +142,14 @@ volumes:
   prod-logs:
   nginx-logs:
   certbot-webroot:
+  # OMA-Export: von RA-MICRO ueberwachter M-Plattform-Ordner als CIFS-Mount.
+  # Zugangsdaten aus .env (EAKTE_SMB_USER/PASSWORD -- gleicher ServerSQL-Share
+  # wie die E-Akte). RA-MICRO zieht nur Dateien mit "Oma_"-Praefix ein.
+  # Hinweis: laeuft Gunicorn in Prod als non-root, ggf. uid/gid an den
+  # Backend-User anpassen (dev nutzt uid=0/gid=0).
+  oma-share:
+    driver: local
+    driver_opts:
+      type: cifs
+      device: "//192.168.10.100/ServerSQL/RA/M-Plattform"
+      o: "username=${EAKTE_SMB_USER},password=${EAKTE_SMB_PASSWORD},rw,vers=3.1.1,uid=0,gid=0,file_mode=0777,dir_mode=0777,soft,nounix,serverino,mapposix"
