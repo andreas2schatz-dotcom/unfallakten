@@ -1,26 +1,8 @@
-# rechnungstyp_mapping.yaml — P1.5 (POSITIONSMODELL-PLAN Abschnitt 5.2 #4)
-#
-# Zentrales Mapping: Dokumentenklasse (aus S1.5 Klassen-Registry) ->
-# Ziel-position_key (aus positionsarten.yaml).
-#
-# Konsolidiert die beiden bisher hartkodierten Kopien:
-#   * backend/routers/belege_routes.py Z. 136 (_KLASSE_POSITION_MAP)
-#   * frontend/src/utils/constants.js  Z. 514 (KLASSE_TO_POS)
-#
-# In P1.5 wird nur das BACKEND umgestellt (Loader wird von
-# belege_routes.py + P1.5b-Ereigniserzeugung genutzt). Die Frontend-Kopie
-# bleibt bis P1.7 unangetastet (Abnahme freigabe.md Sitzungsbeschluss 2).
-#
-# Der Loader (positionsmodell_registry.py) prueft, dass jedes Ziel-
-# position_key in positionsarten.yaml existiert.
-# Ausnahme: der Sondermarker "__sv_kosten_vorsteuer__" -- er wird zur
-# Laufzeit in belege_routes.py::kandidaten() abhaengig vom Mandanten-
-# Vorsteuer-Flag auf sv_kosten resolved. Der Loader laesst ihn durch.
+# GENERIERT von tools/gen_dokumentenklassen.py — NICHT von Hand editieren.
 
 rechnungstyp_mapping:
-  abschlepprechnung:    abschleppkosten
-  standkostenrechnung:  standkosten
-  reparaturrechnung:    rep_rechnung_netto
-  mietwagenrechnung:    mietwagenkosten
-  werkstattrechnung:    rep_rechnung_netto
-  sv_rechnung:          __sv_kosten_vorsteuer__
+  abschlepprechnung: abschleppkosten
+  mietwagenrechnung: mietwagenkosten
+  reparaturrechnung: rep_rechnung_netto
+  standkostenrechnung: standkosten
+  sv_rechnung: __sv_kosten_vorsteuer__

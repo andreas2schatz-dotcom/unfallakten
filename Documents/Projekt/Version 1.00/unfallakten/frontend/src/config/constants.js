@@ -1,5 +1,6 @@
 import T from "./theme.js";
 import { request } from '../api.js';
+import { DOK_TYPEN, KLASSE_TO_POS } from "./dokumentenklassen.generated.js";
 
 const STATUS_MAP = {
   offen:          { label:"Offen",          color:T.blue,  bg:T.blueBg  },
@@ -187,8 +188,6 @@ const ABRECHNUNG_ART_LABEL = {
   totalschaden:       "Totalschaden",
   unbekannt:          "Unbekannt",
 };
-
-const DOK_TYPEN = [{value:"gutachten",label:"Gutachten"},{value:"abrechnungsschreiben",label:"Abrechnungsschreiben"},{value:"pruefbericht",label:"Prüfbericht"},{value:"reparaturrechnung",label:"Reparaturrechnung"},{value:"sv_rechnung",label:"SV-Honorarrechnung"},{value:"gutachterrechnung",label:"Gutachterrechnung"},{value:"abschlepprechnung",label:"Abschlepprechnung"},{value:"mietwagenrechnung",label:"Mietwagenrechnung"},{value:"arztbericht",label:"Arztbericht"},{value:"krankenhausbericht",label:"Krankenhausbericht"},{value:"verdienstausfall_nachweis",label:"Verdienstausfall-Nachweis"},{value:"haushalt_attest",label:"Attest Haushaltsführung"},{value:"kaufvertrag",label:"Kaufvertrag"},{value:"nachbesichtigung",label:"Nachbesichtigung"},{value:"forderungsschreiben",label:"Forderungsschreiben"},{value:"mahnschreiben",label:"Mahnschreiben / Verzugsschreiben"},{value:"sachstandsanfrage",label:"Sachstandsanfrage"},{value:"klage",label:"Klage"},{value:"sonstiges",label:"Sonstiges"}];
 
 const POS_KUERZUNG_KATEGORIE = {
   fahrzeugschaden_netto: ["fahrzeugschaden"],
@@ -509,16 +508,6 @@ const apiPS = {
   adressSuche: (q) => request(`/ramicro/akte/adressen/suche?q=${encodeURIComponent(q)}&limit=10`),
 };
 
-
-// Dokumentenklasse → Schadenposition(en) für Inbox-Zuordnung (PRD-34)
-const KLASSE_TO_POS = {
-  abschlepprechnung:   ["abschleppkosten"],
-  standkostenrechnung: ["standkosten"],
-  mietwagenrechnung:   ["mietwagenkosten"],
-  sv_rechnung:         ["sv_kosten"],
-  reparaturrechnung:   ["rep_rechnung_brutto"],
-  werkstattrechnung:   ["rep_rechnung_netto"],
-};
 
 export {
   STATUS_MAP,

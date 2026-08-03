@@ -127,9 +127,6 @@ class TestRechnungstypResolver(unittest.TestCase):
             rechnungstyp_zu_position("reparaturrechnung"), "rep_rechnung_netto",
         )
         self.assertEqual(
-            rechnungstyp_zu_position("werkstattrechnung"), "rep_rechnung_netto",
-        )
-        self.assertEqual(
             rechnungstyp_zu_position("mietwagenrechnung"), "mietwagenkosten",
         )
 
