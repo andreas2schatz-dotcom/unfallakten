@@ -97,10 +97,13 @@ const KLASSE_TO_POS = {
     "mietwagenkosten"
   ],
   "reparaturrechnung": [
-    "rep_rechnung_netto"
+    "rep_rechnung_brutto"
   ],
   "standkostenrechnung": [
     "standkosten"
+  ],
+  "sv_rechnung": [
+    "sv_kosten"
   ]
 };
 export { DOK_TYPEN, KLASSE_TO_POS };

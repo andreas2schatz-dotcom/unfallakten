@@ -18,6 +18,11 @@ from backend.intake.registry_loader import lade_registry, standard_pfad
 
 _WARNUNG = "# GENERIERT von tools/gen_dokumentenklassen.py — NICHT von Hand editieren.\n"
 
+_FE_POSITION_ANZEIGE = {
+    "rep_rechnung_netto": "rep_rechnung_brutto",
+    "__sv_kosten_vorsteuer__": "sv_kosten",
+}
+
 
 def _sortierte_klassen():
     reg = lade_registry(standard_pfad(), reload=True)
@@ -27,10 +32,11 @@ def _sortierte_klassen():
 def _render_js():
     dok_typen = [{"value": k, "label": d.get("label", k)}
                  for k, d in _sortierte_klassen()]
-    klasse_to_pos = {k: [d["schadenposition"]]
-                     for k, d in _sortierte_klassen()
-                     if d.get("schadenposition")
-                     and d["schadenposition"] != "__sv_kosten_vorsteuer__"}
+    klasse_to_pos = {
+        k: [_FE_POSITION_ANZEIGE.get(d["schadenposition"], d["schadenposition"])]
+        for k, d in _sortierte_klassen()
+        if d.get("schadenposition")
+    }
     zeilen = [
         "// GENERIERT von tools/gen_dokumentenklassen.py — NICHT von Hand editieren.",
         "const DOK_TYPEN = " + json.dumps(dok_typen, ensure_ascii=False, indent=2) + ";",
