@@ -14,8 +14,24 @@ vi.mock("../api.js", () => ({
 
 import AktenanlageDialog, {
   LEERES_FORMULAR, mischeVorbefuellung, validiereFormular, baueVorbefuellung,
+  normalisiereAnrede,
 } from "./AktenanlageDialog.jsx";
 import { apiAktenanlage } from "../api.js";
+
+describe("normalisiereAnrede", () => {
+  it("mappt LLM-Varianten auf die Dialog-Optionswerte", () => {
+    expect(normalisiereAnrede("Herrn")).toBe("herr");
+    expect(normalisiereAnrede("Herr")).toBe("herr");
+    expect(normalisiereAnrede("Frau")).toBe("frau");
+    expect(normalisiereAnrede("Firma")).toBe("firma");
+    expect(normalisiereAnrede("Fa.")).toBe("firma");
+  });
+  it("liefert leer bei Unbekanntem/Leerem (kein ungueltiger Select-Wert)", () => {
+    expect(normalisiereAnrede("")).toBe("");
+    expect(normalisiereAnrede(null)).toBe("");
+    expect(normalisiereAnrede("Eheleute")).toBe("");
+  });
+});
 
 describe("validiereFormular", () => {
   it("meldet fehlenden Nachnamen und fehlendes Unfalldatum", () => {
@@ -71,6 +87,11 @@ describe("baueVorbefuellung", () => {
     const f = baueVorbefuellung(detail, info);
     expect(f.gutachter.bezeichnung).toBe("KFZ-SV-Büro Cassese");
     expect(f.gutachter.plz).toBe("63067");
+  });
+  it("normalisiert eine LLM-Anrede-Variante (Herrn -> herr)", () => {
+    const d = { parse: { felder: { auftraggeber_anrede: "Herrn",
+                                   auftraggeber_nachname: "Tatalovic" } } };
+    expect(baueVorbefuellung(d, null).mandant.anrede).toBe("herr");
   });
   it("kommt mit leerem Detail klar", () => {
     const f = baueVorbefuellung(null, null);

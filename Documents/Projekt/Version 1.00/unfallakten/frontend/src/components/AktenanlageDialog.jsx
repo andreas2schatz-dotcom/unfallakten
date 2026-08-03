@@ -34,12 +34,24 @@ export function validiereFormular(felder) {
   return e;
 }
 
+const ANREDE_MAP = {
+  herr: "herr", herrn: "herr", hr: "herr",
+  frau: "frau", fr: "frau", frl: "frau",
+  firma: "firma", fa: "firma",
+};
+
+export function normalisiereAnrede(roh) {
+  const k = (roh == null ? "" : String(roh)).trim().toLowerCase()
+    .replace(/\.$/, "");
+  return ANREDE_MAP[k] || "";
+}
+
 export function baueVorbefuellung(detail, absenderInfo) {
   const f = detail?.parse?.felder || {};
   const s = (v) => (v == null ? "" : String(v));
   return mischeVorbefuellung({
     mandant: {
-      anrede: s(f.auftraggeber_anrede).toLowerCase(),
+      anrede: normalisiereAnrede(f.auftraggeber_anrede),
       vorname: s(f.auftraggeber_vorname),
       nachname: s(f.auftraggeber_nachname),
       strasse: s(f.auftraggeber_strasse),
