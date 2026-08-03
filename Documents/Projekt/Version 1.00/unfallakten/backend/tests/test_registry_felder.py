@@ -38,3 +38,17 @@ def test_neue_nichtmed_klassen():
         assert reg.klassen[aus]["richtung"] == "ausgehend"
     for ablage in ("kaufvertrag", "verdienstausfall_nachweis"):
         assert "parser" not in reg.klassen[ablage]
+
+
+def test_med_und_nachbesichtigung():
+    reg = lade_registry(standard_pfad(), reload=True)
+    for med in ("arztbericht", "krankenhausbericht", "attest",
+                "arbeitsunfaehigkeitsbescheinigung"):
+        rf = reg.klassen[med]["regex_felder"]
+        assert "datum" in rf, med
+        assert "diagnoseschluessel" in rf, med
+        assert "diagnoseschluessel" in reg.klassen[med]["schema"], med
+        assert "parser" not in reg.klassen[med], med
+    nb = reg.klassen["nachbesichtigung"]
+    assert "reparaturtage" in nb["regex_felder"]
+    assert nb["schema"]["reparaturtage"] == "integer"

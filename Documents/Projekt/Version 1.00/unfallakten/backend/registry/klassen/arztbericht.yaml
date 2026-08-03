@@ -1,0 +1,32 @@
+klasse: arztbericht
+
+marker:
+  - Arztbericht
+  - Befundbericht
+  - Aerztlicher Bericht
+
+regex_felder:
+  datum:
+    - "(?:vom|Datum|ausgestellt am)[:\\s]+(\\d{2}\\.\\d{2}\\.\\d{4})"
+    - "(\\d{2}\\.\\d{2}\\.\\d{4})"
+  diagnoseschluessel:
+    - "ICD[- ]?10[- ]?(?:GM)?[:\\s]*([A-Z]\\d{2}(?:\\.\\d{1,2})?)"
+    - "\\b([A-Z]\\d{2}\\.\\d{1,2})\\b"
+  diagnose:
+    - "Diagnose[n]?[:\\s]+([^\\r\\n]+)"
+
+schema:
+  aussteller: string
+  datum: date
+  diagnoseschluessel: string
+  diagnose: string
+
+pflichtfelder: []
+kritische_felder: []
+validierungsregeln: []
+fristrelevanz: false
+loeschfrist_jahre: 10
+label: Arztbericht
+richtung: eingehend
+bezeichnung_felder:
+  datum: datum
