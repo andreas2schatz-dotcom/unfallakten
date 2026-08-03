@@ -14,7 +14,7 @@ from flask import Blueprint, request, jsonify, g, send_file
 from ..auth.middleware import login_erforderlich
 from ._helpers import pruefe_akte as _pruefe_akte
 from ..word.word_service import (
-    generiere_und_speichere, WordFehler, GUELTIGE_DOK_TYPEN
+    generiere_und_speichere, WordFehler, gueltige_dok_typen
 )
 
 logger = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ def generiere(akte_id: str):
     if not dok_typ:
         return _err(
             "Feld 'typ' fehlt. "
-            f"Erlaubte Werte: {', '.join(sorted(GUELTIGE_DOK_TYPEN))}",
+            f"Erlaubte Werte: {', '.join(sorted(gueltige_dok_typen()))}",
             422, feld="typ"
         )
 

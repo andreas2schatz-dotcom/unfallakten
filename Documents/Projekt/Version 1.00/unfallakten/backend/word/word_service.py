@@ -51,12 +51,20 @@ KANZLEI_INFO = {
     "web":     os.environ.get("KANZLEI_WEB",     "www.anwalt-offenbach.de"),
 }
 
-GUELTIGE_DOK_TYPEN = {
-    "forderungsschreiben",
-    "sachstandsanfrage",
-    "abrechnungsuebersicht",
-    "klage",          # Stub – Vorlage folgt
-}
+# Word-Typen ohne eigene Registry-Klasse (rein ausgehende Vorlagen)
+_REINE_WORD_TYPEN = {"abrechnungsuebersicht"}
+
+
+def gueltige_dok_typen():
+    """Erlaubte Dokumenttypen fuer den Word-Generator: reine Word-Vorlagen
+    plus alle Registry-Klassen mit richtung ausgehend/beides."""
+    from ..intake.registry_loader import lade_registry, standard_pfad
+    reg = lade_registry(standard_pfad())
+    aus_registry = {
+        k for k, d in reg.klassen.items()
+        if d.get("richtung") in ("ausgehend", "beides")
+    }
+    return _REINE_WORD_TYPEN | aus_registry
 
 
 class WordFehler(Exception):
@@ -105,10 +113,10 @@ def generiere_und_speichere(
     Raises:
         WordFehler bei ungültiger Akte oder unbekanntem Typ
     """
-    if dok_typ not in GUELTIGE_DOK_TYPEN:
+    if dok_typ not in gueltige_dok_typen():
         raise WordFehler(
             f"Unbekannter Dokumenttyp '{dok_typ}'. "
-            f"Erlaubt: {', '.join(sorted(GUELTIGE_DOK_TYPEN))}"
+            f"Erlaubt: {', '.join(sorted(gueltige_dok_typen()))}"
         )
 
     akte = hole_akte_by_id(akte_id)
