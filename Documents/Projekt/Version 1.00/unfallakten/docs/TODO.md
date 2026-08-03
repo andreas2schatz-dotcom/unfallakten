@@ -7,45 +7,16 @@
 
 ## 🔄 In Arbeit
 
-### Klage-Wizard-Verbesserungsrunde (4 Pakete, Designs freigegeben 2026-07-19)
-Empfohlene Reihenfolge 1→2→3→4 (3+4 teilen sich den Textaufbau-Umbau/V11 — bei der Planung abstimmen). Je Paket vor Umsetzung `superpowers:writing-plans` auf die Spec.
+### Aktenanlage aus der ReviewQueue (PRD-NEW) — ✅ gemergt + gepusht (2026-08-03, `main`=`81e33206`), Nachlauf offen
+Feature live abgenommen: Prefill Mandant, OMA-XML **strukturgleich** zum echten RA-MICRO-Export, **Dateiname muss mit `Oma_` beginnen** (Watcher-Filter, case-sensitiv), Import wird erkannt. Behoben: stale-auftraggeber-Prefill + Anrede-Normalisierung, Migration-66-Reloader-Falle, OMA-Pfad (`Z:\RA\M-Plattform`) + Dateiname + XML-Struktur (keine leere `<Gegnerliste>`, `<tvm/>`). Prod-Compose nachgezogen. Detail → Memory `project_unfallakten_aktenanlage`.
+**Offen (opportunistisch, kein Blocker):**
+- Echter End-to-End-Create-Test beim **nächsten echten Neu-Mandanten**: Adress-Dublette Mandant (Punkt 4), Geschwister-Szenario (Punkt 5), `dtAnlage`-Prüfung. Mit Bestands-/Altakten nicht testbar (RA-MICRO-Test-Akten nicht löschbar).
+- Beteiligten-Dublettencheck (DEKRA/Versicherung) — erst am echten Import verifizieren, ob RA-MICROs eigene OMA-Dublettenprüfung reicht.
+- `beispieloma.xml` als **bereinigte** Test-Fixture committen (sonst skippt der Struktur-Guard-Test in CI); NICHT die echte Kundendatei (PII).
+- Prod-Rollout: `oma-share`-Volume steht in `docker-compose.prod.yml`; bei non-root Gunicorn ggf. `uid`/`gid` anpassen.
 
-1. **Entwurf speichern** — ✅ umgesetzt + in `main` (2026-07-19). Detail → CHANGELOG.
-2. **UI-Führung** — ✅ KOMPLETT (Browser-Nachtest bestanden 2026-07-23: Status-Symbole, Schließen-Dialog, Vertreter-Lookup im Wizard). In `main`, gepusht. Detail → CHANGELOG.
-3. **Gesamtvorschau** — ✅ KOMPLETT (Browser-E2E bestanden 2026-07-23: Vorschau → Sachverhalt-Edit → Übernehmen → DOCX mit geändertem Text). In `main`, gepusht. Spec: `docs/superpowers/specs/2026-07-19-klage-wizard-gesamtvorschau-design.md`.
-4. **Standardtexte pflegbar (V11)** — ✅ Stufe 1 umgesetzt (Branch `standardtexte-v11`). Detail → CHANGELOG.
-
-### Aktenanlage aus der ReviewQueue (PRD-NEW) — ✅ in `main` gemergt (FF, 2026-08-03, `420fbffc`), Mechanismus live abgenommen
-**Merge erfolgt** (`aktenanlage → main`, dann `dashboard-hell → main`, beide FF). Live-Abnahme am echten RA-MICRO bestanden: Prefill Mandant, OMA-XML **strukturgleich** zum echten RA-MICRO-Onlinemandat-Export, **Dateiname muss mit `Oma_` beginnen** (Watcher-Filter), Import wird erkannt. Prefill-Bug (stale auftraggeber-Daten + Anrede-Normalisierung) + Migration-66-Reloader-Falle + OMA-Format/Dateiname alle gefixt. Details → Memory `project_unfallakten_aktenanlage`.
-**Offen (opportunistisch, kein Blocker):** echter End-to-End-Create-Test (Punkt 4 Adress-Dublette Mandant + DEKRA/Versicherung-Beteiligte, Punkt 5 Geschwister) beim **nächsten echten Neu-Mandanten** — mit Tatalovic (Bestandsakte 28/23) nicht testbar, da Test-Akten in RA-MICRO nicht löschbar. Beteiligten-Dublettencheck (DEKRA/Vers.) als eigene Erweiterung offen (RA-MICRO hat evtl. eigene OMA-Dublettenprüfung — erst am echten Import verifizieren).
-
-<details><summary>Historie (vor Merge)</summary>
-
-### Aktenanlage aus der ReviewQueue (PRD-NEW) — umgesetzt (Branch `aktenanlage`, 26 Commits, NICHT gemergt), Abnahme steht aus
-12 Tasks + Final-Review-Fixwellen komplett (Migration 66, OMA-XML-Generator, RA-MICRO-Erkennung read-only, `/aktenanlage`-Blueprint, Freigabe-Hook mit Gruppen-Schließregel, `AktenanlageDialog` ersetzt `NeueAkteModal`, ReviewQueue-Banner/Chip/Leiste). 50 neue Backend-Tests grün (Vollsuite-Rot = vorbestehender Alt-Cluster, identisch auf `main` — Abgleich 2026-07-30), Frontend 406/406 grün. Dev-Container laufen auf dem Branch — die App zeigt das Feature bereits. Spec `docs/superpowers/specs/2026-07-30-aktenanlage-design.md` · Plan `docs/superpowers/plans/2026-07-30-aktenanlage.md`. Detail → CHANGELOG, Deploy-Hinweise → STATE Abschnitt 0. **Nach bestandener Abnahme: Merge in `main`.**
-**Offen — manueller Abnahmetest RA Schatz am echten System (Spec Abschnitt 9):**
-- Adressnummer-Referenz: Kann „Bekannt = Ja" (+ Adressnummer) in der OMA-XML eine bestehende RA-MICRO-Adresse referenzieren (keine Dublette)?
-- Konkreter `OMA_EXPORT_HOST_PFAD` (überwachter Windows-Share) muss von RA Schatz benannt und in `.env` eingetragen werden, dann `docker compose up -d --force-recreate backend`.
-- Options-Labels/Datumsformat: `FRAU`/`FIRMA` als Anrede-Werte + ISO-Datum kommen beim RA-MICRO-Import korrekt an, inkl. Prüfung der `dtAnlage`-Spalte beim ersten echten Import.
-- Abnahme-Szenario Geschwister: Gutachten auf erkanntes AZ freigeben, dann Rechnung/Body öffnen — AZ muss vorausgewählt bleiben (kein Zurückspringen auf leer).
-
-</details>
-
-### Dashboard-Hell-Umbau — ✅ in `main` gemergt (FF, 2026-08-03, Teil von `420fbffc`)
-Browser-Abnahme war bereits bestanden (20/20). Mit dem Aktenanlage-Merge in `main` überführt. Offene Feinheiten unten bleiben als separate Nacharbeit.
-
-<details><summary>Historie (vor Merge)</summary>
-
-### Dashboard-Hell-Umbau — umgesetzt (Branch `dashboard-hell`, basiert auf `aktenanlage`), Browser-Abnahme RA Schatz offen
-Tagesübersicht hell (Pergament-Tokens), Jetzt-dran-Leiste, Fristen links oben (3:2),
-Posteingang-Kachel entfernt, Lade/Fehler/Leer-Zustände je Kachel, Einträge als Buttons
-(Tastatur), SB-Filter persistiert (`dashboard.aktiveSB`), leere SB-Auswahl = Hinweis.
-Spec + Mockup: `docs/superpowers/specs/2026-07-30-dashboard-hell-*`.
-**Playwright-Browsertest 20/20 bestanden (2026-07-30, echte Dev-App):** helles Design + Hausschrift, alle Kacheln ohne Posteingang, SB-Persistenz über Reload, Fehlerblock statt falscher Entwarnung (Netzwerk-Abbruch simuliert) inkl. Erholung per „Erneut laden", Klick öffnet Akte. Skript: Session-Scratchpad `dashboard-e2e.js`.
-**Merge-Reihenfolge: erst `aktenanlage` → `main`, dann dieser Branch.**
-Offen danach (separat): Sidebar-Emoji-Icons App.jsx, SB-Klarnamen-Tooltips (Kürzel-Liste von RA Schatz nötig); totes pendingEmailId-Gerüst + ungenutzter nachrichtenNeu-Endpoint entfernen; A11y-Feinheiten (aria-pressed SB-Chips, role=alert Fehlerblock, aria-hidden Skeleton); type=button + Retry-Disable + Badge-Logik-Konsolidierung in boardUi.
-
-</details>
+### Dashboard-Hell — ✅ gemergt (2026-08-03), Nacharbeit offen
+Feinschliff separat: Sidebar-Emoji-Icons App.jsx, SB-Klarnamen-Tooltips (Kürzel-Liste von RA Schatz nötig); totes `pendingEmailId`-Gerüst + ungenutzter `nachrichtenNeu`-Endpoint entfernen; A11y (aria-pressed SB-Chips, role=alert Fehlerblock, aria-hidden Skeleton); `type=button` + Retry-Disable + Badge-Logik-Konsolidierung in `boardUi`.
 
 ### Kürzungstaxonomie — Phase 0 ✅ · Phase 1 ✅ · **in `main` gemergt + gepusht (2026-07-24, `febe6f06`)**
 Alle 12 Tasks + Genus-Platzhalter-Nachtrag (Weg 2). Abnahme: Bausteine von RA Schatz gegengelesen ✅; Katalog-Editor, Wizard-Zitat, Genus-Formen, Speichern-Sperre per Playwright-E2E bestanden ✅ (2026-07-24). Protokoll → `docs/CHANGELOG.md`.
@@ -117,6 +88,8 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 
 | Datum | Feature |
 |---|---|
+| 2026-08-03 | **Aktenanlage + Dashboard-Hell in `main` gemergt (FF) + gepusht** (`81e33206`); OMA-Live-Abnahme: Prefill-Fix (stale auftraggeber + Anrede-Normalisierung), Migration-66-Reloader-Reparatur, OMA-Pfad→`Z:\RA\M-Plattform`, Dateiname-Präfix `Oma_`, XML strukturgleich zum echten Export; Prod-Compose `oma-share` nachgezogen |
+| 2026-07-24 | Klage-Wizard-Verbesserungsrunde Pakete 1–4 komplett (Entwurf speichern, UI-Führung, Gesamtvorschau, Standardtexte V11 Stufe 1) — in `main`, gepusht |
 | 2026-07-30 | Dashboard-Hell-Umbau: Tagesübersicht hell (Pergament-Tokens), Jetzt-dran-Leiste, Fristen zuerst (3:2), Posteingang-Kachel entfernt, Zustände je Kachel, Tastatur, SB-Filter-Persistenz — Branch `dashboard-hell`, Browser-Abnahme offen, siehe „In Arbeit" |
 | 2026-07-30 | Aktenanlage aus der ReviewQueue (PRD-NEW): Migration 66, OMA-XML-Generator, RA-MICRO-Erkennung read-only, `/aktenanlage`-Blueprint, Freigabe-Hook, `AktenanlageDialog` (ersetzt `NeueAkteModal`), ReviewQueue-Banner/Chip/Leiste, OMA-Export-Ordner in Compose/.env — Abnahme am echten System offen, siehe „In Arbeit" |
 | 2026-07-29 | UI-Kleinkram-Runde (6 Punkte, gemeldet 2026-07-23): Systemstatus-Kachel-Bug war Caching-Problem (Nutzer bestätigt behoben); Navigationsleiste Icon-Ausrichtung + Hover-Effekt verstärkt; E-Mail-Identifier Versicherer/Gutachter zu einem Reiter mit Subreitern zusammengeführt (Muster Personenschaden/Sachschaden); Bestandsaufnahme Gutachter-Identifier (2: Ninnivaggi, Cassese); GLM-OCR-Karte im KI-Assistent-Reiter (Modellauswahl + Verbindungstest, analog Lokales-LLM-Switcher) |
