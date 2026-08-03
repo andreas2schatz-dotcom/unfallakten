@@ -2,23 +2,24 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Die 5 heute getrennten Definitionen einer „Dokumentenklasse" auf die Klassen-Registry (`backend/registry/klassen/*.yaml`) als alleinige handgepflegte Quelle vereinheitlichen und dabei 7 neue Klassen anlegen.
+**Goal:** Die 5 heute getrennten Definitionen einer „Dokumentenklasse" auf die Klassen-Registry (`backend/registry/klassen/*.yaml`) als alleinige handgepflegte Quelle vereinheitlichen und die Klassenliste auf 22 Klassen vervollständigen.
 
-**Architecture:** Jede Klasse trägt künftig alle Attribute in ihrer YAML (`parser`, `richtung`, `ereignistyp`, `schadenposition` — zusätzlich zu den bestehenden `label`/`fristrelevanz`/…). Das Backend liest direkt aus der Registry (`_PARSER_MAP` und `GUELTIGE_DOK_TYPEN` werden abgeleitet). Das Frontend erhält eine **generierte** Datei (`dokumentenklassen.generated.js`) plus die generierten YAMLs `klasse_ereignistyp.yaml`/`rechnungstyp_mapping.yaml`; ein Guard-Test sichert gegen Drift.
+**Architecture:** Jede Klasse trägt alle Attribute in ihrer YAML (`parser`, `richtung`, `ereignistyp`, `schadenposition`, `regex_felder` — zusätzlich zu `label`/`fristrelevanz`/…). Das Backend liest direkt aus der Registry (`_PARSER_MAP` und `GUELTIGE_DOK_TYPEN` werden abgeleitet). Das Frontend erhält eine **generierte** Datei (`dokumentenklassen.generated.js`) plus die generierten YAMLs `klasse_ereignistyp.yaml`/`rechnungstyp_mapping.yaml`; ein Guard-Test sichert gegen Drift.
 
-**Tech Stack:** Python 3.9 (Backend, PyYAML), pytest, React/Vite (Frontend, ESM-Konstanten).
+**Tech Stack:** Python 3.9 (Backend, PyYAML), pytest, React/Vite (Frontend, ESM-Konstanten). Codegen + Guard laufen auf dem **Host** (Python 3.14 + PyYAML + pytest vorhanden), Backend-Tests im Container.
 
 ## Global Constraints
 
 - **RA-MICRO read-only** — nur SQLite/Registry-Dateien ändern, nie in die RA-MICRO-DB schreiben.
 - **Fail-Loud-Loader** — defekte/inkonsistente Registry ⇒ App startet nicht (RuntimeError + ERROR-Log). Keine stillen Fallbacks.
-- **Python 3.9 kompatibel** — keine `match`-Statements, keine 3.10+-Syntax in Backend-Code.
+- **Python 3.9 kompatibel** im Backend — keine 3.10+-Syntax.
 - **Konvention Dateiname == `klasse:`-Feld** — `<klasse>.yaml`, sonst RuntimeError.
 - **Neue Felder sind optional** — die 8 Bestandsklassen müssen ohne Änderung weiter laden.
-- **Kommentare nur bei nicht-offensichtlichem Verhalten** (Projektregel CLAUDE.md).
-- **Bekannte Parser-Schlüssel:** `rechnung`, `gutachten`, `abrechnungsschreiben`, `pruefbericht`.
+- **Kommentare nur bei nicht-offensichtlichem Verhalten** (CLAUDE.md).
+- **Bekannte Parser-Schlüssel:** `rechnung`, `gutachten`, `abrechnungsschreiben`, `pruefbericht`. Medizinische/Ablage-/ausgehende Klassen haben **keinen** `parser` (Feldextraktion läuft rein über `regex_felder`).
 - **Gültige Richtungen:** `eingehend` (Default), `ausgehend`, `beides`.
-- Backend-Tests laufen im Container: `docker exec unfallakten-backend-dev python -m pytest <pfad> -v`. Falls lokal venv vorhanden, geht auch `python -m pytest`.
+- **Mount-Realität:** Backend-Container hat NUR `backend/` + `tools/` (kein `frontend/`). Backend-Tests: `docker exec unfallakten-backend-dev python -m pytest <pfad> -v`. Codegen + Guard-Test: auf dem Host mit `py` (Windows-Launcher) aus dem Projektwurzelverzeichnis.
+- **Finale Klassenliste (22):** sv_rechnung, rechnung, reparaturrechnung, mietwagenrechnung, abschlepprechnung, standkostenrechnung, gutachten, abrechnungsschreiben, pruefbericht, arztbericht, krankenhausbericht, attest, arbeitsunfaehigkeitsbescheinigung, nachbesichtigung, kaufvertrag, verdienstausfall_nachweis, mahnschreiben, klagedrohung, forderungsschreiben, sachstandsanfrage, klage, sonstiges.
 
 ---
 
@@ -34,7 +35,7 @@
 
 - [ ] **Step 1: Failing tests schreiben**
 
-In `backend/tests/test_registry_loader.py` ergänzen (nutzt eine tmp-Registry über `INTAKE_REGISTRY_PFAD` / direkten Pfad-Parameter — vorhandenes Test-Muster in der Datei wiederverwenden):
+In `backend/tests/test_registry_loader.py` ergänzen:
 
 ```python
 import os
@@ -87,18 +88,18 @@ def test_ereignistyp_muss_string_sein(tmp_path):
 - [ ] **Step 2: Tests laufen lassen — müssen fehlschlagen**
 
 Run: `docker exec unfallakten-backend-dev python -m pytest backend/tests/test_registry_loader.py -k "parser or richtung or ereignistyp" -v`
-Expected: FAIL (die neuen Felder werden noch nicht validiert; `test_unbekannter_parser_wirft` schlägt fehl, weil kein RuntimeError kommt).
+Expected: FAIL (`test_unbekannter_parser_wirft` bekommt keinen RuntimeError).
 
 - [ ] **Step 3: Loader erweitern**
 
-In `backend/intake/registry_loader.py` oben bei den Modul-Konstanten (nach `PFLICHT_FELDER`) einfügen:
+In `backend/intake/registry_loader.py` nach `PFLICHT_FELDER`:
 
 ```python
 BEKANNTE_PARSER = {"rechnung", "gutachten", "abrechnungsschreiben", "pruefbericht"}
 RICHTUNGEN = {"eingehend", "ausgehend", "beides"}
 ```
 
-In `_validiere_eintrag(...)`, nach dem bestehenden `bezeichnung_felder`-Block, anhängen:
+In `_validiere_eintrag(...)` nach dem `bezeichnung_felder`-Block anhängen:
 
 ```python
     if "parser" in data:
@@ -132,7 +133,7 @@ In `_validiere_eintrag(...)`, nach dem bestehenden `bezeichnung_felder`-Block, a
 - [ ] **Step 4: Tests laufen lassen — müssen bestehen**
 
 Run: `docker exec unfallakten-backend-dev python -m pytest backend/tests/test_registry_loader.py -v`
-Expected: PASS (alle, inkl. der bestehenden Loader-Tests).
+Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -147,12 +148,12 @@ git commit -m "feat(registry): optionale Klassen-Felder parser/richtung/ereignis
 
 **Files:**
 - Modify: `backend/intake/registry_loader.py` (neue Funktion `validiere_gegen_positionsmodell`)
-- Modify: `backend/app.py:137-138` (Aufruf nach dem Laden beider Registries)
+- Modify: `backend/app.py:137-138`
 - Test: `backend/tests/test_registry_loader.py`
 
 **Interfaces:**
-- Consumes: `Registry` (aus `lade_registry`), `PositionsmodellRegistry` (aus `positionsmodell_registry.lade_positionsmodell`). Sondermarker `__sv_kosten_vorsteuer__`.
-- Produces: `validiere_gegen_positionsmodell(klassen_reg, pos_reg) -> None` — wirft RuntimeError, wenn ein `ereignistyp` nicht existiert / nicht `eingehend` ist oder eine `schadenposition` kein gültiger position_key ist.
+- Consumes: `Registry`, `PositionsmodellRegistry`. Sondermarker `__sv_kosten_vorsteuer__`.
+- Produces: `validiere_gegen_positionsmodell(klassen_reg, pos_reg) -> None` — RuntimeError bei ungültigem `ereignistyp`/`schadenposition`.
 
 - [ ] **Step 1: Failing test schreiben**
 
@@ -195,11 +196,11 @@ def test_sv_vorsteuer_marker_erlaubt():
 - [ ] **Step 2: Test laufen lassen — muss fehlschlagen**
 
 Run: `docker exec unfallakten-backend-dev python -m pytest backend/tests/test_registry_loader.py -k "eingehend or schadenposition or vorsteuer" -v`
-Expected: FAIL mit `ImportError: cannot import name 'validiere_gegen_positionsmodell'`.
+Expected: FAIL (`ImportError`).
 
 - [ ] **Step 3: Funktion implementieren**
 
-In `backend/intake/registry_loader.py` (unten, nach `_validiere_eintrag`):
+In `backend/intake/registry_loader.py` unten:
 
 ```python
 _SV_VORSTEUER_MARKER = "__sv_kosten_vorsteuer__"
@@ -231,14 +232,7 @@ def validiere_gegen_positionsmodell(klassen_reg, pos_reg):
 
 - [ ] **Step 4: Startup-Aufruf einbauen**
 
-In `backend/app.py` direkt nach den bestehenden Zeilen 137-138:
-
-```python
-    from .intake.registry_loader import lade_registry, standard_pfad
-    _reg = lade_registry(standard_pfad(), reload=True)
-```
-
-anfügen:
+In `backend/app.py` direkt nach den bestehenden Zeilen 137-138 (`_reg = lade_registry(...)`) anfügen:
 
 ```python
     from .intake.registry_loader import validiere_gegen_positionsmodell
@@ -268,21 +262,21 @@ git commit -m "feat(registry): Kreuzvalidierung Klassen<->Positionsmodell beim A
 - Test: `backend/tests/test_registry_felder.py` (neu)
 
 **Interfaces:**
-- Consumes: heutige Werte aus `_PARSER_MAP` (dispatcher.py:694), `klasse_ereignistyp.yaml`, `rechnungstyp_mapping.yaml`.
-- Produces: jede Bestandsklasse trägt die passenden `parser`/`richtung`/`ereignistyp`/`schadenposition`.
+- Consumes: heutige Werte aus `_PARSER_MAP`, `klasse_ereignistyp.yaml`, `rechnungstyp_mapping.yaml`.
+- Produces: jede Bestandsklasse trägt `parser`/`richtung`/`ereignistyp`/`schadenposition`; `sv_rechnung` bekommt Label „SV-/Gutachterrechnung".
 
-Zielwerte (aus den heutigen Maps abgeleitet):
+Zielwerte:
 
-| Klasse | parser | richtung | ereignistyp | schadenposition |
-|---|---|---|---|---|
-| abrechnungsschreiben | abrechnungsschreiben | eingehend | abrechnung_eingegangen | — |
-| pruefbericht | pruefbericht | eingehend | pruefbericht_eingegangen | — |
-| gutachten | gutachten | eingehend | gutachten_eingegangen | — |
-| sv_rechnung | rechnung | eingehend | rechnung_eingegangen | `__sv_kosten_vorsteuer__` |
-| rechnung | rechnung | eingehend | rechnung_eingegangen | — |
-| abschlepprechnung | rechnung | eingehend | rechnung_eingegangen | abschleppkosten |
-| standkostenrechnung | rechnung | eingehend | rechnung_eingegangen | standkosten |
-| sonstiges | — | eingehend | — | — |
+| Klasse | parser | richtung | ereignistyp | schadenposition | label |
+|---|---|---|---|---|---|
+| abrechnungsschreiben | abrechnungsschreiben | eingehend | abrechnung_eingegangen | — | (unverändert) |
+| pruefbericht | pruefbericht | eingehend | pruefbericht_eingegangen | — | (unverändert) |
+| gutachten | gutachten | eingehend | gutachten_eingegangen | — | (unverändert) |
+| sv_rechnung | rechnung | eingehend | rechnung_eingegangen | `__sv_kosten_vorsteuer__` | **SV-/Gutachterrechnung** |
+| rechnung | rechnung | eingehend | rechnung_eingegangen | — | Rechnung (Auffang) |
+| abschlepprechnung | rechnung | eingehend | rechnung_eingegangen | abschleppkosten | (unverändert) |
+| standkostenrechnung | rechnung | eingehend | rechnung_eingegangen | standkosten | (unverändert) |
+| sonstiges | — | eingehend | — | — | (unverändert) |
 
 - [ ] **Step 1: Failing test schreiben**
 
@@ -310,17 +304,23 @@ def test_bestandsklassen_haben_felder():
         assert data.get("ereignistyp") == ereignis, klasse
         assert data.get("schadenposition") == pos, klasse
         assert data.get("richtung", "eingehend") == "eingehend", klasse
+
+
+def test_sv_rechnung_label_umbenannt():
+    reg = lade_registry(standard_pfad(), reload=True)
+    assert reg.klassen["sv_rechnung"]["label"] == "SV-/Gutachterrechnung"
 ```
 
 - [ ] **Step 2: Test laufen lassen — muss fehlschlagen**
 
 Run: `docker exec unfallakten-backend-dev python -m pytest backend/tests/test_registry_felder.py -v`
-Expected: FAIL (Felder fehlen noch).
+Expected: FAIL (Felder fehlen).
 
 - [ ] **Step 3: YAMLs ergänzen**
 
-Beispiel `backend/registry/klassen/abschlepprechnung.yaml` — am Dateiende anhängen (analog für alle anderen laut Tabelle):
+Jeweils am Dateiende die Felder anhängen (bei `sv_rechnung` zusätzlich die bestehende `label:`-Zeile auf `SV-/Gutachterrechnung` ändern):
 
+`abschlepprechnung.yaml`:
 ```yaml
 parser: rechnung
 richtung: eingehend
@@ -328,8 +328,15 @@ ereignistyp: rechnung_eingegangen
 schadenposition: abschleppkosten
 ```
 
-`sv_rechnung.yaml`:
+`standkostenrechnung.yaml`:
+```yaml
+parser: rechnung
+richtung: eingehend
+ereignistyp: rechnung_eingegangen
+schadenposition: standkosten
+```
 
+`sv_rechnung.yaml` (bestehende `label:`-Zeile ersetzen durch `label: SV-/Gutachterrechnung`, dann anhängen):
 ```yaml
 parser: rechnung
 richtung: eingehend
@@ -337,8 +344,14 @@ ereignistyp: rechnung_eingegangen
 schadenposition: __sv_kosten_vorsteuer__
 ```
 
-`gutachten.yaml`:
+`rechnung.yaml` (falls `label:` fehlt, `label: Rechnung (Auffang)` setzen, dann anhängen):
+```yaml
+parser: rechnung
+richtung: eingehend
+ereignistyp: rechnung_eingegangen
+```
 
+`gutachten.yaml`:
 ```yaml
 parser: gutachten
 richtung: eingehend
@@ -346,7 +359,6 @@ ereignistyp: gutachten_eingegangen
 ```
 
 `abrechnungsschreiben.yaml`:
-
 ```yaml
 parser: abrechnungsschreiben
 richtung: eingehend
@@ -354,15 +366,13 @@ ereignistyp: abrechnung_eingegangen
 ```
 
 `pruefbericht.yaml`:
-
 ```yaml
 parser: pruefbericht
 richtung: eingehend
 ereignistyp: pruefbericht_eingegangen
 ```
 
-`rechnung.yaml` und `standkostenrechnung.yaml` analog (siehe Tabelle). `sonstiges.yaml` nur:
-
+`sonstiges.yaml`:
 ```yaml
 richtung: eingehend
 ```
@@ -375,54 +385,56 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/registry/klassen/*.yaml backend/tests/test_registry_felder.py
-git commit -m "feat(registry): Bestandsklassen um parser/richtung/ereignistyp/schadenposition ergaenzt"
+git add backend/registry/klassen/abrechnungsschreiben.yaml backend/registry/klassen/abschlepprechnung.yaml backend/registry/klassen/gutachten.yaml backend/registry/klassen/pruefbericht.yaml backend/registry/klassen/rechnung.yaml backend/registry/klassen/sonstiges.yaml backend/registry/klassen/standkostenrechnung.yaml backend/registry/klassen/sv_rechnung.yaml backend/tests/test_registry_felder.py
+git commit -m "feat(registry): Bestandsklassen um Felder ergaenzt, sv_rechnung Label SV-/Gutachterrechnung"
 ```
 
 ---
 
-### Task 4: 7 neue Klassen-YAMLs anlegen
+### Task 4: Neue Nicht-medizinische Klassen (9 YAMLs)
 
 **Files:**
-- Create: `backend/registry/klassen/reparaturrechnung.yaml`, `mietwagenrechnung.yaml`, `arztbericht.yaml`, `krankenhausbericht.yaml`, `attest.yaml`, `mahnschreiben.yaml`, `klagedrohung.yaml`
+- Create: `backend/registry/klassen/reparaturrechnung.yaml`, `mietwagenrechnung.yaml`, `kaufvertrag.yaml`, `verdienstausfall_nachweis.yaml`, `mahnschreiben.yaml`, `klagedrohung.yaml`, `forderungsschreiben.yaml`, `sachstandsanfrage.yaml`, `klage.yaml`
 - Test: `backend/tests/test_registry_felder.py` (erweitern)
 
 **Interfaces:**
 - Consumes: `BEKANNTE_PARSER`, `ereignistypen.yaml`, `positionsarten.yaml`.
-- Produces: Registry lädt 15 Klassen; die 7 neuen mit den Feldern aus Spec §5.
+- Produces: die 9 Klassen laut Spec §5 (Rechnungen, Fristsetzung, ausgehende Schreiben, Ablage).
 
 - [ ] **Step 1: Failing test schreiben**
 
 In `backend/tests/test_registry_felder.py` anhängen:
 
 ```python
-def test_neue_klassen_vorhanden():
+def test_neue_nichtmed_klassen():
     reg = lade_registry(standard_pfad(), reload=True)
-    assert "reparaturrechnung" in reg.klassen
     assert reg.klassen["reparaturrechnung"]["schadenposition"] == "rep_rechnung_netto"
+    assert reg.klassen["reparaturrechnung"]["label"] == "Reparatur-/Werkstattrechnung"
     assert reg.klassen["mietwagenrechnung"]["schadenposition"] == "mietwagenkosten"
     assert reg.klassen["klagedrohung"]["richtung"] == "beides"
     assert reg.klassen["klagedrohung"]["fristrelevanz"] is True
     assert reg.klassen["mahnschreiben"]["fristrelevanz"] is True
-    for ablage in ("arztbericht", "krankenhausbericht", "attest"):
+    for aus in ("forderungsschreiben", "sachstandsanfrage", "klage"):
+        assert reg.klassen[aus]["richtung"] == "ausgehend"
+    for ablage in ("kaufvertrag", "verdienstausfall_nachweis"):
         assert "parser" not in reg.klassen[ablage]
 ```
 
 - [ ] **Step 2: Test laufen lassen — muss fehlschlagen**
 
-Run: `docker exec unfallakten-backend-dev python -m pytest backend/tests/test_registry_felder.py::test_neue_klassen_vorhanden -v`
-Expected: FAIL (KeyError, Klassen fehlen).
+Run: `docker exec unfallakten-backend-dev python -m pytest backend/tests/test_registry_felder.py::test_neue_nichtmed_klassen -v`
+Expected: FAIL (KeyError).
 
-- [ ] **Step 3: Die 7 YAMLs anlegen**
+- [ ] **Step 3: Die 9 YAMLs anlegen**
 
-`backend/registry/klassen/reparaturrechnung.yaml`:
-
+`reparaturrechnung.yaml`:
 ```yaml
 klasse: reparaturrechnung
 
 marker:
   - Reparaturrechnung
   - Reparatur-Rechnung
+  - Werkstattrechnung
   - Reparaturkostenrechnung
 
 regex_felder:
@@ -443,7 +455,7 @@ kritische_felder:
 validierungsregeln: []
 fristrelevanz: false
 loeschfrist_jahre: 6
-label: Reparaturrechnung
+label: Reparatur-/Werkstattrechnung
 parser: rechnung
 richtung: eingehend
 ereignistyp: rechnung_eingegangen
@@ -452,8 +464,7 @@ bezeichnung_felder:
   datum: rechnungsdatum
 ```
 
-`mietwagenrechnung.yaml` (analog, aber):
-
+`mietwagenrechnung.yaml`:
 ```yaml
 klasse: mietwagenrechnung
 
@@ -490,90 +501,58 @@ bezeichnung_felder:
   datum: rechnungsdatum
 ```
 
-`arztbericht.yaml` (reines Ablage-Etikett — wenige, trennscharfe Marker):
-
+`kaufvertrag.yaml`:
 ```yaml
-klasse: arztbericht
+klasse: kaufvertrag
 
 marker:
-  - Arztbericht
-  - Befundbericht
-  - Aerztlicher Bericht
+  - Kaufvertrag
+  - Fahrzeug-Kaufvertrag
 
 regex_felder: {}
 
 schema:
-  aussteller: string
   datum: date
-  diagnose: string
+  aussteller: string
+
+pflichtfelder: []
+kritische_felder: []
+validierungsregeln: []
+fristrelevanz: false
+loeschfrist_jahre: 6
+label: Kaufvertrag
+richtung: eingehend
+bezeichnung_felder:
+  datum: datum
+```
+
+`verdienstausfall_nachweis.yaml`:
+```yaml
+klasse: verdienstausfall_nachweis
+
+marker:
+  - Verdienstausfall
+  - Lohnbescheinigung
+  - Gehaltsnachweis
+
+regex_felder: {}
+
+schema:
+  datum: date
+  aussteller: string
 
 pflichtfelder: []
 kritische_felder: []
 validierungsregeln: []
 fristrelevanz: false
 loeschfrist_jahre: 10
-label: Arztbericht
+label: Verdienstausfall-Nachweis
 richtung: eingehend
 bezeichnung_felder:
   datum: datum
 ```
 
-`krankenhausbericht.yaml` (analog `arztbericht`, aber):
-
-```yaml
-klasse: krankenhausbericht
-
-marker:
-  - Entlassungsbericht
-  - Krankenhausbericht
-  - Klinikbericht
-
-regex_felder: {}
-
-schema:
-  aussteller: string
-  datum: date
-
-pflichtfelder: []
-kritische_felder: []
-validierungsregeln: []
-fristrelevanz: false
-loeschfrist_jahre: 10
-label: Krankenhausbericht
-richtung: eingehend
-bezeichnung_felder:
-  datum: datum
-```
-
-`attest.yaml`:
-
-```yaml
-klasse: attest
-
-marker:
-  - Arbeitsunfaehigkeitsbescheinigung
-  - AU-Bescheinigung
-  - Attest
-
-regex_felder: {}
-
-schema:
-  aussteller: string
-  datum: date
-
-pflichtfelder: []
-kritische_felder: []
-validierungsregeln: []
-fristrelevanz: false
-loeschfrist_jahre: 10
-label: Attest (AU / Haushalt)
-richtung: eingehend
-bezeichnung_felder:
-  datum: datum
-```
-
-`mahnschreiben.yaml` (kein Parser in Plan 1 — Frist-Parser kommt in Plan 2; `richtung: beides`, fristrelevant):
-
+`mahnschreiben.yaml`:
 ```yaml
 klasse: mahnschreiben
 
@@ -599,7 +578,6 @@ bezeichnung_felder:
 ```
 
 `klagedrohung.yaml`:
-
 ```yaml
 klasse: klagedrohung
 
@@ -625,16 +603,308 @@ bezeichnung_felder:
   datum: datum
 ```
 
+`forderungsschreiben.yaml`:
+```yaml
+klasse: forderungsschreiben
+
+marker: []
+
+regex_felder: {}
+
+schema:
+  datum: date
+
+pflichtfelder: []
+kritische_felder: []
+validierungsregeln: []
+fristrelevanz: false
+loeschfrist_jahre: 6
+label: Forderungsschreiben
+richtung: ausgehend
+bezeichnung_felder:
+  datum: datum
+```
+
+`sachstandsanfrage.yaml`:
+```yaml
+klasse: sachstandsanfrage
+
+marker: []
+
+regex_felder: {}
+
+schema:
+  datum: date
+
+pflichtfelder: []
+kritische_felder: []
+validierungsregeln: []
+fristrelevanz: false
+loeschfrist_jahre: 6
+label: Sachstandsanfrage
+richtung: ausgehend
+bezeichnung_felder:
+  datum: datum
+```
+
+`klage.yaml`:
+```yaml
+klasse: klage
+
+marker: []
+
+regex_felder: {}
+
+schema:
+  datum: date
+
+pflichtfelder: []
+kritische_felder: []
+validierungsregeln: []
+fristrelevanz: false
+loeschfrist_jahre: 6
+label: Klage
+richtung: ausgehend
+bezeichnung_felder:
+  datum: datum
+```
+
 - [ ] **Step 4: Tests laufen lassen — müssen bestehen**
 
 Run: `docker exec unfallakten-backend-dev python -m pytest backend/tests/test_registry_felder.py backend/tests/test_registry_loader.py -v`
-Expected: PASS (inkl. Kreuzvalidierung: alle `ereignistyp`/`schadenposition` gültig).
+Expected: PASS (Kreuzvalidierung: alle `ereignistyp`/`schadenposition` gültig).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/registry/klassen/reparaturrechnung.yaml backend/registry/klassen/mietwagenrechnung.yaml backend/registry/klassen/arztbericht.yaml backend/registry/klassen/krankenhausbericht.yaml backend/registry/klassen/attest.yaml backend/registry/klassen/mahnschreiben.yaml backend/registry/klassen/klagedrohung.yaml backend/tests/test_registry_felder.py
-git commit -m "feat(registry): 7 neue Dokumentenklassen (reparatur-/mietwagenrechnung, arzt-/krankenhausbericht, attest, mahnschreiben, klagedrohung)"
+git add backend/registry/klassen/reparaturrechnung.yaml backend/registry/klassen/mietwagenrechnung.yaml backend/registry/klassen/kaufvertrag.yaml backend/registry/klassen/verdienstausfall_nachweis.yaml backend/registry/klassen/mahnschreiben.yaml backend/registry/klassen/klagedrohung.yaml backend/registry/klassen/forderungsschreiben.yaml backend/registry/klassen/sachstandsanfrage.yaml backend/registry/klassen/klage.yaml backend/tests/test_registry_felder.py
+git commit -m "feat(registry): Rechnungs-, Fristsetzungs-, ausgehende und Ablage-Klassen"
+```
+
+---
+
+### Task 4b: Medizinische Klassen + Nachbesichtigung mit Extraktion (5 YAMLs)
+
+**Files:**
+- Create: `backend/registry/klassen/arztbericht.yaml`, `krankenhausbericht.yaml`, `attest.yaml`, `arbeitsunfaehigkeitsbescheinigung.yaml`, `nachbesichtigung.yaml`
+- Test: `backend/tests/test_registry_felder.py` (erweitern)
+
+**Interfaces:**
+- Consumes: `regex_felder`/`schema`-Konventionen des Loaders; Intake-Pipeline (`extrahiere_felder`) nutzt die `regex_felder`.
+- Produces: 4 medizinische Klassen (Extraktion Datum + ICD-10 + Diagnose-Freitext) + `nachbesichtigung` (Datum + Reparaturtage). Kein `parser`, kein `ereignistyp`, keine `schadenposition`.
+
+- [ ] **Step 1: Failing test schreiben**
+
+In `backend/tests/test_registry_felder.py` anhängen:
+
+```python
+def test_med_und_nachbesichtigung():
+    reg = lade_registry(standard_pfad(), reload=True)
+    for med in ("arztbericht", "krankenhausbericht", "attest",
+                "arbeitsunfaehigkeitsbescheinigung"):
+        rf = reg.klassen[med]["regex_felder"]
+        assert "datum" in rf, med
+        assert "diagnoseschluessel" in rf, med
+        assert "diagnoseschluessel" in reg.klassen[med]["schema"], med
+        assert "parser" not in reg.klassen[med], med
+    nb = reg.klassen["nachbesichtigung"]
+    assert "reparaturtage" in nb["regex_felder"]
+    assert nb["schema"]["reparaturtage"] == "integer"
+```
+
+- [ ] **Step 2: Test laufen lassen — muss fehlschlagen**
+
+Run: `docker exec unfallakten-backend-dev python -m pytest backend/tests/test_registry_felder.py::test_med_und_nachbesichtigung -v`
+Expected: FAIL (KeyError).
+
+- [ ] **Step 3: Die 5 YAMLs anlegen**
+
+Gemeinsames medizinisches Muster — `arztbericht.yaml`:
+```yaml
+klasse: arztbericht
+
+marker:
+  - Arztbericht
+  - Befundbericht
+  - Aerztlicher Bericht
+
+regex_felder:
+  datum:
+    - "(?:vom|Datum|ausgestellt am)[:\\s]+(\\d{2}\\.\\d{2}\\.\\d{4})"
+    - "(\\d{2}\\.\\d{2}\\.\\d{4})"
+  diagnoseschluessel:
+    - "ICD[- ]?10[- ]?(?:GM)?[:\\s]*([A-Z]\\d{2}(?:\\.\\d{1,2})?)"
+    - "\\b([A-Z]\\d{2}\\.\\d{1,2})\\b"
+  diagnose:
+    - "Diagnose[n]?[:\\s]+([^\\r\\n]+)"
+
+schema:
+  aussteller: string
+  datum: date
+  diagnoseschluessel: string
+  diagnose: string
+
+pflichtfelder: []
+kritische_felder: []
+validierungsregeln: []
+fristrelevanz: false
+loeschfrist_jahre: 10
+label: Arztbericht
+richtung: eingehend
+bezeichnung_felder:
+  datum: datum
+```
+
+`krankenhausbericht.yaml` (gleiche `regex_felder`/`schema`/`bezeichnung_felder` wie `arztbericht`, nur Kopf abweichend):
+```yaml
+klasse: krankenhausbericht
+
+marker:
+  - Entlassungsbericht
+  - Krankenhausbericht
+  - Klinikbericht
+  - stationaere Behandlung
+
+regex_felder:
+  datum:
+    - "(?:vom|Datum|ausgestellt am)[:\\s]+(\\d{2}\\.\\d{2}\\.\\d{4})"
+    - "(\\d{2}\\.\\d{2}\\.\\d{4})"
+  diagnoseschluessel:
+    - "ICD[- ]?10[- ]?(?:GM)?[:\\s]*([A-Z]\\d{2}(?:\\.\\d{1,2})?)"
+    - "\\b([A-Z]\\d{2}\\.\\d{1,2})\\b"
+  diagnose:
+    - "Diagnose[n]?[:\\s]+([^\\r\\n]+)"
+
+schema:
+  aussteller: string
+  datum: date
+  diagnoseschluessel: string
+  diagnose: string
+
+pflichtfelder: []
+kritische_felder: []
+validierungsregeln: []
+fristrelevanz: false
+loeschfrist_jahre: 10
+label: Krankenhausbericht
+richtung: eingehend
+bezeichnung_felder:
+  datum: datum
+```
+
+`attest.yaml`:
+```yaml
+klasse: attest
+
+marker:
+  - Attest
+  - aerztliches Attest
+
+regex_felder:
+  datum:
+    - "(?:vom|Datum|ausgestellt am)[:\\s]+(\\d{2}\\.\\d{2}\\.\\d{4})"
+    - "(\\d{2}\\.\\d{2}\\.\\d{4})"
+  diagnoseschluessel:
+    - "ICD[- ]?10[- ]?(?:GM)?[:\\s]*([A-Z]\\d{2}(?:\\.\\d{1,2})?)"
+    - "\\b([A-Z]\\d{2}\\.\\d{1,2})\\b"
+  diagnose:
+    - "Diagnose[n]?[:\\s]+([^\\r\\n]+)"
+
+schema:
+  aussteller: string
+  datum: date
+  diagnoseschluessel: string
+  diagnose: string
+
+pflichtfelder: []
+kritische_felder: []
+validierungsregeln: []
+fristrelevanz: false
+loeschfrist_jahre: 10
+label: Attest
+richtung: eingehend
+bezeichnung_felder:
+  datum: datum
+```
+
+`arbeitsunfaehigkeitsbescheinigung.yaml`:
+```yaml
+klasse: arbeitsunfaehigkeitsbescheinigung
+
+marker:
+  - Arbeitsunfaehigkeitsbescheinigung
+  - AU-Bescheinigung
+  - arbeitsunfaehig
+
+regex_felder:
+  datum:
+    - "(?:vom|Datum|ausgestellt am)[:\\s]+(\\d{2}\\.\\d{2}\\.\\d{4})"
+    - "(\\d{2}\\.\\d{2}\\.\\d{4})"
+  diagnoseschluessel:
+    - "ICD[- ]?10[- ]?(?:GM)?[:\\s]*([A-Z]\\d{2}(?:\\.\\d{1,2})?)"
+    - "\\b([A-Z]\\d{2}\\.\\d{1,2})\\b"
+  diagnose:
+    - "Diagnose[n]?[:\\s]+([^\\r\\n]+)"
+
+schema:
+  aussteller: string
+  datum: date
+  diagnoseschluessel: string
+  diagnose: string
+
+pflichtfelder: []
+kritische_felder: []
+validierungsregeln: []
+fristrelevanz: false
+loeschfrist_jahre: 10
+label: Arbeitsunfaehigkeitsbescheinigung (AU)
+richtung: eingehend
+bezeichnung_felder:
+  datum: datum
+```
+
+`nachbesichtigung.yaml`:
+```yaml
+klasse: nachbesichtigung
+
+marker:
+  - Nachbesichtigung
+  - Nachbesichtigungsbericht
+
+regex_felder:
+  datum:
+    - "Nachbesichtigung[^0-9]{0,30}(\\d{2}\\.\\d{2}\\.\\d{4})"
+    - "(?:vom|am)\\s+(\\d{2}\\.\\d{2}\\.\\d{4})"
+  reparaturtage:
+    - "Reparaturdauer[^0-9]{0,20}(\\d{1,3})"
+    - "Reparaturzeit[^0-9]{0,20}(\\d{1,3})"
+    - "(\\d{1,3})\\s*(?:Arbeits)?tage?\\s+Reparatur"
+
+schema:
+  datum: date
+  reparaturtage: integer
+
+pflichtfelder: []
+kritische_felder: []
+validierungsregeln: []
+fristrelevanz: false
+loeschfrist_jahre: 6
+label: Nachbesichtigung
+richtung: eingehend
+bezeichnung_felder:
+  datum: datum
+```
+
+- [ ] **Step 4: Tests laufen lassen — müssen bestehen**
+
+Run: `docker exec unfallakten-backend-dev python -m pytest backend/tests/test_registry_felder.py backend/tests/test_registry_loader.py -v`
+Expected: PASS. Registry lädt jetzt 22 Klassen.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add backend/registry/klassen/arztbericht.yaml backend/registry/klassen/krankenhausbericht.yaml backend/registry/klassen/attest.yaml backend/registry/klassen/arbeitsunfaehigkeitsbescheinigung.yaml backend/registry/klassen/nachbesichtigung.yaml backend/tests/test_registry_felder.py
+git commit -m "feat(registry): medizinische Klassen (Datum/ICD-10/Diagnose) + nachbesichtigung (Datum/Reparaturtage)"
 ```
 
 ---
@@ -646,8 +916,8 @@ git commit -m "feat(registry): 7 neue Dokumentenklassen (reparatur-/mietwagenrec
 - Test: `backend/tests/test_dispatcher_parser_routing.py` (neu)
 
 **Interfaces:**
-- Consumes: `lade_registry`/`standard_pfad` aus `backend.intake.registry_loader`; die Parser-Wrapper `_parse_rechnung`/`_parse_gutachten`/`_parse_abrechnungsschreiben`/`_parse_pruefbericht`.
-- Produces: `_fuehre_parser_aus(klasse, ...)` routet über das `parser`-Feld der Registry; unbekannte/parser-lose Klasse → None.
+- Consumes: `lade_registry`/`standard_pfad`; die Parser-Wrapper `_parse_rechnung`/`_parse_gutachten`/`_parse_abrechnungsschreiben`/`_parse_pruefbericht`.
+- Produces: `_fuehre_parser_aus(klasse, ...)` routet über das `parser`-Feld der Registry; Klasse ohne `parser` → None.
 
 - [ ] **Step 1: Failing test schreiben**
 
@@ -680,7 +950,7 @@ Expected: FAIL (`_PARSER_FUNKTIONEN` existiert nicht).
 
 - [ ] **Step 3: dispatcher.py umbauen**
 
-`_PARSER_MAP` (Zeilen 694-703) ersetzen durch eine parser-id → Funktion-Map:
+`_PARSER_MAP` (Zeilen 694-703) ersetzen:
 
 ```python
 # parser-Schluessel (aus Klassen-Registry) -> Parser-Funktion
@@ -711,17 +981,12 @@ def _fuehre_parser_aus(klasse, norm_text, meta, versicherer_kuerzel=None,
     return parser_fn(norm_text, meta, versicherer_kuerzel, pruefdienstleister, has_image_pages)
 ```
 
-- [ ] **Step 4: Tests laufen lassen — müssen bestehen**
+- [ ] **Step 4: Tests + Dispatcher-Regression laufen lassen**
 
-Run: `docker exec unfallakten-backend-dev python -m pytest backend/tests/test_dispatcher_parser_routing.py -v`
+Run: `docker exec unfallakten-backend-dev python -m pytest backend/tests/test_dispatcher_parser_routing.py backend/tests/ -k dispatch -v`
 Expected: PASS.
 
-- [ ] **Step 5: Dispatcher-Regression**
-
-Run: `docker exec unfallakten-backend-dev python -m pytest backend/tests/ -k dispatch -v`
-Expected: PASS (bestehende Dispatcher-Tests unberührt).
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add backend/workflow/dispatcher.py backend/tests/test_dispatcher_parser_routing.py
@@ -733,12 +998,13 @@ git commit -m "refactor(dispatcher): Parser-Routing aus Klassen-Registry statt h
 ### Task 6: `GUELTIGE_DOK_TYPEN` aus der Registry ableiten
 
 **Files:**
-- Modify: `backend/word/word_service.py:54-59`
+- Modify: `backend/word/word_service.py:54-59` und Zeilen 108/111
+- Modify: `backend/routers/word_routes.py:17,64`
 - Test: `backend/tests/test_word_gueltige_typen.py` (neu)
 
 **Interfaces:**
 - Consumes: `lade_registry`/`standard_pfad`; `richtung`-Feld.
-- Produces: `GUELTIGE_DOK_TYPEN` enthält alle Klassen mit `richtung` ∈ {ausgehend, beides} **plus** die bestehenden reinen Word-Typen ohne Registry-Klasse (`abrechnungsuebersicht`).
+- Produces: `gueltige_dok_typen() -> set[str]` = reine Word-Typen ∪ Registry-Klassen mit `richtung` ∈ {ausgehend, beides}.
 
 - [ ] **Step 1: Failing test schreiben**
 
@@ -748,28 +1014,29 @@ git commit -m "refactor(dispatcher): Parser-Routing aus Klassen-Registry statt h
 from backend.word import word_service
 
 
-def test_klagedrohung_ist_gueltiger_word_typ():
-    assert "klagedrohung" in word_service.gueltige_dok_typen()
-    assert "mahnschreiben" in word_service.gueltige_dok_typen()
+def test_ausgehende_klassen_sind_gueltige_word_typen():
+    g = word_service.gueltige_dok_typen()
+    for t in ("forderungsschreiben", "sachstandsanfrage", "klage",
+              "mahnschreiben", "klagedrohung"):
+        assert t in g, t
 
 
-def test_reine_word_typen_bleiben():
+def test_reiner_word_typ_bleibt():
     assert "abrechnungsuebersicht" in word_service.gueltige_dok_typen()
 ```
 
 - [ ] **Step 2: Test laufen lassen — muss fehlschlagen**
 
 Run: `docker exec unfallakten-backend-dev python -m pytest backend/tests/test_word_gueltige_typen.py -v`
-Expected: FAIL (`gueltige_dok_typen` existiert nicht; `klagedrohung` fehlt).
+Expected: FAIL (`gueltige_dok_typen` existiert nicht).
 
 - [ ] **Step 3: word_service.py umbauen**
 
-`GUELTIGE_DOK_TYPEN`-Set (Zeilen 54-59) ersetzen durch eine Funktion, die reine Word-Typen mit den ausgehenden Registry-Klassen vereint:
+`GUELTIGE_DOK_TYPEN`-Set (Zeilen 54-59) ersetzen:
 
 ```python
 # Word-Typen ohne eigene Registry-Klasse (rein ausgehende Vorlagen)
-_REINE_WORD_TYPEN = {"forderungsschreiben", "sachstandsanfrage",
-                     "abrechnungsuebersicht", "klage"}
+_REINE_WORD_TYPEN = {"abrechnungsuebersicht"}
 
 
 def gueltige_dok_typen():
@@ -784,15 +1051,15 @@ def gueltige_dok_typen():
     return _REINE_WORD_TYPEN | aus_registry
 ```
 
-Die Prüfung in `generiere_und_speichere` (Zeile 108) anpassen:
+Prüfung in `generiere_und_speichere` (Zeile 108):
 
 ```python
     if dok_typ not in gueltige_dok_typen():
 ```
 
-und die Fehlermeldung (Zeile 111) auf `sorted(gueltige_dok_typen())` umstellen.
+Fehlermeldung (Zeile 111): `sorted(gueltige_dok_typen())` statt `sorted(GUELTIGE_DOK_TYPEN)`.
 
-In `backend/routers/word_routes.py` den Import (Zeile 17) und die Verwendung (Zeile 64) von `GUELTIGE_DOK_TYPEN` auf `gueltige_dok_typen()` umstellen.
+In `backend/routers/word_routes.py`: Import (Zeile 17) `GUELTIGE_DOK_TYPEN` entfernen, `gueltige_dok_typen` importieren; Verwendung (Zeile 64) auf `gueltige_dok_typen()` umstellen.
 
 - [ ] **Step 4: Tests laufen lassen — müssen bestehen**
 
@@ -813,13 +1080,13 @@ git commit -m "refactor(word): GUELTIGE_DOK_TYPEN aus Registry (richtung ausgehe
 **Files:**
 - Create: `tools/gen_dokumentenklassen.py`
 - Create: `frontend/src/config/dokumentenklassen.generated.js` (generiert)
-- Modify: `backend/registry/klasse_ereignistyp.yaml`, `backend/registry/rechnungstyp_mapping.yaml` (werden generiert, Header-Kommentar)
+- Modify: `backend/registry/klasse_ereignistyp.yaml`, `backend/registry/rechnungstyp_mapping.yaml` (generiert)
 - Modify: `frontend/src/config/constants.js` (Re-Export statt Hardcode)
 - Test: `backend/tests/test_gen_dokumentenklassen_guard.py` (neu)
 
 **Interfaces:**
 - Consumes: `lade_registry`; `label`/`richtung`/`ereignistyp`/`schadenposition`.
-- Produces: `tools/gen_dokumentenklassen.py` mit `render_alles() -> dict[str, str]` (Pfad → Inhalt) und `main()` (schreibt Dateien). Generiert `DOK_TYPEN`, `KLASSE_TO_POS`, `klasse_ereignistyp`, `rechnungstyp_mapping`.
+- Produces: `render_alles() -> dict[str, str]` (rel. Pfad → Inhalt) und `main()`. Generiert `DOK_TYPEN`, `KLASSE_TO_POS`, `klasse_ereignistyp`, `rechnungstyp_mapping`.
 
 - [ ] **Step 1: Failing Guard-Test schreiben**
 
@@ -827,10 +1094,19 @@ git commit -m "refactor(word): GUELTIGE_DOK_TYPEN aus Registry (richtung ausgehe
 
 ```python
 import os
+import sys
+
+PROJEKT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, PROJEKT)
+
+import pytest
 from tools.gen_dokumentenklassen import render_alles
 
-WURZEL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # backend/
-PROJEKT = os.path.dirname(WURZEL)
+FRONTEND = os.path.join(PROJEKT, "frontend")
+pytestmark = pytest.mark.skipif(
+    not os.path.isdir(FRONTEND),
+    reason="frontend/ nicht vorhanden (Backend-Container) — Guard laeuft auf Host/CI",
+)
 
 
 def test_generate_ist_aktuell():
@@ -839,15 +1115,15 @@ def test_generate_ist_aktuell():
         with open(voll, "r", encoding="utf-8") as f:
             ist = f.read()
         assert ist == soll, (
-            f"{rel_pfad} ist veraltet — 'python tools/gen_dokumentenklassen.py' "
+            f"{rel_pfad} ist veraltet — 'py tools/gen_dokumentenklassen.py' "
             "ausfuehren und committen."
         )
 ```
 
-- [ ] **Step 2: Test laufen lassen — muss fehlschlagen**
+- [ ] **Step 2: Test laufen lassen (Host) — muss fehlschlagen**
 
-Run: `docker exec unfallakten-backend-dev python -m pytest backend/tests/test_gen_dokumentenklassen_guard.py -v`
-Expected: FAIL (`tools.gen_dokumentenklassen` existiert nicht).
+Run: `py -m pytest backend/tests/test_gen_dokumentenklassen_guard.py -v`
+Expected: FAIL (`ModuleNotFoundError: tools.gen_dokumentenklassen`).
 
 - [ ] **Step 3: Codegen-Skript schreiben**
 
@@ -859,7 +1135,7 @@ Expected: FAIL (`tools.gen_dokumentenklassen` existiert nicht).
   * backend/registry/klasse_ereignistyp.yaml            (Klasse -> Ereignistyp)
   * backend/registry/rechnungstyp_mapping.yaml          (Klasse -> position_key)
 
-Aufruf:  python tools/gen_dokumentenklassen.py
+Aufruf (Host, Projektwurzel):  py tools/gen_dokumentenklassen.py
 Der Guard-Test test_gen_dokumentenklassen_guard.py schlaegt fehl, wenn eine
 dieser Dateien nicht mehr zur Registry passt.
 """
@@ -935,27 +1211,27 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 4: Skript ausführen (Artefakte erzeugen)**
+- [ ] **Step 4: Skript ausführen (Host, Artefakte erzeugen)**
 
-Run: `docker exec unfallakten-backend-dev python tools/gen_dokumentenklassen.py`
-Expected: drei „geschrieben:"-Zeilen. Danach `git diff` prüfen: `klasse_ereignistyp.yaml`/`rechnungstyp_mapping.yaml` enthalten jetzt auch die neuen Klassen; `dokumentenklassen.generated.js` ist neu.
+Run: `py tools/gen_dokumentenklassen.py`
+Expected: drei „geschrieben:"-Zeilen. `git diff` prüfen: `klasse_ereignistyp.yaml`/`rechnungstyp_mapping.yaml` enthalten jetzt auch die neuen Klassen (und keine `werkstattrechnung` mehr); `dokumentenklassen.generated.js` ist neu und listet alle 22 Klassen.
 
-**Prüfen (Reconciliation):** In der neuen `dokumentenklassen.generated.js` steht `"reparaturrechnung": ["rep_rechnung_netto"]` (nicht `_brutto`). Das ist die bewusste Angleichung ans Backend (Spec §6).
+**Reconciliation prüfen:** In `dokumentenklassen.generated.js` steht `"reparaturrechnung": ["rep_rechnung_netto"]` (nicht `_brutto`).
 
 - [ ] **Step 5: constants.js auf Re-Export umstellen**
 
 In `frontend/src/config/constants.js`:
-- Die Hardcode-Definitionen `DOK_TYPEN` (Zeile 191) und `KLASSE_TO_POS` (Zeilen 514-521) **entfernen**.
+- Hardcode `DOK_TYPEN` (Zeile 191) und `KLASSE_TO_POS` (Zeilen 514-521) **entfernen**.
 - Oben ergänzen: `import { DOK_TYPEN, KLASSE_TO_POS } from "./dokumentenklassen.generated.js";`
-- Im `export { ... }`-Block bleiben `DOK_TYPEN` und `KLASSE_TO_POS` unverändert gelistet (öffentliche API identisch → `DokumenteSection.jsx` u. a. unverändert).
+- Im `export { ... }`-Block bleiben `DOK_TYPEN` und `KLASSE_TO_POS` gelistet (öffentliche API identisch → `DokumenteSection.jsx` unverändert).
 
-- [ ] **Step 6: Guard-Test + Frontend-Build**
+- [ ] **Step 6: Guard-Test (Host) + Frontend-Build**
 
-Run: `docker exec unfallakten-backend-dev python -m pytest backend/tests/test_gen_dokumentenklassen_guard.py -v`
+Run: `py -m pytest backend/tests/test_gen_dokumentenklassen_guard.py -v`
 Expected: PASS.
 
 Run: `cd frontend && npm run build`
-Expected: Build erfolgreich (Import der generierten Datei auflösbar, keine ungenutzten-Export-Fehler).
+Expected: Build erfolgreich.
 
 - [ ] **Step 7: Commit**
 
@@ -970,45 +1246,54 @@ git commit -m "feat(klassen): FE-Liste + Mapping-YAMLs aus Registry generieren, 
 
 **Files:** keine Änderung — Verifikation.
 
-- [ ] **Step 1: Volle Backend-Testsuite**
+- [ ] **Step 1: Volle Backend-Testsuite (Container)**
 
 Run: `docker exec unfallakten-backend-dev python -m pytest backend/tests/ -q`
-Expected: PASS (keine Regression durch die neue Ableitung).
+Expected: PASS. Der Guard-Test `test_gen_dokumentenklassen_guard` wird hier mit Grund **übersprungen** (frontend/ nicht im Container) — das ist erwartet.
 
-- [ ] **Step 2: App-Start prüfen (Fail-Loud-Kreuzvalidierung)**
+- [ ] **Step 2: Guard-Test explizit auf Host**
+
+Run: `py -m pytest backend/tests/test_gen_dokumentenklassen_guard.py -v`
+Expected: PASS (läuft hier wirklich, weil frontend/ vorhanden).
+
+- [ ] **Step 3: App-Start prüfen (Fail-Loud-Kreuzvalidierung)**
 
 Run: `docker restart unfallakten-backend-dev && docker logs --tail 40 unfallakten-backend-dev`
-Expected: „Registry geladen: 15 Klassen …", kein RuntimeError.
+Expected: „Registry geladen: 22 Klassen …", kein RuntimeError.
 
-- [ ] **Step 3: Browser-Nachtest**
+- [ ] **Step 4: Browser-Nachtest**
 
-Im Dokumente-Reiter einer Testakte das Klassen-Dropdown öffnen: die 7 neuen Klassen erscheinen mit ihren Labels; eine Reparaturrechnung hochladen/zuordnen → landet auf Position „Reparaturkosten (Rechnung, netto)". Ergebnis notieren.
+Im Dokumente-Reiter einer Testakte das Klassen-Dropdown öffnen: alle 22 Klassen erscheinen mit ihren Labels (u. a. „SV-/Gutachterrechnung", „Reparatur-/Werkstattrechnung", „Arbeitsunfaehigkeitsbescheinigung (AU)"). Eine Reparaturrechnung hochladen/zuordnen → Position „Reparaturkosten (Rechnung, netto)". Ergebnis notieren.
 
-- [ ] **Step 4: Abschluss-Commit (falls Notizen/Doku)**
+- [ ] **Step 5: Abschluss-Commit (Notizen, optional)**
 
 ```bash
-git add -A ':(exclude)../../*'
-git commit -m "test(klassen): Gesamt-Regression + Browser-Nachtest Plan 1 gruen" --allow-empty
+git commit --allow-empty -m "test(klassen): Gesamt-Regression + Browser-Nachtest Plan 1 gruen"
 ```
 
 ---
 
 ## Self-Review
 
-**Spec-Abdeckung (Spec §-weise):**
+**Spec-Abdeckung:**
 - §4 Schema-Erweiterung → Task 1 (Format) + Task 2 (Kreuzvalidierung). ✅
-- §5 Die 7 Klassen → Task 4. ✅
-- §6 Ableitung (Backend direkt) → Task 5 (_PARSER_MAP), Task 6 (GUELTIGE_DOK_TYPEN); (FE + generierte YAMLs) → Task 7. ✅
-- §6 Guard-Test → Task 7 Step 1/6. ✅
-- §6 Reconciliation `reparaturrechnung` netto → Task 4 (schadenposition) + Task 7 Step 4 (Prüfhinweis). ✅
-- §7 Plan 1 Schritte 1-6 → Tasks 1-8. ✅
-- §9 sv_rechnung-Sondermarker → Task 2 (`_SV_VORSTEUER_MARKER`) + Task 3 (Wert). ✅
-- **Plan 2 (Frist-/Verzugs-Automatik) ist bewusst NICHT hier** — eigener Plan nach Merge von Plan 1 (Spec §7 Plan 2).
+- §5 finale 22 Klassen → Task 3 (Bestand + sv_rechnung-Label), Task 4 (9 nicht-med.), Task 4b (5 med./nachbesichtigung). ✅
+- §5 Rechnungen/ausgehend/Ablage/Fristsetzung → Task 4. ✅
+- §5 medizinische Extraktion (Datum/ICD-10/Diagnose) + nachbesichtigung (Datum/Reparaturtage) → Task 4b `regex_felder`+`schema`. ✅
+- §5 Zusammenführungen (gutachterrechnung→sv_rechnung-Label, werkstattrechnung→reparaturrechnung-Label, haushalt_attest→attest) → Task 3 (Label) + Task 4 (reparaturrechnung-Label) + Task 4b (attest). ✅
+- §6 Backend-Ableitung → Task 5 (_PARSER_MAP), Task 6 (GUELTIGE_DOK_TYPEN); FE + generierte YAMLs → Task 7. ✅
+- §6 Guard-Test → Task 7 Step 1/6, Task 8 Step 2. ✅
+- §6 Reconciliation reparaturrechnung netto → Task 4 (schadenposition) + Task 7 Step 4. ✅
+- §9 sv_rechnung-Sondermarker → Task 2 + Task 3. ✅
+- §9 GUELTIGE reine Word-Typen = nur abrechnungsuebersicht → Task 6 `_REINE_WORD_TYPEN`. ✅
+- **Plan 2 (Frist-/Verzugs-Automatik) bewusst NICHT hier** — eigener Plan nach Merge (Spec §7).
 
 **Platzhalter-Scan:** kein TBD/TODO; jeder Code-Step zeigt vollständigen Code. ✅
 
-**Typ-Konsistenz:** `_PARSER_FUNKTIONEN` (Task 5) einheitlich benannt; `gueltige_dok_typen()` (Task 6) in word_service.py + word_routes.py konsistent; `render_alles()` (Task 7) in Skript + Guard-Test gleich. ✅
+**Typ-Konsistenz:** `_PARSER_FUNKTIONEN` (Task 5), `gueltige_dok_typen()` (Task 6, word_service + word_routes), `render_alles()` (Task 7, Skript + Guard) durchgängig gleich benannt. ✅
 
-**Bekannte Grenzen:**
-- `mahnschreiben`/`klagedrohung` haben in Plan 1 **keinen** Parser und **kein** `frist_datum`-Schema — das kommt in Plan 2. In Plan 1 sind sie wählbare Ablage-Etiketten mit `richtung: beides` (damit sie schon jetzt in `gueltige_dok_typen()` erscheinen).
-- Marker der drei Personenschaden-Klassen sind bewusst schmal; Feinjustierung nach echtem Betrieb.
+**Bekannte Grenzen / Umgebungs-Realität:**
+- Codegen + Guard-Test laufen auf dem **Host** (`py`), weil `frontend/` nicht im Backend-Container gemountet ist. Im Container-Vollsuite-Lauf (Task 8 Step 1) wird der Guard mit Grund übersprungen; Task 8 Step 2 führt ihn auf dem Host wirklich aus.
+- `mahnschreiben`/`klagedrohung` haben in Plan 1 **keinen** Parser und **kein** `frist_datum`-Schema — das kommt in Plan 2. In Plan 1 sind sie wählbare fristrelevante Klassen mit `richtung: beides`.
+- Medizinische `regex_felder` erfassen den **primären** ICD-10-Code (erster Treffer) + Freitext; Mehrfachcodes sind Folgeschritt.
+- `werkstattrechnung` verschwindet als eigenes Label (→ `reparaturrechnung`); `nachbesichtigung`-Rechnungen laufen als `sv_rechnung`.

@@ -35,8 +35,9 @@ Die fünf Quellen:
   generiert und per Test gegen Drift abgesichert.
 - Frontend und Backend führen garantiert dieselbe Klassenliste — oder der
   App-Start / die Testsuite bricht.
-- 7 neue Klassen anlegen: `reparaturrechnung`, `mietwagenrechnung`, `arztbericht`,
-  `krankenhausbericht`, `attest`, `mahnschreiben`, `klagedrohung`.
+- Die Klassenliste wird auf **22 Klassen** vervollständigt (siehe §5), damit die
+  Sachbearbeiter **alle** benötigten Dokumentenklassen zur Auswahl haben und
+  jede Wahl eine echte Backend-Grundlage hat.
 - Fristsetzungs-/Verzugs-Automatik für `klagedrohung`/`mahnschreiben`.
 
 ## 3. Gewählter Ansatz (B)
@@ -80,36 +81,66 @@ Fail-Loud-Stil:
   Positionsmodell-Registry (`positionsmodell_registry.py`) validiert — siehe
   §6, Reihenfolge der beiden Loader.
 
-## 5. Die 7 neuen Klassen
+## 5. Die finale Klassenliste (22)
 
-| Klasse | Label | Richtung | Parser | Ereignistyp (Eingang) | Schadenposition | Fristrelevant |
-|---|---|---|---|---|---|---|
-| `reparaturrechnung` | Reparaturrechnung | eingehend | `rechnung` | `rechnung_eingegangen` | `rep_rechnung_netto` | – |
-| `mietwagenrechnung` | Mietwagenrechnung | eingehend | `rechnung` | `rechnung_eingegangen` | `mietwagenkosten` | – |
-| `arztbericht` | Arztbericht | eingehend | — | — | — | – |
-| `krankenhausbericht` | Krankenhausbericht | eingehend | — | — | — | – |
-| `attest` | Attest (AU / Haushalt) | eingehend | — | — | — | – |
-| `mahnschreiben` | Mahnschreiben | beides | — | — | — | ja |
-| `klagedrohung` | Klagedrohung / Fristsetzung | beides | — | — | — | ja |
+Ziel: Jedes Label, das die SB auswählen können sollen, ist eine echte
+Registry-Klasse. „Parsing" heißt hier: Feldextraktion über die `regex_felder`
+der Klassen-YAML durch die Intake-Pipeline (kein neues Parser-Modul nötig).
 
-**Marker-Strategie:**
-- `reparaturrechnung` / `mietwagenrechnung`: trennscharfe Marker
-  („Reparaturrechnung", „Mietwagen", „Ersatzfahrzeug" …). Parser =
-  bestehender Rechnungs-Parser.
-- `arztbericht` / `krankenhausbericht` / `attest`: **bewusst wenige,
-  trennscharfe** Marker. Keine erzwungene Marker-Konkurrenz — im Zweifel landet
-  ein medizinisches Dokument in `sonstiges` und wird per Dropdown zugeordnet.
-  Verhindert Dauer-Konflikt-Eskalationen zwischen den drei.
-- `klagedrohung` / `mahnschreiben`: eingehende Marker vorsichtig
-  („letztmalige Frist", „gerichtliche Geltendmachung", „Mahnung") — geringe
-  Fallzahl, Kollision mit ausgehender `klage` unkritisch.
+**Rechnungen — `parser: rechnung`, `richtung: eingehend`, `ereignistyp: rechnung_eingegangen`:**
 
-**Sonderfall `klagedrohung` / `mahnschreiben` (`richtung: beides`):**
-- **Selbst erzeugt** (Word) → stempeln das `frist_datum` exakt und buchen
-  `fristsetzung_generiert` (existiert in `ereignistypen.yaml`).
-- **Importiert** → landen als eingehendes Dokument in der Akte; bewegen keine
-  Schadenposition, buchen daher beim Import kein Positions-Ereignis. Frist wird
-  vom Import-Parser extrahiert (Plan 2).
+| Klasse | Label | Schadenposition |
+|---|---|---|
+| `sv_rechnung` | SV-/Gutachterrechnung | `__sv_kosten_vorsteuer__` |
+| `rechnung` | Rechnung (Auffang) | — |
+| `reparaturrechnung` | Reparatur-/Werkstattrechnung | `rep_rechnung_netto` |
+| `mietwagenrechnung` | Mietwagenrechnung | `mietwagenkosten` |
+| `abschlepprechnung` | Abschlepprechnung | `abschleppkosten` |
+| `standkostenrechnung` | Standkostenrechnung | `standkosten` |
+
+**Versicherungs-/SV-Post — eigene Parser, `richtung: eingehend`:**
+
+| Klasse | Label | Parser | Ereignistyp |
+|---|---|---|---|
+| `gutachten` | Gutachten | `gutachten` | `gutachten_eingegangen` |
+| `abrechnungsschreiben` | Abrechnungsschreiben | `abrechnungsschreiben` | `abrechnung_eingegangen` |
+| `pruefbericht` | Prüfbericht | `pruefbericht` | `pruefbericht_eingegangen` |
+
+**Medizinisch — kein Parser-Modul, `regex_felder`: Datum + ICD-10 + Diagnose-Freitext; `richtung: eingehend`:**
+`arztbericht` · `krankenhausbericht` · `attest` · `arbeitsunfaehigkeitsbescheinigung`
+- `schema`: `aussteller`, `datum` (date), `diagnoseschluessel` (ICD-10-GM,
+  Muster `[A-Z]\d{2}(\.\d{1,2})?`), `diagnose` (Freitext, falls kein Code).
+
+**Nachbesichtigung — `regex_felder`: Datum + Reparaturtage; `richtung: eingehend`:**
+`nachbesichtigung`
+- `schema`: `datum` (date), `reparaturtage` (integer, vom Gutachter
+  festgelegte Reparaturdauer).
+- Eine **Rechnung** für eine Nachbesichtigung ist keine eigene Klasse → läuft
+  als `sv_rechnung`.
+
+**Ablage (kein Parsing), `richtung: eingehend`:** `kaufvertrag` · `verdienstausfall_nachweis`
+
+**Fristsetzung — `richtung: beides`, `fristrelevanz: true`:** `mahnschreiben` · `klagedrohung`
+- **Selbst erzeugt** (Word) → stempeln `frist_datum` exakt, buchen
+  `fristsetzung_generiert` (existiert). **Importiert** → Frist wird vom
+  Import-Parser extrahiert (Plan 2). Keine Schadenposition, kein
+  Eingangs-Ereignistyp.
+
+**Ausgehende Schreiben — `richtung: ausgehend`:** `forderungsschreiben` · `sachstandsanfrage` · `klage`
+- Erscheinen dadurch automatisch in `gueltige_dok_typen()` (Word) und im
+  Klassifikations-Dropdown. Kein `parser`, keine `schadenposition`, kein
+  Eingangs-`ereignistyp`.
+
+**Auffang:** `sonstiges`
+
+**Zusammengeführt / gestrichen als eigene Klasse:**
+- `gutachterrechnung` ≡ `sv_rechnung` → nur Label „SV-/Gutachterrechnung".
+- `werkstattrechnung` ≡ `reparaturrechnung` → nur Label „Reparatur-/Werkstattrechnung".
+- `haushalt_attest` → `attest`.
+
+**Marker-Strategie:** trennscharfe Marker je Klasse; bei Konflikt eskaliert der
+Dispatcher (manuelle Wahl). Medizinische Klassen mit vorsichtigen Markern, damit
+sie sich nicht gegenseitig „klauen".
 
 ## 6. Ableitung der Alt-Listen
 
@@ -206,7 +237,15 @@ laufen lassen.** FE und BE danach garantiert identisch.
 - **RA-MICRO read-only**: unberührt — alle Änderungen betreffen nur SQLite/Registry.
 - **`sv_rechnung`-Sondermarker** `__sv_kosten_vorsteuer__` bleibt als
   `schadenposition`-Wert erhalten; Loader lässt ihn wie bisher durch.
-- Weitere Kandidatenklassen (werkstattrechnung, gutachterrechnung,
-  forderungsschreiben, sachstandsanfrage, kaufvertrag, nachbesichtigung,
-  verdienstausfall_nachweis) sind bewusst **nicht** in diesem Satz — sie lassen
-  sich später mit je einer YAML in dieselbe Struktur einhängen.
+- **Medizinische Extraktion (`regex_felder`)** liefert die Felder in die
+  Intake-Review. Eine dedizierte Anzeige/Weiterverarbeitung der Diagnose-/
+  Reparaturtage-Felder in der Akte ist ein **Folge-Thema**, nicht Teil dieses
+  Plans — hier wird nur sichergestellt, dass die Felder erkannt und extrahiert
+  werden.
+- **ICD-10-Mehrfachcodes:** Die `regex_felder`-Extraktion erfasst zunächst den
+  primären Diagnoseschlüssel (erster Treffer) + Freitext. Mehrere Codes je
+  Dokument sind ein möglicher Folgeschritt.
+- **`GUELTIGE_DOK_TYPEN`:** Nach der Umstellung ist `abrechnungsuebersicht` der
+  einzige reine Word-Typ ohne Registry-Klasse; `forderungsschreiben`/
+  `sachstandsanfrage`/`klage` kommen jetzt als `richtung: ausgehend`-Klassen aus
+  der Registry.
