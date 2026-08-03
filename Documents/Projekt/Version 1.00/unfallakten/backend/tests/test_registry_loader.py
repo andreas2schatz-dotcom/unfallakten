@@ -16,9 +16,14 @@ import os
 import sys
 import shutil
 import tempfile
+import textwrap
 import unittest
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+
+from backend.intake import registry_loader
 
 
 def _schreibe_yaml(pfad: str, inhalt: str) -> None:
@@ -168,6 +173,47 @@ class TestSingleton(_BaseLoaderTest):
         r1 = lade_registry(self._tmp, reload=True)
         r2 = lade_registry(self._tmp)  # kein reload
         self.assertIs(r1, r2)
+
+
+def _schreibe_klasse(dir_pfad, name, extra=""):
+    inhalt = textwrap.dedent(f"""\
+        klasse: {name}
+        marker: []
+        regex_felder: {{}}
+        schema: {{}}
+        pflichtfelder: []
+        kritische_felder: []
+        validierungsregeln: []
+        fristrelevanz: false
+        loeschfrist_jahre: 6
+        label: {name.capitalize()}
+    """) + extra
+    with open(os.path.join(dir_pfad, f"{name}.yaml"), "w", encoding="utf-8") as f:
+        f.write(inhalt)
+
+
+def test_gueltiges_parser_feld_laedt(tmp_path):
+    _schreibe_klasse(str(tmp_path), "rechnung", "parser: rechnung\n")
+    reg = registry_loader.lade_registry(str(tmp_path), reload=True)
+    assert reg.klassen["rechnung"]["parser"] == "rechnung"
+
+
+def test_unbekannter_parser_wirft(tmp_path):
+    _schreibe_klasse(str(tmp_path), "rechnung", "parser: quatsch\n")
+    with pytest.raises(RuntimeError, match="parser"):
+        registry_loader.lade_registry(str(tmp_path), reload=True)
+
+
+def test_ungueltige_richtung_wirft(tmp_path):
+    _schreibe_klasse(str(tmp_path), "rechnung", "richtung: seitwaerts\n")
+    with pytest.raises(RuntimeError, match="richtung"):
+        registry_loader.lade_registry(str(tmp_path), reload=True)
+
+
+def test_ereignistyp_muss_string_sein(tmp_path):
+    _schreibe_klasse(str(tmp_path), "rechnung", "ereignistyp: 42\n")
+    with pytest.raises(RuntimeError, match="ereignistyp"):
+        registry_loader.lade_registry(str(tmp_path), reload=True)
 
 
 if __name__ == "__main__":

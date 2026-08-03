@@ -34,6 +34,9 @@ PFLICHT_FELDER = (
     "loeschfrist_jahre",
 )
 
+BEKANNTE_PARSER = {"rechnung", "gutachten", "abrechnungsschreiben", "pruefbericht"}
+RICHTUNGEN = {"eingehend", "ausgehend", "beides"}
+
 
 @dataclass(frozen=True)
 class Registry:
@@ -215,3 +218,30 @@ def _validiere_eintrag(dateiname: str,
                     f"'bezeichnung_felder.{rolle}' muss ein nichtleerer "
                     f"String sein in {dateiname}"
                 )
+
+    if "parser" in data:
+        p = data["parser"]
+        if not isinstance(p, str) or p not in BEKANNTE_PARSER:
+            raise RuntimeError(
+                f"'parser' {p!r} unbekannt in {dateiname} "
+                f"(erlaubt: {sorted(BEKANNTE_PARSER)})"
+            )
+    if "richtung" in data:
+        r = data["richtung"]
+        if not isinstance(r, str) or r not in RICHTUNGEN:
+            raise RuntimeError(
+                f"'richtung' {r!r} ungueltig in {dateiname} "
+                f"(erlaubt: {sorted(RICHTUNGEN)})"
+            )
+    if "ereignistyp" in data and not (
+        isinstance(data["ereignistyp"], str) and data["ereignistyp"]
+    ):
+        raise RuntimeError(
+            f"'ereignistyp' muss ein nichtleerer String sein in {dateiname}"
+        )
+    if "schadenposition" in data and not (
+        isinstance(data["schadenposition"], str) and data["schadenposition"]
+    ):
+        raise RuntimeError(
+            f"'schadenposition' muss ein nichtleerer String sein in {dateiname}"
+        )
