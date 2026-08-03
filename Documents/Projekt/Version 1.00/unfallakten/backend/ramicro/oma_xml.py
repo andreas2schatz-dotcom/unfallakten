@@ -26,7 +26,10 @@ def _option(parent, tag, name, value, text):
 def _person_block(parent, daten):
     person = ET.SubElement(parent, "Person")
     value, text = ANREDEN.get((daten.get("anrede") or "").lower(), ("", ""))
-    _option(person, "Anrede", "Anrede", value, text)
+    # name="Rechtsangelegenheit" ist kein Tippfehler: RA-MICROs Onlinemandat-
+    # Vorlage (beispieloma.xml) traegt bei JEDER Anrede-Option genau diesen
+    # name-Wert. Wir spiegeln die Vorlage 1:1, damit der Import die XML annimmt.
+    _option(person, "Anrede", "Rechtsangelegenheit", value, text)
     _feld(person, "AndereAnredeBezeichnung", "Andere Anrede")
     _feld(person, "Titel", "Titel", daten.get("titel"))
     _feld(person, "Adelstitel", "Adelstitel")
@@ -121,9 +124,15 @@ def erzeuge_oma_xml(formular: dict) -> str:
     _feld(mv, "Name", "Name der Versicherung")
     _feld(mv, "Schadennummer", "Schadennummer, Vertragsnummer, o.ä.")
 
-    gliste = ET.SubElement(root, "Gegnerliste", {
-        "typ": "gruppe", "name": "Daten zum Gegner"})
+    # Gegnerliste wird NUR geschrieben, wenn ein Gegner bekannt ist -- so wie
+    # RA-MICROs eigener Onlinemandat-Export (Referenz: funktionierende Datei
+    # ohne Gegner enthaelt KEINE Gegnerliste). Eine leere
+    # <Gegnerliste></Gegnerliste> laesst der M-Plattform-Import NICHT zu
+    # (Grund fuer die zunaechst nicht erkannten Importe). Ist ein Gegner da,
+    # wird das volle Gegner-Geruest wie in beispieloma.xml geschrieben.
     if (gegner.get("nachname") or "").strip():
+        gliste = ET.SubElement(root, "Gegnerliste", {
+            "typ": "gruppe", "name": "Daten zum Gegner"})
         g = ET.SubElement(gliste, "Gegner", {
             "typ": "gruppe", "name": "1. Gegner"})
         nr = ET.SubElement(g, "Nr", {"typ": "data"})
@@ -180,6 +189,12 @@ def erzeuge_oma_xml(formular: dict) -> str:
         _feld(agrp, "Telefon", "Telefon", gutachter.get("telefon"))
         _feld(agrp, "Mobiltelefon", "Mobiltelefon")
         _feld(agrp, "EMail", "E-Mail", gutachter.get("email"))
+        # Personenfelder wie in der Vorlage (Andere Beteiligte) -- leer, aber
+        # strukturell vorhanden, damit die XML strukturgleich zu beispieloma.xml ist.
+        _feld(agrp, "Geburtstag", "Geburtstag")
+        _feld(agrp, "Geburtsort", "Geburtsort")
+        _feld(agrp, "Geburtsname", "Geburtsname")
+        _feld(agrp, "Staatsangehoerigkeit", "Staatsangehoerigkeit")
 
     zusatz = ET.SubElement(root, "Zusatzangaben", {
         "typ": "gruppe", "name": "Daten an Anwalt senden"})
@@ -194,9 +209,15 @@ def erzeuge_oma_xml(formular: dict) -> str:
           "X")
     ET.SubElement(root, "tvm")
 
-    return ('<?xml version="1.0" encoding="utf-8"?>\n'
-            + ET.tostring(root, encoding="unicode",
-                          short_empty_elements=False))
+    # Eingerueckt/mit Zeilenumbruechen wie die RA-MICRO-Referenz -- ein
+    # konformer XML-Parser ignoriert zwar Whitespace zwischen Elementen, aber
+    # wir spiegeln die Vorlage bewusst 1:1 (RA-MICRO-Importer als Blackbox).
+    ET.indent(root, space="  ")
+    xml = ET.tostring(root, encoding="unicode", short_empty_elements=False)
+    # Leere Felder bleiben <X></X> (wie die Referenz), aber das abschliessende
+    # <tvm> ist in der RA-MICRO-Referenz selbstschliessend (<tvm/>).
+    xml = xml.replace("<tvm></tvm>", "<tvm/>")
+    return '<?xml version="1.0" encoding="utf-8"?>\n' + xml
 
 
 def _slug(text: str) -> str:
@@ -210,10 +231,18 @@ def schreibe_oma_xml(formular: dict, ziel_ordner) -> Path:
     ordner = Path(ziel_ordner)
     if not ordner.is_dir():
         raise OSError(f"OMA-Export-Ordner existiert nicht: {ordner}")
-    nachname = _slug((formular.get("mandant") or {}).get("nachname"))
+    mandant = formular.get("mandant") or {}
+    name_slug = _slug("_".join(
+        t for t in (mandant.get("vorname"), mandant.get("nachname")) if t))
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
-    ziel = ordner / f"onlinemandat_{stamp}_{nachname}.xml"
-    tmp = ziel.with_suffix(".tmp")
+    # RA-MICROs M-Plattform-Watcher zieht NUR Dateien, deren Name mit "Oma_"
+    # beginnt (verifiziert 2026-08-03 -- gleicher Dateiname mit anderem Praefix
+    # wurde ignoriert). Der Zeitstempel sichert Eindeutigkeit.
+    ziel = ordner / f"Oma_{name_slug}_Verkehrsrecht_{stamp}.xml"
+    # Temp-Datei bewusst OHNE "Oma_"-Praefix und mit .part statt .xml, damit
+    # der Watcher die halbfertige Datei nicht vorzeitig einliest; os.replace
+    # macht das Erscheinen der fertigen .xml atomar.
+    tmp = ordner / f"_tmp_{stamp}.part"
     tmp.write_text(erzeuge_oma_xml(formular), encoding="utf-8")
     os.replace(tmp, ziel)
     return ziel

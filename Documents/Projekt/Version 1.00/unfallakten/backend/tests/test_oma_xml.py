@@ -68,13 +68,24 @@ class TestErzeugeOmaXml(unittest.TestCase):
         self.assertIn("KRAVAG-LOGISTIC Versicherungs-AG", bez)
         self.assertIn("KFZ-Sachverständigenbüro Cassese", bez)
 
-    def test_gegner_nur_bei_namen(self):
-        self.assertIsNone(self._root().find("Gegnerliste/Gegner"))
+    def test_gegnerliste_fehlt_ohne_gegner(self):
+        # RA-MICROs Referenz-Export ohne Gegner enthaelt KEINE Gegnerliste;
+        # eine leere <Gegnerliste></Gegnerliste> laesst der Import nicht zu.
+        root = self._root()
+        self.assertIsNone(root.find("Gegnerliste"))
+
+    def test_gegner_volles_geruest_bei_namen(self):
         f = {**FORMULAR,
              "gegner": {**FORMULAR["gegner"], "nachname": "Bicer"}}
-        self.assertEqual(
-            self._root(f).findtext("Gegnerliste/Gegner/Person/Nachname"),
-            "Bicer")
+        g = self._root(f).find("Gegnerliste/Gegner")
+        self.assertIsNotNone(g)
+        self.assertEqual(g.findtext("Person/Nachname"), "Bicer")
+
+    def test_tvm_selbstschliessend(self):
+        # Referenz hat <tvm/>, nicht <tvm></tvm>.
+        xml_text = erzeuge_oma_xml(FORMULAR)
+        self.assertIn("<tvm/>", xml_text)
+        self.assertNotIn("<tvm></tvm>", xml_text)
 
     def test_escaping_umlaute_und_ampersand(self):
         f = {**FORMULAR,
@@ -105,15 +116,68 @@ class TestErzeugeOmaXml(unittest.TestCase):
             self.assertIsNotNone(g.find(pfad), pfad)
 
 
+class TestStrukturgleichZurVorlage(unittest.TestCase):
+    """Sichert, dass die erzeugte XML strukturgleich zu beispieloma.xml ist
+    (RA-MICRO nimmt sonst den Import nicht an). Verglichen werden Tags +
+    typ/name-Attribute + Reihenfolge -- NICHT die Textwerte."""
+
+    VORLAGE = os.path.join(os.path.dirname(__file__), "..", "..",
+                           "beispieloma.xml")
+
+    def _sig(self, el):
+        return (el.tag, tuple(sorted(el.attrib.items())),
+                tuple(self._sig(c) for c in el))
+
+    def _finde(self, root, tag):
+        return root.find(f".//{tag}")
+
+    def setUp(self):
+        if not os.path.isfile(self.VORLAGE):
+            self.skipTest("beispieloma.xml nicht auffindbar")
+        self.ref = ET.parse(self.VORLAGE).getroot()
+        # Voll befuelltes Formular, damit alle Bloecke erscheinen.
+        f = {**FORMULAR,
+             "gegner": {**FORMULAR["gegner"], "nachname": "Bicer"}}
+        self.gen = ET.fromstring(erzeuge_oma_xml(f))
+
+    def test_toplevel_kinder_gleich(self):
+        self.assertEqual([c.tag for c in self.ref],
+                         [c.tag for c in self.gen])
+
+    def test_mandant_struktur_identisch(self):
+        r = self._finde(self.ref, "Mandantenliste").find("Mandant")
+        g = self._finde(self.gen, "Mandantenliste").find("Mandant")
+        self.assertEqual(self._sig(r), self._sig(g))
+
+    def test_gegner_struktur_identisch(self):
+        r = self._finde(self.ref, "Gegnerliste").find("Gegner")
+        g = self._finde(self.gen, "Gegnerliste").find("Gegner")
+        self.assertEqual(self._sig(r), self._sig(g))
+
+    def test_andere_beteiligter_struktur_identisch(self):
+        # Vergleicht den Gutachter-"Andere"-Block mit einem Andere-Block
+        # der Vorlage (Feld-Satz muss identisch sein).
+        r_andere = next(b.find("Andere") for b in
+                        self.ref.findall(".//Beteiligtenliste/Beteiligter")
+                        if b.find("Andere") is not None)
+        g_andere = next(b.find("Andere") for b in
+                        self.gen.findall(".//Beteiligtenliste/Beteiligter")
+                        if b.find("Andere") is not None)
+        self.assertEqual([(c.tag, c.get("name")) for c in r_andere],
+                         [(c.tag, c.get("name")) for c in g_andere])
+
+
 class TestSchreibeOmaXml(unittest.TestCase):
     def test_atomar_geschrieben(self):
         ordner = tempfile.mkdtemp(prefix="oma_out_")
         pfad = schreibe_oma_xml(FORMULAR, ordner)
         self.assertTrue(pfad.exists())
-        self.assertTrue(pfad.name.startswith("onlinemandat_"))
+        # RA-MICRO-Watcher braucht das "Oma_"-Praefix.
+        self.assertTrue(pfad.name.startswith("Oma_"))
         self.assertTrue(pfad.name.endswith(".xml"))
         self.assertIn("achkour_zejli", pfad.name)
-        tmp_reste = [f for f in os.listdir(ordner) if f.endswith(".tmp")]
+        tmp_reste = [f for f in os.listdir(ordner)
+                     if f.endswith(".tmp") or f.endswith(".part")]
         self.assertEqual(tmp_reste, [])
         ET.fromstring(pfad.read_text(encoding="utf-8"))
 
