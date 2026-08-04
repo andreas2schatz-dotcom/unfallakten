@@ -186,6 +186,7 @@ function _triggerDownload(blob, dateiname) {
 
 export const dokumente = {
   liste:    (aId)        => request(`/akten/${aId}/dokumente`),
+  intakePending: (aId)   => request(`/akten/${encodeURIComponent(aId)}/intake-pending`),
   detail:   (aId, id)   => request(`/akten/${aId}/dokumente/${id}`),
   loeschen: (aId, id)   => request(`/akten/${aId}/dokumente/${id}`, { method: 'DELETE' }),
   klassifikation: (aId, id, klasse) => request(`/akten/${aId}/dokumente/${id}/klassifikation`, {

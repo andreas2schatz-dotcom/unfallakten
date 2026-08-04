@@ -5,6 +5,7 @@ import { DOK_TYPEN, SCHADEN_F, KLASSE_TO_POS } from "../config/constants.js";
 import { fmtSize, fmtEuro } from "../config/utils.js";
 import { Card, CardHead, Btn, FieldSelect, Toast } from "../components/common.jsx";
 import DokumentAktionsmenue from "../components/DokumentAktionsmenue.jsx";
+import IntakePendingListe from "./IntakePendingListe.jsx";
 import {
   dokumente as apiDokumente,
   eakte as apiEakte,
@@ -15,7 +16,7 @@ import {
   API_BASE,
 } from "../api.js";
 
-function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten = [], schaden = {}, vorsteuer = false }) {
+function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten = [], schaden = {}, vorsteuer = false, onOpenReview }) {
   const istVerkehrsunfall = akte?.referat == null || akte?.referat === 4;
   const [dragging, setDrag]   = useState(false);
   const [uploading, setUpl]   = useState(false);
@@ -29,6 +30,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
   const [dokVorschau, setDokVorschau]     = useState(null); // dok_id in Inline-Vorschau (Dokumente-Liste)
   const [dokVorschauUrl, setDokVorschauUrl] = useState(null);
   const [dokVorschauLaden, setDokVorschauLaden] = useState(false);
+  const [intakePending, setIntakePending] = useState([]);
 
   // ── E-Akte (RA-Micro) ──────────────────────────────────────────────────
   const [eakteDoks, setEakteDoks]       = useState([]);
@@ -226,6 +228,13 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
     if (!akteId) return;
     ladeBelegeKandidaten();
   }, [akteId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!akteId) return;
+    apiDokumente.intakePending(akteId)
+      .then(res => setIntakePending(Array.isArray(res) ? res : []))
+      .catch(() => setIntakePending([]));
+  }, [akteId]);
 
   useEffect(() => {
     if (!akteId) return;
@@ -725,6 +734,8 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
       {toast && <Toast msg={toast} onDone={() => setToast("")} />}
 
       <div style={{ display:"flex", flexDirection:"column", gap:"1.25rem" }}>
+
+        <IntakePendingListe eintraege={intakePending} onOpenReview={onOpenReview} />
 
         {/* Liste */}
         <Card>
