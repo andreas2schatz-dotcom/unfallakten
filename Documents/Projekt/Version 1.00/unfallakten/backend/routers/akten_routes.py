@@ -17,6 +17,7 @@ DELETE erfordert Admin-Rolle (@nur_admin).
 """
 
 import logging
+import re
 from flask import Blueprint, request, jsonify, g
 from ..auth.middleware import login_erforderlich, nur_admin
 from ..db.database import get_connection
@@ -551,3 +552,68 @@ def _erzeuge_abschluss_summary(az):
             _portal_flag(conn, az)
     except Exception as exc:
         logger.error("Abschluss-Summary fuer %s fehlgeschlagen: %s", az, exc)
+
+
+def _basis_az(az: str) -> str:
+    """Streift ein optionales SB-Kuerzel ab ('670/26AS' -> '670/26').
+
+    Gleiche Basis-Logik wie intake_routes._basis_az / akten_matching._az_basis,
+    damit der Akte-Vergleich ueber Suffixe/fuehrende Nullen hinweg greift.
+    """
+    az = (az or "").strip()
+    if "/" in az:
+        az = re.sub(r"[A-Za-z]{2,3}$", "", az).strip()
+    return az
+
+
+def _abgeleiteter_az(row) -> str | None:
+    """Erste nicht-leere AZ-Quelle je Intake-Dokument (Spec Praezedenz):
+    1. Signal-AZ (E-Akte + Upload), 2. Upload-Referenz, 3. Matching-Kandidat.
+    """
+    if row["signal_az"]:
+        return row["signal_az"]
+    roh = row["roh_referenz"] or ""
+    if roh.startswith("upload/akte:"):
+        return roh[len("upload/akte:"):]
+    return row["kandidat_az"]
+
+
+@akten_bp.route("/<path:akte_az>/intake-pending", methods=["GET"])
+@login_erforderlich
+def intake_pending(akte_az: str):
+    ziel = _basis_az(akte_az)
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT i.id, i.klasse, i.queue_status, i.erstellt_am, "
+            "       i.bezeichnung, "
+            "       json_extract(i.parse_json, '$.akten_kandidaten[0].akte_az') "
+            "         AS kandidat_az, "
+            "       json_extract(z.signale_json, '$.az') AS signal_az, "
+            "       json_extract(z.signale_json, '$.dateiname') "
+            "         AS signal_dateiname, "
+            "       z.roh_referenz AS roh_referenz "
+            "FROM intake_dokumente i "
+            "LEFT JOIN (SELECT intake_dokument_id, MIN(id) AS min_id "
+            "           FROM zustellungen GROUP BY intake_dokument_id) ze "
+            "  ON ze.intake_dokument_id = i.id "
+            "LEFT JOIN zustellungen z ON z.id = ze.min_id "
+            "WHERE i.queue_status != 'freigegeben' "
+            "  AND i.verworfen_am IS NULL "
+            "ORDER BY i.erstellt_am ASC, i.id ASC"
+        ).fetchall()
+
+    eintraege = []
+    for r in rows:
+        az = _abgeleiteter_az(r)
+        if not az or _basis_az(az) != ziel:
+            continue
+        bez = (r["bezeichnung"] or r["signal_dateiname"]
+               or r["klasse"] or "(unbenannt)")
+        eintraege.append({
+            "intake_id": r["id"],
+            "bezeichnung": bez,
+            "klasse": r["klasse"],
+            "queue_status": r["queue_status"],
+            "erstellt_am": r["erstellt_am"],
+        })
+    return _j(eintraege)
