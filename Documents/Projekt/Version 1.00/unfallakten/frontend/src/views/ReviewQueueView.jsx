@@ -1421,7 +1421,7 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
   );
 }
 
-export default function ReviewQueueView({ onOpenAkte }) {
+export default function ReviewQueueView({ onOpenAkte, initialIntakeId = null, onDokumentGeoffnet }) {
   const [queue, setQueue] = useState([]);
   const [aktivId, setAktivId] = useState(null);
   const [ladeError, setLadeError] = useState(null);
@@ -1467,6 +1467,12 @@ export default function ReviewQueueView({ onOpenAkte }) {
   }, []);
 
   useEffect(() => { laden(); }, [laden]);
+  useEffect(() => {
+    if (initialIntakeId != null) {
+      setAktivId(initialIntakeId);
+      onDokumentGeoffnet?.();
+    }
+  }, [initialIntakeId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const t = setInterval(laden, 30000);
     return () => clearInterval(t);

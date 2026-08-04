@@ -97,6 +97,7 @@ function AppShell({ user, onLogout }) {
   const [active, setActive]      = useState("dashboard");   // "dashboard" | "email-import" | "wiedervorlage" | "akte-N"
   const [aktenState, dispatch]   = useReducer(reducer, INITIAL_STATE);
   const [pendingEmailId, setPendingEmailId] = useState(null);
+  const [pendingReviewIntakeId, setPendingReviewIntakeId] = useState(null);
   const { online }               = useBackend();
 
   const [systemStatus,           setSystemStatus]           = useState(null);
@@ -290,7 +291,7 @@ function AppShell({ user, onLogout }) {
             : active==="aktensuche"      ? <AktensucheView onOpenAkte={openAkte} />
             : active==="email-import"    ? <EmailImportView onOpenAkte={openAkte} dispatch={dispatch} initialEmailId={pendingEmailId} onEmailGeoffnet={onEmailGeoffnet} />
             : active==="wiedervorlage"   ? <WiedervorlageView onOpenAkte={openAkte} />
-            : active==="review-queue"    ? <ReviewQueueView onOpenAkte={openAkte} />
+            : active==="review-queue"    ? <ReviewQueueView onOpenAkte={openAkte} initialIntakeId={pendingReviewIntakeId} onDokumentGeoffnet={() => setPendingReviewIntakeId(null)} />
             : active==="kuerzungskatalog"? <KuerzungskatalogSection />
             : active==="einstellungen"   ? <EinstellungenView initialTab={pendingEinstellungenTab} onTabMounted={() => setPendingEinstellungenTab(null)} />
             : activeTab?.akte ? <AkteDetailView
@@ -299,6 +300,7 @@ function AppShell({ user, onLogout }) {
                 dispatch={dispatch}
                 initialTab={pendingAkteTab?.tabId === active ? pendingAkteTab : null}
                 onTabMounted={() => setPendingAkteTab(null)}
+                onOpenReview={(intakeId) => { setActive("review-queue"); setPendingReviewIntakeId(intakeId); }}
               />
             : null}
           </div>

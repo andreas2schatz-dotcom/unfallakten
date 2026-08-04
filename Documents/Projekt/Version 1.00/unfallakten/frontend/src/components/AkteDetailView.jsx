@@ -31,7 +31,7 @@ const UnfalldetailsSection = lazy(() => import("../sections/UnfalldetailsSection
 const GebuehrenSection     = lazy(() => import("../sections/GebuehrenSection.jsx"));
 const KlageSection         = lazy(() => import("../sections/KlageSection.jsx"));
 
-function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted }) {
+function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted, onOpenReview }) {
   const [sec, setSec] = useState("uebersicht");
 
   useEffect(() => {
@@ -411,7 +411,7 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted }) {
           }>
             {sec==="beteiligte"    && <BeteiligteSection beteiligte={st.beteiligte||[]} dispatch={dispatch} akteId={akte.id} />}
             {sec==="schaden"       && <SchadenSection schaden={st.schaden||{}} hq={akte.hq} dispatch={dispatch} akteId={akte.id} vorsteuer={(st.beteiligte||[]).find(b=>b.rolle==="mandant")?.vorsteuer==="Y"} dokumente={st.dokumente||[]} belegeKandidaten={st.belegeKandidaten||[]} />}
-            {sec==="dokumente"     && <DokumenteSection dokumente={st.dokumente||[]} dispatch={dispatch} akteId={akte.id} akte={akte} belegeKandidaten={st.belegeKandidaten||[]} schaden={st.schaden||{}} vorsteuer={(st.beteiligte||[]).find(b=>b.rolle==="mandant")?.vorsteuer==="Y"} />}
+            {sec==="dokumente"     && <DokumenteSection dokumente={st.dokumente||[]} dispatch={dispatch} akteId={akte.id} akte={akte} belegeKandidaten={st.belegeKandidaten||[]} schaden={st.schaden||{}} vorsteuer={(st.beteiligte||[]).find(b=>b.rolle==="mandant")?.vorsteuer==="Y"} onOpenReview={onOpenReview} />}
             {sec==="regulierung"   && <RegulierungSection brutto={liveBrutto} hq={akte.hq} regulierungStatus={st.regulierungStatus ?? akte.regulierung_status ?? "offen"} dispatch={dispatch} akteId={akte.id} schaden={st.schaden||{}} abrechnungenCached={st.abrechnungen||[]} beteiligte={st.beteiligte||[]} dokumente={st.dokumente||[]} />}
             {sec==="gebuehren"     && <GebuehrenSection akteId={akte.id} akte={akte} />}
             {sec==="klage"         && <KlageSection akteId={akte.id} akte={akte} st={st} dispatch={dispatch} />}
