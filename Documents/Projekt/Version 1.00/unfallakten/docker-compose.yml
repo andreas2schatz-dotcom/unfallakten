@@ -48,6 +48,10 @@ services:
       LOG_LEVEL: DEBUG
       EAKTE_BASE_PATH: /mnt/eakte
       OMA_EXPORT_PFAD: /app/oma_export
+      # Dev laeuft als Einzelprozess mit --reload: der Scheduler-Lease (Port-Bind,
+      # fuer Gunicorn-Mehrworker gedacht) wird sonst vom Reloader-Elternprozess
+      # gehalten, der keine Jobs ausfuehrt -> Intake-Worker tickt nie. Deaktivieren.
+      SCHEDULER_LEASE_DISABLED: "1"
     env_file:
       - path: .env
         required: false
