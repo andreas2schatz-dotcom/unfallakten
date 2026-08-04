@@ -118,6 +118,15 @@ class TestIntakePending(unittest.TestCase):
         ids = [e["intake_id"] for e in r.get_json()]
         self.assertNotIn(did, ids)
 
+    def test_spaetere_zustellung_mit_az_wird_beruecksichtigt(self):
+        did = _lege_intake_an("f")
+        _lege_zustellung_an(did, "imap")
+        _lege_zustellung_an(did, "upload", signale={"az": "44/22"},
+                            roh_referenz="upload/akte:44/22")
+        r = self.client.get("/akten/44/22/intake-pending", headers=self.headers)
+        ids = [e["intake_id"] for e in r.get_json()]
+        self.assertIn(did, ids)
+
 
 if __name__ == "__main__":
     unittest.main()

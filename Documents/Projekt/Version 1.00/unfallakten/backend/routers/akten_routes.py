@@ -566,54 +566,62 @@ def _basis_az(az: str) -> str:
     return az
 
 
-def _abgeleiteter_az(row) -> str | None:
-    """Erste nicht-leere AZ-Quelle je Intake-Dokument (Spec Praezedenz):
-    1. Signal-AZ (E-Akte + Upload), 2. Upload-Referenz, 3. Matching-Kandidat.
-    """
-    if row["signal_az"]:
-        return row["signal_az"]
-    roh = row["roh_referenz"] or ""
-    if roh.startswith("upload/akte:"):
-        return roh[len("upload/akte:"):]
-    return row["kandidat_az"]
-
-
 @akten_bp.route("/<path:akte_az>/intake-pending", methods=["GET"])
 @login_erforderlich
 def intake_pending(akte_az: str):
     ziel = _basis_az(akte_az)
     with get_connection() as conn:
-        rows = conn.execute(
+        docs = conn.execute(
             "SELECT i.id, i.klasse, i.queue_status, i.erstellt_am, "
             "       i.bezeichnung, "
             "       json_extract(i.parse_json, '$.akten_kandidaten[0].akte_az') "
-            "         AS kandidat_az, "
-            "       json_extract(z.signale_json, '$.az') AS signal_az, "
-            "       json_extract(z.signale_json, '$.dateiname') "
-            "         AS signal_dateiname, "
-            "       z.roh_referenz AS roh_referenz "
+            "         AS kandidat_az "
             "FROM intake_dokumente i "
-            "LEFT JOIN (SELECT intake_dokument_id, MIN(id) AS min_id "
-            "           FROM zustellungen GROUP BY intake_dokument_id) ze "
-            "  ON ze.intake_dokument_id = i.id "
-            "LEFT JOIN zustellungen z ON z.id = ze.min_id "
             "WHERE i.queue_status != 'freigegeben' "
             "  AND i.verworfen_am IS NULL "
             "ORDER BY i.erstellt_am ASC, i.id ASC"
         ).fetchall()
+        if not docs:
+            return _j([])
+        ids = [d["id"] for d in docs]
+        platzhalter = ",".join("?" * len(ids))
+        zust_rows = conn.execute(
+            "SELECT intake_dokument_id, "
+            "       json_extract(signale_json, '$.az') AS signal_az, "
+            "       json_extract(signale_json, '$.dateiname') AS signal_dateiname, "
+            "       roh_referenz "
+            "FROM zustellungen "
+            f"WHERE intake_dokument_id IN ({platzhalter}) "
+            "ORDER BY id ASC",
+            ids,
+        ).fetchall()
+
+    zust_nach_dok = {}
+    for z in zust_rows:
+        zust_nach_dok.setdefault(z["intake_dokument_id"], []).append(z)
 
     eintraege = []
-    for r in rows:
-        az = _abgeleiteter_az(r)
-        if not az or _basis_az(az) != ziel:
+    for d in docs:
+        az_quellen = set()
+        dateiname = None
+        for z in zust_nach_dok.get(d["id"], []):
+            if z["signal_az"]:
+                az_quellen.add(_basis_az(z["signal_az"]))
+            roh = z["roh_referenz"] or ""
+            if roh.startswith("upload/akte:"):
+                az_quellen.add(_basis_az(roh[len("upload/akte:"):]))
+            if z["signal_dateiname"] and not dateiname:
+                dateiname = z["signal_dateiname"]
+        if d["kandidat_az"]:
+            az_quellen.add(_basis_az(d["kandidat_az"]))
+        if ziel not in az_quellen:
             continue
-        bez = (r["bezeichnung"] or r["signal_dateiname"]
-               or r["klasse"] or "(unbenannt)")
+        bez = (d["bezeichnung"] or dateiname or d["klasse"] or "(unbenannt)")
         eintraege.append({
-            "intake_id": r["id"],
+            "intake_id": d["id"],
             "bezeichnung": bez,
-            "klasse": r["klasse"],
-            "queue_status": r["queue_status"],
-            "erstellt_am": r["erstellt_am"],
+            "klasse": d["klasse"],
+            "queue_status": d["queue_status"],
+            "erstellt_am": d["erstellt_am"],
         })
     return _j(eintraege)
