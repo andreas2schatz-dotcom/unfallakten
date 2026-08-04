@@ -159,10 +159,22 @@ sie sich nicht gegenseitig „klauen".
 - Skript `tools/gen_dokumentenklassen.py` erzeugt
   `frontend/src/config/dokumentenklassen.generated.js`.
 - Ersetzt `DOK_TYPEN` (value+label, sortiert) **und** `KLASSE_TO_POS`
-  (Klasse → [position_key], aus `schadenposition` als Liste).
-- Reconciliation: `KLASSE_TO_POS.reparaturrechnung` wechselt von
-  `rep_rechnung_brutto` (FE, falsch) auf `rep_rechnung_netto` (validierte
-  Backend-Wahrheit). Das ist eine bewusste Verhaltensänderung im FE.
+  (Klasse → [FE-Anzeigekey], aus `schadenposition`).
+- **FE-Anzeigekey-Übersetzung (wichtig):** Das FE zeigt Fahrzeug-/SV-Positionen
+  unter *Brutto-Anzeigekeys* an (`SCHADEN_F`, `_DISPLAY_KEY` in
+  `DokumenteSection.jsx`), das Backend führt *kanonische* `_netto`-Keys. Der
+  Codegen übersetzt daher beim Erzeugen von `KLASSE_TO_POS` den kanonischen
+  `schadenposition`-Wert auf den FE-Anzeigekey über eine kleine Map
+  `_FE_POSITION_ANZEIGE = {"rep_rechnung_netto": "rep_rechnung_brutto",
+  "__sv_kosten_vorsteuer__": "sv_kosten"}`. So bleibt genau das bisherige,
+  funktionierende FE-Verhalten erhalten (reparaturrechnung → `rep_rechnung_brutto`,
+  sv_rechnung → `sv_kosten`), während die Backend-Wahrheit kanonisch bleibt.
+  `rechnungstyp_mapping.yaml` (Backend) behält die kanonischen `_netto`-Keys /
+  den Sondermarker.
+- **Kein naives Durchreichen des `_netto`-Keys ins FE** — das würde die
+  `KLASSE_TO_POS`-Lookups (`DokumenteSection.jsx`) brechen (Prompt bliebe
+  stehen, Betrag landete unter unsichtbarem Key). Regressionsbefund aus dem
+  Whole-Branch-Review, hier korrigiert.
 
 **Zwei-Loader-Reihenfolge:** Der Klassen-Loader validiert `ereignistyp`/
 `schadenposition` gegen die Positionsmodell-Registry. Da beide Loader
