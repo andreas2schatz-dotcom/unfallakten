@@ -56,15 +56,28 @@ Akte**:
 
 Filter: `queue_status NOT IN ('freigegeben')` UND `verworfen_am IS NULL`.
 
-**Akte-Ableitung je Dokument (Präzedenz, erste nicht-leere gewinnt):**
-1. `zustellungen.signale_json` → `$.az` (E-Akte), normalisiert auf den AZ der Akte.
-2. `zustellungen.roh_referenz` `upload/akte:<akte_id>` → `akte_id` → AZ der Akte
-   (Mapping über die Akte).
-3. `intake_dokumente.parse_json` → `$.akten_kandidaten[0].akte_az` (Matching).
+**Akte-Ableitung je Dokument (Union aller Quellen, umgesetzt in `921581f9`):**
+Ein Dokument wird der angefragten Akte zugeordnet, wenn deren Basis-AZ mit
+**irgendeiner** der folgenden Quellen übereinstimmt — über **alle** Zustellungen
+des Dokuments hinweg (globale sha256-Dedup ⇒ ein `intake_dokumente` kann mehrere
+`zustellungen` haben):
+1. `zustellungen.signale_json` → `$.az` (E-Akte und Upload) je Zustellung.
+2. `zustellungen.roh_referenz` `upload/akte:<akte_id>` → `akte_id` je Zustellung.
+3. `intake_dokumente.parse_json` → `$.akten_kandidaten[0].akte_az` (Matching-Kandidat).
 
-AZ-Normalisierung analog zum bestehenden `_az_basis` (siehe
-`akten_matching`/`intake_routes.py:68`). Ein Dokument wird der angefragten Akte
-zugeordnet, wenn der abgeleitete AZ (Basis) mit dem der Akte übereinstimmt.
+Anders als eine strikte „erste-nicht-leere"-Präzedenz wird der Matching-Kandidat
+(3) **immer** mitgeprüft, nicht nur bei fehlendem Signal-AZ. Ein Dokument mit
+sicherem Signal-AZ `A`, das zusätzlich einen abweichenden Kandidaten `B` trägt,
+erscheint dadurch als ausstehend **sowohl** unter `A` als auch unter `B`. Das ist
+gewollte Über-Inklusion im Sinne der bekannten Grenze unten (kann eine korrekte
+Akte nie verbergen); die Review löst es auf. AZ-Normalisierung analog zum
+bestehenden `_az_basis` (siehe `akten_matching`/`intake_routes.py:68`), auf beiden
+Seiten des Vergleichs.
+
+Motivation der Union (statt nur der frühesten Zustellung): Traf ein Dokument
+zuerst ohne AZ ein (z. B. `quelle='imap'`) und später mit AZ (Upload mit
+`ziel_akte`), wurde es unter der frühesten-Zustellung-Logik aus seiner Akte
+**verborgen** — der eigentliche Bug, den dieses Feature sichtbar machen soll.
 
 **Bekannte Grenze:** Für E-Mail-Importe ohne sicheren AZ beruht die Zuordnung
 nur auf dem obersten Matching-Kandidaten — ein Dokument kann dann unter der
