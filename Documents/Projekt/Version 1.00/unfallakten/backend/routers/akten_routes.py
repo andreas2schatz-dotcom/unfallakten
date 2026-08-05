@@ -488,6 +488,83 @@ def aktivitaet_loeschen(akte_id: str, aktivitaet_id: int):
     return _j({"ok": True})
 
 
+# ── Abschluss-/Sachstandsbericht ─────────────────────────────────────────────
+
+_SCHLUSS_TYPEN = {"offen", "endgueltig", "vorbehalt_spaetfolgen", "restposten"}
+
+
+@akten_bp.route("/<path:akte_id>/abschluss-uebersicht", methods=["GET"])
+@login_erforderlich
+def abschluss_uebersicht(akte_id: str):
+    """
+    GET /akten/<az>/abschluss-uebersicht
+    Kanzlei-internes Übersichts-Objekt (Vorschau im Kurationsdialog).
+    Read-only; Spec docs/superpowers/specs/2026-08-05-abschlussbericht-design.md §7.
+    """
+    akte = hole_akte_by_id(akte_id)
+    if not akte:
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    from ..word.word_service import _lade_akte_daten
+    from ..services.abschluss_uebersicht import baue_abschluss_uebersicht
+    daten = _lade_akte_daten(akte_id, akte, dok_typ="abschlussbericht")
+    return _j(baue_abschluss_uebersicht(daten))
+
+
+@akten_bp.route("/<path:akte_id>/abschluss-status", methods=["PUT"])
+@login_erforderlich
+def abschluss_status_speichern(akte_id: str):
+    """
+    PUT /akten/<az>/abschluss-status
+    Body: { schluss_typ, schluss_text?, verjaehrung_datum?,
+            naechste_schritte_text? }
+    Upsert des kuratierten Schlussfelds (Migration 67).
+    """
+    akte = hole_akte_by_id(akte_id)
+    if not akte:
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    az = akte.az
+
+    data = request.get_json(silent=True) or {}
+    schluss_typ = (data.get("schluss_typ") or "offen").strip()
+    if schluss_typ not in _SCHLUSS_TYPEN:
+        return _err(
+            f"Ungültiger schluss_typ '{schluss_typ}'. "
+            f"Erlaubt: {', '.join(sorted(_SCHLUSS_TYPEN))}", 422)
+
+    from ..db.database import get_connection
+    with get_connection() as conn:
+        conn.execute("""
+            INSERT INTO abschluss_status
+                (akte_az, schluss_typ, schluss_text, verjaehrung_datum,
+                 naechste_schritte_text, kuratiert_am, kuratiert_von)
+            VALUES (?, ?, ?, ?, ?, datetime('now','localtime'), ?)
+            ON CONFLICT(akte_az) DO UPDATE SET
+                schluss_typ            = excluded.schluss_typ,
+                schluss_text           = excluded.schluss_text,
+                verjaehrung_datum      = excluded.verjaehrung_datum,
+                naechste_schritte_text = excluded.naechste_schritte_text,
+                kuratiert_am           = excluded.kuratiert_am,
+                kuratiert_von          = excluded.kuratiert_von
+        """, (az, schluss_typ,
+              (data.get("schluss_text") or "").strip() or None,
+              (data.get("verjaehrung_datum") or "").strip() or None,
+              (data.get("naechste_schritte_text") or "").strip() or None,
+              str(getattr(g, "benutzer_id", "") or "")))
+        row = conn.execute(
+            "SELECT * FROM abschluss_status WHERE akte_az = ?", (az,)
+        ).fetchone()
+
+    try:
+        logge_aktivitaet(
+            "abschluss_status_kuratiert",
+            f"Abschluss-Status gesetzt: {schluss_typ}",
+            akte_id=az, benutzer_id=getattr(g, "benutzer_id", None))
+    except Exception:
+        pass
+
+    return _j({"status": "ok", "abschluss_status": dict(row)})
+
+
 @akten_bp.route("/<path:akte_id>/pwa-nachricht", methods=["POST"])
 @login_erforderlich
 def pwa_nachricht_senden(akte_id: str):
