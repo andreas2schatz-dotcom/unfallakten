@@ -98,6 +98,73 @@ def _akte_daten(schaden=None, abrechnungen=None, abschluss_status=None,
     }
 
 
+class TestAnwaltskostenCtaPlausi(unittest.TestCase):
+
+    def _voll_regulierte_daten(self, schluss_typ="endgueltig", hq=100.0):
+        # Achtung: _schadenpositionen_rows setzt die Unkostenpauschale
+        # per Default auf 30 € — sie muss mitbezahlt sein, sonst bleibt
+        # eine "offene" Position und der CTA ist nie erreichbar.
+        return _akte_daten(
+            schaden={"nutzungsausfall": 300.0, "unkostenpauschale": 30.0},
+            abrechnungen=[_ab("2026-02-01", "HUK", [
+                {"position_key": "nutzungsausfall",
+                 "betrag_gefordert": 300.0, "betrag_reguliert": 300.0},
+                {"position_key": "unkostenpauschale",
+                 "betrag_gefordert": 30.0, "betrag_reguliert": 30.0},
+                {"position_key": "ra_gebuehren",
+                 "betrag_gefordert": 200.0, "betrag_reguliert": 200.0}],
+                haftungsquote=hq)],
+            abschluss_status={"schluss_typ": schluss_typ},
+            gebuehren_kontext={"faktor": 1.3, "streitwert": 330.0,
+                               "erstellt_am": "2026-01-15"})
+
+    def test_anwaltskosten_rvg_und_gezahlt(self):
+        ueb = baue_abschluss_uebersicht(self._voll_regulierte_daten())
+        self.assertGreater(ueb["anwaltskosten"]["rvg_betrag"], 0)
+        self.assertEqual(ueb["anwaltskosten"]["gezahlt_von_gegner"], 200.0)
+        self.assertEqual(ueb["anwaltskosten"]["getragen_von"], "gegner")
+
+    def test_anwaltskosten_ohne_kontext_none(self):
+        daten = self._voll_regulierte_daten()
+        daten["gebuehren_kontext"] = None
+        ueb = baue_abschluss_uebersicht(daten)
+        self.assertIsNone(ueb["anwaltskosten"]["rvg_betrag"])
+
+    def test_cta_true_bei_voller_durchsetzung(self):
+        ueb = baue_abschluss_uebersicht(self._voll_regulierte_daten())
+        self.assertTrue(ueb["bewertung_cta"])
+
+    def test_cta_false_bei_kuerzung(self):
+        daten = self._voll_regulierte_daten()
+        daten["abrechnungen"][0]["positionen"][0]["betrag_reguliert"] = 200.0
+        ueb = baue_abschluss_uebersicht(daten)
+        self.assertFalse(ueb["bewertung_cta"])
+
+    def test_cta_false_bei_teilhaftung(self):
+        ueb = baue_abschluss_uebersicht(
+            self._voll_regulierte_daten(hq=70.0))
+        self.assertFalse(ueb["bewertung_cta"])
+
+    def test_cta_false_bei_vorbehalt(self):
+        ueb = baue_abschluss_uebersicht(
+            self._voll_regulierte_daten(schluss_typ="vorbehalt_spaetfolgen"))
+        self.assertFalse(ueb["bewertung_cta"])
+
+    def test_cta_false_bei_offener_position(self):
+        daten = self._voll_regulierte_daten()
+        daten["schaden"]["schmerzensgeld"] = 500.0
+        ueb = baue_abschluss_uebersicht(daten)
+        self.assertFalse(ueb["bewertung_cta"])
+
+    def test_plausi_ok_und_abweichung(self):
+        daten = self._voll_regulierte_daten()
+        ueb = baue_abschluss_uebersicht(daten)
+        self.assertTrue(ueb["plausi"]["differenz_ok"])
+        daten["abrechnungen"][0]["gesamt_reguliert"] = 999.99
+        ueb2 = baue_abschluss_uebersicht(daten)
+        self.assertFalse(ueb2["plausi"]["differenz_ok"])
+
+
 class TestBaueAbschlussUebersicht(unittest.TestCase):
 
     def test_fiktiv_fahrzeug_an_mandant(self):

@@ -78,7 +78,51 @@ def _empfaenger_fuer(key: str) -> str:
 
 
 def _berechne_anwaltskosten_cta_plausi(akte_daten, ueb, ra_gebuehren):
-    return {"anwaltskosten": {}, "bewertung_cta": False, "plausi": {}}
+    akte = akte_daten.get("akte") or {}
+    abrechnungen = akte_daten.get("abrechnungen") or []
+    kontext = akte_daten.get("gebuehren_kontext") or None
+
+    rvg_betrag = None
+    if kontext and float(kontext.get("streitwert") or 0) > 0:
+        from ..word.klage_service import berechne_rvg
+        rvg = berechne_rvg(
+            float(kontext["streitwert"]),
+            float(kontext.get("faktor") or 1.3),
+            erstellt_am=kontext.get("erstellt_am"),
+        )
+        rvg_betrag = rvg["gesamt"]
+
+    anwaltskosten = {
+        "rvg_betrag":         rvg_betrag,
+        "gezahlt_von_gegner": round(ra_gebuehren, 2),
+        "getragen_von":       "gegner",
+    }
+
+    if abrechnungen:
+        volle_haftung = all(
+            float(ab.get("haftungsquote") or 100) >= 100 for ab in abrechnungen)
+    else:
+        volle_haftung = float(akte.get("haftungsquote") or 100) >= 100
+
+    bewertung_cta = (
+        ueb["modus"] == "abschluss"
+        and ueb["schluss"]["typ"] == "endgueltig"
+        and ueb["summen"]["differenz"] <= 0.01
+        and volle_haftung
+        and not any(p["status"] == "offen" for p in ueb["positionen"])
+    )
+
+    zeilensumme = round(ueb["summen"]["gezahlt"] + ra_gebuehren, 2)
+    reguliert_gesamt = round(
+        sum(float(ab.get("gesamt_reguliert") or 0) for ab in abrechnungen), 2)
+    plausi = {
+        "zeilensumme":      zeilensumme,
+        "reguliert_gesamt": reguliert_gesamt,
+        "differenz_ok":     abs(zeilensumme - reguliert_gesamt) <= 0.01,
+    }
+    return {"anwaltskosten": anwaltskosten,
+            "bewertung_cta": bewertung_cta,
+            "plausi": plausi}
 
 
 def baue_abschluss_uebersicht(akte_daten: dict) -> dict:
