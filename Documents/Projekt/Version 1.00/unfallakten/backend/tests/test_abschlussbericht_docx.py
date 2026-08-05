@@ -77,6 +77,14 @@ class TestAbschlussberichtDocx(unittest.TestCase):
         b = generiere_abschlussbericht(daten)
         self.assertIn("Sachstandsbericht", _volltext(b))
 
+    def test_verjaehrungshinweis_auch_ohne_schlusstext(self):
+        daten = _daten("vorbehalt_spaetfolgen")
+        daten["abschluss_status"]["schluss_text"] = ""
+        daten["abschluss_status"]["verjaehrung_datum"] = "2029-06-30"
+        text = _volltext(generiere_abschlussbericht(daten))
+        self.assertIn("verjähren am", text)
+        self.assertIn("30.06.2029", text)
+
 
 if __name__ == "__main__":
     unittest.main()

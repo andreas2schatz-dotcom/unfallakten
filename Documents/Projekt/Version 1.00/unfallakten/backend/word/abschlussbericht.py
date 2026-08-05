@@ -170,13 +170,15 @@ def generiere_abschlussbericht(akte_daten: dict) -> bytes:
                      "für Sie kostenfrei.")
 
     schluss = ueb["schluss"]
-    if schluss["text"]:
+    zeige_verjaehrung = (schluss["typ"] == "vorbehalt_spaetfolgen"
+                         and schluss["verjaehrung_datum"])
+    if schluss["text"] or zeige_verjaehrung:
         doc.add_paragraph()
         fuege_abschnittstitel_ein(
             doc, "Abschluss" if modus == "abschluss" else "Ausblick")
-        _absatz(doc, schluss["text"])
-        if (schluss["typ"] == "vorbehalt_spaetfolgen"
-                and schluss["verjaehrung_datum"]):
+        if schluss["text"]:
+            _absatz(doc, schluss["text"])
+        if zeige_verjaehrung:
             _absatz(doc, f"Bitte beachten Sie: Ansprüche wegen etwaiger "
                          f"Spätfolgen verjähren am "
                          f"{fmt_datum(schluss['verjaehrung_datum'])}.",
