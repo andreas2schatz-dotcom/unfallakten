@@ -35,6 +35,7 @@ from .forderungsschreiben_wv import (
 )
 from .sachstandsanfrage import generiere_sachstandsanfrage
 from .abrechnungsuebersicht_service import generiere_abrechnungsuebersicht
+from .abschlussbericht import generiere_abschlussbericht
 from .klage_service import generiere_klageschrift
 
 logger = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ KANZLEI_INFO = {
 }
 
 # Word-Typen ohne eigene Registry-Klasse (rein ausgehende Vorlagen)
-_REINE_WORD_TYPEN = {"abrechnungsuebersicht"}
+_REINE_WORD_TYPEN = {"abrechnungsuebersicht", "abschlussbericht"}
 
 
 def gueltige_dok_typen():
@@ -137,6 +138,7 @@ def generiere_und_speichere(
         "forderungsschreiben":   _forderung,
         "sachstandsanfrage":     generiere_sachstandsanfrage,
         "abrechnungsuebersicht": generiere_abrechnungsuebersicht,
+        "abschlussbericht":      generiere_abschlussbericht,
         "klage":                 generiere_klageschrift,
     }
     generator = generator_map[dok_typ]
@@ -271,7 +273,7 @@ def _lade_akte_daten(akte_id: int, akte, dok_typ: str = "", variante: str = "aut
 
     # v8: Abrechnungsübersicht lädt Abrechnungen inkl. Positionen
     abrechnungen_v8 = []
-    if dok_typ == "abrechnungsuebersicht":
+    if dok_typ in ("abrechnungsuebersicht", "abschlussbericht"):
         try:
             abrechnungen_raw = hole_abrechnungsschreiben_by_akte(az)
             for ab in abrechnungen_raw:
@@ -386,7 +388,7 @@ def _lade_akte_daten(akte_id: int, akte, dok_typ: str = "", variante: str = "aut
 
     # ── Gegner-Adresse direkt aus RA-Micro (identische Logik wie Sachstandsanfrage) ──
     # Immer wenn Gegner keine vollständige Adresse hat → direkt auf SQL-Server
-    if dok_typ in ("forderungsschreiben", "abrechnungsuebersicht"):
+    if dok_typ in ("forderungsschreiben", "abrechnungsuebersicht", "abschlussbericht"):
         _gegner_braucht_adresse = (
             gegner_dict is None or
             not (gegner_dict.get("anschrift") or gegner_dict.get("plz") or gegner_dict.get("ort"))
@@ -465,7 +467,7 @@ def _lade_akte_daten(akte_id: int, akte, dok_typ: str = "", variante: str = "aut
     # ── Abrechnungsübersicht: Unfalldaten aus WDM laden ──────────────────────
     # varU-ORT, varU-TAG, varM-KZ, varG-KZ sind jetzt in KONTROLL_VARS →
     # einfach _lade_wdm_kontrollvars aufrufen und in wdm_kontroll mergen
-    if dok_typ == "abrechnungsuebersicht":
+    if dok_typ in ("abrechnungsuebersicht", "abschlussbericht"):
         try:
             wdm_kontroll = _lade_wdm_kontrollvars(az)
         except Exception as _e2:
@@ -495,6 +497,9 @@ def _lade_akte_daten(akte_id: int, akte, dok_typ: str = "", variante: str = "aut
         "mandant_anrede":   (mandant_dict or {}).get("anrede", ""),
         # PRD-29: personenschaden für Schmerzensgeld-Textbaustein
         "personenschaden":  _lade_personenschaden(az),
+        # Abschluss-/Sachstandsbericht: kuratiertes Schlussfeld + Anwaltskosten-Kontext
+        "abschluss_status":  _lade_abschluss_status(az) if dok_typ == "abschlussbericht" else None,
+        "gebuehren_kontext": _lade_gebuehren_kontext(az) if dok_typ == "abschlussbericht" else None,
     }
 
 
@@ -509,6 +514,55 @@ def _lade_personenschaden(az: str) -> dict:
             return dict(row) if row else {}
     except Exception:
         return {}
+
+
+def _lade_abschluss_status(az: str):
+    """Kuratiertes Schlussfeld (Migration 67) — None wenn nie kuratiert."""
+    try:
+        from ..db.database import get_connection
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT * FROM abschluss_status WHERE akte_az = ?", (az,)
+            ).fetchone()
+            return dict(row) if row else None
+    except Exception:
+        return None
+
+
+def _lade_gebuehren_kontext(az: str):
+    """Faktor + Streitwert für die Anwaltskosten-Zeile (Muster gebuehren_routes)."""
+    try:
+        from ..db.database import get_connection
+        with get_connection() as conn:
+            g = conn.execute(
+                "SELECT faktor_final FROM gebuehren_berechnung WHERE akte_id = ?",
+                (az,)).fetchone()
+            fw = conn.execute(
+                "SELECT SUM(betrag_gefordert) AS s FROM forderung_positionen "
+                "WHERE akte_id = ?", (az,)).fetchone()
+            streitwert = float(fw["s"] or 0) if fw else 0.0
+            if streitwert == 0.0:
+                sp = conn.execute(
+                    """SELECT COALESCE(rep_rechnung_brutto, rep_gutachten_netto, 0)
+                              + COALESCE(wiederbeschaffung, 0) - COALESCE(restwert, 0)
+                              + COALESCE(wertminderung, 0) + COALESCE(nutzungsausfall, 0)
+                              + COALESCE(mietwagenkosten, 0) + COALESCE(sv_kosten, 0)
+                              + COALESCE(schmerzensgeld, 0) + COALESCE(verdienstausfall, 0)
+                              + COALESCE(unkostenpauschale, 0) AS summe
+                       FROM schadenpositionen WHERE akte_id = ?""",
+                    (az,)).fetchone()
+                streitwert = float(sp["summe"] or 0) if sp else 0.0
+            ak = conn.execute(
+                "SELECT erstellt_am FROM unfallakte WHERE az = ?", (az,)
+            ).fetchone()
+        faktor = float(g["faktor_final"]) if g and g["faktor_final"] else None
+        return {
+            "faktor":      faktor,
+            "streitwert":  streitwert,
+            "erstellt_am": ak["erstellt_am"] if ak else None,
+        }
+    except Exception:
+        return None
 
 
 def _lade_beteiligte_aus_ramicro(az: str) -> dict:

@@ -40,6 +40,7 @@ def generiere(akte_id: str):
         "typ": "forderungsschreiben"
                 | "sachstandsanfrage"
                 | "abrechnungsuebersicht"
+                | "abschlussbericht"
       }
 
     Response 201:
