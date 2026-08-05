@@ -1,7 +1,7 @@
 # Design-Spec: Abschluss-/Sachstandsbericht an den Mandanten
 
 Datum: 2026-08-05
-Status: freigegeben (Brainstorming), wartet auf Spec-Review
+Status: freigegeben (Brainstorming); Spec-Review mit Codebasis-Abgleich eingearbeitet (2026-08-05)
 
 ## 1. Ausgangslage
 
@@ -21,11 +21,29 @@ Umschalter Abschluss↔Sachstand, der Bewertungs-Baustein und die Portal-Ausgabe
 Dies ist daher **kein Neubau, sondern die nächste Ausbaustufe** — mit maximaler
 Wiederverwendung der bestehenden Rechen- und Stil-Bausteine.
 
+**Vorgänger, der ersetzt wird (Codebasis-Abgleich 2026-08-05):**
+`backend/word/abschluss_summary.py` („Das haben wir für Sie erreicht") wird heute
+**automatisch** bei Statuswechsel auf `abgeschlossen` erzeugt
+(`akten_routes.py:409`, `_erzeuge_abschluss_summary`) und als
+`dokumente.typ='sonstiges'` mit `portal_sichtbar=1` abgelegt — ohne Hausstil,
+ohne Netto/Brutto-Logik, ohne Key-Normalisierung. Entscheidung: **Auto-Trigger
+entfernen, Modul löschen.** Der neue kuratierte Bericht ist der einzige
+Abschluss fürs Mandantenauge; ein automatisch erzeugtes, unkuratiertes
+Konkurrenzdokument darf nicht mehr entstehen.
+
 ## 2. Ziel
 
 Ein **kanal-unabhängiges Übersichts-Objekt** je Akte, das zwei Renderer speist:
 1. einen **DOCX-Brief** (Post, anwaltlich geprüft, Hausstil wie Forderungsschreiben),
-2. eine **HTML-Abschlussseite im Mandantenportal**.
+2. eine **HTML-Abschlussseite im Mandantenportal** (später; siehe unten).
+
+**Portal-Realität (Codebasis-Abgleich):** Das Portal wird per **Push-Sync**
+beliefert (`services/portal_sync.py`: `_build_payload` → HMAC-signierter POST an
+`PORTAL_API_URL`), nicht per Pull. Ein GET-Endpoint auf dem Kanzlei-Backend ist
+für das Portal nicht erreichbar. Entscheidung: **In dieser Ausbaustufe wird nur
+der kanzlei-interne GET-Endpoint gebaut** (für die Vorschau im Kurationsdialog);
+die Portal-Auslieferung (Übersichts-Objekt ins Sync-Payload + Portal-UI) ist
+Teil des Stakeholder-Portal-Teilprojekts (§15).
 
 Das Objekt schaltet über **ein einziges anwaltlich kuratiertes Schlussfeld**
 zwischen **Abschluss** und **Sachstand** um.
@@ -70,9 +88,19 @@ zwischen **Abschluss** und **Sachstand** um.
 - `fuege_briefkopf_ein`, `fuege_adressblock_ein` (rechtsbündig `Az.:`),
   `fuege_fusszeile_ein` (Az.), Farben `NAVY`/`GOLD`, Schrift `SCHRIFT_TEXT`
   (Calibri). Grußformel-Logik: „Mit freundlichen Grüßen" + Kanzleiname fett Navy.
+- Einordnung (Abgleich): Es gibt zwei Stil-Welten. Die *aktive*
+  Abrechnungsübersicht (`abrechnungsuebersicht_service.py`) rendert per
+  Vorlagen-DOCX + OOXML-Injection; `styling.py` (python-docx) wird aktiv von
+  `sachstandsanfrage.py` genutzt. Der neue Bericht geht den
+  **python-docx/styling.py-Weg** (wie Sachstandsanfrage) — kein Vorlagen-DOCX.
 
-**Backend — Gebühren:** `gebuehren_service` (PRD-28) liefert den RVG-Betrag der
-Geschäftsgebühr (Nr. 2300 VV RVG) für die Anwaltskosten-Zeile.
+**Backend — Gebühren (Abgleich präzisiert):** Der RVG-Betrag der
+Geschäftsgebühr (Nr. 2300 VV RVG) kommt aus `berechne_rvg(streitwert, faktor)`
+in `word/klage_service.py` (so nutzt es `gebuehren_routes.py:85-87`); der Faktor
+ist `gebuehren_berechnung.faktor_final` (falls gespeichert), sonst
+`berechne_faktor_vorschlag()` aus `services/gebuehren_service.py`. Streitwert
+wie in `gebuehren_routes.py`: Summe `forderung_positionen`, Fallback
+Hauptpositionen aus `schadenpositionen`.
 
 **Backend — Ideenvorlage (schlummernd, nicht verdrahtet):**
 `backend/word/abrechnungsuebersicht.py` enthält bereits Status-Badge
@@ -94,14 +122,15 @@ Versicherung) und „Weiteres Vorgehen"-Absatz — als Muster nutzbar, nicht als
                 │  services/abschluss_uebersicht.py        │
                 │  baue_abschluss_uebersicht(akte_daten)   │  ← kanal-unabhängig
                 │  → nutzt _baue_pos_map / _schadenpos_rows │
-                │    / berechne_abrechnungsart / gebuehren  │
+                │    / berechne_abrechnungsart / berechne_rvg│
                 └───────────────┬─────────────────────────┘
                                 │  Übersichts-Objekt (dict, §7)
                  ┌──────────────┴───────────────┐
                  ▼                               ▼
-   word/abschlussbericht.py            routers/portal_routes.py
-   (DOCX, styling.py-Hausstil)         (JSON → Portal-Abschlussseite)
-   Typ "abschlussbericht"              GET /akten/<az>/abschluss-uebersicht
+   word/abschlussbericht.py            GET /akten/<az>/abschluss-uebersicht
+   (DOCX, styling.py-Hausstil)         (kanzlei-intern, login_erforderlich →
+   Typ "abschlussbericht"               Vorschau im Kurationsdialog; später
+                                        auch Quelle fürs portal_sync-Payload)
 ```
 
 Die **Aufbereitung** lebt genau einmal in `services/abschluss_uebersicht.py`.
@@ -132,7 +161,9 @@ Beide Renderer sind „dumm": sie formatieren nur das fertige Objekt.
   "summen": { gefordert, gezahlt, differenz,
               an_mandant, an_dritte },               # an_* nach empfaenger aggregiert
 
-  "anwaltskosten": { rvg_betrag, getragen_von: "gegner"|"mandant"|"rsv" },  # gebuehren_service
+  "anwaltskosten": { rvg_betrag,                     # berechne_rvg (klage_service, §5)
+                     gezahlt_von_gegner,             # Σ ra_gebuehren-Zahlungen (s.u.)
+                     getragen_von: "gegner"|"mandant"|"rsv" },
 
   "schluss": { typ, text, verjaehrung_datum?, naechste_schritte_text?,
                kuratiert_am, kuratiert_von },        # aus Tabelle abschluss_status (§10)
@@ -148,6 +179,22 @@ Erweiterung gegenüber `_baue_pos_map`: Die heutige pos_map summiert nur
 Einzelzahlungen (`datum`, `betrag`, `versicherung`) mitgeführt. Das ist eine
 additive Ergänzung in einer neuen Funktion (`_baue_pos_map_mit_verlauf`), die
 `_baue_pos_map` nicht verändert.
+
+**Feld-Herkunft (Abgleich verifiziert):** Alle nötigen Daten existieren bereits.
+Je `Abrechnungsschreiben`: `datum`, `versicherung`, `haftungsquote`,
+`gesamt_reguliert`. Je `RegulierungPosition`: `kuerzungsart_bezeichnung` /
+`kuerzungsart_kategorie` (Kürzungstaxonomie-Join) + `kuerzung_freitext` →
+speisen `kuerzung_grund` (Bezeichnung bevorzugt, sonst Freitext).
+`word_service._lade_akte_daten` reicht das bereits als `abrechnungen`-Liste
+durch — die Ladebedingung `if dok_typ == "abrechnungsuebersicht"`
+(`word_service.py:274`) wird um den neuen Typ erweitert.
+
+**Sonderregel RA-Gebühren (Entscheidung 2026-08-05):** Zahlungen mit Roh-Key
+`ra_gebuehren` (heute via `_KEY_NORMALISE` → `sonstiges`) werden **vor** der
+Key-Normalisierung abgefangen und **nicht** in `positionen[]` aufgenommen —
+sie sind kein Schadenersatz „für Sie". Stattdessen fließen sie als
+`anwaltskosten.gezahlt_von_gegner` in den Anwaltskosten-Block: angezeigt wird
+bevorzugt der tatsächlich gezahlte Betrag, sonst der berechnete RVG-Betrag.
 
 ## 8. Empfänger-Split „an Sie / an Dritte" (Konvention, ohne neue Daten)
 
@@ -192,7 +239,8 @@ Mandanten*:
 
 ## 10. Kuriertes Schlussfeld + Umschalt-Logik
 
-Neue SQLite-Tabelle `abschluss_status` (RA-MICRO bleibt read-only):
+Neue SQLite-Tabelle `abschluss_status` (RA-MICRO bleibt read-only; **Migration
+Nr. 67** — Stand nach Migration 66/Aktenanlage):
 
 | Spalte | Typ | Bedeutung |
 |---|---|---|
@@ -226,7 +274,10 @@ prüfen"). **Kein** Block der Generierung.
 zutreffen:
 - `modus == "abschluss"` und `schluss_typ == "endgueltig"`,
 - `summen.differenz ≤ 0,01 €` (keine relevante Kürzung),
-- Haftungsquote = 100 % (keine Teilhaftung),
+- Haftungsquote = 100 % — Quelle: **keine Abrechnung mit
+  `haftungsquote < 100`** (je-Abrechnung-Feld ist aktueller als
+  `unfallakte.haftungsquote`, das nur als Fallback dient, wenn keine
+  Abrechnung erfasst ist),
 - keine Position mit `status == "offen"`.
 
 Rendering: Portal = klickbarer Button; DOCX = dezente Zeile + QR-Code.
@@ -236,13 +287,20 @@ Rendering: Portal = klickbarer Button; DOCX = dezente Zeile + QR-Code.
 - `services/abschluss_uebersicht.py` — `baue_abschluss_uebersicht(akte_daten)` (§7).
 - `word/abschlussbericht.py` — `generiere_abschlussbericht(akte_daten) -> bytes`,
   nutzt `styling.py` + das Übersichts-Objekt.
-- `word_service.py`: Typ in Dispatch-Dict (`:139`), `gueltige_dok_typen`,
-  ggf. `_REINE_WORD_TYPEN` (kein Ereignis-Seiteneffekt — es ist ein Auszug, kein
-  ausgehendes Anspruchsschreiben; im Zweifel wie `abrechnungsuebersicht`).
-- `word_routes.py`: Typ in der erlaubten Menge (`:42`).
-- `routers/portal_routes.py` (bzw. bestehender Portal-Blueprint):
-  `GET /akten/<az>/abschluss-uebersicht` → Übersichts-Objekt als JSON für die
-  Portal-Abschlussseite. Read-only.
+- `word_service.py`: Typ in `_REINE_WORD_TYPEN` (`:55`, **zwingend** — sonst
+  lehnt `gueltige_dok_typen()` ihn ab; er hat keine Registry-Klasse), Generator
+  ins Dispatch-Dict (`:139`), Abrechnungs-Ladebedingung (`:274`) auf den neuen
+  Typ erweitern; kein Ereignis-/Forderungs-Seiteneffekt (wie
+  `abrechnungsuebersicht`, vgl. `:389`).
+- `word_routes.py`: Docstring-Typenliste (`:42`) ergänzen (die Validierung
+  selbst läuft über `gueltige_dok_typen()`).
+- `GET /akten/<az>/abschluss-uebersicht` → Übersichts-Objekt als JSON,
+  **kanzlei-intern** (`login_erforderlich`), read-only — speist die Vorschau im
+  Kurationsdialog. Blueprint: `akten_routes.py` (dort liegen die übrigen
+  Akten-GET-Routen; `portal_routes.py` ist Admin-/Sync-Verwaltung).
+- `PUT /akten/<az>/abschluss-status` — Kurationsfeld speichern (Tabelle §10).
+- **Rückbau:** `_erzeuge_abschluss_summary` + Aufruf (`akten_routes.py:409,521`)
+  und `word/abschluss_summary.py` entfernen (§1).
 - Empfänger = **Mandant** (`_empfaenger_mandant`-Muster aus `abrechnungsuebersicht.py`).
 
 ## 13. Frontend
@@ -266,13 +324,18 @@ Rendering: Portal = klickbarer Button; DOCX = dezente Zeile + QR-Code.
 - **Plausi:** künstliche Zeilensummen-Abweichung → `differenz_ok = false`.
 - **DOCX-Smoke:** `generiere_abschlussbericht` rendert fehlerfrei, enthält Az.,
   Grußformel-Kanzleizeile, Ergebnisbetrag; Sachstand-Variante ohne Ergebnis-Zahl.
+- **RA-Gebühren-Filter:** `ra_gebuehren`-Zahlung erscheint nicht in
+  `positionen[]`, sondern als `anwaltskosten.gezahlt_von_gegner`.
 - **Migration-Guard:** `abschluss_status` existiert nach Migration (Spalten da).
+- **Rückbau-Guard:** Statuswechsel auf `abgeschlossen` erzeugt **kein**
+  Dokument mehr automatisch (alte Auto-Summary entfernt).
 
 ## 15. Offene Punkte / später
 
-- **Portal-Anbindung** ist ein eigenes Teilprojekt (Stakeholder-Portal, Next.js) —
-  die Kanzlei-Seite liefert nur das JSON; die Portal-UI/Bewertungs-Button-Umsetzung
-  läuft dort.
+- **Portal-Anbindung** ist ein eigenes Teilprojekt (Stakeholder-Portal, Next.js).
+  Konkreter Weg (Entscheidung 2026-08-05): Übersichts-Objekt in das
+  **portal_sync-Payload** (`_build_payload()`) aufnehmen und im Portal rendern —
+  das Portal pullt nicht (§2). In dieser Ausbaustufe wird dafür nichts gebaut.
 - **`getragen_von` bei Teilhaftung/RSV:** v1 Default „gegner" bei Vollhaftung,
   sonst anwaltlich setzbar; feinere Kostenverteilung später.
 - **Google-Bewertungs-Ziel-URL / QR** als Kanzlei-Einstellung hinterlegen.
