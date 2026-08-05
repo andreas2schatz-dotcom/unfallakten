@@ -7,6 +7,25 @@
 
 ## 🔄 In Arbeit
 
+### Abschluss-/Sachstandsbericht — implementiert, Abnahme offen (Branch `abschlussbericht`)
+Neuer Typ `abschlussbericht` (Migration 67 `abschluss_status`, Service
+`abschluss_uebersicht.py`, DOCX via styling.py, GET/PUT-Routen, Kurationsdialog
+in WordSection). Alte Auto-Summary (`abschluss_summary.py`) ersatzlos entfernt.
+Spec: `docs/superpowers/specs/2026-08-05-abschlussbericht-design.md` · Plan:
+`docs/superpowers/plans/2026-08-05-abschlussbericht.md`.
+**Offen:** Browser-Abnahme RA Schatz (DOCX-Sichtprüfung beide Modi); Merge nach
+Intake-Branch-Klärung (Branch stapelt auf `intake-review-sichtbarkeit`);
+Portal-Auslieferung via portal_sync-Payload = Stakeholder-Portal-Teilprojekt;
+Empfänger-Override je Position (Spec §8) bei Bedarf nachrüsten;
+Google-Bewertungs-URL/QR als Kanzlei-Einstellung (Spec §15).
+**Folgefund Gebührenassistent:** `gebuehren_routes.py` (Streitwert-Fallback) enthält denselben toten `COALESCE(rep_rechnung_brutto, rep_gutachten_netto, 0)` wie der in `23ea6792` im word_service gefixte — bei fiktiver Abrechnung ohne Forderungsrunde zeigt der Gebührenassistent den Fahrzeugschaden-Anteil als 0. Separat fixen (Entscheidung RA Schatz, betrifft Bestandsfeature).
+
+### Intake-Review-Sichtbarkeit — ✅ implementiert + review-clean (SDD, 2026-08-04), Branch NICHT gemergt
+Ausstehende Intake-Dokumente einer Akte werden in der Dokumentenkachel sichtbar (Badges „Wird verarbeitet"(`neu`/`laeuft`) / „Review ausstehend"(`bereit_zur_review`) / „Fehler – prüfen"(`pipeline_fehler`)) + Link „Zur Review →", der die ReviewQueue auf genau das Dokument öffnet. BE: `GET /akten/<az>/intake-pending` (`akten_routes.py`, read-only, **Union-AZ-Ableitung über alle Zustellungen**, Filter `queue_status != 'freigegeben' AND verworfen_am IS NULL`); FE: `IntakePendingListe` in `DokumenteSection`, Nav `pendingReviewIntakeId`→`initialIntakeId`→`setAktivId`. 5 Commits (`a68098ab`..`a60c7bc0`), alle Task-Reviews + Whole-Branch-Final-Review ✅ (Ready to merge). Spec/Plan: `docs/superpowers/{specs,plans}/2026-08-04-intake-review-sichtbarkeit*`. Memory `project_unfallakten_intake_review_sichtbarkeit`.
+**Offen (Blocker vor Merge):**
+- **Browser-Nachtest RA Schatz:** Import in Testakte → Zeile „Review ausstehend" in der Kachel → Link öffnet Dok in ReviewQueue → Zeile verschwindet nach Freigabe.
+- **Merge-Strategie klären:** Branch `intake-review-sichtbarkeit` bündelt SSOT-Dokumentenklassen (22 Klassen) + Scheduler-Fix (`SCHEDULER_LEASE_DISABLED`, nur Dev) + dieses Feature. Nach beiden Browser-Abnahmen (auch SSOT-Dropdown) gemeinsam FF nach `main` — oder SSOT vorab separat. `SCHEDULER_LEASE_DISABLED` NICHT in Prod (Gunicorn braucht den Lease).
+
 ### Aktenanlage aus der ReviewQueue (PRD-NEW) — ✅ gemergt + gepusht (2026-08-03, `main`=`81e33206`), Nachlauf offen
 Feature live abgenommen: Prefill Mandant, OMA-XML **strukturgleich** zum echten RA-MICRO-Export, **Dateiname muss mit `Oma_` beginnen** (Watcher-Filter, case-sensitiv), Import wird erkannt. Behoben: stale-auftraggeber-Prefill + Anrede-Normalisierung, Migration-66-Reloader-Falle, OMA-Pfad (`Z:\RA\M-Plattform`) + Dateiname + XML-Struktur (keine leere `<Gegnerliste>`, `<tvm/>`). Prod-Compose nachgezogen. Detail → Memory `project_unfallakten_aktenanlage`.
 **Offen (opportunistisch, kein Blocker):**
@@ -62,6 +81,7 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 ## ⏸️ Zurückgestellt (bewusst, kein Handlungsbedarf)
 - **Prod-Rollout intake-stufe1** (Nutzer 2026-07-15) → Runbook + Deploy-Reihenfolge in `docs/STATE.md`.
 - **N-05** (Yielding/Teilergebnisse) und **P1.8** (Backfill, forward-only) → Begründung in `docs/DECISIONS.md`.
+- **Betragsvalidierung Intake** (2026-08-05): größtenteils redundant — Regex↔LLM-Konsens-Check (`llm_konflikt`, > 1 €) existiert bereits in `gutachten_parser.py:685` + `abrechnungsschreiben_parser.py:599`, Temperatur 0 gesetzt. Nicht neu bauen; einziger Rest-Hebel = Beträge als String ins JSON-Schema. Detail: `PROJEKTERWEITERUNG_betragsvalidierung.md` + Memory `project_unfallakten_betragsvalidierung_redundant`.
 - **PRD-38** (Dokumentenbezeichnung per LLM) → Begründung in `docs/DECISIONS.md`.
 - **V11 Stufe 2 — Kategorie C über vorflektierte Platzhalter** (RA Schatz, 2026-07-24): Aufwand/Ertrag passt aktuell nicht — die betroffenen ~24 Kategorie-C-Bausteine (Anträge, Aktivlegitimation, Sachverhalt-Kernsätze) sind grammatikalisch bereits korrekt hartcodiert (Genus/Numerus/Konjugation via `_get_kl_genus_vars`/`_beklagten_grammatik` in `klage_service.py`), unklar ob echter Änderungsbedarf besteht. Erst Live-Feedback aus dem Betrieb von Stufe 1 abwarten; bei konkretem Bedarf ggf. nur einzelne Bausteine gezielt freigeben statt volle Editor-Infrastruktur.
   Beim eventuellen Kickoff mitzunehmen (Abschluss-Review Stufe 1):

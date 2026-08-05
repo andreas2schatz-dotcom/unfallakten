@@ -7,6 +7,28 @@
 
 ---
 
+## 2026-08-05 — Abschluss-/Sachstandsbericht (Branch `abschlussbericht`, basiert auf `intake-review-sichtbarkeit`)
+
+Design-Spec `docs/superpowers/specs/2026-08-05-abschlussbericht-design.md` · Plan `docs/superpowers/plans/2026-08-05-abschlussbericht.md`. Neuer Dokumenttyp `abschlussbericht`: ein kuratiertes Schlussfeld (`abschluss_status.schluss_typ`) schaltet zwischen Abschluss- und Sachstandsbericht um — derselbe DB-freie Übersichts-Service liefert Positionen, Zahlungsverlauf, Empfänger-Split und Anwaltskosten-CTA sowohl an den DOCX-Renderer als auch an einen internen Vorschau-Endpoint. Die alte automatische Auto-Summary (`abschluss_summary.py`) entfällt ersatzlos zugunsten des kuratierten Wegs.
+
+- `228ecc0b` Migration 67 — Tabelle `abschluss_status` (+ `test_migration_67.py`, 4 Tests).
+- `bb1857bd` pos_map mit Zahlungsverlauf + RA-Gebühren-Filter (`services/abschluss_uebersicht.py`).
+- `3a7f3b0d` Übersichts-Objekt: Positionen, Empfänger-Split, Summen, Modus.
+- `df73fd80` Anwaltskosten, Bewertungs-CTA, Plausi-Kontrolle (`test_abschluss_uebersicht.py`, insgesamt 19 Tests).
+- `73532e03` DOCX-Renderer `word/abschlussbericht.py` im Hausstil (+ `test_abschlussbericht_docx.py`).
+- `cbc24d74` Fix: Verjährungs-Hinweis unabhängig vom Schlusstext rendern (Review-Fund, 4 DOCX-Tests).
+- `7a5d5e60` Typ-Verdrahtung word_service + Datenlader (`abschluss_status`, `gebuehren_kontext`).
+- `23ea6792` Fix: Streitwert-Fallback — toter `COALESCE(rep_rechnung_brutto, rep_gutachten_netto, 0)` durch >0-Vorrang ersetzt (Review-Fund; + `test_gebuehren_kontext_loader.py`, 2 Tests).
+- `64aa203b` Routen `GET /akten/<az>/abschluss-uebersicht` + `PUT /akten/<az>/abschluss-status` (+ `test_abschluss_routes.py`).
+- `cac4d939` Rückbau alte Auto-Summary (`abschluss_summary.py` gelöscht, Guard-Test; insgesamt 5 Route-Tests).
+- `6a0a9ad7` Frontend: Kurationsdialog + WordSection-Kachel + API-Client (+ `AbschlussberichtDialog.test.jsx`, 3 Vitest; Vollsuite 446, Build grün).
+- `4d343077` Fix: Amber-Rohwerte durch `theme.js`-Tokens ersetzt (Review-Fund).
+- **Endabnahme (2026-08-05):** voller fokussierter Testlauf im Container — `test_migration_67.py`(4) + `test_abschluss_uebersicht.py`(19) + `test_abschlussbericht_docx.py`(4) + `test_abschluss_routes.py`(5) + `test_word_gueltige_typen.py`(3) + `test_gebuehren_kontext_loader.py`(2) = **37/37 passed**. Frontend: 3 neue Vitest, Vollsuite **446/446** grün, Build grün.
+- **Offen:** Browser-Abnahme RA Schatz (DOCX-Sichtprüfung beide Modi), Merge nach Klärung der Branch-Reihenfolge (stapelt auf `intake-review-sichtbarkeit`), Portal-Auslieferung als eigenes Stakeholder-Portal-Teilprojekt. Siehe TODO.md.
+- **Folgefund (Review, außerhalb dieser Runde):** `gebuehren_routes.py` (Streitwert-Fallback) enthält denselben toten COALESCE-Bug wie der in `23ea6792` gefixte — bei fiktiver Abrechnung ohne Forderungsrunde zeigt der Gebührenassistent den Fahrzeugschaden-Anteil als 0. Separater Fix nötig (Bestandsfeature, Entscheidung RA Schatz aussteht).
+
+---
+
 ## 2026-07-30 — Dashboard-Hell-Umbau (Branch `dashboard-hell`, basiert auf `aktenanlage`)
 
 Design-Spec + Mockup `docs/superpowers/specs/2026-07-30-dashboard-hell-*` (von RA Schatz freigegeben, danach Umsetzung). Anlass: UI-Review des Dashboards (Nielsen-Score 14/40). P0-Befunde: komplett dunkler Viewport (~100 % statt Soll ~18 %) sowie stille API-Fehler, die eine grüne Entwarnung bei Fristen vortäuschten; automatischer Detektor fand 4× `borderLeft`-3px-Streifen als Farbcode-Krücke; 5 WCAG-Kontrast-Fails, schlimmster Wert 1,9:1. 8 Commits `5449beae..36e4581d`, Subagent-Driven Development.

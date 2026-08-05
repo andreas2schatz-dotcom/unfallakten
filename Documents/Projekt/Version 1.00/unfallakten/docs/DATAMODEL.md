@@ -510,6 +510,23 @@ Endpunkte: `GET/PUT/DELETE /akten/<az>/klage/entwurf` (Router `backend/routers/k
 
 ---
 
+### abschluss_status (Migration 67)
+Kuratiertes Schlussfeld je Akte — `schluss_typ` ist zugleich der
+Abschluss/Sachstand-Umschalter des Abschlussberichts.
+
+| Spalte | Typ | Bedeutung |
+|---|---|---|
+| `akte_az` | TEXT PK → unfallakte(az) | Akte |
+| `schluss_typ` | TEXT, CHECK: `offen` · `endgueltig` · `vorbehalt_spaetfolgen` · `restposten` | Default `offen` (= Sachstand) |
+| `schluss_text` | TEXT | anwaltlicher Schlusstext |
+| `verjaehrung_datum` | TEXT | nur bei `vorbehalt_spaetfolgen` |
+| `naechste_schritte_text` | TEXT | Sachstand-Block „Woran wir arbeiten" |
+| `kuratiert_am` / `kuratiert_von` | TEXT | Audit |
+
+Endpunkte: `GET /akten/<az>/abschluss-uebersicht` (Übersichts-Objekt aus `services/abschluss_uebersicht.py`), `PUT /akten/<az>/abschluss-status` (Kuration). DOCX-Renderer: `word/abschlussbericht.py`.
+
+---
+
 ### weitere Tabellen (Kurzform)
 
 | Tabelle | Mig | Zweck | PK |
