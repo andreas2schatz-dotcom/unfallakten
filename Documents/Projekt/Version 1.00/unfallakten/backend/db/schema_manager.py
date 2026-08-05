@@ -318,6 +318,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     64: "-- migration_64_kuerzungstaxonomie",  # Handled by _run_migration_64
     65: "-- migration_65_standardtext_override",  # Handled by _run_migration_65
     66: "-- migration_66_aktenanlage",  # Handled by _run_migration_66
+    67: "-- migration_67_abschluss_status",  # Handled by _run_migration_67
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -1242,6 +1243,36 @@ def _run_migration_66(conn: sqlite3.Connection) -> None:
     logger.info("Migration 66 abgeschlossen (aktenanlage_vorgaenge).")
 
 
+def _run_migration_67(conn: sqlite3.Connection) -> None:
+    """
+    Migration 67 - abschluss_status (Abschluss-/Sachstandsbericht).
+
+    Ein kuratiertes Schlussfeld je Akte; schluss_typ ist zugleich der
+    Abschluss/Sachstand-Umschalter. Kein executescript, explizite Commits
+    um DDL (Reloader-Falle).
+    """
+    conn.commit()
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS abschluss_status ("
+        " akte_az                TEXT PRIMARY KEY REFERENCES unfallakte(az),"
+        " schluss_typ            TEXT NOT NULL DEFAULT 'offen'"
+        "   CHECK(schluss_typ IN ('offen','endgueltig',"
+        "                         'vorbehalt_spaetfolgen','restposten')),"
+        " schluss_text           TEXT,"
+        " verjaehrung_datum      TEXT,"
+        " naechste_schritte_text TEXT,"
+        " kuratiert_am           TEXT,"
+        " kuratiert_von          TEXT)"
+    )
+    conn.commit()
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (?, ?)",
+        (67, "Migration 67 - abschluss_status (Abschluss-/Sachstandsbericht)"),
+    )
+    logger.info("Migration 67 abgeschlossen (abschluss_status).")
+
+
 def _run_migration_64(conn: sqlite3.Connection) -> None:
     """
     Migration 64 - Kürzungstaxonomie Phase 1:
@@ -1743,6 +1774,8 @@ def run_migrations() -> None:
                 _run_migration_65(conn)
             elif version == 66:
                 _run_migration_66(conn)
+            elif version == 67:
+                _run_migration_67(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
