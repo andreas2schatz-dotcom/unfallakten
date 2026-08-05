@@ -61,3 +61,126 @@ def _baue_pos_map_mit_verlauf(abrechnungen: list) -> tuple:
             if grund:
                 eintrag["kuerzung_grund"] = grund
     return pos_map, ra_gebuehren
+
+
+EMPFAENGER_DRITTE = {"sv_kosten", "mietwagenkosten", "abschleppkosten",
+                     "standkosten", "kostennb"}
+_FAHRZEUG_KEYS = {"rep_gutachten_netto", "rep_rechnung_netto",
+                  "wiederbeschaffung", "restwert", "reparaturkosten"}
+
+
+def _empfaenger_fuer(key: str) -> str:
+    if key in EMPFAENGER_DRITTE:
+        return "dritte"
+    if key == "rep_rechnung_netto":
+        return "dritte"
+    return "mandant"
+
+
+def _berechne_anwaltskosten_cta_plausi(akte_daten, ueb, ra_gebuehren):
+    return {"anwaltskosten": {}, "bewertung_cta": False, "plausi": {}}
+
+
+def baue_abschluss_uebersicht(akte_daten: dict) -> dict:
+    akte     = akte_daten.get("akte") or {}
+    mandant  = akte_daten.get("mandant") or {}
+    gegner   = akte_daten.get("gegner") or {}
+    schaden  = akte_daten.get("schaden") or {}
+    abrechnungen = akte_daten.get("abrechnungen") or []
+    wdm_roh  = akte_daten.get("wdm_roh") or {}
+    status   = akte_daten.get("abschluss_status") or {}
+
+    vorsteuer = str(mandant.get("vorsteuer") or "N").strip().upper() in (
+        "Y", "J", "JA", "1", "TRUE")
+
+    pos_map, ra_gebuehren = _baue_pos_map_mit_verlauf(abrechnungen)
+    rows = _schadenpositionen_rows(schaden, pos_map, vorsteuer)
+
+    positionen = []
+    s_gefordert = s_gezahlt = an_mandant = an_dritte = 0.0
+    for r in rows:
+        key, forderung = r["key"], r["forderung"]
+        ist_abzug = r["ist_abzug"]
+        info = pos_map.get(key) or {}
+        gezahlt = r["reguliert"]
+        vorz = -1.0 if ist_abzug else 1.0
+        if ist_abzug:
+            pos_status = "abzug"
+        elif gezahlt is None:
+            pos_status = "offen"
+        elif abs(forderung) - gezahlt <= 0.005:
+            pos_status = "voll"
+        else:
+            pos_status = "gekuerzt"
+        empfaenger = _empfaenger_fuer(key)
+        differenz = 0.0 if ist_abzug else round(abs(forderung) - (gezahlt or 0.0), 2)
+        s_gefordert += vorz * abs(forderung)
+        if gezahlt is not None:
+            s_gezahlt += vorz * gezahlt
+            if empfaenger == "mandant":
+                an_mandant += vorz * gezahlt
+            else:
+                an_dritte += vorz * gezahlt
+        positionen.append({
+            "key":            key,
+            "label":          r["label"],
+            "kategorie":      "fahrzeug" if key in _FAHRZEUG_KEYS else "neben",
+            "gefordert":      round(abs(forderung), 2),
+            "gezahlt":        gezahlt,
+            "differenz":      differenz,
+            "kuerzung_grund": (info.get("kuerzung_grund")
+                               if pos_status == "gekuerzt" else None),
+            "empfaenger":     empfaenger,
+            "status":         pos_status,
+            "zahlungen":      info.get("zahlungen") or [],
+        })
+
+    schluss_typ = (status.get("schluss_typ") or "offen").strip() or "offen"
+    modus = "sachstand" if schluss_typ == "offen" else "abschluss"
+
+    def _wdm(k):
+        return (wdm_roh.get(k) or "").strip()
+
+    summen = {
+        "gefordert": round(s_gefordert, 2),
+        "gezahlt":   round(s_gezahlt, 2),
+        "differenz": round(s_gefordert - s_gezahlt, 2),
+        "an_mandant": round(an_mandant, 2),
+        "an_dritte":  round(an_dritte, 2),
+    }
+
+    ueb = {
+        "akte": {
+            "az":         akte.get("aktenzeichen") or akte.get("az") or "",
+            "unfalltag":  _wdm("varU-TAG") or akte.get("unfalldatum") or "",
+            "unfallort":  _wdm("varU-ORT") or akte.get("unfallort") or "",
+            "kz_mandant": _wdm("varM-KZ") or (mandant.get("kfz_kennzeichen") or ""),
+            "kz_gegner":  _wdm("varG-KZ") or (gegner.get("kfz_kennzeichen") or ""),
+            "gegner_versicherung": (gegner.get("versicherung")
+                                    or (abrechnungen[0].get("versicherung")
+                                        if abrechnungen else "") or ""),
+        },
+        "mandant": {
+            "name":      " ".join(filter(None, [mandant.get("vorname"),
+                                                mandant.get("name")])).strip()
+                         or (mandant.get("firma") or ""),
+            "anschrift": mandant.get("anschrift") or "",
+            "plz_ort":   " ".join(filter(None, [mandant.get("plz"),
+                                                mandant.get("ort")])).strip(),
+            "anrede":    mandant.get("anrede") or "",
+        },
+        "modus":      modus,
+        "positionen": positionen,
+        "summen":     summen,
+        "schluss": {
+            "typ":                    schluss_typ,
+            "text":                   status.get("schluss_text") or "",
+            "verjaehrung_datum":      status.get("verjaehrung_datum") or None,
+            "naechste_schritte_text": status.get("naechste_schritte_text") or "",
+            "kuratiert_am":           status.get("kuratiert_am") or None,
+            "kuratiert_von":          status.get("kuratiert_von") or None,
+        },
+    }
+    ueb.update(_berechne_anwaltskosten_cta_plausi(
+        akte_daten, ueb, ra_gebuehren))
+    return ueb
