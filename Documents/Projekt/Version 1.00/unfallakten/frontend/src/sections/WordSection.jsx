@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import RaMicroSachstandsCard from './RaMicroSachstandsCard.jsx';
 import StaDialog from "../components/StaDialog.jsx";
+import AbschlussberichtDialog from "../components/AbschlussberichtDialog.jsx";
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
 import { fmtEuro } from "../config/utils.js";
@@ -16,6 +17,7 @@ function WordSection({ akte, st, dispatch }) {
   const [fehler,     setF]   = useState({});
   const [toast,      setT]   = useState("");
   const [staOffen,   setStaOffen] = useState(false);
+  const [abschlussOffen, setAbschlussOffen] = useState(false);
 
   // Beteiligte laden wenn noch nicht im State
   useEffect(() => {
@@ -96,6 +98,12 @@ function WordSection({ akte, st, dispatch }) {
         <StaDialog
           az={akte.az || akte.id}
           onClose={(generated) => { setStaOffen(false); if (generated) setT("✓ Sachstandsanfrage generiert."); }}
+        />
+      )}
+      {abschlussOffen && (
+        <AbschlussberichtDialog
+          az={akte.az || akte.id}
+          onClose={(generated) => { setAbschlussOffen(false); if (generated) setT("✓ Abschluss-/Sachstandsbericht erstellt."); }}
         />
       )}
       <div style={{ display:"flex", flexDirection:"column", gap:"1.25rem" }}>
@@ -234,6 +242,29 @@ function WordSection({ akte, st, dispatch }) {
 
           {/* RA-Micro Wiedervorlage */}
           <RaMicroSachstandsCard akte={akte} inGrid />
+
+          {/* Abschluss-/Sachstandsbericht */}
+          <Card style={{ padding:"1.4rem", display:"flex", flexDirection:"column", gap:14 }}>
+            <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
+              <div style={{ width:44, height:44, borderRadius:10, background:T.navy, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.3rem", flexShrink:0 }}>🏁</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontFamily:T.fontDisplay, fontSize:"1rem", fontWeight:700, color:T.navy }}>Abschluss-/Sachstandsbericht</div>
+                <div style={{ fontFamily:T.fontBody, fontSize:"0.835rem", color:T.textFaint, marginTop:2 }}>An: {mandant?.name || "Mandant"}</div>
+              </div>
+            </div>
+            <p style={{ fontFamily:T.fontBody, fontSize:"0.935rem", color:T.textMuted, lineHeight:1.65, margin:0 }}>
+              Gegenüberstellung gefordert / gezahlt für den Mandanten. Das kuratierte
+              Schlussfeld schaltet zwischen Abschluss und Sachstand um.
+            </p>
+            <div style={{ marginTop:"auto" }}>
+              <button onClick={() => setAbschlussOffen(true)}
+                style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:7, padding:"9px 14px",
+                  background:T.navy, color:T.white, border:"none", borderRadius:8,
+                  fontFamily:T.fontBody, fontSize:"0.965rem", fontWeight:600, cursor:"pointer" }}>
+                {Ic.word} Bericht kuratieren &amp; erstellen
+              </button>
+            </div>
+          </Card>
 
         </div>
 

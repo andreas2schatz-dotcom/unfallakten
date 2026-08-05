@@ -290,6 +290,15 @@ export const word = {
   },
 };
 
+export const abschluss = {
+  uebersicht: (az) => request(`/akten/${az}/abschluss-uebersicht`),
+  statusSpeichern: (az, body) =>
+    request(`/akten/${az}/abschluss-status`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+};
+
 // ─────────────────────────────────────────────────────────────
 // KLAGE
 // ─────────────────────────────────────────────────────────────
