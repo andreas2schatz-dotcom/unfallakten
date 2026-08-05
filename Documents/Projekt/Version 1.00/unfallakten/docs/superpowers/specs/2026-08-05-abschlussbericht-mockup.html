@@ -1,0 +1,450 @@
+<title>Abschlussschreiben · Vorschau</title>
+<style>
+  :root {
+    /* Hausstil — konstant (Dokument bleibt Dokument) */
+    --paper: #ffffff;
+    --navy: #1b2a4a;          /* Kanzlei-Navy */
+    --navy-soft: #35496f;
+    --gold: #c8a84b;          /* Kanzlei-Gold */
+    --gold-deep: #9c7f31;
+    --gold-wash: #f9f3e1;
+    --hell: #f4f6f9;          /* helles Grau (Tabellenzeilen/Panels) */
+    --ink: #1a1a1a;
+    --ink-soft: #4a4a4a;
+    --grau: #606060;
+    --faint: #8b8f96;
+    --hair: #e6e8ee;
+    --hair-strong: #d3d7e0;
+    --cut: #a8452f;           /* Kürzung */
+    --open: #9a6a1e;          /* noch offen */
+    --open-wash: #f4ecdd;
+
+    /* Chrome — theme-abhängig */
+    --backdrop: #e9ebf0;
+    --chrome-fg: #26324a;
+    --chrome-muted: #6a7280;
+    --control-bg: #ffffff;
+    --control-line: #d3d7e0;
+    --control-active-bg: #1b2a4a;
+    --control-active-fg: #f7f4ec;
+    --sheet-shadow: rgba(27,42,74,.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --backdrop: #12151b; --chrome-fg: #c7cddb; --chrome-muted: #838a99;
+      --control-bg: #1e232d; --control-line: #333b49;
+      --control-active-bg: #c8a84b; --control-active-fg: #1a1a1a;
+      --sheet-shadow: rgba(0,0,0,.55);
+    }
+  }
+  :root[data-theme="light"] {
+    --backdrop: #e9ebf0; --chrome-fg: #26324a; --chrome-muted: #6a7280;
+    --control-bg: #ffffff; --control-line: #d3d7e0;
+    --control-active-bg: #1b2a4a; --control-active-fg: #f7f4ec;
+    --sheet-shadow: rgba(27,42,74,.18);
+  }
+  :root[data-theme="dark"] {
+    --backdrop: #12151b; --chrome-fg: #c7cddb; --chrome-muted: #838a99;
+    --control-bg: #1e232d; --control-line: #333b49;
+    --control-active-bg: #c8a84b; --control-active-fg: #1a1a1a;
+    --sheet-shadow: rgba(0,0,0,.55);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .stage {
+    min-height: 100vh; background: var(--backdrop);
+    font-family: "Calibri", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    color: var(--chrome-fg);
+    padding: 24px 16px 72px;
+    display: flex; flex-direction: column; align-items: center; gap: 20px;
+  }
+
+  /* ---- Steuerleiste ---- */
+  .controls { width: 100%; max-width: 820px; display: flex; flex-wrap: wrap;
+    align-items: center; gap: 14px 18px; }
+  .controls .lead { display: flex; flex-direction: column; gap: 3px; margin-right: auto; }
+  .controls .lead b { font-size: 15px; font-weight: 700; }
+  .controls .lead span { font-size: 12.5px; color: var(--chrome-muted); }
+  .seg { display: inline-flex; background: var(--control-bg);
+    border: 1px solid var(--control-line); border-radius: 999px; padding: 4px; }
+  .seg button { appearance: none; border: 0; background: transparent; cursor: pointer;
+    font: inherit; font-size: 13.5px; font-weight: 600; color: var(--chrome-fg);
+    padding: 7px 16px; border-radius: 999px; transition: background .18s, color .18s; }
+  .seg button[aria-pressed="true"] { background: var(--control-active-bg); color: var(--control-active-fg); }
+  .seg button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .badge { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--chrome-muted); border: 1px dashed var(--control-line); padding: 5px 10px; border-radius: 6px; }
+
+  /* ---- das Blatt ---- */
+  .sheet { width: 100%; max-width: 820px; background: var(--paper); color: var(--ink);
+    border: 1px solid var(--hair); border-radius: 3px;
+    box-shadow: 0 1px 2px var(--sheet-shadow), 0 18px 44px -20px var(--sheet-shadow);
+    padding: 46px 56px 20px; font-size: 14.5px; line-height: 1.5; }
+  @media (max-width: 640px) { .sheet { padding: 30px 22px 16px; } }
+
+  /* Briefkopf (styling.py: Name links groß Navy · Kontakt rechts klein grau · Navy-Linie) */
+  .letterhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px;
+    padding-bottom: 8px; border-bottom: 2.5px solid var(--navy); }
+  .lh-name { font-size: 19px; font-weight: 700; color: var(--navy); letter-spacing: .01em; line-height: 1.2; max-width: 58%; }
+  .lh-contact { text-align: right; font-size: 11px; color: var(--grau); line-height: 1.7; white-space: nowrap; }
+
+  /* Az. + Datum rechtsbündig */
+  .az-row { display: flex; justify-content: flex-end; margin-top: 18px; }
+  .az-row .box { text-align: right; font-size: 12px; color: var(--grau); line-height: 1.7; }
+  .az-row .box b { color: var(--navy); }
+
+  .sender-line { font-size: 9.5px; color: var(--faint); text-decoration: underline;
+    margin: 16px 0 10px; }
+  .addr { font-size: 14.5px; line-height: 1.5; }
+
+  .subject { font-weight: 700; color: var(--navy); font-size: 15px; margin-top: 26px; text-wrap: balance; }
+  .subject .zeichen { display: block; font-weight: 700; font-size: 12.5px; color: var(--navy-soft); margin-top: 2px; }
+  p { margin: 13px 0; }
+  .greet { margin-top: 20px; }
+
+  /* Abschnittstitel (Navy, fett) */
+  .sec { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--navy); margin: 30px 0 8px; padding-bottom: 5px; border-bottom: 1px solid var(--hair); }
+
+  /* ② Ergebnis-Kachel (Gold) */
+  .result { background: var(--gold-wash); border: 1px solid #eaddb4; border-left: 4px solid var(--gold);
+    border-radius: 4px; padding: 18px 22px; }
+  .result .k { font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--gold-deep); }
+  .result .big { font-size: 38px; font-weight: 700; color: var(--navy); font-variant-numeric: tabular-nums;
+    margin: 2px 0 4px; line-height: 1.05; }
+  .result .sub { font-size: 12.5px; color: var(--ink-soft); }
+
+  /* Arbeitsstand-Panel (Sachstand) */
+  .work { background: var(--hell); border: 1px solid var(--hair-strong); border-radius: 4px; padding: 16px 20px 18px; }
+  .work h4 { margin: 0 0 12px; font-size: 14px; font-weight: 700; color: var(--navy); }
+  .tl { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .tl li { display: grid; grid-template-columns: 18px 1fr; gap: 10px; align-items: start; font-size: 13.5px; line-height: 1.45; }
+  .tl .dot { width: 11px; height: 11px; border-radius: 50%; margin-top: 4px; }
+  .tl .done .dot { background: var(--navy); }
+  .tl .wait .dot { background: var(--open); }
+  .tl .next .dot { background: transparent; border: 2px solid var(--faint); }
+  .tl b { color: var(--ink); font-weight: 700; }
+  .tl .when { color: var(--faint); font-variant-numeric: tabular-nums; }
+  .work .now { margin: 14px 0 0; font-size: 13px; color: var(--ink-soft);
+    border-top: 1px dashed var(--hair-strong); padding-top: 11px; }
+  .work .now b { color: var(--navy); font-variant-numeric: tabular-nums; }
+
+  /* ③ Aufteilung */
+  .split { font-size: 14px; background: var(--hell); border: 1px solid var(--hair); border-radius: 4px;
+    display: grid; grid-template-columns: 1fr 1fr; }
+  .split div { padding: 13px 18px; }
+  .split div:first-child { border-right: 1px solid var(--hair); }
+  .split .lab { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+  .split .val { font-size: 21px; font-weight: 700; color: var(--navy); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .split .val.me { color: var(--gold-deep); }
+  .split .hint { font-size: 11.5px; color: var(--ink-soft); margin-top: 4px; }
+  @media (max-width: 560px) { .split { grid-template-columns: 1fr; }
+    .split div:first-child { border-right: 0; border-bottom: 1px solid var(--hair); } }
+
+  /* ④ Tabelle */
+  table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 13.5px; }
+  thead th { text-align: right; font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--navy); font-weight: 700; padding: 0 0 8px; border-bottom: 1.5px solid var(--navy); }
+  thead th:first-child { text-align: left; }
+  tbody td { padding: 9px 0; border-bottom: 1px solid var(--hair); text-align: right;
+    font-variant-numeric: tabular-nums; color: var(--ink); }
+  tbody td:first-child { text-align: left; }
+  tbody td .note { display: block; font-size: 11px; color: var(--faint); font-variant-numeric: normal; }
+  td.cut { color: var(--cut); }
+  td.zero { color: var(--faint); }
+  .chip { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+    background: var(--open-wash); color: var(--open); }
+  tfoot td { padding: 12px 0 0; font-weight: 700; font-size: 14.5px; text-align: right;
+    font-variant-numeric: tabular-nums; border-top: 2px solid var(--navy); color: var(--navy); }
+  tfoot td:first-child { text-align: left; }
+  tfoot td.cut { color: var(--cut); }
+
+  details.verlauf { margin-top: 12px; font-size: 13px; }
+  details.verlauf summary { cursor: pointer; color: var(--navy); font-weight: 700; list-style: none; padding: 4px 0; }
+  details.verlauf summary::-webkit-details-marker { display: none; }
+  details.verlauf summary::before { content: "▸ "; color: var(--gold-deep); }
+  details.verlauf[open] summary::before { content: "▾ "; }
+  .runs { margin: 10px 0 0; padding: 10px 16px; background: var(--hell); border: 1px solid var(--hair); border-radius: 4px; }
+  .runs div { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dotted var(--hair); }
+  .runs div:last-child { border-bottom: 0; }
+  .runs .amt { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--navy); }
+  .runs .d { color: var(--grau); }
+
+  /* ⑤ Anwaltskosten */
+  .fee { background: var(--hell); border: 1px solid var(--hair); border-left: 4px solid var(--navy);
+    border-radius: 4px; padding: 14px 18px; font-size: 13.5px; }
+  .fee b { color: var(--navy); font-variant-numeric: tabular-nums; }
+  .fee .free { color: var(--gold-deep); font-weight: 700; }
+
+  /* ⑥ Schlussblock */
+  .closing { padding: 15px 18px; border-radius: 4px; border: 1px solid var(--hair-strong);
+    background: var(--paper); position: relative; }
+  .closing.abschluss { border-left: 4px solid var(--navy); }
+  .closing.sachstand { border-left: 4px solid var(--open); }
+  .closing p { margin: 0; }
+  .closing .tag { position: absolute; top: -9px; right: 14px; font-size: 10px; font-weight: 700;
+    letter-spacing: .05em; text-transform: uppercase; background: var(--paper); padding: 0 8px; color: var(--faint); }
+
+  /* Grußformel (styling.py-Logik: MfG + Kanzleiname fett Navy) */
+  .signoff { margin-top: 26px; }
+  .signoff .mfg { margin-bottom: 40px; }
+  .signoff .kanzlei { font-weight: 700; color: var(--navy); }
+
+  /* Fußzeile (Navy-Linie + Az.) */
+  .footer { margin-top: 26px; border-top: 1.5px solid var(--navy); padding-top: 7px;
+    font-size: 10.5px; color: var(--grau); text-align: center; }
+  .footer b { color: var(--navy); }
+
+  /* Erläuterung + Baustein-Vorschau (für den Prüfer, nicht den Mandanten) */
+  .aside { width: 100%; max-width: 820px; display: flex; flex-direction: column; gap: 16px; }
+  .aside .legend { font-size: 12.5px; color: var(--chrome-muted); line-height: 1.6;
+    border-top: 1px solid var(--control-line); padding-top: 16px; }
+  .aside .legend b { color: var(--chrome-fg); }
+  .dotv { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--navy); margin-right: 5px; }
+  .dotv.g { background: var(--gold); }
+
+  .baustein { background: var(--control-bg); border: 1px solid var(--control-line); border-radius: 8px; padding: 18px 20px; }
+  .baustein > h3 { margin: 0 0 4px; font-size: 14px; color: var(--chrome-fg); }
+  .baustein > .cap { margin: 0 0 16px; font-size: 12.5px; color: var(--chrome-muted); line-height: 1.55; }
+  .bs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 620px) { .bs-grid { grid-template-columns: 1fr; } }
+  .bs-card { border: 1px solid var(--control-line); border-radius: 6px; padding: 14px; background: var(--paper); color: var(--ink); }
+  .bs-card .mode { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--faint); margin-bottom: 10px; }
+  .bs-letter { display: flex; gap: 12px; align-items: center; }
+  .bs-letter p { margin: 0; font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; }
+  .bs-letter p a { color: var(--navy); font-weight: 700; }
+  .qr { width: 56px; height: 56px; flex: none; border-radius: 4px;
+    background-image:
+      linear-gradient(45deg, var(--navy) 25%, transparent 25%, transparent 75%, var(--navy) 75%),
+      linear-gradient(45deg, var(--navy) 25%, transparent 25%, transparent 75%, var(--navy) 75%);
+    background-size: 14px 14px; background-position: 0 0, 7px 7px; background-color: #fff; border: 3px solid #fff; outline: 1px solid var(--hair-strong); }
+  .gbtn { display: inline-flex; align-items: center; gap: 8px; background: var(--gold); color: #1a1a1a;
+    font-weight: 700; font-size: 13.5px; padding: 10px 16px; border-radius: 8px; border: 1px solid var(--gold-deep); }
+  .bs-portal .sub { margin: 10px 0 0; font-size: 11.5px; color: var(--ink-soft); }
+
+  /* Modus-Sichtbarkeit */
+  .if-sa, .if-ab { display: none; }
+  [data-mode="abschluss"] .if-ab { display: revert; }
+  [data-mode="abschluss"] tr.if-ab { display: table-row; }
+  [data-mode="sachstand"] .if-sa { display: revert; }
+  [data-mode="sachstand"] tr.if-sa { display: table-row; }
+  [data-mode="sachstand"] li.if-sa { display: grid; }
+  [data-mode="abschluss"] .if-sa { display: none; }
+  [data-mode="sachstand"] .if-ab { display: none; }
+</style>
+
+<div class="stage">
+  <div class="controls">
+    <div class="lead">
+      <b>Vorschau — Abschluss- &amp; Sachstandsschreiben</b>
+      <span>Dieselbe Akte, zwei Zeitpunkte. Umschalten:</span>
+    </div>
+    <div class="seg" role="group" aria-label="Modus">
+      <button id="btn-ab" aria-pressed="true">Abschluss</button>
+      <button id="btn-sa" aria-pressed="false">Sachstand</button>
+    </div>
+    <span class="badge">Beispieldaten</span>
+  </div>
+
+  <article class="sheet" id="sheet" data-mode="abschluss">
+    <!-- Briefkopf -->
+    <div class="letterhead">
+      <div class="lh-name">Rechtsanwaltskanzlei<br>Koch, Schatz &amp; Kollegen</div>
+      <div class="lh-contact">
+        Frankfurter Straße 12<br>
+        63065 Offenbach am Main<br>
+        Tel.: 069 / 83 10 99 - 0<br>
+        E-Mail: info@anwalt-offenbach.de
+      </div>
+    </div>
+
+    <div class="az-row">
+      <div class="box">
+        Az.: <b>342/26</b><br>
+        <span class="if-ab">Offenbach, 10.06.2026</span><span class="if-sa">Offenbach, 05.05.2026</span>
+      </div>
+    </div>
+
+    <div class="sender-line">Koch, Schatz &amp; Kollegen · Frankfurter Straße 12 · 63065 Offenbach</div>
+    <div class="addr">
+      Herrn<br>
+      Thomas Berger<br>
+      Lindenweg 14<br>
+      63067 Offenbach am Main
+    </div>
+
+    <div class="subject">
+      <span class="if-ab">Abschluss Ihrer Schadenersatzangelegenheit — Verkehrsunfall vom 14.03.2026</span>
+      <span class="if-sa">Sachstandsbericht zu Ihrer Schadenersatzangelegenheit — Verkehrsunfall vom 14.03.2026</span>
+      <span class="zeichen">Unser Zeichen: 342/26</span>
+    </div>
+
+    <p class="greet">Sehr geehrter Herr Berger,</p>
+    <p class="if-ab">Ihre Schadenersatzansprüche aus dem Verkehrsunfall vom 14. März 2026 sind vollständig
+      reguliert. Wir möchten Ihnen abschließend gegenüberstellen, was wir für Sie gefordert und
+      was die gegnerische Versicherung gezahlt hat.</p>
+    <p class="if-sa">wir möchten Sie über den aktuellen Stand Ihrer Schadenersatzansprüche aus dem
+      Verkehrsunfall vom 14. März 2026 unterrichten — was bereits erreicht ist und wie es weitergeht.</p>
+
+    <!-- ② Ergebnis / Arbeitsstand -->
+    <div class="if-ab">
+      <div class="sec">Ergebnis</div>
+      <div class="result">
+        <div class="k">Für Sie durchgesetzt</div>
+        <div class="big">11.564,50&nbsp;€</div>
+        <div class="sub">gegenüber 12.369,50&nbsp;€ gefordert · Regulierung abgeschlossen</div>
+      </div>
+    </div>
+    <div class="if-sa">
+      <div class="sec">Woran wir gerade arbeiten</div>
+      <div class="work">
+        <h4>Worauf wir warten — und wie es weitergeht</h4>
+        <ul class="tl">
+          <li class="done"><span class="dot"></span><span><b>Sachschaden reguliert</b> — Reparatur, Wertminderung, Nutzungsausfall und Gutachten sind bezahlt. <span class="when">28.04.2026</span></span></li>
+          <li class="wait"><span class="dot"></span><span><b>Schmerzensgeld noch offen</b> — die geforderten 2.500&nbsp;€ hat die Versicherung bisher nicht anerkannt.</span></li>
+          <li class="next"><span class="dot"></span><span><b>Frist gesetzt bis 20.05.2026</b> zur Nachzahlung des Schmerzensgeldes.</span></li>
+          <li class="next"><span class="dot"></span><span><b>Danach:</b> Wir prüfen die Erhebung der Klage und stimmen das mit Ihnen ab.</span></li>
+        </ul>
+        <p class="now">Bisher reguliert: <b>9.564,50&nbsp;€</b> von aktuell geforderten <b>12.369,50&nbsp;€</b>.</p>
+      </div>
+    </div>
+
+    <!-- ③ was bei Ihnen ankommt (Abschluss) -->
+    <div class="if-ab">
+      <div class="sec">Was davon bei Ihnen ankommt</div>
+      <div class="split">
+        <div><div class="lab">Gesamt reguliert</div><div class="val">11.564,50&nbsp;€</div>
+          <div class="hint">der volle Erfolg Ihrer Sache</div></div>
+        <div><div class="lab">Direkt an Sie ausgezahlt</div><div class="val me">4.041,00&nbsp;€</div>
+          <div class="hint">die übrigen 7.523,50&nbsp;€ gingen direkt an Werkstatt und Sachverständigen</div></div>
+      </div>
+    </div>
+
+    <!-- ④ Gegenüberstellung -->
+    <div class="sec">Gegenüberstellung — gefordert und gezahlt</div>
+    <table>
+      <thead>
+        <tr><th>Position</th><th>gefordert</th><th>gezahlt</th><th>Differenz</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Reparaturkosten<span class="note">an Werkstatt</span></td><td>6.480,00</td><td>6.480,00</td><td class="zero">0,00</td></tr>
+        <tr><td>Wertminderung<span class="note">nach Alter/Laufleistung gekürzt</span></td><td>1.200,00</td><td>900,00</td><td class="cut">−300,00</td></tr>
+        <tr><td>Nutzungsausfall (18 Tage)</td><td>1.116,00</td><td>1.116,00</td><td class="zero">0,00</td></tr>
+        <tr><td>Sachverständigenkosten<span class="note">an Gutachterbüro</span></td><td>1.043,50</td><td>1.043,50</td><td class="zero">0,00</td></tr>
+        <tr><td>Auslagenpauschale<span class="note">übliche Pauschale 25&nbsp;€</span></td><td>30,00</td><td>25,00</td><td class="cut">−5,00</td></tr>
+        <tr>
+          <td>Schmerzensgeld<span class="note if-ab">vergleichsweise geeinigt</span></td>
+          <td>2.500,00</td>
+          <td class="if-ab">2.000,00</td>
+          <td class="if-ab cut">−500,00</td>
+          <td class="if-sa" colspan="2" style="text-align:right"><span class="chip">noch offen</span></td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr class="if-ab"><td>Summe</td><td>12.369,50</td><td>11.564,50</td><td class="cut">−805,00</td></tr>
+        <tr class="if-sa"><td>Bisher reguliert</td><td>12.369,50</td><td>9.564,50</td><td class="zero">Schmerzensgeld offen</td></tr>
+      </tfoot>
+    </table>
+
+    <details class="verlauf">
+      <summary>Verlauf der Zahlungen anzeigen</summary>
+      <div class="runs">
+        <div><span class="d">28.04.2026 — Erstregulierung (Sachschaden)</span><span class="amt">9.564,50&nbsp;€</span></div>
+        <div class="if-ab"><span class="d">02.06.2026 — Nachzahlung Schmerzensgeld</span><span class="amt">2.000,00&nbsp;€</span></div>
+        <div class="if-sa"><span class="d">Schmerzensgeld — ausstehend</span><span class="amt">offen</span></div>
+      </div>
+    </details>
+
+    <!-- ⑤ Anwaltskosten -->
+    <div class="sec">Ihre Anwaltskosten</div>
+    <div class="fee">
+      Für die anwaltliche Vertretung sind Gebühren nach dem RVG in Höhe von <b>1.171,67&nbsp;€</b> angefallen —
+      <span class="free">getragen von der gegnerischen Versicherung, für Sie kostenfrei.</span>
+    </div>
+
+    <!-- ⑥ Schluss / Ausblick -->
+    <div class="if-ab">
+      <div class="sec">Abschluss</div>
+      <div class="closing abschluss">
+        <span class="tag">anwaltlich bestätigt</span>
+        <p>Damit ist Ihre Angelegenheit aus unserer Sicht <b>endgültig erledigt</b>. Sollten wider Erwarten
+          noch unfallbedingte Spätfolgen auftreten, melden Sie sich bitte umgehend bei uns — Ansprüche hierzu
+          verjähren regelmäßig erst mit Ablauf des 31.12.2029.</p>
+      </div>
+    </div>
+    <div class="if-sa">
+      <div class="sec">Aktueller Stand &amp; nächste Schritte</div>
+      <div class="closing sachstand">
+        <span class="tag">anwaltlich gepflegt</span>
+        <p>Der Sachschaden ist ausgeglichen. Für das noch offene Schmerzensgeld haben wir der Versicherung
+          eine Frist bis zum 20.05.2026 gesetzt. Zahlt sie nicht, treten wir mit Ihnen wegen der Klageerhebung
+          in Kontakt. Sie müssen nichts veranlassen — wir melden uns.</p>
+      </div>
+    </div>
+
+    <!-- Grußformel -->
+    <div class="signoff">
+      <p class="mfg">Mit freundlichen Grüßen</p>
+      <div class="kanzlei">Rechtsanwaltskanzlei Koch, Schatz &amp; Kollegen</div>
+    </div>
+
+    <div class="footer">
+      <b>Az.: 342/26</b>&nbsp;&nbsp;|&nbsp;&nbsp;Koch, Schatz &amp; Kollegen · Frankfurter Straße 12 · 63065 Offenbach&nbsp;&nbsp;|&nbsp;&nbsp;Seite 1
+    </div>
+  </article>
+
+  <div class="aside">
+    <div class="legend">
+      <b>Zur Vorschau:</b> Briefkopf, Az.-Zeile, Betreff, Grußformel und Fußzeile folgen exakt dem Hausstil
+      (<span class="dotv"></span>Navy/Gold, Calibri, `styling.py`) — identisch zum Forderungsschreiben.
+      Alle Zahlen, Positionen und Daten kommen automatisch aus der Akte (Positionsmodell, Regulierung,
+      Chronik, Gebührenassistent). Anwaltlich gepflegt ist allein der Schlussblock
+      (<span class="dotv g"></span>Abschluss/Vorbehalt bzw. Stand &amp; nächste Schritte) — dieses eine Feld
+      schaltet zugleich zwischen <b>Abschluss</b> und <b>Sachstand</b> um.
+      <br><br>
+      <b>Ein Modell, zwei Ausgaben:</b> Dieselbe Aufbereitung wird als <b>DOCX-Brief</b> (Post, anwaltlich geprüft)
+      <i>und</i> als <b>Abschlussseite im Mandantenportal</b> ausgegeben — diese Vorschau zeigt praktisch beide zugleich.
+    </div>
+
+    <div class="baustein">
+      <h3>Zur Frage: Google-Bewertung bei voller Durchsetzung</h3>
+      <p class="cap">Mein Vorschlag: <b>kein separater Schritt</b>, sondern ein <b>bedingter Baustein desselben
+        Modells</b> — er erscheint automatisch <b>nur bei voller Durchsetzung</b> (keine Kürzung, keine Teilhaftung,
+        kein Vorbehalt) und <b>erst nach Ihrer Bestätigung „endgültig erledigt"</b>. Im obigen Beispiel wurde gekürzt,
+        deshalb bliebe er aus. So sähe er bei voller Durchsetzung aus:</p>
+      <div class="bs-grid">
+        <div class="bs-card bs-letter">
+          <div>
+            <div class="mode">Im Brief (DOCX / Post)</div>
+            <p>Wenn Sie mit unserer Arbeit zufrieden waren, freuen wir uns über eine kurze Bewertung bei Google:
+              <a>g.page/ksk-offenbach</a> — oder scannen Sie den Code.</p>
+          </div>
+          <div class="qr" role="img" aria-label="QR-Code (Platzhalter)"></div>
+        </div>
+        <div class="bs-card bs-portal">
+          <div class="mode">Im Mandantenportal (Abschlussseite)</div>
+          <span class="gbtn">★ Kanzlei auf Google bewerten</span>
+          <p class="sub">Ein Klick — der natürliche Ort dafür. Auf Papier nur als dezente Zeile + QR.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var sheet = document.getElementById('sheet');
+    var ab = document.getElementById('btn-ab');
+    var sa = document.getElementById('btn-sa');
+    function set(mode) {
+      sheet.setAttribute('data-mode', mode);
+      var isAb = mode === 'abschluss';
+      ab.setAttribute('aria-pressed', String(isAb));
+      sa.setAttribute('aria-pressed', String(!isAb));
+    }
+    ab.addEventListener('click', function () { set('abschluss'); });
+    sa.addEventListener('click', function () { set('sachstand'); });
+  })();
+</script>
