@@ -92,17 +92,17 @@ def _berechne_anwaltskosten_cta_plausi(akte_daten, ueb, ra_gebuehren):
         )
         rvg_betrag = rvg["gesamt"]
 
-    anwaltskosten = {
-        "rvg_betrag":         rvg_betrag,
-        "gezahlt_von_gegner": round(ra_gebuehren, 2),
-        "getragen_von":       "gegner",
-    }
-
     if abrechnungen:
         volle_haftung = all(
             float(ab.get("haftungsquote") or 100) >= 100 for ab in abrechnungen)
     else:
         volle_haftung = float(akte.get("haftungsquote") or 100) >= 100
+
+    anwaltskosten = {
+        "rvg_betrag":         rvg_betrag,
+        "gezahlt_von_gegner": round(ra_gebuehren, 2),
+        "getragen_von":       "gegner" if volle_haftung else None,
+    }
 
     bewertung_cta = (
         ueb["modus"] == "abschluss"

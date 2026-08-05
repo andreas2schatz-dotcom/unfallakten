@@ -145,6 +145,11 @@ class TestAnwaltskostenCtaPlausi(unittest.TestCase):
             self._voll_regulierte_daten(hq=70.0))
         self.assertFalse(ueb["bewertung_cta"])
 
+    def test_getragen_von_none_bei_teilhaftung(self):
+        ueb = baue_abschluss_uebersicht(
+            self._voll_regulierte_daten(hq=70.0))
+        self.assertIsNone(ueb["anwaltskosten"]["getragen_von"])
+
     def test_cta_false_bei_vorbehalt(self):
         ueb = baue_abschluss_uebersicht(
             self._voll_regulierte_daten(schluss_typ="vorbehalt_spaetfolgen"))
