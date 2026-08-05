@@ -92,6 +92,18 @@ class TestAbschlussRouten(unittest.TestCase):
                             json={"schluss_typ": "quatsch"})
         self.assertEqual(r.status_code, 422)
 
+    def test_status_abgeschlossen_erzeugt_kein_dokument_mehr(self):
+        """Guard test: Statuswechsel zu 'abgeschlossen' soll kein Dokument erzeugen."""
+        r = self.client.patch("/akten/55/26", headers=self.headers,
+                              json={"status": "abgeschlossen"})
+        self.assertEqual(r.status_code, 200)
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            n = conn.execute(
+                "SELECT COUNT(*) AS n FROM dokumente WHERE akte_id = '55/26'"
+            ).fetchone()["n"]
+        self.assertEqual(n, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
