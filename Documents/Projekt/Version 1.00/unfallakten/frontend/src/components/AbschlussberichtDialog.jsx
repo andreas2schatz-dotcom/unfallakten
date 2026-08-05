@@ -82,8 +82,8 @@ export default function AbschlussberichtDialog({ az, onClose }) {
             Abschluss-/Sachstandsbericht · Az. {az}
           </div>
           <span style={{ padding:"3px 10px", borderRadius:20, fontSize:"0.8rem", fontWeight:600,
-                         background: istSachstand ? "#FEF3C7" : T.greenBg,
-                         color: istSachstand ? "#B45309" : T.green }}>
+                         background: istSachstand ? T.amberBg : T.greenBg,
+                         color: istSachstand ? T.amberText : T.green }}>
             {modusLabel}
           </span>
           <button onClick={() => onClose(false)}
@@ -101,8 +101,8 @@ export default function AbschlussberichtDialog({ az, onClose }) {
         {ueb && !loading && (
           <>
             {ueb.plausi && ueb.plausi.differenz_ok === false && (
-              <div style={{ background:"#FEF3C7", border:"1px solid #F59E0B44", borderRadius:7,
-                            padding:"8px 12px", marginBottom:10, color:"#B45309", fontSize:"0.875rem" }}>
+              <div style={{ background:T.amberBg, border:`1px solid ${T.amber}44`, borderRadius:7,
+                            padding:"8px 12px", marginBottom:10, color:T.amberText, fontSize:"0.875rem" }}>
                 ⚠ Zeilensumme ({fmtE(ueb.plausi.zeilensumme)}) weicht vom regulierten
                 Gesamtbetrag ({fmtE(ueb.plausi.reguliert_gesamt)}) ab — bitte prüfen.
               </div>
