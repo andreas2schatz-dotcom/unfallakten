@@ -336,8 +336,13 @@ Rendering: Portal = klickbarer Button; DOCX = dezente Zeile + QR-Code.
   Konkreter Weg (Entscheidung 2026-08-05): Übersichts-Objekt in das
   **portal_sync-Payload** (`_build_payload()`) aufnehmen und im Portal rendern —
   das Portal pullt nicht (§2). In dieser Ausbaustufe wird dafür nichts gebaut.
-- **`getragen_von` bei Teilhaftung/RSV:** v1 Default „gegner" bei Vollhaftung,
-  sonst anwaltlich setzbar; feinere Kostenverteilung später.
+- **Kostentragung (Klarstellung RA Schatz, 2026-08-06):** „für Sie
+  kostenfrei" gilt **auch bei Teilhaftung** — die Kanzlei rechnet die
+  Geschäftsgebühr aus dem **regulierten** Streitwert ab, der Versicherer
+  trägt sie vollständig. `getragen_von` ist in v1 daher immer `"gegner"`;
+  der angezeigte RVG-Fallback-Betrag wird aus dem regulierten Gesamtbetrag
+  (`summen.gezahlt`) berechnet, nicht aus der Forderung. RSV-/Sonderfälle
+  (Mandant trägt selbst) erst bei Bedarf.
 - **Google-Bewertungs-Ziel-URL / QR** als Kanzlei-Einstellung hinterlegen.
 - **Chronik-Ereignis** „Abschlussbericht versandt" optional ergänzen, wenn der
   Bericht als Meilenstein in der Aktenchronik erscheinen soll.

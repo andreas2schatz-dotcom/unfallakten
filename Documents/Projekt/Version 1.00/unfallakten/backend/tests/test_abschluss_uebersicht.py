@@ -145,10 +145,19 @@ class TestAnwaltskostenCtaPlausi(unittest.TestCase):
             self._voll_regulierte_daten(hq=70.0))
         self.assertFalse(ueb["bewertung_cta"])
 
-    def test_getragen_von_none_bei_teilhaftung(self):
+    def test_getragen_von_gegner_auch_bei_teilhaftung(self):
         ueb = baue_abschluss_uebersicht(
             self._voll_regulierte_daten(hq=70.0))
-        self.assertIsNone(ueb["anwaltskosten"]["getragen_von"])
+        self.assertEqual(ueb["anwaltskosten"]["getragen_von"], "gegner")
+
+    def test_rvg_basis_ist_regulierter_betrag(self):
+        from backend.word.klage_service import berechne_rvg
+        daten = self._voll_regulierte_daten()
+        daten["gebuehren_kontext"]["streitwert"] = 99999.0
+        ueb = baue_abschluss_uebersicht(daten)
+        erwartet = berechne_rvg(
+            ueb["summen"]["gezahlt"], 1.3, erstellt_am="2026-01-15")["gesamt"]
+        self.assertEqual(ueb["anwaltskosten"]["rvg_betrag"], erwartet)
 
     def test_cta_false_bei_vorbehalt(self):
         ueb = baue_abschluss_uebersicht(

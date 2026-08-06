@@ -82,11 +82,16 @@ def _berechne_anwaltskosten_cta_plausi(akte_daten, ueb, ra_gebuehren):
     abrechnungen = akte_daten.get("abrechnungen") or []
     kontext = akte_daten.get("gebuehren_kontext") or None
 
+    # Kanzlei-Praxis (RA Schatz 2026-08-06): Geschäftsgebühr wird aus dem
+    # REGULIERTEN Streitwert abgerechnet — daher auch bei Teilhaftung
+    # vollständig von der Gegenseite getragen; kontext.streitwert (Forderung)
+    # ist bewusst NICHT die Berechnungsbasis.
     rvg_betrag = None
-    if kontext and float(kontext.get("streitwert") or 0) > 0:
+    reguliert_basis = float(ueb["summen"]["gezahlt"] or 0)
+    if kontext and reguliert_basis > 0:
         from ..word.klage_service import berechne_rvg
         rvg = berechne_rvg(
-            float(kontext["streitwert"]),
+            reguliert_basis,
             float(kontext.get("faktor") or 1.3),
             erstellt_am=kontext.get("erstellt_am"),
         )
@@ -101,7 +106,7 @@ def _berechne_anwaltskosten_cta_plausi(akte_daten, ueb, ra_gebuehren):
     anwaltskosten = {
         "rvg_betrag":         rvg_betrag,
         "gezahlt_von_gegner": round(ra_gebuehren, 2),
-        "getragen_von":       "gegner" if volle_haftung else None,
+        "getragen_von":       "gegner",
     }
 
     bewertung_cta = (

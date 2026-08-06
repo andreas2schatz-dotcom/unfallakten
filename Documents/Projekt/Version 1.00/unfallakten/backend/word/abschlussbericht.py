@@ -157,25 +157,18 @@ def generiere_abschlussbericht(akte_daten: dict) -> bytes:
     doc.add_paragraph()
     fuege_abschnittstitel_ein(doc, "Ihre Anwaltskosten")
     ak = ueb["anwaltskosten"]
-    if ak.get("getragen_von") == "gegner":
-        if ak.get("gezahlt_von_gegner"):
-            _absatz(doc, f"Unsere Gebühren in Höhe von "
-                         f"{fmt_euro(ak['gezahlt_von_gegner'])} wurden von der "
-                         f"Gegenseite getragen — für Sie kostenfrei.")
-        elif ak.get("rvg_betrag"):
-            _absatz(doc, f"Unsere Gebühren nach dem RVG in Höhe von "
-                         f"{fmt_euro(ak['rvg_betrag'])} werden von der Gegenseite "
-                         f"getragen — für Sie kostenfrei.")
-        else:
-            _absatz(doc, "Unsere Gebühren werden von der Gegenseite getragen — "
-                         "für Sie kostenfrei.")
-    elif ak.get("gezahlt_von_gegner"):
-        _absatz(doc, f"Die gegnerische Versicherung hat auf unsere Gebühren "
-                     f"bereits {fmt_euro(ak['gezahlt_von_gegner'])} gezahlt. "
-                     f"Über die endgültige Kostentragung informieren wir Sie "
-                     f"gesondert.")
+    if ak.get("gezahlt_von_gegner"):
+        _absatz(doc, f"Unsere Gebühren in Höhe von "
+                     f"{fmt_euro(ak['gezahlt_von_gegner'])} wurden von der "
+                     f"Gegenseite getragen — für Sie kostenfrei.")
+    elif ak.get("rvg_betrag"):
+        _absatz(doc, f"Unsere Gebühren nach dem RVG (berechnet aus dem "
+                     f"regulierten Betrag) in Höhe von "
+                     f"{fmt_euro(ak['rvg_betrag'])} werden von der Gegenseite "
+                     f"getragen — für Sie kostenfrei.")
     else:
-        _absatz(doc, "Über die Kostentragung informieren wir Sie gesondert.")
+        _absatz(doc, "Unsere Gebühren werden von der Gegenseite getragen — "
+                     "für Sie kostenfrei.")
 
     schluss = ueb["schluss"]
     zeige_verjaehrung = (schluss["typ"] == "vorbehalt_spaetfolgen"

@@ -71,13 +71,14 @@ class TestAbschlussberichtDocx(unittest.TestCase):
         self.assertIn("Wir warten auf die HUK.", text)
         self.assertNotIn("Für Sie durchgesetzt", text)
 
-    def test_teilhaftung_ohne_kostenfrei_aussage(self):
+    def test_teilhaftung_mit_kostenfrei_aussage(self):
         daten = _daten("endgueltig")
         daten["abrechnungen"][0]["haftungsquote"] = 70.0
         b = generiere_abschlussbericht(daten)
         text = _volltext(b)
-        self.assertNotIn("kostenfrei", text)
-        self.assertIn("Kostentragung", text)
+        self.assertIn("kostenfrei", text)
+        self.assertIn("regulierten Betrag", text)
+        self.assertNotIn("informieren wir Sie gesondert", text)
 
     def test_sachstand_ohne_kuratiertes_feld(self):
         daten = _daten()
