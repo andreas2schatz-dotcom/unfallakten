@@ -176,6 +176,20 @@ def _validiere_eintrag(dateiname: str,
         raise RuntimeError(
             f"'schema' muss ein Mapping sein in {dateiname}"
         )
+    for feld, spec in data["schema"].items():
+        if isinstance(spec, str) and spec:
+            continue
+        if (isinstance(spec, dict)
+                and isinstance(spec.get("typ"), str) and spec["typ"]
+                and set(spec) <= {"typ", "beschreibung"}
+                and ("beschreibung" not in spec
+                     or (isinstance(spec["beschreibung"], str)
+                         and spec["beschreibung"]))):
+            continue
+        raise RuntimeError(
+            f"'schema.{feld}' ungueltig in {dateiname}: erwartet Typ-String "
+            "oder Mapping mit 'typ' (+ optional 'beschreibung')"
+        )
     if not isinstance(data["pflichtfelder"], list):
         raise RuntimeError(
             f"'pflichtfelder' muss eine Liste sein in {dateiname}"

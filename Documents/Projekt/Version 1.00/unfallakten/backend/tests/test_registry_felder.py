@@ -40,6 +40,63 @@ def test_neue_nichtmed_klassen():
         assert "parser" not in reg.klassen[ablage]
 
 
+def _erster_regex_treffer(muster_liste, text):
+    import re
+    for muster in muster_liste:
+        m = re.search(muster, text)
+        if m:
+            return m.group(1) if m.groups() else m.group(0)
+    return ""
+
+
+def test_schadennummer_regex_mit_leerzeichen():
+    # Befund 1280/25: VHV-Schadennummer "SD0 0003 2129 28 T01" brach am
+    # ersten Leerzeichen ab ("SD0").
+    reg = lade_registry(standard_pfad(), reload=True)
+    muster = reg.klassen["abrechnungsschreiben"]["regex_felder"]["schadennummer"]
+    text = "Schaden-Nr.: SD0 0003 2129 28 T01\nSchadendatum: 17.11.2025"
+    assert _erster_regex_treffer(muster, text) == "SD0 0003 2129 28 T01"
+
+
+def test_schadennummer_regex_kompakt_weiterhin():
+    reg = lade_registry(standard_pfad(), reload=True)
+    muster = reg.klassen["abrechnungsschreiben"]["regex_felder"]["schadennummer"]
+    text = "Schadennummer: 12-345-67890-001\nAktenzeichen Rechtsanwalt: 31-21"
+    assert _erster_regex_treffer(muster, text) == "12-345-67890-001"
+
+
+def test_pruefbericht_vorgangsnummer_aus_schaden_nr():
+    # Der VHV-Pruefbericht traegt eine "Schaden-Nr.", keine "Vorgangs-Nr."
+    reg = lade_registry(standard_pfad(), reload=True)
+    muster = reg.klassen["pruefbericht"]["regex_felder"]["vorgangsnummer"]
+    text = "Prüfbericht\nSchaden-Nr.: SD00003212928\nSchadendatum: 17.11.2025"
+    assert _erster_regex_treffer(muster, text) == "SD00003212928"
+
+
+def test_pruefbericht_schema_mit_beschreibungen():
+    # Die Betragsfelder brauchen LLM-Anweisungen (Befund 1280/25:
+    # abzug_gesamt wurde frei errechnet, brutto falsch belegt).
+    reg = lade_registry(standard_pfad(), reload=True)
+    schema = reg.klassen["pruefbericht"]["schema"]
+    for feld in ("reparaturkosten_brutto", "abzug_gesamt",
+                 "reparaturkosten_nach_pruefung",
+                 "erstattung_konkrete_reparatur_netto",
+                 "erstattung_fiktive_abrechnung_netto"):
+        assert isinstance(schema[feld], dict), feld
+        assert schema[feld].get("typ") == "number", feld
+        assert schema[feld].get("beschreibung"), feld
+    # auftraggeber wurde ohne Anweisung mit der Anspruchstellerin belegt
+    assert isinstance(schema["auftraggeber"], dict)
+    assert schema["auftraggeber"].get("beschreibung")
+
+
+def test_pruefbericht_hat_netto_nach_abzug_regel():
+    reg = lade_registry(standard_pfad(), reload=True)
+    namen = [r["name"]
+             for r in reg.klassen["pruefbericht"]["validierungsregeln"]]
+    assert "netto_nach_abzug_konsistent" in namen
+
+
 def test_med_und_nachbesichtigung():
     reg = lade_registry(standard_pfad(), reload=True)
     for med in ("arztbericht", "krankenhausbericht", "attest",

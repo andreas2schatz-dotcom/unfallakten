@@ -100,6 +100,89 @@ class TestAbzugGesamtSumme(unittest.TestCase):
                 {"abzug_technisch": 100.0}, _regeln("abzug_gesamt_summe")), [])
 
 
+class TestNettoNachAbzugKonsistent(unittest.TestCase):
+    def test_widerspruch_erzeugt_warnung(self):
+        # Praxisfall Dok 516 (Akte 1280/25): LLM errechnete abzug_gesamt aus
+        # der Fiktiv-Spalte, reparaturkosten_nach_pruefung stammt aus der
+        # Konkret-Spalte -- 7034,51 - 1585,89 = 5448,62 != 6506,29.
+        felder = {
+            "reparaturkosten_netto_vor_pruefung": 7034.51,
+            "abzug_gesamt": 1585.89,
+            "reparaturkosten_nach_pruefung": 6506.29,
+        }
+        warnungen = pruefe_validierungsregeln(
+            felder, _regeln("netto_nach_abzug_konsistent"))
+        self.assertEqual(len(warnungen), 1)
+        self.assertIn("6.506,29", warnungen[0])
+
+    def test_konsistente_werte_keine_warnung(self):
+        felder = {
+            "reparaturkosten_netto_vor_pruefung": 7034.51,
+            "abzug_gesamt": 528.22,
+            "reparaturkosten_nach_pruefung": 6506.29,
+        }
+        self.assertEqual(
+            pruefe_validierungsregeln(
+                felder, _regeln("netto_nach_abzug_konsistent")), [])
+
+    def test_toleranz_ein_cent(self):
+        felder = {
+            "reparaturkosten_netto_vor_pruefung": 100.0,
+            "abzug_gesamt": 30.0,
+            "reparaturkosten_nach_pruefung": 70.01,
+        }
+        self.assertEqual(
+            pruefe_validierungsregeln(
+                felder, _regeln("netto_nach_abzug_konsistent")), [])
+
+    def test_fehlende_felder_keine_warnung(self):
+        for felder in (
+            {},
+            {"reparaturkosten_netto_vor_pruefung": 7034.51},
+            {"reparaturkosten_netto_vor_pruefung": 7034.51,
+             "abzug_gesamt": 528.22},
+            {"abzug_gesamt": 528.22,
+             "reparaturkosten_nach_pruefung": 6506.29},
+        ):
+            self.assertEqual(
+                pruefe_validierungsregeln(
+                    felder, _regeln("netto_nach_abzug_konsistent")), [],
+                felder)
+
+
+class TestNachPruefungGleichKonkreterErstattung(unittest.TestCase):
+    def test_fiktive_spalte_uebernommen_erzeugt_warnung(self):
+        # Dok 516: LLM griff die fiktive Spalte (5448,62) statt der
+        # korrigierten Summe (6506,29).
+        felder = {
+            "reparaturkosten_nach_pruefung": 5448.62,
+            "erstattung_konkrete_reparatur_netto": 6506.29,
+        }
+        warnungen = pruefe_validierungsregeln(
+            felder, _regeln("nach_pruefung_gleich_konkreter_erstattung"))
+        self.assertEqual(len(warnungen), 1)
+        self.assertIn("5.448,62", warnungen[0])
+
+    def test_gleiche_werte_keine_warnung(self):
+        felder = {
+            "reparaturkosten_nach_pruefung": 6506.29,
+            "erstattung_konkrete_reparatur_netto": 6506.29,
+        }
+        self.assertEqual(
+            pruefe_validierungsregeln(
+                felder,
+                _regeln("nach_pruefung_gleich_konkreter_erstattung")), [])
+
+    def test_fehlende_felder_keine_warnung(self):
+        for felder in ({}, {"reparaturkosten_nach_pruefung": 6506.29},
+                       {"erstattung_konkrete_reparatur_netto": 6506.29}):
+            self.assertEqual(
+                pruefe_validierungsregeln(
+                    felder,
+                    _regeln("nach_pruefung_gleich_konkreter_erstattung")),
+                [], felder)
+
+
 class TestRobustheit(unittest.TestCase):
     def test_unbekannte_regel_wird_uebersprungen(self):
         self.assertEqual(

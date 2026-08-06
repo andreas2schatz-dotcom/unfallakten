@@ -14,26 +14,51 @@ marker:
 regex_felder:
   vorgangsnummer:
     - "Vorgangs-?Nr\\.?[:\\s]+([A-Z0-9\\-/]+)"
+    - "Schaden-?Nr\\.?[:\\s]+([A-Z0-9][A-Z0-9\\-/]*(?:[^\\S\\n][A-Z0-9][A-Z0-9\\-/]+)*)"
   kennzeichen:
     - "Kennzeichen[:\\s]+([A-ZÄÖÜ]{1,3}-[A-Z]{1,2}\\s?\\d{1,4})"
 
 schema:
-  pruefdienstleister: string
-  auftraggeber: string
+  pruefdienstleister:
+    typ: string
+    beschreibung: Name des Prüfdienstleisters (z.B. ControlExpert, DEKRA); prüft der Versicherer selbst, dessen Name
+  auftraggeber:
+    typ: string
+    beschreibung: Auftraggeber der Prüfung, in der Regel der Versicherer; NICHT der Anspruchsteller oder Fahrzeughalter
   vorgangsnummer: string
   hersteller: string
   typ: string
   kennzeichen: string
-  reparaturkosten_brutto: number
-  reparaturkosten_netto_vor_pruefung: number
-  abzug_technisch: number
-  abzug_werkstattalternative: number
-  abzug_nfa: number
-  abzug_gesamt: number
-  reparaturkosten_nach_pruefung: number
-  erstattung_konkrete_reparatur_netto: number
-  erstattung_fiktive_abrechnung_netto: number
-  referenzwerkstatt: object
+  reparaturkosten_brutto:
+    typ: number
+    beschreibung: Reparaturkosten laut Gutachten/Kostenvoranschlag inkl. MwSt VOR der Prüfung; NICHT die korrigierte Summe nach Prüfung
+  reparaturkosten_netto_vor_pruefung:
+    typ: number
+    beschreibung: geforderte Reparaturkosten netto vor der Prüfung (Spalte GEFORDERT)
+  abzug_technisch:
+    typ: number
+    beschreibung: nur übernehmen, wenn als eigener Abzugsbetrag ausgewiesen
+  abzug_werkstattalternative:
+    typ: number
+    beschreibung: nur übernehmen, wenn als eigener Abzugsbetrag ausgewiesen
+  abzug_nfa:
+    typ: number
+    beschreibung: Abzug Neu für Alt / Wertverbesserung, nur wenn ausgewiesen
+  abzug_gesamt:
+    typ: number
+    beschreibung: nur übernehmen, wenn ein Gesamtabzug ausdrücklich im Text beziffert ist; niemals selbst errechnen
+  reparaturkosten_nach_pruefung:
+    typ: number
+    beschreibung: die im Text als korrigierte Summe exkl. MwSt ausgewiesenen Reparaturkosten; entspricht der Spalte "Erstattung bei konkreter Reparatur", NICHT der fiktiven Abrechnung
+  erstattung_konkrete_reparatur_netto:
+    typ: number
+    beschreibung: Zeile Ergebnis der Spalte "Erstattung bei konkreter Reparatur" (netto)
+  erstattung_fiktive_abrechnung_netto:
+    typ: number
+    beschreibung: Zeile Ergebnis der Spalte "Erstattung bei fiktiver Abrechnung" (netto)
+  referenzwerkstatt:
+    typ: object
+    beschreibung: Name, Adresse, Stundensätze und Entfernung des für die Korrekturberechnung verwendeten Reparaturbetriebs
 
 pflichtfelder:
   - pruefdienstleister
@@ -46,6 +71,10 @@ kritische_felder:
 validierungsregeln:
   - name: abzug_gesamt_summe
     beschreibung: abzug_gesamt = abzug_technisch + abzug_werkstattalternative + abzug_nfa (Toleranz 1 Cent)
+  - name: netto_nach_abzug_konsistent
+    beschreibung: reparaturkosten_netto_vor_pruefung - abzug_gesamt = reparaturkosten_nach_pruefung (Toleranz 1 Cent)
+  - name: nach_pruefung_gleich_konkreter_erstattung
+    beschreibung: reparaturkosten_nach_pruefung = erstattung_konkrete_reparatur_netto (Toleranz 1 Cent)
 
 fristrelevanz: false
 loeschfrist_jahre: 6

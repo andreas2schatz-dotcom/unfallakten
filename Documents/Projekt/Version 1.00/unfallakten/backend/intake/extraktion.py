@@ -42,6 +42,25 @@ def _regex_extraktion(text: str,
     return ergebnis
 
 
+def _erkenne_pruefdienstleister(text: str):
+    """Fallback fuer Pruefberichte ohne LLM-Wert (Befund 1280/25: der
+    Versicherer prueft selbst, ohne ControlExpert/DEKRA im Text).
+
+    Nur der Dokumentkopf zaehlt -- spaetere Erwaehnungen wie
+    "Dekra-Zertifizierung" in Werkstatt-Qualitaetsmerkmalen sind kein
+    Beleg fuer den Absender."""
+    kopf = text[:1500].lower()
+    if re.search(r"control.?e?xpert", kopf):
+        return "ControlExpert"
+    if "dekra" in kopf:
+        return "DEKRA"
+    from ..parsers.document_classifier import VERSICHERER_PATTERNS
+    for muster, _kuerzel, vollname, _prio in VERSICHERER_PATTERNS:
+        if re.search(muster, kopf):
+            return vollname
+    return None
+
+
 def extrahiere_felder(text: str, klasse: str, registry,
                       llm_text: str = None) -> Dict[str, Any]:
     """Extrahiere Felder gemaess YAML-Registry-Eintrag der ``klasse``.
@@ -91,6 +110,11 @@ def extrahiere_felder(text: str, klasse: str, registry,
     # Regex-Felder ausserhalb des Schemas trotzdem erhalten (Anker)
     for feld, wert in regex_werte.items():
         felder.setdefault(feld, wert)
+
+    if klasse == "pruefbericht" and not felder.get("pruefdienstleister"):
+        dienstleister = _erkenne_pruefdienstleister(text)
+        if dienstleister:
+            felder["pruefdienstleister"] = dienstleister
 
     ergebnis: Dict[str, Any] = {"felder": felder, "llm_status": llm_status}
 

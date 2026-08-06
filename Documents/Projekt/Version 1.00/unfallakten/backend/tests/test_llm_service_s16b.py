@@ -111,6 +111,42 @@ class TestExtrahiereNachSchema(unittest.TestCase):
                 )
             )
 
+    def test_feldbeschreibungen_landen_im_prompt(self):
+        # Schema-Werte duerfen statt reiner Typangabe ein Mapping
+        # {typ, beschreibung} sein -- die Beschreibung steuert das LLM
+        # (Befund 1280/25: abzug_gesamt wurde frei errechnet).
+        from backend.services import llm_service
+        with mock.patch.object(llm_service, "_post_chat",
+                               return_value='{"abzug_gesamt": 1}') as m:
+            llm_service.extrahiere_nach_schema(
+                schema={
+                    "abzug_gesamt": {
+                        "typ": "number",
+                        "beschreibung": "nur uebernehmen wenn ausgewiesen",
+                    },
+                    "vorgangsnummer": "string",
+                },
+                text="Text",
+            )
+        args = m.call_args.args
+        messages = args[0] if args else m.call_args.kwargs.get("messages", [])
+        prompt = "\n".join(msg.get("content", "") for msg in messages)
+        self.assertIn(
+            "abzug_gesamt (number): nur uebernehmen wenn ausgewiesen", prompt)
+        self.assertIn("vorgangsnummer (string)", prompt)
+        self.assertNotIn("{'typ'", prompt)
+
+    def test_systemprompt_verbietet_eigenes_rechnen(self):
+        from backend.services import llm_service
+        with mock.patch.object(llm_service, "_post_chat",
+                               return_value='{"a": 1}') as m:
+            llm_service.extrahiere_nach_schema(
+                schema={"a": "number"}, text="Text")
+        args = m.call_args.args
+        messages = args[0] if args else m.call_args.kwargs.get("messages", [])
+        prompt = "\n".join(msg.get("content", "") for msg in messages)
+        self.assertIn("Errechne keine Werte", prompt)
+
     def test_schema_felder_landen_im_prompt(self):
         from backend.services import llm_service
         with mock.patch.object(llm_service, "_post_chat",

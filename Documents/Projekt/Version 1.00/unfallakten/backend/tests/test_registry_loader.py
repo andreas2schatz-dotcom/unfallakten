@@ -192,6 +192,40 @@ def _schreibe_klasse(dir_pfad, name, extra=""):
         f.write(inhalt)
 
 
+def test_schema_wert_mit_typ_und_beschreibung_laedt(tmp_path):
+    yaml_inhalt = _MINIMAL_YAML.replace(
+        "  wiederbeschaffungswert: number",
+        "  wiederbeschaffungswert:\n"
+        "    typ: number\n"
+        "    beschreibung: nur uebernehmen wenn ausgewiesen",
+    ).replace("klasse: gutachten", "klasse: rechnung")
+    _schreibe_yaml(os.path.join(str(tmp_path), "rechnung.yaml"), yaml_inhalt)
+    reg = registry_loader.lade_registry(str(tmp_path), reload=True)
+    schema = reg.klassen["rechnung"]["schema"]
+    assert schema["wiederbeschaffungswert"]["typ"] == "number"
+
+
+def test_schema_wert_mapping_ohne_typ_wirft(tmp_path):
+    yaml_inhalt = _MINIMAL_YAML.replace(
+        "  wiederbeschaffungswert: number",
+        "  wiederbeschaffungswert:\n"
+        "    beschreibung: ohne typ",
+    ).replace("klasse: gutachten", "klasse: rechnung")
+    _schreibe_yaml(os.path.join(str(tmp_path), "rechnung.yaml"), yaml_inhalt)
+    with pytest.raises(RuntimeError, match="schema"):
+        registry_loader.lade_registry(str(tmp_path), reload=True)
+
+
+def test_schema_wert_falscher_typ_wirft(tmp_path):
+    yaml_inhalt = _MINIMAL_YAML.replace(
+        "  wiederbeschaffungswert: number",
+        "  wiederbeschaffungswert: 42",
+    ).replace("klasse: gutachten", "klasse: rechnung")
+    _schreibe_yaml(os.path.join(str(tmp_path), "rechnung.yaml"), yaml_inhalt)
+    with pytest.raises(RuntimeError, match="schema"):
+        registry_loader.lade_registry(str(tmp_path), reload=True)
+
+
 def test_gueltiges_parser_feld_laedt(tmp_path):
     _schreibe_klasse(str(tmp_path), "rechnung", "parser: rechnung\n")
     reg = registry_loader.lade_registry(str(tmp_path), reload=True)

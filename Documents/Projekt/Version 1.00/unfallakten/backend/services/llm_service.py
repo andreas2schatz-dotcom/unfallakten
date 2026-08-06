@@ -532,8 +532,18 @@ _EXTRAKTOR_SYSTEM = """\
 Du extrahierst strukturierte Felder aus einem deutschen Kanzlei-Dokument.
 Antworte NUR mit einem JSON-Objekt, dessen Schluessel den vorgegebenen
 Feldnamen entsprechen. Fehlt ein Wert im Text, setze den Feldwert auf null.
-Erfinde niemals Werte, die nicht im Text stehen. Kein Fliesstext, nur JSON.
+Erfinde niemals Werte, die nicht im Text stehen. Errechne keine Werte selbst
+(keine Summen oder Differenzen bilden) — uebernimm nur Betraege, die
+woertlich im Text stehen; im Zweifel null. Kein Fliesstext, nur JSON.
 """
+
+
+def _schema_prompt_zeile(name, spec) -> str:
+    if isinstance(spec, dict):
+        zeile = f"- {name} ({spec.get('typ', 'string')})"
+        beschreibung = spec.get("beschreibung")
+        return f"{zeile}: {beschreibung}" if beschreibung else zeile
+    return f"- {name} ({spec})"
 
 
 def extrahiere_nach_schema(schema, text: str):
@@ -554,7 +564,7 @@ def extrahiere_nach_schema(schema, text: str):
         return None
 
     felderbeschreibung = "\n".join(
-        f"- {name} ({typ})" for name, typ in schema.items()
+        _schema_prompt_zeile(name, spec) for name, spec in schema.items()
     )
     user_content = (
         "Extrahiere die folgenden Felder:\n"

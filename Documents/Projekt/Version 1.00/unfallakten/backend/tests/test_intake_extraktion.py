@@ -280,5 +280,84 @@ class TestLlmStatus(unittest.TestCase):
         self.assertEqual(erg.get("llm_status"), "aus")
 
 
+class TestPruefdienstleisterFallback(unittest.TestCase):
+    """Befund 1280/25: VHV-eigener Pruefbericht ohne ControlExpert/DEKRA --
+    das Pflichtfeld pruefdienstleister blieb leer."""
+
+    def _registry(self):
+        class _R:
+            klassen = {"pruefbericht": {
+                "schema": {"pruefdienstleister": "string",
+                           "vorgangsnummer": "string"},
+                "regex_felder": {},
+            }}
+        return _R()
+
+    def _extrahiere(self, text, llm_werte):
+        from backend.intake import extraktion
+        with mock.patch("backend.intake.extraktion.llm_service.ist_aktiviert",
+                        return_value=True), \
+             mock.patch("backend.intake.extraktion.llm_service.extrahiere_nach_schema",
+                        return_value=llm_werte):
+            return extraktion.extrahiere_felder(
+                text, "pruefbericht", self._registry())["felder"]
+
+    def test_versicherer_als_fallback(self):
+        felder = self._extrahiere(
+            "Prüfbericht\nVHV Allgemeine Versicherung AG\nSchaden-Nr.: SD1",
+            {"pruefdienstleister": None, "vorgangsnummer": "SD1"})
+        self.assertEqual(felder["pruefdienstleister"],
+                         "VHV Allgemeine Versicherung AG")
+
+    def test_controlexpert_hat_vorrang_vor_versicherer(self):
+        felder = self._extrahiere(
+            "Prüfbericht der Control€xpert GmbH im Auftrag der "
+            "VHV Allgemeine Versicherung AG",
+            {"pruefdienstleister": None})
+        self.assertEqual(felder["pruefdienstleister"], "ControlExpert")
+
+    def test_llm_wert_wird_nicht_ueberschrieben(self):
+        felder = self._extrahiere(
+            "Prüfbericht\nVHV Allgemeine Versicherung AG",
+            {"pruefdienstleister": "DEKRA"})
+        self.assertEqual(felder["pruefdienstleister"], "DEKRA")
+
+    def test_dekra_nur_in_qualitaetsmerkmalen_zaehlt_nicht(self):
+        # Dok 516: "Dekra-Zertifizierung KL-Siegel" steht erst auf Seite 3
+        # in der Werkstatt-Merkmalliste -- kein Beleg fuer den Absender.
+        text = ("Prüfbericht\nSchaden-Nr.: SD1\n" + "Prüftext Zeile.\n" * 200 +
+                "• Dekra-Zertifizierung KL-Siegel (Werkstattprüfung)")
+        felder = self._extrahiere(text, {"pruefdienstleister": None})
+        self.assertNotIn("pruefdienstleister", felder)
+
+    def test_dekra_im_dokumentkopf_wird_erkannt(self):
+        felder = self._extrahiere(
+            "DEKRA Automobil GmbH\nPrüfbericht\nSchaden-Nr.: SD1",
+            {"pruefdienstleister": None})
+        self.assertEqual(felder["pruefdienstleister"], "DEKRA")
+
+    def test_ohne_treffer_bleibt_feld_leer(self):
+        felder = self._extrahiere(
+            "Prüfbericht ohne erkennbaren Absender",
+            {"pruefdienstleister": None})
+        self.assertNotIn("pruefdienstleister", felder)
+
+    def test_andere_klassen_unberuehrt(self):
+        from backend.intake import extraktion
+        class _R:
+            klassen = {"gutachten": {
+                "schema": {"pruefdienstleister": "string"},
+                "regex_felder": {},
+            }}
+        with mock.patch("backend.intake.extraktion.llm_service.ist_aktiviert",
+                        return_value=True), \
+             mock.patch("backend.intake.extraktion.llm_service.extrahiere_nach_schema",
+                        return_value={"pruefdienstleister": None}):
+            felder = extraktion.extrahiere_felder(
+                "Text der VHV Allgemeine Versicherung AG",
+                "gutachten", _R())["felder"]
+        self.assertNotIn("pruefdienstleister", felder)
+
+
 if __name__ == "__main__":
     unittest.main()

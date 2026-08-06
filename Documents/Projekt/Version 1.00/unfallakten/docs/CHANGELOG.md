@@ -7,6 +7,20 @@
 
 ---
 
+## 2026-08-06 — Prüfbericht-Extraktion Akte 1280/25, Runde 2 (auf Branch `abschlussbericht`)
+
+Anlass: RA Schatz meldete, das Prüfbericht-Parsing (Dok 516, VHV-Drei-Spalten-Format) sei trotz Schema-Erweiterung vom Vormittag weiter fehlerhaft. Befund: Die Altfelder des ControlExpert-Schemas passen nicht auf das VHV-Format — das LLM erfand `abzug_gesamt` (1.585,89 = selbst errechnete Differenz Gefordert−Fiktiv), belegte `reparaturkosten_brutto` mit dem Brutto NACH Prüfung und mischte Konkret-/Fiktiv-Spalte; `pruefdienstleister` (Pflichtfeld) und `auftraggeber` blieben leer bzw. wurden mit der Anspruchstellerin befüllt; die Schadennummer-Regex brach am Leerzeichen ab.
+
+- **Schema-Feldbeschreibungen (neu):** Registry-`schema`-Werte dürfen jetzt statt reiner Typangabe ein Mapping `{typ, beschreibung}` sein (`registry_loader`-Validierung fail-loud, `llm_service` gibt die Beschreibung im Prompt als `- feld (typ): beschreibung` aus). `pruefbericht.yaml` nutzt das für alle Betragsfelder („niemals selbst errechnen", Spaltenzuordnung konkret/fiktiv, Brutto = VOR Prüfung) + `auftraggeber` (nicht der Anspruchsteller). Extraktor-Systemprompt generell verschärft: „Errechne keine Werte selbst".
+- **2 neue Validierungsregeln** in `intake/validierung.py`: `netto_nach_abzug_konsistent` (vor − Abzug = nach) und `nach_pruefung_gleich_konkreter_erstattung` (Spaltenvermischung konkret/fiktiv wird als amber Warnung sichtbar); beide in `pruefbericht.yaml` registriert.
+- **Prüfdienstleister-Fallback** in `intake/extraktion.py`: fehlt der LLM-Wert, wird der Dokumentkopf (erste 1.500 Zeichen) auf ControlExpert/DEKRA und ersatzweise `VERSICHERER_PATTERNS` geprüft. Nur der Kopf zählt — „Dekra-Zertifizierung" in der Werkstatt-Merkmalliste (Seite 3) erzeugte sonst ein falsches „DEKRA". Dok 516 bleibt korrekt leer (VHV nennt sich im Bericht selbst nicht).
+- **Schadennummer-Regex mit Leerzeichen:** `abrechnungsschreiben.yaml` fängt jetzt „SD0 0003 2129 28 T01" komplett (Token-Muster `[^\S\n]`-getrennt, bricht an Zeilenende); `pruefbericht.yaml` bekam zusätzlich ein `Schaden-Nr.`-Muster für `vorgangsnummer`. Der `llm_konflikt` „SD0" bei Dok 517 ist damit weg.
+- **Verifiziert am echten Dokument** (Container-Restart + Reparse): Dok 516 liefert jetzt konsistent 7.034,51 (gefordert) / 6.506,29 (nach Prüfung = konkret) / 5.448,62 (fiktiv), keine erfundenen Werte mehr; Dok 517 volle Schadennummer + Positionssummen-Warnung unverändert aktiv.
+- **Tests:** 18 neue (RED→GREEN, TDD): `test_intake_validierung.py` (2 Regeln), `test_llm_service_s16b.py` (Beschreibungen im Prompt, Systemprompt), `test_intake_extraktion.py` (Fallback inkl. DEKRA-Fehltreffer), `test_registry_felder.py` (Regexe + Schema-Form), `test_registry_loader.py` (Schema-Mapping-Validierung). Betroffene Suiten grün (84 + 61 E2E); vorbestehend unverändert: 2× `test_intake_routes` „Rechnung (Auffang)".
+- **Offen:** `referenzwerkstatt` bleibt leer (Werkstatt-Block liegt außerhalb des N-06-LLM-Seitenfensters) → TODO-Backlog (d); Marker-Wortgrenze (a) + Datums-Scheinkonflikt (c) weiter offen.
+
+---
+
 ## 2026-08-06 — E-Mail-Import Endlos-Poll-Loop gefixt · Intake-Fixes Akte 1280/25 · Dubletten-Bereinigung (auf Branch `abschlussbericht`)
 
 Anlass: RA Schatz meldete unbefriedigendes Parsing zweier VHV-Dokumente (Akte 1280/25) und 353 Dokumente voller Dubletten in Akte 543/26. Die Dubletten-Analyse deckte einen seit Ende Juni wiederkehrenden Endlos-Loop im E-Mail-Import auf.

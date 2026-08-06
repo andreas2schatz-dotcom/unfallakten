@@ -83,9 +83,45 @@ def _pruefe_abzug_gesamt_summe(felder: Dict[str, Any]) -> List[str]:
     ]
 
 
+def _pruefe_netto_nach_abzug_konsistent(felder: Dict[str, Any]) -> List[str]:
+    vor = _als_betrag(felder.get("reparaturkosten_netto_vor_pruefung"))
+    abzug = _als_betrag(felder.get("abzug_gesamt"))
+    nach = _als_betrag(felder.get("reparaturkosten_nach_pruefung"))
+    if vor is None or abzug is None or nach is None:
+        return []
+    erwartet = round(vor - abzug, 2)
+    differenz = round(erwartet - nach, 2)
+    if abs(differenz) <= _TOLERANZ:
+        return []
+    return [
+        f"Reparaturkosten vor Prüfung ({_eur(vor)} EUR) minus Abzug gesamt "
+        f"({_eur(abzug)} EUR) ergibt {_eur(erwartet)} EUR — als Betrag nach "
+        f"Prüfung wurde aber {_eur(nach)} EUR erkannt. Vermutlich wurden "
+        "Beträge aus verschiedenen Spalten (konkret/fiktiv) vermischt."
+    ]
+
+
+def _pruefe_nach_pruefung_gleich_konkreter_erstattung(
+        felder: Dict[str, Any]) -> List[str]:
+    nach = _als_betrag(felder.get("reparaturkosten_nach_pruefung"))
+    konkret = _als_betrag(felder.get("erstattung_konkrete_reparatur_netto"))
+    if nach is None or konkret is None:
+        return []
+    if abs(round(nach - konkret, 2)) <= _TOLERANZ:
+        return []
+    return [
+        f"Reparaturkosten nach Prüfung ({_eur(nach)} EUR) weichen von der "
+        f"Erstattung bei konkreter Reparatur ({_eur(konkret)} EUR) ab — "
+        "vermutlich wurde die Spalte der fiktiven Abrechnung übernommen."
+    ]
+
+
 _REGEL_FUNKTIONEN = {
     "summe_positionen_gleich_gesamt": _pruefe_summe_positionen_gleich_gesamt,
     "abzug_gesamt_summe": _pruefe_abzug_gesamt_summe,
+    "netto_nach_abzug_konsistent": _pruefe_netto_nach_abzug_konsistent,
+    "nach_pruefung_gleich_konkreter_erstattung":
+        _pruefe_nach_pruefung_gleich_konkreter_erstattung,
 }
 
 
