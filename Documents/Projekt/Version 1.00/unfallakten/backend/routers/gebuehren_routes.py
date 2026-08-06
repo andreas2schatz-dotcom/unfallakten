@@ -70,7 +70,9 @@ def lade_gebuehren(akte_id):
         # Fallback: Summe der Hauptpositionen aus schadenpositionen
         if streitwert == 0.0:
             sp = conn.execute(
-                """SELECT COALESCE(rep_rechnung_brutto, rep_gutachten_netto, 0)
+                """SELECT CASE WHEN COALESCE(rep_rechnung_brutto, 0) > 0
+                               THEN rep_rechnung_brutto
+                               ELSE COALESCE(rep_gutachten_netto, 0) END
                           + COALESCE(wiederbeschaffung, 0) - COALESCE(restwert, 0)
                           + COALESCE(wertminderung, 0) + COALESCE(nutzungsausfall, 0)
                           + COALESCE(mietwagenkosten, 0) + COALESCE(sv_kosten, 0)
