@@ -278,6 +278,24 @@ def _verarbeite_eine(uid, roh_bytes, imap, bericht, up_dir, bearbeiter_id, konto
         erkannt_kfz = erkannt_az
         erkannt_az  = None
 
+    # FK-Guard: email_import_log.akte_id referenziert unfallakte(az).
+    # Existiert die Akte lokal (auch nach On-demand-Anlage) nicht, wuerde
+    # der Log-INSERT mit FOREIGN KEY constraint failed abbrechen -- die Mail
+    # bliebe ungelesen und jeder Poll wuerde sie erneut verarbeiten
+    # (Dubletten-Flut 2026-06/2026-08). Stattdessen: als nicht_zugeordnet
+    # importieren, erkanntes AZ fuer die manuelle Zuordnung behalten.
+    if akte_az:
+        with get_connection() as conn:
+            akte_lokal = conn.execute(
+                'SELECT 1 FROM unfallakte WHERE az = ?', (akte_az,)
+            ).fetchone()
+        if not akte_lokal:
+            logger.warning(
+                'Akte %s lokal nicht vorhanden - Mail wird als '
+                'nicht_zugeordnet importiert.', akte_az)
+            erkannt_az = erkannt_az or akte_az
+            akte_az = None
+
     # FIX Bug 6: Status-Werte angepasst an neues Schema
     status  = "zugeordnet" if akte_az else "nicht_zugeordnet"
     dok_ids = []
@@ -849,8 +867,34 @@ def _stelle_sqlite_akte_sicher(az: str) -> None:
         if not exists:
             logger.info('Akte %s nicht in SQLite - on-demand Anlage.', az)
             try:
-                from ..ramicro.ramicro_liste import on_demand_anlegen
-                on_demand_anlegen(az)
+                kurzbezeichnung = sachbearbeiter = None
+                try:
+                    from ..ramicro.connector import get_ramicro_connection
+                    az_like = az.split('/')[0] + '/' + ''.join(
+                        c for c in az.split('/', 1)[1] if c.isdigit()) + '%'
+                    with get_ramicro_connection() as rconn:
+                        cur = rconn.cursor()
+                        cur.execute("""
+                            SELECT TOP 1
+                                a.sAktenKurzBezeichnung AS kb,
+                                a.sAktenSachbearbeiter  AS sb
+                            FROM tblAkten a
+                            WHERE a.sAktenNummer LIKE %(like)s
+                              AND (a.dtAblage IS NULL OR CAST(a.dtAblage AS DATE)='1899-12-30')
+                        """, {"like": az_like})
+                        row = cur.fetchone()
+                        if row:
+                            kurzbezeichnung = row["kb"]
+                            sachbearbeiter  = row["sb"]
+                except Exception:
+                    pass  # RA-Micro nicht erreichbar -> trotzdem lokal anlegen
+
+                from ..models.akte import erstelle_oder_hole_akte
+                erstelle_oder_hole_akte(
+                    az=az,
+                    kurzbezeichnung=kurzbezeichnung,
+                    sachbearbeiter=sachbearbeiter,
+                )
             except Exception as e:
                 logger.warning('on-demand Anlage fuer %s fehlgeschlagen: %s', az, e)
     except Exception as e:
