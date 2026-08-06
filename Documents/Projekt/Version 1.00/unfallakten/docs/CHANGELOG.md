@@ -7,6 +7,24 @@
 
 ---
 
+## 2026-08-06 — E-Mail-Import Endlos-Poll-Loop gefixt · Intake-Fixes Akte 1280/25 · Dubletten-Bereinigung (auf Branch `abschlussbericht`)
+
+Anlass: RA Schatz meldete unbefriedigendes Parsing zweier VHV-Dokumente (Akte 1280/25) und 353 Dokumente voller Dubletten in Akte 543/26. Die Dubletten-Analyse deckte einen seit Ende Juni wiederkehrenden Endlos-Loop im E-Mail-Import auf.
+
+**Endlos-Poll-Loop (`34342daa`):** Ursachenkette: RA-MICRO-Match auf lokal fehlende Akte → On-demand-Anlage tot (verweistes Modul `backend.ramicro.ramicro_liste`, ImportError still verschluckt) → `email_import_log`-INSERT verletzt FK auf `unfallakte(az)` → Mail weder geloggt noch als gelesen markiert → jeder Poll (1-Min-Takt) verarbeitete sie erneut. Zwei Wellen: 2026-06-28..07-14 (Alt-Pfad schrieb `dokumente`-Zeilen + Anhangs-Dateien) und ab 2026-08-04 (nach Scheduler-Reaktivierung; nur noch `.eml`-Kopien). Fix doppelt: `_stelle_sqlite_akte_sicher` nutzt `erstelle_oder_hole_akte` (+ Stammdaten best-effort aus RA-MICRO) und neuer FK-Guard in `_verarbeite_eine` degradiert lokal nicht anlegbare Akten zu `nicht_zugeordnet` statt Crash. 3 Tests `test_email_import_fk_guard.py` (RED→GREEN). Live verifiziert: die 5 festhängenden Mails wurden zugeordnet (Akten 431/22, 1043/25, 241/22, 732/26, 288/26 on-demand angelegt), Folgeläufe 0 Fehler.
+
+**Intake-Fixes Akte 1280/25 (`8e9b50ea`):**
+- `pruefbericht.yaml`: Schema um `erstattung_konkrete_reparatur_netto` + `erstattung_fiktive_abrechnung_netto` erweitert — die VHV-Drei-Spalten-Tabelle (gefordert/konkret/fiktiv) hatte kein Zielfeld, der regulierungsentscheidende Fiktiv-Wert (5.448,62 €) ging verloren. Reparse Dok 516 verifiziert. Achtung: Registry-YAMLs werden beim Backend-Start geladen; der Flask-Reloader reagiert nicht auf YAML-Änderungen → Container-Restart nötig.
+- Neu `backend/intake/validierung.py`: die YAML-`validierungsregeln` (`summe_positionen_gleich_gesamt`, `abzug_gesamt_summe`) werden erstmals ausgeführt (waren reine Doku). Warnungen landen in `parse_json.validierung_warnungen`, Detail-Route reicht durch, ReviewQueue zeigt amber Hinweis. Reparse Dok 517 (VHV-Abrechnungsschreiben): Warnung nennt exakt die vom LLM ausgelassene Hauptposition (Differenz 5.448,62 €). 11 Tests `test_intake_validierung.py` (RED→GREEN).
+
+**Dubletten-Bereinigung (Freigabe RA Schatz, „aufräumen"):** Backup `/app/data/unfallakten.db.bak_pre_dubletten_cleanup_20260806_155109` (SQLite `.backup`-API). `dokumente` 53.216 → 789 Zeilen — behalten: älteste Zeile je (akte_id, dateiname, dateigröße) plus alle aus 9 Referenz-Tabellen (`pruefberichte`, `forderung_positionen`, `abrechnungsschreiben`, `schadenposition_belege`, `freigaben`, `ereignisse`, `position_ereignis_cache`, `klassifikation_training`, `todos`) und `email_import_log.importierte_dok`-JSON referenzierten IDs. Danach Verwaisten-Sweep in `/app/uploads` (nur Top-Level-Dateien, Unterordner unangetastet; behalten wurde alles, was eine der 6 Pfad-Spalten referenziert). Ergebnis: 106.266 Dateien gelöscht, ~222 GB frei, VACUUM 50 → 4 MB. 543/26: 353 → 6 Dokumente.
+
+**Tests/Regressionen:** Fokussierte Suiten grün (Intake-Pipeline/Extraktion/Routen/Review-E2E 72 passed, E-Mail-Import-Suiten 22+3, Registry 21). Frontend-Vollsuite 446/446. Vorbestehend (per stash-Gegenlauf verifiziert, nicht durch diese Arbeit): `test_modul7` importiert gelöschtes Modul `email_import.parser` (48 F), 2× `test_intake_routes` Bezeichnungs-Label „Rechnung (Auffang)".
+
+**Offen:** Marker-Wortgrenze „Rechnung" trifft „**Ab**rechnung" (Auto-Klassifikation schlug abrechnungsschreiben→rechnung vor); Schadennummer-Regex bricht an Leerzeichen ab („SD0"); Datums-Scheinkonflikt im LLM/Regex-Konsens-Check (ISO vs. deutsch) → TODO Backlog.
+
+---
+
 ## 2026-08-05 — Abschluss-/Sachstandsbericht (Branch `abschlussbericht`, basiert auf `intake-review-sichtbarkeit`)
 
 Design-Spec `docs/superpowers/specs/2026-08-05-abschlussbericht-design.md` · Plan `docs/superpowers/plans/2026-08-05-abschlussbericht.md`. Neuer Dokumenttyp `abschlussbericht`: ein kuratiertes Schlussfeld (`abschluss_status.schluss_typ`) schaltet zwischen Abschluss- und Sachstandsbericht um — derselbe DB-freie Übersichts-Service liefert Positionen, Zahlungsverlauf, Empfänger-Split und Anwaltskosten-CTA sowohl an den DOCX-Renderer als auch an einen internen Vorschau-Endpoint. Die alte automatische Auto-Summary (`abschluss_summary.py`) entfällt ersatzlos zugunsten des kuratierten Wegs.

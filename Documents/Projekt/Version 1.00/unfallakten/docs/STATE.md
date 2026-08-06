@@ -1,16 +1,19 @@
 # Projektstatus – Momentaufnahme
 
-**Generiert:** 2026-05-02 · **Zuletzt aktualisiert:** 2026-07-30  
-**Schema-Version:** 66 (Migrationen laufend, siehe Deploy-Warnungen)
+**Generiert:** 2026-05-02 · **Zuletzt aktualisiert:** 2026-08-06  
+**Schema-Version:** 67 (Migrationen laufend, siehe Deploy-Warnungen)
 
 > ⚠️ **Abschnitte 1–3 unten sind Stand 2026-06-12 (Schema 42) und veraltet** — nur als grobe Modul-Übersicht lesen. Aktuelle Arbeit: `docs/TODO.md` · Umsetzungs-Historie: `docs/CHANGELOG.md` · Entscheidungen: `docs/DECISIONS.md`.
 
 ---
 
-## 0. Betrieb & Deploy-Warnungen (aktuell, 2026-07-30)
+## 0. Betrieb & Deploy-Warnungen (aktuell, 2026-08-06)
 
-### ⚠️ Branch `aktenanlage` — umgesetzt, NICHT gemergt, Dev läuft auf dem Branch (2026-07-30)
-Die Aktenanlage aus der ReviewQueue (PRD-NEW, Migration 66, Blueprint `/aktenanlage`) ist komplett auf Branch `aktenanlage` (26 Commits ab `main`). Die Dev-Container binden dieses Arbeitsverzeichnis — **die Dev-App zeigt das Feature bereits**. Merge in `main` erst nach dem manuellen Abnahmetest (Checkliste in `docs/TODO.md` „In Arbeit"). Bis dahin: Branch nicht wechseln, solange die Container laufen, sonst läuft die App auf anderem Code-Stand.
+### ⚠️ Dev läuft auf Branch `abschlussbericht` (stapelt auf `intake-review-sichtbarkeit`), enthält kritische Hotfixes (2026-08-06)
+Die Dev-Container binden dieses Arbeitsverzeichnis; aktueller Branch `abschlussbericht`. Der Branch trägt neben dem Abschlussbericht-Feature jetzt auch die **E-Mail-Import-Hotfixes** (`34342daa` Endlos-Poll-Loop/FK-Guard, `8e9b50ea` Prüfbericht-Schema + Validierungsregeln). **Diese Fixes MÜSSEN vor bzw. mit jedem Prod-/Main-Deploy des E-Mail-Imports ankommen** — ohne sie füllt der Poll-Loop bei der ersten Mail zu einer lokal fehlenden Akte erneut Platte und DB mit Dubletten (Detail: CHANGELOG 2026-08-06). Bei Klärung der Merge-Reihenfolge (TODO „Intake-Review-Sichtbarkeit") ggf. Cherry-Pick der beiden Commits nach `main` vorziehen. Branch nicht wechseln, solange die Container laufen.
+
+### Dubletten-Bereinigung 2026-08-06 — Backup-Aufbewahrung
+Nach dem Poll-Loop wurden `dokumente` (53.216→789 Zeilen) und `/app/uploads` (−106.266 Dateien, ~222 GB) bereinigt (Freigabe RA Schatz). Vollständiges DB-Backup liegt auf dem `dev-data`-Volume: `/app/data/unfallakten.db.bak_pre_dubletten_cleanup_20260806_155109` (50 MB). Nach einer Kontrollfrist (Vorschlag: ~4 Wochen, sobald keine fehlenden Dokumente auffallen) kann es gelöscht werden. Registry-YAML-Änderungen brauchen einen Backend-Restart (Reloader überwacht nur .py).
 
 ### ⚠️ Aktenanlage: OMA-Export-Ordner konfigurieren (Deploy-Voraussetzung)
 - `.env`: `OMA_EXPORT_HOST_PFAD` = Host-Pfad des Ordners, den RA-MICRO auf OMA-XML überwacht (Default `./oma_export`, nur für Dev-Tests ohne RA-MICRO-Import). Container-Pfad ist fest `/app/oma_export` (`OMA_EXPORT_PFAD`, gesetzt in beiden Compose-Dateien).
