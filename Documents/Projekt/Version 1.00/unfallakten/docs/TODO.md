@@ -108,6 +108,7 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 
 | Datum | Feature |
 |---|---|
+| 2026-08-06 | **E-Mail-Import Endlos-Poll-Loop gefixt** (`34342daa`: On-demand-Aktenanlage repariert + FK-Guard) und **Dubletten bereinigt** (Freigabe RA Schatz): `dokumente` 53.216→789 Zeilen, 106.266 Dateien / ~222 GB aus `/app/uploads` entfernt, VACUUM 50→4 MB. Backup: `/app/data/unfallakten.db.bak_pre_dubletten_cleanup_20260806_155109`. Außerdem `8e9b50ea`: Prüfbericht-Schema (fiktive/konkrete Erstattung) + Validierungsregeln aktiv (ReviewQueue-Warnung bei Positionssummen-Abweichung, Akte 1280/25) |
 | 2026-08-03 | **Aktenanlage + Dashboard-Hell in `main` gemergt (FF) + gepusht** (`81e33206`); OMA-Live-Abnahme: Prefill-Fix (stale auftraggeber + Anrede-Normalisierung), Migration-66-Reloader-Reparatur, OMA-Pfad→`Z:\RA\M-Plattform`, Dateiname-Präfix `Oma_`, XML strukturgleich zum echten Export; Prod-Compose `oma-share` nachgezogen |
 | 2026-07-24 | Klage-Wizard-Verbesserungsrunde Pakete 1–4 komplett (Entwurf speichern, UI-Führung, Gesamtvorschau, Standardtexte V11 Stufe 1) — in `main`, gepusht |
 | 2026-07-30 | Dashboard-Hell-Umbau: Tagesübersicht hell (Pergament-Tokens), Jetzt-dran-Leiste, Fristen zuerst (3:2), Posteingang-Kachel entfernt, Zustände je Kachel, Tastatur, SB-Filter-Persistenz — Branch `dashboard-hell`, Browser-Abnahme offen, siehe „In Arbeit" |
