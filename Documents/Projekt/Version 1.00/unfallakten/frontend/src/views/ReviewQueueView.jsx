@@ -1265,6 +1265,14 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
               LLM/Regex-Diskrepanz: {JSON.stringify(detail.parse.llm_konflikt)}
             </div>
           )}
+          {(detail.parse.validierung_warnungen || []).map((warnung, i) => (
+            <div key={i} style={{ marginTop: 6, padding: "6px 10px",
+              background: T.amberBg, color: T.amberText,
+              border: `1px solid ${T.amber}`, borderRadius: 4,
+              fontSize: T.textXs }}>
+              ⚠ {warnung}
+            </div>
+          ))}
         </section>
 
         <section style={{ marginBottom: 16 }}>

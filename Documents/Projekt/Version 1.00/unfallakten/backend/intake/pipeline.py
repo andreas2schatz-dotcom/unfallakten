@@ -32,6 +32,7 @@ from typing import Any, Dict
 from ..db.database import get_connection
 from ..intake.akten_matching import finde_kandidaten
 from ..intake.extraktion import extrahiere_felder
+from ..intake.validierung import pruefe_validierungsregeln
 from ..intake.klassifikator import (
     Kandidat, klassifiziere_stufe1, klassifiziere_stufe2,
 )
@@ -286,6 +287,11 @@ def verarbeite_dokument(intake_id: int) -> bool:
             parse_dict["llm_konflikt"] = llm_konflikt
         if llm_degradiert:
             parse_dict["degradation"] = {"llm_extraktion": "ausgefallen"}
+        validierung_warnungen = pruefe_validierungsregeln(
+            felder,
+            (registry.klassen.get(klasse) or {}).get("validierungsregeln"))
+        if validierung_warnungen:
+            parse_dict["validierung_warnungen"] = validierung_warnungen
         parse_json = json.dumps(parse_dict, ensure_ascii=False)
 
         # N-02: OCR-Qualitaet (Schlechteste-Seite-Aggregat auf dem Finaltext)

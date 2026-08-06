@@ -31,6 +31,8 @@ schema:
   abzug_nfa: number
   abzug_gesamt: number
   reparaturkosten_nach_pruefung: number
+  erstattung_konkrete_reparatur_netto: number
+  erstattung_fiktive_abrechnung_netto: number
   referenzwerkstatt: object
 
 pflichtfelder:

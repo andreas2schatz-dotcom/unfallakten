@@ -293,6 +293,7 @@ def hole_detail(intake_id: int):
             "felder": parse.get("felder", {}),
             "akten_kandidaten": parse.get("akten_kandidaten", []),
             "llm_konflikt": parse.get("llm_konflikt"),
+            "validierung_warnungen": parse.get("validierung_warnungen", []),
             "degradation": parse.get("degradation"),
             "bildseiten_anzahl": parse.get("bildseiten_anzahl", 0),
         },
