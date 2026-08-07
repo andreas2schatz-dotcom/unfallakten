@@ -42,6 +42,7 @@ from ..word.sachstandsanfrage_wv import (
     dateiname_generieren,
 )
 from ..models.dokument import logge_aktivitaet
+from ..word.word_service import name_aus_ramicro_adresse
 
 logger = logging.getLogger(__name__)
 
@@ -254,7 +255,8 @@ def generiere_sachstandsanfrage(guid: str):
     # Aktivitätseintrag (in lokale SQLite-DB – kein Schreibzugriff auf RA-Micro)
     sb_kuerzel = wv.get("akte_sachbearbeiter_kuerzel") or ""
     az        = _az_vollstaendig(wv.get("sAktenNummer", ""), sb_kuerzel)
-    empfaenger = (wv.get("sErsteAdresszeile") or wv.get("adr_name") or
+    empfaenger = (name_aus_ramicro_adresse(wv.get("adr_name"),
+                                           wv.get("sErsteAdresszeile")) or
                   wv.get("sGegner") or "")
     try:
         benutzer_id = getattr(g, "benutzer", {}).get("id") if hasattr(g, "benutzer") else None
@@ -493,8 +495,9 @@ def batch_sachstandsanfrage():
 
                 # Aktivitätslog
                 try:
-                    empfaenger = (wv.get("sErsteAdresszeile") or
-                                  wv.get("adr_name") or wv.get("sGegner") or "")
+                    empfaenger = (name_aus_ramicro_adresse(wv.get("adr_name"),
+                                                           wv.get("sErsteAdresszeile")) or
+                                  wv.get("sGegner") or "")
                     benutzer_id = getattr(g, "benutzer", {}).get("id") if hasattr(g, "benutzer") else None
                     logge_aktivitaet(
                         aktion="sachstandsanfrage_wv",

@@ -85,6 +85,7 @@ def _lade_beteiligte_alle_ramicro(az: str) -> list:
             """, {"guid": guid_akte})
             rows = cur.fetchall()
 
+        from ..word.word_service import name_aus_ramicro_adresse
         result = []
         for r in rows:
             kz  = (r.get("kz") or "").strip().upper()
@@ -101,10 +102,9 @@ def _lade_beteiligte_alle_ramicro(az: str) -> list:
             else:
                 rolle = "sonstiger"
 
-            vorname  = (r.get("sVorname")          or "").strip()
             nachname = (r.get("sNachname")         or "").strip()
             erste    = (r.get("sErsteAdresszeile") or "").strip()
-            name = erste if (not vorname and erste) else (nachname or erste)
+            name = name_aus_ramicro_adresse(nachname, erste)
             email = (r.get("sEMail") or "").strip()
 
             result.append({"rolle": rolle, "name": name, "email": email})

@@ -80,11 +80,12 @@ def _lade_adresse_aus_ramicro(adressnr: int) -> dict | None:
         if not row:
             return None
         r = dict(row)
-        # Vollständiger Name: Firma hat Vorrang, sonst Vor- + Nachname
+        # sNachname enthält den Namen (auch Firmennamen);
+        # sErsteAdresszeile ("firma") ist nur Anredeform → nur Fallback
         firma   = (r.get("firma")    or "").strip()
         vorname = (r.get("vorname")  or "").strip()
         nachname= (r.get("nachname") or "").strip()
-        r["name"] = firma if firma else f"{vorname} {nachname}".strip()
+        r["name"] = f"{vorname} {nachname}".strip() or firma
         return r
     except Exception as e:
         logger.warning("_lade_adresse_aus_ramicro(%s): %s", adressnr, e)

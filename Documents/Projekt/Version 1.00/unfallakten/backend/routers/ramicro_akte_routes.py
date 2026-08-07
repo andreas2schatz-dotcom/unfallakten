@@ -775,7 +775,7 @@ def adressen_suche():
         firma   = (r.get("firma")   or "").strip()
         vorname = (r.get("vorname") or "").strip()
         nachname= (r.get("nachname")or "").strip()
-        name = firma if firma else f"{vorname} {nachname}".strip()
+        name = f"{vorname} {nachname}".strip() or firma
         ergebnisse.append({
             "adressnr": r.get("adressnr"),
             "name":     name,
@@ -941,7 +941,7 @@ def mandant_checks():
     firma   = (m.get("firma")   or "").strip()
     vorname = (m.get("vorname") or "").strip()
     nachname= (m.get("nachname")or "").strip()
-    name    = firma if firma else f"{vorname} {nachname}".strip()
+    name    = f"{vorname} {nachname}".strip() or firma
     iban    = (m.get("iban") or "").strip()
 
     return jsonify({

@@ -29,7 +29,7 @@ from ._helpers import pruefe_akte as _pruefe_akte
 from ..models.schaden import hole_schadenpositionen, hole_regulierungen_by_akte
 from ..models.dokument import registriere_dokument
 from ..word.klage_service import berechne_rvg, generiere_klageschrift, berechne_fahrzeugschaden, baue_klage_vorschau
-from ..word.word_service import KANZLEI_INFO, _lade_beteiligte_aus_ramicro
+from ..word.word_service import KANZLEI_INFO, _lade_beteiligte_aus_ramicro, name_aus_ramicro_adresse
 from ..word.forderungsschreiben_wv import _grammatik_vars, _netto_oder_brutto
 from ..word.stellungnahme_service import ersetze_platzhalter
 from ..models.schaden import (
@@ -608,8 +608,7 @@ def _lade_gericht_aus_ramicro(az: str):
             if not g:
                 return None
 
-            erste  = (g["erste"]  or "").strip()
-            name   = erste if erste else (g["name"] or "").strip()
+            name   = name_aus_ramicro_adresse(g["name"], g["erste"])
             if not name:
                 return None
 

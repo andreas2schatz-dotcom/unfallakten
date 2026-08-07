@@ -567,6 +567,20 @@ def _lade_gebuehren_kontext(az: str):
         return None
 
 
+# RA-MICRO sAnrede-Codes (tblAdressen)
+ANREDE_CODES = {"1": "Herr", "2": "Frau", "4": "Firma"}
+
+
+def name_aus_ramicro_adresse(nachname, erste_adresszeile) -> str:
+    """
+    RA-MICRO speichert den Namen (auch Firmennamen) IMMER in sNachname.
+    sErsteAdresszeile ist nur die Anredeform des Adressfelds
+    ("Herrn", "Frau", "Firma", "c/o ...", "Inhaber ...") und dient
+    ausschließlich als Fallback, wenn sNachname leer ist.
+    """
+    return (nachname or "").strip() or (erste_adresszeile or "").strip()
+
+
 def _lade_beteiligte_aus_ramicro(az: str) -> dict:
     """
     Lädt Mandant und Gegner direkt aus RA-Micro.
@@ -668,12 +682,7 @@ def _lade_beteiligte_aus_ramicro(az: str) -> dict:
             vorname  = (r.get("sVorname")          or "").strip()
             nachname = (r.get("sNachname")         or "").strip()
             erste    = (r.get("sErsteAdresszeile") or "").strip()
-            # sErsteAdresszeile nur als Firmenname wenn KEIN Vorname vorhanden
-            # (sonst enthält es z.B. "Herrn" als Anredeform → falscher Name)
-            if not vorname and erste:
-                name = erste   # Firma oder Organisation
-            else:
-                name = nachname  # Person: nur Nachname, Vorname separat
+            name = name_aus_ramicro_adresse(nachname, erste)
 
             def _ersetze(text):
                 if not text: return ""
@@ -681,10 +690,9 @@ def _lade_beteiligte_aus_ramicro(az: str) -> dict:
                     lambda m: wdm_dict.get(f"var{m.group(1)}") or
                               wdm_dict.get(f"var{m.group(1).upper()}") or "", text).strip()
 
-            # RA-Micro speichert sAnrede als Code ("1"=Herr, "2"=Frau) oder als Text
+            # RA-Micro speichert sAnrede als Code ("1"=Herr, "2"=Frau, "4"=Firma) oder als Text
             _anrede_raw = (r.get("sAnrede") or "").strip()
-            _ANREDE_NORM = {"1": "Herr", "2": "Frau"}
-            _anrede = _ANREDE_NORM.get(_anrede_raw, _anrede_raw)
+            _anrede = ANREDE_CODES.get(_anrede_raw, _anrede_raw)
 
             return {
                 "name":        name,
@@ -834,11 +842,11 @@ def _lade_gegner_adresse_aus_ramicro(az: str) -> dict:
             if not g:
                 return LEER
 
-            # sErsteAdresszeile = offizieller Firmenname (z.B. "HUK-COBURG Versicherungsgruppe")
             erste    = (g.get("sErsteAdresszeile") or "").strip()
             vorname  = (g.get("sVorname")          or "").strip()
             nachname = (g.get("sNachname")         or "").strip()
-            name     = erste if erste else (f"{vorname} {nachname}".strip() if vorname else nachname)
+            name     = (f"{vorname} {nachname}".strip() if vorname
+                        else name_aus_ramicro_adresse(nachname, erste))
 
             # WDM für Betreff-Token-Auflösung
             cur.execute("""
