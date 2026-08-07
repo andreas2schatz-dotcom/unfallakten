@@ -359,5 +359,76 @@ class TestPruefdienstleisterFallback(unittest.TestCase):
         self.assertNotIn("pruefdienstleister", felder)
 
 
+class TestReferenzwerkstattFallback(unittest.TestCase):
+    """Befund 1280/25: Der VHV-Werkstatt-Block liegt auf Seite 4/5 ausserhalb
+    des N-06-LLM-Seitenfensters -- felder.referenzwerkstatt blieb leer.
+    Deterministischer Fallback via werkstatt_service (nur pruefbericht,
+    nur wenn das LLM nichts liefert)."""
+
+    VHV_TEXT = (
+        "Für die Korrekturberechnung haben wir den Reparaturbetrieb\n"
+        "\n"
+        "Möser Arno - Karosseriefachbetrieb\n"
+        "Philipp-Reis-Straße 9\n"
+        "63128 Dietzenbach\n"
+        "Telefon: 06074-25936\n"
+        "Entfernungskilometer: 16,00 km\n"
+        "berücksichtigt.\n"
+    )
+
+    def _registry(self):
+        class _R:
+            klassen = {"pruefbericht": {
+                "schema": {"referenzwerkstatt": {"typ": "object"},
+                           "vorgangsnummer": "string"},
+                "regex_felder": {},
+            }}
+        return _R()
+
+    def _extrahiere(self, text, llm_werte, klasse="pruefbericht",
+                    registry=None):
+        from backend.intake import extraktion
+        with mock.patch("backend.intake.extraktion.llm_service.ist_aktiviert",
+                        return_value=True), \
+             mock.patch("backend.intake.extraktion.llm_service.extrahiere_nach_schema",
+                        return_value=llm_werte):
+            return extraktion.extrahiere_felder(
+                text, klasse, registry or self._registry())["felder"]
+
+    def test_vhv_block_fuellt_referenzwerkstatt(self):
+        felder = self._extrahiere(self.VHV_TEXT,
+                                  {"referenzwerkstatt": None})
+        ws = felder.get("referenzwerkstatt")
+        self.assertIsNotNone(ws)
+        self.assertEqual(ws["name"], "Möser Arno - Karosseriefachbetrieb")
+        self.assertEqual(ws["adresse"], "Philipp-Reis-Straße 9")
+        self.assertEqual(ws["plz_ort"], "63128 Dietzenbach")
+        self.assertEqual(ws["km_genannt"], 16.0)
+        self.assertEqual(ws["quelle"], "vhv_block")
+
+    def test_llm_wert_wird_nicht_ueberschrieben(self):
+        felder = self._extrahiere(
+            self.VHV_TEXT,
+            {"referenzwerkstatt": {"name": "LLM-Werkstatt"}})
+        self.assertEqual(felder["referenzwerkstatt"],
+                         {"name": "LLM-Werkstatt"})
+
+    def test_ohne_treffer_bleibt_feld_leer(self):
+        felder = self._extrahiere("Prüfbericht ohne Werkstatt-Verweis",
+                                  {"referenzwerkstatt": None})
+        self.assertNotIn("referenzwerkstatt", felder)
+
+    def test_andere_klassen_unberuehrt(self):
+        class _R:
+            klassen = {"gutachten": {
+                "schema": {"referenzwerkstatt": {"typ": "object"}},
+                "regex_felder": {},
+            }}
+        felder = self._extrahiere(self.VHV_TEXT,
+                                  {"referenzwerkstatt": None},
+                                  klasse="gutachten", registry=_R())
+        self.assertNotIn("referenzwerkstatt", felder)
+
+
 if __name__ == "__main__":
     unittest.main()

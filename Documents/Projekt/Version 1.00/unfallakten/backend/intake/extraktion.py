@@ -61,6 +61,25 @@ def _erkenne_pruefdienstleister(text: str):
     return None
 
 
+def _erkenne_referenzwerkstatt(text: str):
+    """Fallback fuer Pruefberichte, deren Werkstatt-Block ausserhalb des
+    N-06-LLM-Seitenfensters liegt (Befund 1280/25: VHV-Blockformat auf
+    Seite 4/5). Deterministisch statt LLM-Fenster-Erweiterung
+    (Entscheidung RA Schatz 2026-08-07)."""
+    from ..services.werkstatt_service import extrahiere_verweisbetrieb
+    treffer = extrahiere_verweisbetrieb(text)
+    if not treffer.get("gefunden"):
+        return None
+    return {
+        "name":       treffer.get("name", ""),
+        "adresse":    treffer.get("adresse", ""),
+        "plz_ort":    treffer.get("plz_ort", ""),
+        "telefon":    treffer.get("telefon", ""),
+        "km_genannt": treffer.get("km_genannt"),
+        "quelle":     treffer.get("quelle", ""),
+    }
+
+
 def extrahiere_felder(text: str, klasse: str, registry,
                       llm_text: str = None) -> Dict[str, Any]:
     """Extrahiere Felder gemaess YAML-Registry-Eintrag der ``klasse``.
@@ -115,6 +134,11 @@ def extrahiere_felder(text: str, klasse: str, registry,
         dienstleister = _erkenne_pruefdienstleister(text)
         if dienstleister:
             felder["pruefdienstleister"] = dienstleister
+
+    if klasse == "pruefbericht" and not felder.get("referenzwerkstatt"):
+        werkstatt = _erkenne_referenzwerkstatt(text)
+        if werkstatt:
+            felder["referenzwerkstatt"] = werkstatt
 
     ergebnis: Dict[str, Any] = {"felder": felder, "llm_status": llm_status}
 
