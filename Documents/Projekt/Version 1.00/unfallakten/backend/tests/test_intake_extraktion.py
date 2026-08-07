@@ -449,5 +449,43 @@ class TestReferenzwerkstattFallback(unittest.TestCase):
         self.assertNotIn("referenzwerkstatt", felder)
 
 
+class TestDatumScheinkonflikt(unittest.TestCase):
+    """Befund 1280/25 (c): llm_konflikt meldete schreibdatum '2026-04-28'
+    (LLM) vs. '28.04.2026' (Regex) als Konflikt, obwohl derselbe Tag."""
+
+    def _extrahiere(self, text, llm_werte):
+        from backend.intake import extraktion
+        registry = _mini_registry_mit_abrechnung()
+        with mock.patch(
+            "backend.intake.extraktion.llm_service.extrahiere_nach_schema",
+            return_value=llm_werte,
+        ):
+            return extraktion.extrahiere_felder(
+                text, "abrechnungsschreiben", registry)
+
+    def test_gleicher_tag_verschiedene_formate_kein_konflikt(self):
+        ergebnis = self._extrahiere(
+            "Schadennummer: 12-345-67890 Datum 28.04.2026",
+            {"schadennummer": "12-345-67890",
+             "schreibdatum": "2026-04-28"})
+        self.assertNotIn("llm_konflikt", ergebnis)
+
+    def test_echter_datums_konflikt_bleibt(self):
+        ergebnis = self._extrahiere(
+            "Schadennummer: 12-345-67890 Datum 28.04.2026",
+            {"schadennummer": "12-345-67890",
+             "schreibdatum": "2026-04-29"})
+        self.assertIn("llm_konflikt", ergebnis)
+        self.assertIn("schreibdatum", ergebnis["llm_konflikt"])
+
+    def test_nicht_datums_werte_unveraendert(self):
+        ergebnis = self._extrahiere(
+            "Schadennummer: 12-345-67890 Datum 28.04.2026",
+            {"schadennummer": "99-999-99999",
+             "schreibdatum": "28.04.2026"})
+        self.assertIn("llm_konflikt", ergebnis)
+        self.assertIn("schadennummer", ergebnis["llm_konflikt"])
+
+
 if __name__ == "__main__":
     unittest.main()

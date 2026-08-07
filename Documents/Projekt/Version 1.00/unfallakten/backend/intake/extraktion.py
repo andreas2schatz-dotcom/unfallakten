@@ -80,6 +80,20 @@ def _erkenne_referenzwerkstatt(text: str):
     }
 
 
+_DATUM_DE = re.compile(r"^(\d{2})\.(\d{2})\.(\d{4})$")
+_DATUM_ISO = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
+
+
+def _datum_iso(wert: str):
+    """DD.MM.YYYY / YYYY-MM-DD -> 'YYYY-MM-DD'; None wenn kein Datum."""
+    m = _DATUM_DE.match(wert)
+    if m:
+        return f"{m.group(3)}-{m.group(2)}-{m.group(1)}"
+    if _DATUM_ISO.match(wert):
+        return wert
+    return None
+
+
 def extrahiere_felder(text: str, klasse: str, registry,
                       llm_text: str = None) -> Dict[str, Any]:
     """Extrahiere Felder gemaess YAML-Registry-Eintrag der ``klasse``.
@@ -157,7 +171,12 @@ def extrahiere_felder(text: str, klasse: str, registry,
         llm_wert = llm_werte.get(feld)
         if llm_wert is None:
             continue
-        if str(llm_wert).strip() != str(regex_wert).strip():
+        llm_s = str(llm_wert).strip()
+        regex_s = str(regex_wert).strip()
+        iso_llm, iso_regex = _datum_iso(llm_s), _datum_iso(regex_s)
+        if iso_llm and iso_regex and iso_llm == iso_regex:
+            continue
+        if llm_s != regex_s:
             konflikte[feld] = {"llm": llm_wert, "regex": regex_wert}
     if konflikte:
         ergebnis["llm_konflikt"] = konflikte
