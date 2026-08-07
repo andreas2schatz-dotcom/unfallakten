@@ -14,6 +14,7 @@ Endpunkte:
   PATCH /intake/dokument/<id>/felder        Feld-Korrektur
   POST  /intake/dokument/<id>/freigabe      einzige Schreib-Op Richtung Akte
   POST  /intake/dokument/<id>/verwerfen     Soft-Delete aus der Queue
+  POST  /intake/dokument/<id>/entfernung    Entfernungspruefung Referenzwerkstatt
   GET   /intake/ereignistypen               Registry-Katalog fuer Freigabe-UI
 
 Design:
@@ -628,6 +629,87 @@ def patch_felder(intake_id: int):
         )
 
     return _j({"ok": True, "felder": felder})
+
+
+# ─── POST /intake/dokument/<id>/entfernung ────────────────────────────────────
+
+def _km_zahl(wert):
+    """'16,00 km' / '16.0' / 16 -> float; None wenn nicht parsbar."""
+    if wert is None:
+        return None
+    if isinstance(wert, (int, float)):
+        return float(wert)
+    m = re.search(r"(\d+(?:[.,]\d+)?)", str(wert))
+    if not m:
+        return None
+    return float(m.group(1).replace(",", "."))
+
+
+@intake_bp.route("/dokument/<int:intake_id>/entfernung", methods=["POST"])
+@login_erforderlich
+def post_entfernung(intake_id: int):
+    """Entfernungspruefung Referenzwerkstatt (Befund 1280/25, Paket 2).
+
+    Body: {"akte_az": str}. Nur manuell ausgeloest -- die Mandanten-Adresse
+    geht an den externen Dienst OpenRouteService (Entscheidung RA Schatz
+    2026-08-07). Das Ergebnis wird in parse_json.felder.referenzwerkstatt
+    ergaenzt, damit es bei der Freigabe dauerhaft in die Akte wandert.
+    Kein korrektur_log-Eintrag: keine manuelle Feldkorrektur, sondern
+    System-Anreicherung.
+    """
+    payload = request.get_json(silent=True) or {}
+    akte_az = _basis_az(payload.get("akte_az") or "")
+    if not akte_az:
+        return _err("akte_az erforderlich", 400)
+
+    dok = _lade_intake(intake_id)
+    if not dok:
+        return _err("Intake-Dokument nicht gefunden", 404)
+
+    parse = _parse(dok.get("parse_json"))
+    ws = (parse.get("felder") or {}).get("referenzwerkstatt")
+    if not isinstance(ws, dict):
+        return _err("Keine Referenzwerkstatt im Dokument extrahiert", 422)
+
+    werkstatt_adresse = ", ".join(
+        t for t in (ws.get("adresse") or "", ws.get("plz_ort") or "") if t)
+    if not werkstatt_adresse:
+        return _err("Werkstatt-Adresse unvollständig – Entfernung manuell prüfen", 422)
+
+    from .distanz_routes import _mandant_adresse
+    mandant_adresse = _mandant_adresse(akte_az)
+    if not mandant_adresse:
+        return _err(f"Mandanten-Adresse für Akte {akte_az} nicht gefunden", 404)
+
+    from ..services.werkstatt_service import pruefe_entfernung
+    result = pruefe_entfernung(
+        mandant_adresse=mandant_adresse,
+        werkstatt_adresse=werkstatt_adresse,
+        werkstatt_name=ws.get("name") or "",
+        km_genannt=_km_zahl(ws.get("km_genannt")),
+    )
+
+    if result.get("ok"):
+        # Textbaustein nur bei unzumutbar speichern -- er formuliert die
+        # ">15 km"-Ruege und waere bei zumutbarer Entfernung inhaltlich falsch
+        ws.update({
+            "km_echt":             result.get("km_echt"),
+            "minuten":             result.get("minuten"),
+            "abweichung_km":       result.get("abweichung_km"),
+            "bewertung":           "unzumutbar" if result.get("unzumutbar") else "zumutbar",
+            "textbaustein":        (result.get("textbaustein") or "")
+                                   if result.get("unzumutbar") else "",
+            "geprueft_am":         datetime.now().strftime("%Y-%m-%d"),
+            "geprueft_gegen_akte": akte_az,
+        })
+        with get_connection() as conn:
+            conn.execute(
+                "UPDATE intake_dokumente SET parse_json=? WHERE id=?",
+                (json.dumps(parse, ensure_ascii=False), intake_id),
+            )
+
+    result["referenzwerkstatt"] = ws
+    return _j(result)
 
 
 # ─── PATCH /intake/dokument/<id>/bezeichnung ──────────────────────────────────
