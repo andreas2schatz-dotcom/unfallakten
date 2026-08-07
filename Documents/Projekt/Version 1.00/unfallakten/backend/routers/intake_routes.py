@@ -652,8 +652,10 @@ def post_entfernung(intake_id: int):
 
     Body: {"akte_az": str}. Nur manuell ausgeloest -- die Mandanten-Adresse
     geht an den externen Dienst OpenRouteService (Entscheidung RA Schatz
-    2026-08-07). Das Ergebnis wird in parse_json.felder.referenzwerkstatt
-    ergaenzt, damit es bei der Freigabe dauerhaft in die Akte wandert.
+    2026-08-07). Ergebnis wird in parse_json.felder.referenzwerkstatt
+    ergaenzt; es bleibt in intake_dokumente (auch nach Freigabe, via
+    freigaben-Join zur Akte auflösbar) und ist die Datenbasis fuer den
+    spaeteren Stellungnahme-Workflow.
     Kein korrektur_log-Eintrag: keine manuelle Feldkorrektur, sondern
     System-Anreicherung.
     """

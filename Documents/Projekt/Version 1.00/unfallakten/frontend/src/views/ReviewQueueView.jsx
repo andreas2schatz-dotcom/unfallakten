@@ -582,16 +582,29 @@ function FelderEditor({ felder, onChange }) {
               {k}
             </td>
             <td style={{ padding: "4px 0" }}>
-              <input
-                value={v == null ? "" : String(v)}
-                onChange={e => onChange(k, e.target.value)}
-                style={{
-                  width: "100%", boxSizing: "border-box",
-                  padding: "4px 8px", border: `1px solid ${T.border}`,
-                  borderRadius: 4, fontFamily: T.fontMono,
-                  fontSize: T.textSm, background: T.cardBg,
-                }}
-              />
+              {(v !== null && typeof v === "object") ? (
+                // Objekt-Felder (z.B. referenzwerkstatt) entstehen maschinell
+                // ueber den Entfernungspruefen-Endpoint, nicht per Freitext.
+                <div style={{
+                  padding: "4px 8px", border: `1px solid ${T.borderSoft}`,
+                  borderRadius: 4, background: T.surface,
+                  fontFamily: T.fontMono, fontSize: T.textXs,
+                  color: T.textMid, wordBreak: "break-word",
+                }}>
+                  {JSON.stringify(v, null, 0)}
+                </div>
+              ) : (
+                <input
+                  value={v == null ? "" : String(v)}
+                  onChange={e => onChange(k, e.target.value)}
+                  style={{
+                    width: "100%", boxSizing: "border-box",
+                    padding: "4px 8px", border: `1px solid ${T.border}`,
+                    borderRadius: 4, fontFamily: T.fontMono,
+                    fontSize: T.textSm, background: T.cardBg,
+                  }}
+                />
+              )}
             </td>
           </tr>
         ))}

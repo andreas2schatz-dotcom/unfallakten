@@ -108,8 +108,9 @@ def extrahiere_verweisbetrieb(text: str) -> dict:
             name: str,
             adresse: str,
             plz_ort: str,
+            telefon: str,
             km_genannt: float | None,
-            quelle: str,   # "controlexpert" | "regex" | "triggerkontext"
+            quelle: str,   # "controlexpert" | "vhv_block" | "regex_adresse" | "triggerkontext"
         }
     """
     if not text:

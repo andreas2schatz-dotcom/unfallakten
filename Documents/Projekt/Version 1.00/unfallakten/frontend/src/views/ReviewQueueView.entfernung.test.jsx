@@ -90,4 +90,12 @@ describe("ReviewQueueView Entfernungsprüfung", () => {
     fireEvent.click(btn);
     await screen.findByText(/Mandanten-Adresse für Akte 1280\/25 nicht gefunden/);
   });
+
+  it("rendert Objekt-Felder schreibgeschützt statt als Input", async () => {
+    render(<ReviewQueueView onOpenAkte={() => {}} initialIntakeId={516} />);
+    await screen.findByText(/Extrahierte Felder/);
+    const zeile = screen.getByText("referenzwerkstatt").closest("tr");
+    expect(zeile.querySelector("input")).toBeNull();
+    expect(zeile.textContent).toContain("Möser Arno");
+  });
 });
