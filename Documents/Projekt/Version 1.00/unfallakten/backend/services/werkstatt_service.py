@@ -183,7 +183,9 @@ def extrahiere_verweisbetrieb(text: str) -> dict:
                 name = z
                 break
 
-        if km or plz_ort or name:
+        # Plausibilitätsbremse: ohne PLZ-Zeile ist der Trigger nur Floskel
+        # ("Wird eine Referenzwerkstatt benannt, ...") — kein Treffer
+        if plz_ort:
             return {
                 "gefunden":   True,
                 "name":       name,

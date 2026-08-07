@@ -77,5 +77,35 @@ class TestVhvBlock(unittest.TestCase):
         self.assertEqual(t["km_genannt"], 7.5)
 
 
+class TestTriggerkontextBremse(unittest.TestCase):
+    """Verifiziert 2026-08-07: Der Floskel-Satz 'Wird eine Referenzwerkstatt
+    benannt, ...' lieferte einen Scheintreffer mit dem Folgetext als name
+    (quelle triggerkontext, Adresse leer). Ohne PLZ kein Treffer."""
+
+    def test_floskelsatz_ohne_adresse_liefert_keinen_treffer(self):
+        from backend.services.werkstatt_service import extrahiere_verweisbetrieb
+        text = (
+            "Wird eine Referenzwerkstatt benannt, berücksichtigen wir bei der\n"
+            "Höhe der Stundenverrechnungssätze die Preise dieser Werkstatt.\n"
+            "Die Stundenverrechnungssätze der benannten Werkstätten entsprechen\n"
+            "der Preisangabenverordnung und sind für alle Verbraucher zugänglich.\n"
+        )
+        t = extrahiere_verweisbetrieb(text)
+        self.assertFalse(t["gefunden"])
+
+    def test_triggerkontext_mit_plz_bleibt_treffer(self):
+        from backend.services.werkstatt_service import extrahiere_verweisbetrieb
+        text = (
+            "Wir verweisen auf eine günstigere Werkstatt in Ihrer Nähe:\n"
+            "Autohaus Beispiel GmbH\n"
+            "63065 Offenbach, ca. 5 km entfernt\n"
+        )
+        t = extrahiere_verweisbetrieb(text)
+        self.assertTrue(t["gefunden"])
+        self.assertEqual(t["quelle"], "triggerkontext")
+        self.assertEqual(t["km_genannt"], 5.0)
+        self.assertTrue(t["plz_ort"].startswith("63065"))
+
+
 if __name__ == "__main__":
     unittest.main()
