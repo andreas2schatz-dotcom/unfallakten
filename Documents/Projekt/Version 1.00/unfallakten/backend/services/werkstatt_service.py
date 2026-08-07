@@ -81,6 +81,21 @@ CONTROLEXPERT_MUSTER = re.compile(
     re.IGNORECASE
 )
 
+# VHV-Blockformat: "Für die Korrekturberechnung haben wir den Reparaturbetrieb
+# \n\n Name \n Straße \n PLZ Ort \n ... Entfernungskilometer: X km ... berücksichtigt."
+VHV_KORREKTUR_BLOCK = re.compile(
+    r"F[üu]r\s+die\s+Korrekturberechnung\s+haben\s+wir\s+den\s+Reparaturbetrieb\s*\n+"
+    r"([^\n]{3,80})\n"          # Name
+    r"([^\n]{3,80})\n"          # Straße
+    r"(\d{5}\s+[^\n]{2,40})",   # PLZ + Ort
+    re.IGNORECASE
+)
+
+VHV_ENTFERNUNG_MUSTER = re.compile(
+    r"Entfernungskilometer:\s*(\d+[,.]?\d*)\s*km", re.IGNORECASE)
+
+VHV_TELEFON_MUSTER = re.compile(r"Telefon:\s*([\d\s/\-]+)")
+
 
 def extrahiere_verweisbetrieb(text: str) -> dict:
     """
@@ -112,6 +127,24 @@ def extrahiere_verweisbetrieb(text: str) -> dict:
             "telefon":    (m.group(4) or "").strip(),
             "km_genannt": float(km_str) if km_str else None,
             "quelle":     "controlexpert",
+        }
+
+    # ── Stufe 1b: VHV-Blockformat (verwendeter Betrieb der Korrekturberechnung) ──
+    m = VHV_KORREKTUR_BLOCK.search(text)
+    if m:
+        # Nur bis "berücksichtigt." suchen — danach folgen Alternativ-Betriebe
+        ende = text.find("berücksichtigt", m.end())
+        fenster = text[m.end():ende] if ende != -1 else text[m.end():m.end() + 600]
+        km_m = VHV_ENTFERNUNG_MUSTER.search(fenster)
+        tel_m = VHV_TELEFON_MUSTER.search(fenster)
+        return {
+            "gefunden":   True,
+            "name":       m.group(1).strip(),
+            "adresse":    m.group(2).strip(),
+            "plz_ort":    m.group(3).strip(),
+            "telefon":    tel_m.group(1).strip() if tel_m else "",
+            "km_genannt": float(km_m.group(1).replace(",", ".")) if km_m else None,
+            "quelle":     "vhv_block",
         }
 
     # ── Stufe 2: Allgemeines Adress-Block-Muster ───────────────────────────
