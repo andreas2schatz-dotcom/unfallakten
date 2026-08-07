@@ -476,6 +476,98 @@ function VerwerfenDialog({ dokument, onConfirm, onCancel, laeuft }) {
   );
 }
 
+function EntfernungDialog({ ergebnis, onClose }) {
+  const r = ergebnis || {};
+  const fmtKm = (v) => (v == null ? "—" : String(v).replace(".", ",") + " km");
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      zIndex: 900,
+    }}>
+      <div style={{
+        background: T.cardBg, width: 520,
+        borderRadius: 10, padding: 24,
+        boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
+      }}>
+        <h3 style={{ margin: "0 0 10px", fontFamily: T.fontDisplay, color: T.navy }}>
+          Entfernungsprüfung Referenzwerkstatt
+        </h3>
+        {!r.ok ? (
+          <div style={{ padding: "8px 12px", marginBottom: 16,
+            background: T.amberBg, color: T.amberText,
+            border: `1px solid ${T.amber}`, borderRadius: 4, fontSize: T.textSm }}>
+            ⚠ {r.fehler || "Prüfung fehlgeschlagen."}
+          </div>
+        ) : (
+          <>
+            <div style={{ color: T.textMuted, marginBottom: 12, fontSize: T.textSm }}>
+              {r.werkstatt_name || "Werkstatt"}
+              {r.werkstatt_adresse && <> · {r.werkstatt_adresse}</>}
+            </div>
+            <table style={{ borderCollapse: "collapse", fontSize: T.textSm, marginBottom: 12 }}>
+              <tbody>
+                <tr>
+                  <td style={{ padding: "2px 12px 2px 0", color: T.textMid }}>Genannte Entfernung</td>
+                  <td><strong>{fmtKm(r.km_genannt)}</strong></td>
+                </tr>
+                <tr>
+                  <td style={{ padding: "2px 12px 2px 0", color: T.textMid }}>Echte Fahrstrecke</td>
+                  <td><strong>{fmtKm(r.km_echt)}</strong>
+                    {r.minuten != null && <> (ca. {r.minuten} Min.)</>}</td>
+                </tr>
+                {r.abweichung_km != null && (
+                  <tr>
+                    <td style={{ padding: "2px 12px 2px 0", color: T.textMid }}>Abweichung</td>
+                    <td>{fmtKm(r.abweichung_km)}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            <div style={{
+              padding: "8px 12px", marginBottom: 12, borderRadius: 4,
+              fontSize: T.textSm, fontWeight: 600,
+              background: r.unzumutbar ? T.greenBg : T.amberBg,
+              color: r.unzumutbar ? T.greenText : T.amberText,
+              border: `1px solid ${r.unzumutbar ? T.greenLight : T.amber}`,
+            }}>
+              {r.unzumutbar
+                ? "Nicht zumutbar: über 15 km — Verweis angreifbar, Textbaustein gespeichert."
+                : "Zumutbar: 15 km oder weniger — Verweis vermutlich haltbar."}
+            </div>
+            {r.unzumutbar && r.textbaustein && (
+              <>
+                <label style={{ display: "block", fontSize: T.textSm, fontWeight: 600, marginBottom: 4 }}>
+                  Textbaustein
+                </label>
+                <textarea readOnly value={r.textbaustein} rows={6}
+                  style={{ width: "100%", boxSizing: "border-box",
+                    padding: "6px 10px", marginBottom: 12,
+                    border: `1px solid ${T.border}`, borderRadius: 4,
+                    fontFamily: T.fontBody, fontSize: T.textSm }} />
+              </>
+            )}
+          </>
+        )}
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          {r.ok && r.unzumutbar && r.textbaustein && (
+            <button onClick={() => navigator.clipboard?.writeText(r.textbaustein)}
+              style={{ padding: "8px 16px", background: T.offWhite,
+                border: `1px solid ${T.border}`, borderRadius: 4, cursor: "pointer" }}>
+              Textbaustein kopieren
+            </button>
+          )}
+          <button onClick={onClose}
+            style={{ padding: "8px 16px", background: T.navy, color: T.white,
+              border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}>
+            Schließen
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FelderEditor({ felder, onChange }) {
   const eintraege = Object.entries(felder || {});
   if (!eintraege.length) {
@@ -874,6 +966,7 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
   const [fbState, setFbState] = useState(null);
   const [splitOffen, setSplitOffen] = useState(false);
   const [bezeichnung, setBezeichnung] = useState("");
+  const [entfernung, setEntfernung] = useState(null);
 
   const laden = useCallback(async ({ skipFormReset = false } = {}) => {
     try {
@@ -1019,6 +1112,19 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
       await laden();
     } catch (e) { setError(e.message); }
     finally { setAktion(false); }
+  };
+
+  const pruefeEntfernung = async () => {
+    setAktion(true);
+    try {
+      const r = await apiIntake.entfernungPruefen(id, gewaehlteAkte);
+      setEntfernung(r);
+      if (r.ok) await laden({ skipFormReset: true });
+    } catch (e) {
+      // Fehler landen bewusst im Dialog statt in setError — error ersetzt
+      // das ganze Panel, ein 404/422 der Pruefung soll nur das Popup betreffen.
+      setEntfernung({ ok: false, fehler: e.message });
+    } finally { setAktion(false); }
   };
 
   const speichereBezeichnung = async () => {
@@ -1290,6 +1396,29 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
             </button>
           </div>
           <FelderEditor felder={felderMerged} onChange={feldChange} />
+          {detail.klasse === "pruefbericht" && (
+            <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={pruefeEntfernung}
+                disabled={aktion || pollAktiv || !gewaehlteAkte}
+                title={gewaehlteAkte
+                  ? "Echte Fahrstrecke Mandant → Referenzwerkstatt via OpenRouteService prüfen"
+                  : "Erst Akte auswählen — die Mandanten-Adresse kommt aus der gewählten Akte"}
+                style={{
+                  padding: "6px 12px", background: T.navy, color: T.white,
+                  border: "none", borderRadius: 4,
+                  fontSize: T.textXs, fontWeight: 600, whiteSpace: "nowrap",
+                  cursor: (aktion || pollAktiv || !gewaehlteAkte) ? "not-allowed" : "pointer",
+                  opacity: gewaehlteAkte ? 1 : 0.5,
+                }}>
+                📍 Entfernung prüfen
+              </button>
+              {!gewaehlteAkte && (
+                <span style={{ fontSize: T.textXs, color: T.textMuted }}>
+                  Erst Akte auswählen (Mandanten-Adresse).
+                </span>
+              )}
+            </div>
+          )}
         </section>
 
         <section style={{ marginBottom: 16 }}>
@@ -1423,6 +1552,10 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
             onClose={() => setSplitOffen(false)}
             onDone={() => { setSplitOffen(false); onFreigegeben && onFreigegeben(); }}
           />
+        )}
+
+        {entfernung && (
+          <EntfernungDialog ergebnis={entfernung} onClose={() => setEntfernung(null)} />
         )}
       </div>
     </div>

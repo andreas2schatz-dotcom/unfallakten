@@ -1121,6 +1121,11 @@ export const apiIntake = {
   reparse:    (id)           => request(`/intake/dokument/${id}/reparse`, {
     method: 'POST',
   }),
+  entfernungPruefen: (id, akteAz) =>
+    request(`/intake/dokument/${id}/entfernung`, {
+      method: 'POST',
+      body: JSON.stringify({ akte_az: akteAz }),
+    }),
   verwerfen:  (id, payload)  => request(`/intake/dokument/${id}/verwerfen`, {
     method: 'POST', body: JSON.stringify(payload),
   }),
