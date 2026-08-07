@@ -354,20 +354,35 @@ def _lade_dokument_text(dok_id: int):
 
 
 def _mandant_adresse(akte_id: str):
-    """Liest Mandant-Adresse (Anschrift + PLZ + Ort) aus beteiligte."""
+    """Liest Mandant-Adresse (Anschrift + PLZ + Ort) aus beteiligte.
+
+    Fallback read-only aus RA-MICRO (Muster _lade_beteiligte_aus_ramicro,
+    wie beteiligte_/klage_routes), wenn lokal kein Mandant mit Adresse
+    erfasst ist -- frische RA-MICRO-Akten haben lokal 0 beteiligte-Zeilen."""
+    def _baue(anschrift, plz, ort):
+        teile = [
+            anschrift or "",
+            " ".join(filter(None, [plz or "", ort or ""])),
+        ]
+        return ", ".join(t for t in teile if t) or None
+
     try:
         from ..models.schaden import hole_beteiligte_by_akte
         for b in hole_beteiligte_by_akte(akte_id):
             if getattr(b, "rolle", "") == "mandant":
-                teile = [
-                    getattr(b, "anschrift", "") or "",
-                    " ".join(filter(None, [
-                        getattr(b, "plz", "") or "",
-                        getattr(b, "ort", "") or "",
-                    ])),
-                ]
-                adresse = ", ".join(t for t in teile if t)
-                return adresse or None
+                adresse = _baue(getattr(b, "anschrift", ""),
+                                getattr(b, "plz", ""), getattr(b, "ort", ""))
+                if adresse:
+                    return adresse
     except Exception as e:
         logger.error("Mandant-Adresse %s: %s", akte_id, e)
+
+    try:
+        from ..word.word_service import _lade_beteiligte_aus_ramicro
+        mandant = (_lade_beteiligte_aus_ramicro(akte_id) or {}).get("mandant")
+        if mandant:
+            return _baue(mandant.get("anschrift"), mandant.get("plz"),
+                         mandant.get("ort"))
+    except Exception as e:
+        logger.error("Mandant-Adresse RA-MICRO %s: %s", akte_id, e)
     return None
