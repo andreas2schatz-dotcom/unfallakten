@@ -7,6 +7,34 @@
 
 ---
 
+## 2026-08-07 — Referenzwerkstatt-Extraktion + Entfernungsprüfung ReviewQueue + Restbefunde a/c (auf Branch `abschlussbericht`)
+
+Fortsetzung des Befunds Akte 1280/25 (3 Arbeitspakete laut Handover, Entscheidungen RA Schatz vom 2026-08-07: deterministischer Regex-Weg statt LLM-Fenster-Erweiterung; Entfernungsprüfung nur manuell per Button, da die Mandanten-Adresse an den externen Dienst OpenRouteService geht). Alle Pakete SDD-umgesetzt (TDD, Task-Reviews + Whole-Branch-Final-Reviews inkl. Fix-Wellen, alle Approved/Ready). 10 Commits `19e9467e..1aa59f79`.
+
+**Paket 1 — Referenzwerkstatt-Extraktion VHV-Blockformat (`19e9467e`, `b9bb7dc8`, `284970b3`, `b3ae0680`):**
+- `werkstatt_service.extrahiere_verweisbetrieb`: neue Stufe 1b für das VHV-Blockformat („Für die Korrekturberechnung haben wir den Reparaturbetrieb …"); Suchfenster endet bei „berücksichtigt." → es wird der VERWENDETE Betrieb gezogen, nicht die danach gelisteten Alternativbetriebe. Neuer `quelle`-Wert `vhv_block`.
+- **Verhaltensänderung Bestand:** Stufe 3 (Trigger-Kontext) liefert nur noch Treffer mit PLZ-Zeile — der Floskel-Satz „Wird eine Referenzwerkstatt benannt, …" erzeugte vorher Scheintreffer. Betrifft auch den Alt-Endpoint `/distanz/prüfen-aus-dokument` (alte RegulierungSection): km-only-Treffer ohne Adresse melden jetzt „Kein Verweisbetrieb gefunden" statt „Adresse unvollständig" — gewollt, diese Treffer waren nie geocodierbar.
+- Intake-Fallback in `extraktion.py` (Muster Prüfdienstleister-Fallback): füllt `felder.referenzwerkstatt` nur bei Klasse `pruefbericht` und nur wenn das LLM nichts liefert. Kanonische Keys `{name, adresse, plz_ort, telefon, km_genannt, quelle}`.
+- Review-Fix `b3ae0680`: LLM-gelieferte `referenzwerkstatt`-Dicts werden per `setdefault` auf die kanonischen Keys normalisiert (`quelle: "llm"`), YAML-`beschreibung` in `pruefbericht.yaml` nennt die Keys explizit. **Deploy-Hinweis: YAML-Änderung → Backend-Restart in der Zielumgebung nötig.**
+- Verifiziert am echten Dok 516 (Reparse): Möser Arno – Karosseriefachbetrieb, Philipp-Reis-Straße 9, 63128 Dietzenbach, 16,0 km, `quelle: vhv_block`.
+
+**Paket 2 — Entfernungsprüfung in der ReviewQueue (`665a5bf4`, `c331545c`, `dd073e74`):**
+- Neuer Endpoint `POST /intake/dokument/<id>/entfernung` (Body `{akte_az}`): Werkstatt aus `felder.referenzwerkstatt`, Mandanten-Adresse via `_mandant_adresse` (distanz_routes) aus dem übergebenen Akten-Kandidaten, `pruefe_entfernung` (ORS Geocoding+Routing). Bei Erfolg werden `{km_echt, minuten, abweichung_km, bewertung, textbaustein, geprueft_am, geprueft_gegen_akte}` ins Feld persistiert (bleibt in `intake_dokumente.parse_json`, via `freigaben`-Join zur Akte auflösbar — Datenbasis für den späteren Stellungnahme-Workflow). `textbaustein` nur bei `unzumutbar` (> 15 km), sonst wäre die Rüge inhaltlich falsch. Bei ORS-Fehler keine Persistierung.
+- Frontend: Button „📍 Entfernung prüfen" im Review-Detail (nur Klasse `pruefbericht`; ohne gewählten Akten-Kandidaten deaktiviert mit Hinweis — Auswahl liefert die Mandanten-Adresse) + `EntfernungDialog`-Popup (genannte vs. echte km, Fahrzeit, Bewertung, Textbaustein mit Kopieren-Button). Fehler (404/422) erscheinen im Popup statt als Panel-Fehler.
+- Review-Fix `dd073e74`: `FelderEditor` rendert Objekt-Werte (z. B. `referenzwerkstatt`) schreibgeschützt als JSON statt als editierbares `[object Object]`-Input — schützt die geprüften Werte vor versehentlichem Überschreiben. Plus Docstring-Präzisierungen.
+- ORS-Smoke am echten Werkstatt-Standort ok (Offenbach→Dietzenbach: 16,9 km, 22 Min.). **Befund:** Akte 1280/25 hat lokal keine `beteiligte`-Zeilen → Button zeigt dort den (gewollten) Fehler „Mandanten-Adresse nicht gefunden". Laut Final-Review Regelfall bei frischen RA-MICRO-Akten → Backlog: RA-MICRO-read-only-Fallback in `_mandant_adresse` (Muster `_lade_beteiligte_aus_ramicro`, `word_service.py`).
+
+**Paket 3 — Restbefunde a+c (`80120bb2`, `1aa59f79`):**
+- (a) Marker-Matching in `klassifikator.py` von Substring auf Wortgrenzen umgestellt (`_marker_im_text`, Lookarounds `(?<!\w)…(?!\w)` statt `\b` wegen Sonderzeichen-Markern wie „Control€xpert"). „Rechnung" trifft nicht mehr „**Ab**rechnung". Golden-/E2E-Gates grün. Konvention: Bindestrich zählt als Wortgrenze („Reparaturkosten-Rechnung" trifft Marker „Rechnung" — gewollt, vgl. Marker „Reparatur-Rechnung"); Flexionsformen bei Bedarf als eigene YAML-Marker nachpflegen.
+- (c) `llm_konflikt`-Vergleich normalisiert Datumswerte (nur DD.MM.YYYY ↔ YYYY-MM-DD, beidseitig) vor dem Vergleich — der Scheinkonflikt „2026-04-28" vs. „28.04.2026" entfällt, echte Datums-Konflikte bleiben.
+- Verifiziert am echten Dok 517 (Reparse): `llm_konflikt` leer, Klasse korrekt `abrechnungsschreiben`.
+
+**Tests:** 31 neue Backend-Tests (RED→GREEN, TDD) über `test_werkstatt_verweisbetrieb.py` (neu), `test_intake_entfernung.py` (neu), `test_intake_extraktion.py`, `test_intake_klassifikator.py`; 5 neue Frontend-Tests (`ReviewQueueView.entfernung.test.jsx`, neu). Frontend-Vollsuite 451/451 + Build grün. Vorbestehend unverändert: 2× `test_intake_routes` „Rechnung (Auffang)", `test_modul7`.
+
+**Offen (Human-Gates):** Browser-Abnahme des Entfernungs-Popups durch RA Schatz (Hinweis: auf 1280/25 erscheint aktuell die erwartete Fehlermeldung, solange die Mandanten-Adresse lokal fehlt); Merge-Strategie unverändert (Branch stapelt, siehe TODO „In Arbeit").
+
+---
+
 ## 2026-08-06 — Prüfbericht-Extraktion Akte 1280/25, Runde 2 (auf Branch `abschlussbericht`)
 
 Anlass: RA Schatz meldete, das Prüfbericht-Parsing (Dok 516, VHV-Drei-Spalten-Format) sei trotz Schema-Erweiterung vom Vormittag weiter fehlerhaft. Befund: Die Altfelder des ControlExpert-Schemas passen nicht auf das VHV-Format — das LLM erfand `abzug_gesamt` (1.585,89 = selbst errechnete Differenz Gefordert−Fiktiv), belegte `reparaturkosten_brutto` mit dem Brutto NACH Prüfung und mischte Konkret-/Fiktiv-Spalte; `pruefdienstleister` (Pflichtfeld) und `auftraggeber` blieben leer bzw. wurden mit der Anspruchstellerin befüllt; die Schadennummer-Regex brach am Leerzeichen ab.
