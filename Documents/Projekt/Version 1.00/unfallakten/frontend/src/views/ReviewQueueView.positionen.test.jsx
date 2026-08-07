@@ -89,12 +89,12 @@ describe("FelderEditor Positions-Tabelle (Befund 1280/25)", () => {
     expect(screen.getByDisplayValue("Zahlung per Überweisung")).toBeTruthy();
   });
 
-  it("einzelne Objekte (referenzwerkstatt) bleiben JSON-Anzeige", () => {
+  it("einzelne Objekte (referenzwerkstatt) werden als Zeilen editierbar", () => {
     render(<FelderEditor
       felder={{ referenzwerkstatt: { name: "Möser Arno", km_genannt: 16.0 } }}
       onChange={() => {}} />);
-    expect(screen.queryByDisplayValue("Möser Arno")).toBeNull();
-    expect(screen.getByText(/"name"/)).toBeTruthy();
+    expect(screen.getByDisplayValue("Möser Arno")).toBeTruthy();
+    expect(screen.queryByText(/"name"/)).toBeNull();
   });
 
   it("skalare Felder bleiben einfache Eingabefelder", () => {

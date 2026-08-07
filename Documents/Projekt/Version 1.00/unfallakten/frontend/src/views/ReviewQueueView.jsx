@@ -671,6 +671,73 @@ function ArrayTabelleEditor({ feldKey, liste, onChange }) {
   );
 }
 
+// Maschinell befuellte Schluessel (Entfernungspruefung, Extraktions-Herkunft)
+// duerfen nicht von Hand ueberschrieben werden.
+const MASCHINELLE_OBJEKT_FELDER = new Set([
+  "quelle", "km_echt", "minuten", "abweichung_km", "bewertung",
+  "geprueft_am", "geprueft_gegen_akte",
+]);
+
+const NUMERISCHE_OBJEKT_FELDER = /betrag|summe|mwst|km|minuten/i;
+
+function JsonBox({ wert }) {
+  return (
+    <div style={{
+      padding: "4px 8px", border: `1px solid ${T.borderSoft}`,
+      borderRadius: 4, background: T.surface,
+      fontFamily: T.fontMono, fontSize: T.textXs,
+      color: T.textMid, wordBreak: "break-word",
+    }}>
+      {JSON.stringify(wert, null, 0)}
+    </div>
+  );
+}
+
+function ObjektFelderEditor({ feldKey, objekt, onChange }) {
+  const numerisch = (k, w) => typeof w === "number" || NUMERISCHE_OBJEKT_FELDER.test(k);
+  const setWert = (k, w) => onChange(feldKey, { ...objekt, [k]: w });
+  const commitBetrag = (k, text) => {
+    const zahl = parseBetragDe(text);
+    setWert(k, zahl != null ? zahl : (String(text).trim() === "" ? null : text));
+  };
+  return (
+    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <tbody>
+        {Object.entries(objekt).map(([k, w]) => (
+          <tr key={k}>
+            <td style={{ padding: "2px 8px 2px 0", color: T.textMuted,
+              fontSize: T.textXs, verticalAlign: "top", width: 120 }}>
+              {k}
+            </td>
+            <td style={{ padding: "2px 0" }}>
+              {(w !== null && typeof w === "object") ? (
+                <JsonBox wert={w} />
+              ) : MASCHINELLE_OBJEKT_FELDER.has(k) ? (
+                <span style={{ fontFamily: T.fontMono, fontSize: T.textXs, color: T.textMid }}>
+                  {w == null ? "—" : formatiereZahl(w)}
+                </span>
+              ) : (
+                <input
+                  value={numerisch(k, w) ? formatiereZahl(w) : (w ?? "")}
+                  onChange={e => setWert(k, e.target.value)}
+                  onBlur={numerisch(k, w)
+                    ? (e => commitBetrag(k, e.target.value)) : undefined}
+                  style={{
+                    width: "100%", boxSizing: "border-box",
+                    padding: "3px 6px", border: `1px solid ${T.border}`,
+                    borderRadius: 4, fontFamily: T.fontMono,
+                    fontSize: T.textXs, background: T.cardBg,
+                  }}
+                />
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 export function FelderEditor({ felder, onChange }) {
   const eintraege = Object.entries(felder || {});
   if (!eintraege.length) {
@@ -687,18 +754,10 @@ export function FelderEditor({ felder, onChange }) {
             <td style={{ padding: "4px 0" }}>
               {(Array.isArray(v) && istFlacheObjektListe(v)) ? (
                 <ArrayTabelleEditor feldKey={k} liste={v} onChange={onChange} />
+              ) : Array.isArray(v) ? (
+                <JsonBox wert={v} />
               ) : (v !== null && typeof v === "object") ? (
-                // Verschachtelte Objekt-Felder (z.B. referenzwerkstatt)
-                // entstehen maschinell ueber den Entfernungspruefen-Endpoint,
-                // nicht per Freitext.
-                <div style={{
-                  padding: "4px 8px", border: `1px solid ${T.borderSoft}`,
-                  borderRadius: 4, background: T.surface,
-                  fontFamily: T.fontMono, fontSize: T.textXs,
-                  color: T.textMid, wordBreak: "break-word",
-                }}>
-                  {JSON.stringify(v, null, 0)}
-                </div>
+                <ObjektFelderEditor feldKey={k} objekt={v} onChange={onChange} />
               ) : (
                 <input
                   value={v == null ? "" : String(v)}

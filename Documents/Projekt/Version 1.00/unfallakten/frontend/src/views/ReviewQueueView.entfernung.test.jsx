@@ -91,11 +91,12 @@ describe("ReviewQueueView Entfernungsprüfung", () => {
     await screen.findByText(/Mandanten-Adresse für Akte 1280\/25 nicht gefunden/);
   });
 
-  it("rendert Objekt-Felder schreibgeschützt statt als Input", async () => {
+  it("rendert Werkstatt-Daten editierbar, maschinelle Werte schreibgeschützt", async () => {
     render(<ReviewQueueView onOpenAkte={() => {}} initialIntakeId={516} />);
     await screen.findByText(/Extrahierte Felder/);
-    const zeile = screen.getByText("referenzwerkstatt").closest("tr");
-    expect(zeile.querySelector("input")).toBeNull();
-    expect(zeile.textContent).toContain("Möser Arno");
+    expect(screen.getByDisplayValue("Möser Arno - Karosseriefachbetrieb")).toBeTruthy();
+    expect(screen.getByDisplayValue("63128 Dietzenbach")).toBeTruthy();
+    expect(screen.queryByDisplayValue("vhv_block")).toBeNull();
+    expect(screen.getByText("vhv_block")).toBeTruthy();
   });
 });
