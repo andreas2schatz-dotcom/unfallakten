@@ -14,6 +14,7 @@ Konfidenz 0.5.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Iterable, List, Optional, Sequence, Tuple
 
@@ -54,6 +55,15 @@ def _extrahiere_klasse_kandidaten(signale: Iterable[dict]) -> List[str]:
     return ergebnis
 
 
+def _marker_im_text(marker: str, text_norm: str) -> bool:
+    """Wortgrenzen-Match statt Substring ('Rechnung' != 'Abrechnung').
+
+    Lookarounds statt \\b, weil Marker mit Nicht-Wort-Zeichen enden
+    koennen ('Control€xpert') -- dort waere \\b wirkungslos."""
+    muster = r"(?<!\w)" + re.escape(marker.lower()) + r"(?!\w)"
+    return re.search(muster, text_norm) is not None
+
+
 def klassifiziere_stufe1(text: str,
                          signale: Iterable[dict],
                          registry) -> Tuple[List[Kandidat], List[str]]:
@@ -81,7 +91,7 @@ def klassifiziere_stufe1(text: str,
         anzahl = 0
         gefundene = []
         for m in marker_liste:
-            if m and m.lower() in text_norm:
+            if m and _marker_im_text(m, text_norm):
                 anzahl += 1
                 gefundene.append(m)
         if anzahl > 0:

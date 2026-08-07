@@ -197,5 +197,49 @@ class TestStufe2(unittest.TestCase):
         self.assertLessEqual(konf, 0.5)
 
 
+class TestMarkerWortgrenze(unittest.TestCase):
+    """Befund 1280/25 (a): Marker 'Rechnung' traf als Teilwort in
+    'Abrechnungsschreiben' -> Dok 517 wurde als rechnung eingestuft."""
+
+    def _registry(self, marker):
+        class _R:
+            klassen = {"testklasse": {"marker": marker}}
+        return _R()
+
+    def _klassifiziere(self, text, marker):
+        from backend.intake.klassifikator import klassifiziere_stufe1
+        kandidaten, _ = klassifiziere_stufe1(text, [], self._registry(marker))
+        return kandidaten
+
+    def test_marker_trifft_kein_teilwort(self):
+        k = self._klassifiziere(
+            "Wir übersenden das Abrechnungsschreiben zur Abrechnung.",
+            ["Rechnung"])
+        self.assertEqual(k, [])
+
+    def test_marker_trifft_ganzes_wort(self):
+        k = self._klassifiziere("Anbei die Rechnung: 123", ["Rechnung"])
+        self.assertEqual(len(k), 1)
+        self.assertEqual(k[0].klasse, "testklasse")
+
+    def test_marker_trifft_wort_vor_satzzeichen_und_zeilenende(self):
+        k = self._klassifiziere("Betreff: Rechnung\nvom 01.01.2026", ["Rechnung"])
+        self.assertEqual(len(k), 1)
+
+    def test_mehrwort_marker_weiterhin_treffer(self):
+        k = self._klassifiziere(
+            "Die VHV Allgemeine Versicherung AG teilt mit", ["VHV Allgemeine"])
+        self.assertEqual(len(k), 1)
+
+    def test_sonderzeichen_marker_weiterhin_treffer(self):
+        k = self._klassifiziere(
+            "Prüfbericht der Control€xpert GmbH", ["Control€xpert"])
+        self.assertEqual(len(k), 1)
+
+    def test_bindestrich_marker_weiterhin_treffer(self):
+        k = self._klassifiziere("Der CE-Prüfbericht liegt bei", ["CE-Prüfbericht"])
+        self.assertEqual(len(k), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
