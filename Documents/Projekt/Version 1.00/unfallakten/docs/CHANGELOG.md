@@ -7,6 +7,24 @@
 
 ---
 
+## 2026-08-07 — Abrechnungs-Positionen: fehlender Hauptbetrag + editierbare Positions-Tabelle (Befund 1280/25, Branch `abschlussbericht`)
+
+Befund RA Schatz: Im VHV-Abrechnungsschreiben (Dok 517, Akte 1280/25) fehlte „Abrechnung nach Prüfbericht 5.448,62 EUR" in `felder.positionen` — die LLM-Extraktion las die Zeile als `abrechnungsart`, die Summen-Validierung meldete korrekt die 5.448,62-Differenz, korrigieren ließ es sich aber nicht, weil `positionen`/`zahlungen` im Review nur als rohes JSON angezeigt wurden.
+
+**Backend (`abrechnungsschreiben_parser.py`, `intake/extraktion.py`):**
+- Neues Positions-Pattern „Abrechnung nach Prüfbericht" → `reparatur_netto` (VHV-Layout für regulierte Reparaturkosten).
+- `sv_kosten`-Suchfenster endet jetzt an Summen-/Zahlungszeilen (`_SUMMENZEILEN_RE`) — die Maximum-Heuristik griff sonst den Auszahlungsbetrag der Folgezeile (VHV: 7.751,54 statt 1.316,62).
+- Sicherungsnetz `_ergaenze_abrechnungspositionen` (nur Klasse `abrechnungsschreiben`, nach der LLM-Extraktion): Regex-Positionen als deterministische Kandidaten. Leere LLM-Liste → Kandidaten komplett übernehmen; sonst wird nur ergänzt, was die Differenz zum Gesamtbetrag **exakt** erklärt (einzelner Kandidat oder Summe aller fehlenden; Toleranz 1 Cent wie `validierung.py`; Abzugs-Arten `mwst_abzug`/`pruefbericht_abzug`/`restwert` nie). Erklärt nichts die Differenz, bleibt die ehrliche Validierungswarnung stehen — kein Raten.
+
+**Frontend (`ReviewQueueView.jsx`):**
+- `FelderEditor`: Listen flacher Objekte (`positionen`, `zahlungen`) werden als editierbare Tabelle gerendert (Spalten = Key-Union, Zeile hinzufügen/entfernen) statt als JSON-Box. Betragsspalten (Regex `betrag|summe|mwst` oder numerischer Wert) zeigen deutsches Format; Parse auf Blur via `parseBetragDe` („5.448,62" → 5448.62 als **Zahl** — Strings würden von der Summen-Validierung still ignoriert). Verschachtelte Objekte (`referenzwerkstatt`) bleiben bewusst schreibgeschützte JSON-Anzeige.
+
+**Tests (TDD, RED→GREEN):** 8 neue BE-Tests (`test_abrechnung_positionen_sicherungsnetz.py`: Parser-Pattern, SV-Fenster, Ergänzen einzeln/mehrfach, Kein-Junk, LLM-Ausfall-Fallback, Abzugs-Sperre), 8 neue FE-Tests (`ReviewQueueView.positionen.test.jsx`). Frontend-Vollsuite 459/459 grün. Backend: modulnahe Suiten grün (extraktion/validierung/entfernung/s18 + neu); Vollsuite-Fehlschläge (auth-/env-lastig: modul4-Routen, sv_portal, s19-Whitelist-Zeilendrift `email_import`) vorbestehend — Stash-Gegenprobe ohne diese Änderung liefert identische Fehlschläge.
+
+**Live verifiziert:** echter Worker-Reparse Dok 517 (LLM aktiv) → 5 Positionen inkl. „Abrechnung nach Prüfbericht 5.448,62", Validierungswarnung weg, keine Degradation.
+
+---
+
 ## 2026-08-07 — Referenzwerkstatt-Extraktion + Entfernungsprüfung ReviewQueue + Restbefunde a/c (auf Branch `abschlussbericht`)
 
 Fortsetzung des Befunds Akte 1280/25 (3 Arbeitspakete laut Handover, Entscheidungen RA Schatz vom 2026-08-07: deterministischer Regex-Weg statt LLM-Fenster-Erweiterung; Entfernungsprüfung nur manuell per Button, da die Mandanten-Adresse an den externen Dienst OpenRouteService geht). Alle Pakete SDD-umgesetzt (TDD, Task-Reviews + Whole-Branch-Final-Reviews inkl. Fix-Wellen, alle Approved/Ready). 10 Commits `19e9467e..1aa59f79`.
