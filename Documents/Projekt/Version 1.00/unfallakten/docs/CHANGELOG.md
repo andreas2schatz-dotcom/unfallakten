@@ -31,7 +31,9 @@ Fortsetzung des Befunds Akte 1280/25 (3 Arbeitspakete laut Handover, Entscheidun
 
 **Tests:** 31 neue Backend-Tests (RED→GREEN, TDD) über `test_werkstatt_verweisbetrieb.py` (neu), `test_intake_entfernung.py` (neu), `test_intake_extraktion.py`, `test_intake_klassifikator.py`; 5 neue Frontend-Tests (`ReviewQueueView.entfernung.test.jsx`, neu). Frontend-Vollsuite 451/451 + Build grün. Vorbestehend unverändert: 2× `test_intake_routes` „Rechnung (Auffang)", `test_modul7`.
 
-**Offen (Human-Gates):** Browser-Abnahme des Entfernungs-Popups durch RA Schatz (Hinweis: auf 1280/25 erscheint aktuell die erwartete Fehlermeldung, solange die Mandanten-Adresse lokal fehlt); Merge-Strategie unverändert (Branch stapelt, siehe TODO „In Arbeit").
+**Nachtrag (gleicher Tag, Freigabe RA Schatz):** RA-MICRO-read-only-Fallback für die Mandanten-Adresse (`1b74f938` + Fehlerpfad-Tests): `_mandant_adresse` (distanz_routes.py) fällt bei lokal fehlendem/adresslosem Mandanten auf `_lade_beteiligte_aus_ramicro` (word_service.py, nur SELECTs — read-only-Regel gewahrt) zurück; lokaler Treffer verhindert den RA-MICRO-Zugriff. Live verifiziert: 1280/25 löst jetzt die echte Mandanten-Adresse aus RA-MICRO auf. Bewusste Nebenwirkung: Auch der Alt-Endpoint `/distanz/prüfen-aus-dokument` profitiert; bei lokal fehlendem Mandanten kommt dessen 404 nun erst nach einem zusätzlichen RA-MICRO-Roundtrip (vorher sofort) — gewollt, konsistentes Verhalten.
+
+**Offen (Human-Gates):** Browser-Abnahme des Entfernungs-Popups durch RA Schatz (jetzt direkt an 1280/25 möglich); Merge-Strategie unverändert (Branch stapelt, siehe TODO „In Arbeit").
 
 ---
 
