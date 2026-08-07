@@ -63,6 +63,23 @@ class TestMandantAdresse(unittest.TestCase):
                  "gegner": None, "alle_gegner": [], "sonstige": []})
         self.assertIsNone(adresse)
 
+    def test_lokaler_db_fehler_faellt_auf_ramicro_zurueck(self):
+        from backend.routers.distanz_routes import _mandant_adresse
+        with mock.patch("backend.models.schaden.hole_beteiligte_by_akte",
+                        side_effect=RuntimeError("DB kaputt")), \
+             mock.patch("backend.word.word_service._lade_beteiligte_aus_ramicro",
+                        return_value=RAMICRO_MANDANT):
+            self.assertEqual(_mandant_adresse("1280/25"),
+                             "Andréstr. 10, 63067 Offenbach")
+
+    def test_fehler_in_beiden_pfaden_liefert_none(self):
+        from backend.routers.distanz_routes import _mandant_adresse
+        with mock.patch("backend.models.schaden.hole_beteiligte_by_akte",
+                        side_effect=RuntimeError("DB kaputt")), \
+             mock.patch("backend.word.word_service._lade_beteiligte_aus_ramicro",
+                        side_effect=RuntimeError("RA-MICRO kaputt")):
+            self.assertIsNone(_mandant_adresse("1280/25"))
+
 
 if __name__ == "__main__":
     unittest.main()
