@@ -7,6 +7,18 @@
 
 ---
 
+## 2026-08-07 — Referenzwerkstatt editierbar in der ReviewQueue (Befund RA Schatz, Branch `abschlussbericht`, `a0d38d13`)
+
+Befund bei der Browser-Abnahme: Das Feld `referenzwerkstatt` im Prüfbericht-Review erschien nur als JSON-Box, nicht korrigierbar — obwohl die Extraktion danebenliegen kann (Dok 555/Akte 332/26: Name „Postanschrift:", Ort „14329 Berlin\nFirmensitz"). Falsche Werkstatt-Adressen hätten die Entfernungsprüfung mit Müll gefüttert; Heilung ging nur über „Erneut parsen".
+
+- **Neuer `ObjektFelderEditor`** in `ReviewQueueView.jsx`, analog zur Positions-Tabelle vom selben Tag: Werkstatt-Daten (name, adresse, plz_ort, telefon, km_genannt) als editierbare Zeilen, numerische Felder parsen auf Blur als Zahl (`parseBetragDe`, deutsches Format).
+- **Maschinelle Prüfwerte bleiben schreibgeschützt** (`MASCHINELLE_OBJEKT_FELDER`: quelle, km_echt, minuten, abweichung_km, bewertung, geprueft_am, geprueft_gegen_akte) — sie kommen aus der Entfernungsprüfung bzw. der Extraktions-Herkunft und werden nur angezeigt.
+- Verschachtelte Unterobjekte (z. B. `stundensaetze`) und nicht-flache Arrays bleiben JSON-Anzeige (`JsonBox` extrahiert).
+- **Speicherweg unverändert bestätigt:** `PATCH /intake/dokument/<id>/felder` aktualisiert nur geänderte Felder, loggt ins `korrektur_log`, lässt übrige Felder unangetastet — Werte werden korrekt persistiert.
+- **Tests (TDD, RED→GREEN):** 6 neue in `ReviewQueueView.objektfelder.test.jsx`; 2 Alt-Tests vom Vortag (Objekt = read-only-JSON) auf das neue Verhalten umgestellt. Frontend-Vollsuite 465/465 grün.
+
+---
+
 ## 2026-08-07 — Firmen-Beteiligte: „Firma" statt echtem Namen (Befund 1280/25, Branch `abschlussbericht`, `6801be75`)
 
 Befund RA Schatz: Die Beteiligten-Section der Akte 1280/25 zeigte einen Eintrag „Firma" mit leeren Feldern statt des echten Gegners „RCR GmbH". Ursache: RA-MICRO speichert den Namen (auch Firmennamen) IMMER in `sNachname`; `sErsteAdresszeile` ist nur die Anredeform des Adressfelds („Herrn", „Frau", „Firma", „Anwaltskanzlei", „c/o …") — per Datenanalyse bestätigt (12.559× „Herrn", 6.990× „Frau", 3.327× „Firma", nie ein echter Name). Unsere Heuristik „kein Vorname → `sErsteAdresszeile` ist Firmenname" verwarf dadurch bei Firmen den echten Namen; der Code-Kommentar „sErsteAdresszeile = offizieller Firmenname" war falsch.
