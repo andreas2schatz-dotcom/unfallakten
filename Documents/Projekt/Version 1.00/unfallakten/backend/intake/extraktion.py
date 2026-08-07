@@ -80,6 +80,70 @@ def _erkenne_referenzwerkstatt(text: str):
     }
 
 
+_BETRAG_TOLERANZ = 0.011  # 1 Cent + Float-Spielraum (wie intake/validierung.py)
+
+
+def _positions_betrag(eintrag):
+    if not isinstance(eintrag, dict):
+        return None
+    for schluessel in ("betrag", "betrag_brutto", "betrag_netto"):
+        wert = eintrag.get(schluessel)
+        if isinstance(wert, (int, float)) and not isinstance(wert, bool):
+            return float(wert)
+    return None
+
+
+def _ergaenze_abrechnungspositionen(text: str, felder: Dict[str, Any]) -> None:
+    """Sicherungsnetz fuer Abrechnungsschreiben (Befund 1280/25): Die
+    LLM-Extraktion laesst einzelne Abrechnungszeilen aus (VHV liest
+    "Abrechnung nach Prüfbericht 5.448,62 EUR" als abrechnungsart). Der
+    Regex-Parser liefert deterministische Kandidaten; ergaenzt wird nur, was
+    die Differenz zum Gesamtbetrag exakt erklaert -- lieber die bestehende
+    Validierungswarnung stehen lassen als eine geratene Position anhaengen."""
+    from ..parsers.abrechnungsschreiben_parser import parse_abrechnungsschreiben
+
+    kuerzel = felder.get("versicherer_kuerzel") or ""
+    ergebnis = parse_abrechnungsschreiben(text, str(kuerzel))
+    kandidaten = []
+    for p in ergebnis.positionen:
+        # Abzuege und Gegenwerte sind keine Auszahlungspositionen
+        if p.art in ("mwst_abzug", "pruefbericht_abzug", "restwert"):
+            continue
+        wert = p.betrag_netto if p.betrag_netto is not None else p.betrag_brutto
+        if not wert or wert <= 0:
+            continue
+        kandidaten.append({"bezeichnung": p.bezeichnung, "betrag": round(wert, 2)})
+
+    vorhandene = felder.get("positionen")
+    if not isinstance(vorhandene, list) or not vorhandene:
+        if kandidaten:
+            felder["positionen"] = kandidaten
+        return
+
+    bekannte = [b for b in (_positions_betrag(p) for p in vorhandene)
+                if b is not None]
+    fehlende = [
+        k for k in kandidaten
+        if not any(abs(k["betrag"] - b) <= _BETRAG_TOLERANZ for b in bekannte)
+    ]
+    if not fehlende:
+        return
+
+    gesamt = felder.get("gesamtbetrag")
+    if isinstance(gesamt, bool) or not isinstance(gesamt, (int, float)):
+        return
+    differenz = round(float(gesamt) - sum(bekannte), 2)
+    if abs(differenz) <= _BETRAG_TOLERANZ:
+        return
+
+    for k in fehlende:
+        if abs(k["betrag"] - differenz) <= _BETRAG_TOLERANZ:
+            felder["positionen"] = vorhandene + [k]
+            return
+    if abs(sum(k["betrag"] for k in fehlende) - differenz) <= _BETRAG_TOLERANZ:
+        felder["positionen"] = vorhandene + fehlende
+
+
 _DATUM_DE = re.compile(r"^(\d{2})\.(\d{2})\.(\d{4})$")
 _DATUM_ISO = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
 
@@ -163,6 +227,9 @@ def extrahiere_felder(text: str, klasse: str, registry,
             werkstatt.setdefault(feld, "")
         werkstatt.setdefault("km_genannt", None)
         werkstatt.setdefault("quelle", "llm")
+
+    if klasse == "abrechnungsschreiben":
+        _ergaenze_abrechnungspositionen(text, felder)
 
     ergebnis: Dict[str, Any] = {"felder": felder, "llm_status": llm_status}
 

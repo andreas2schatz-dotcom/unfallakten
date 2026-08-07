@@ -78,6 +78,8 @@ POSITIONS_PATTERNS = [
     ("reparatur_netto",  r"Reparaturkosten\s+ohne\s+Mehrwertsteuer", 150),
     # Standalone "Reparaturkosten N.NNN,NN" (HUK-COBURG Reparatur-Format)
     ("reparatur_netto",  r"^Reparaturkosten\s+[\d]", 80),
+    # VHV: regulierte Reparaturkosten stehen als "Abrechnung nach Prüfbericht N,NN EUR"
+    ("reparatur_netto",  r"Abrechnung\s+nach\s+Prüfbericht", 80),
 
     # Sachverständigen – großes Fenster wegen Netto→USt→Brutto-Aufbau
     # (Brutto steht als letzter Betrag; Extraktion nimmt daher den letzten Betrag im Fenster)
@@ -283,6 +285,16 @@ def _extract_gothaer_positionen(text: str) -> list[ParsedPosition]:
     return positionen
 
 
+# Gesamt-/Zahlungszeilen begrenzen das sv_kosten-Suchfenster: dessen
+# Maximum-Heuristik darf nicht den Auszahlungsbetrag der Folgezeilen greifen
+# (VHV: "Sachverständigengebühren ... Zahlung per Überweisung 7.751,54 EUR").
+_SUMMENZEILEN_RE = re.compile(
+    r"Zahlung(?:sbetrag)?\b|Gesamtbetrag|Entschädigungsbetrag|"
+    r"Gesamtentschädigung|Auszahlungsbetrag|Regulierungsbetrag|Summe\s*:",
+    re.IGNORECASE,
+)
+
+
 def _extract_standard_positionen(text: str) -> list[ParsedPosition]:
     """Extrahiert Standardpositionen via Label + nachfolgendem Betrag."""
     positionen = []
@@ -308,6 +320,9 @@ def _extract_standard_positionen(text: str) -> list[ParsedPosition]:
             # (Teilposten < Netto < Brutto; Reihenfolge im Dokument variiert)
             # → alle Beträge im Fenster sammeln, Maximum nehmen
             if art == "sv_kosten":
+                summen_m = _SUMMENZEILEN_RE.search(snippet)
+                if summen_m:
+                    snippet = snippet[:summen_m.start()]
                 alle_vals = [parse_betrag(x) for x in betrag_re.findall(snippet)]
                 alle_vals = [v for v in alle_vals if v is not None and v > 0]
                 val = max(alle_vals) if alle_vals else None
