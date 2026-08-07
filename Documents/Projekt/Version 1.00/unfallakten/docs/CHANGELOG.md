@@ -7,6 +7,20 @@
 
 ---
 
+## 2026-08-07 — Firmen-Beteiligte: „Firma" statt echtem Namen (Befund 1280/25, Branch `abschlussbericht`, `6801be75`)
+
+Befund RA Schatz: Die Beteiligten-Section der Akte 1280/25 zeigte einen Eintrag „Firma" mit leeren Feldern statt des echten Gegners „RCR GmbH". Ursache: RA-MICRO speichert den Namen (auch Firmennamen) IMMER in `sNachname`; `sErsteAdresszeile` ist nur die Anredeform des Adressfelds („Herrn", „Frau", „Firma", „Anwaltskanzlei", „c/o …") — per Datenanalyse bestätigt (12.559× „Herrn", 6.990× „Frau", 3.327× „Firma", nie ein echter Name). Unsere Heuristik „kein Vorname → `sErsteAdresszeile` ist Firmenname" verwarf dadurch bei Firmen den echten Namen; der Code-Kommentar „sErsteAdresszeile = offizieller Firmenname" war falsch.
+
+- **Neue Helferfunktion `name_aus_ramicro_adresse(nachname, erste_adresszeile)`** (`word_service.py`, modulweit): Nachname zuerst, erste Adresszeile nur Fallback wenn Nachname leer. In Brief-Adressblöcken bleibt `sErsteAdresszeile` als eigene Zeile ÜBER dem Namen unverändert korrekt.
+- **7 Fundstellen umgestellt:** `_beteiligter_dict` in `_lade_beteiligte_aus_ramicro` (Beteiligten-Section — der gemeldete Fall) und `_lade_gegner_adresse_aus_ramicro` (Forderungsschreiben-Gegneradresse; bevorzugte `erste` sogar bedingungslos) in `word_service.py`; `belege_routes.py` (Beleg-Kandidaten); `klage_routes.py` (Gerichts-Ermittlung); `wiedervorlage_routes.py` (Empfänger im Aktivitätslog, 2×); `personenschaden_routes.py` + `ramicro_akte_routes.py` (2×) (Adressanzeige/Adresssuche/Mandantenname — Muster `firma if firma else …` gedreht).
+- **Anrede-Code „4" = Firma** ins Mapping aufgenommen (`ANREDE_CODES`, vorher wurde „4" roh angezeigt).
+- **Tests (TDD, RED→GREEN):** 5 neue in `test_ramicro_firmen_name.py` (Helper-Units + nachgebautes 1280/25-Szenario über `_lade_beteiligte_aus_ramicro` mit Fake-Cursor). Gegenprobe per Stash: die 5 `test_modul8`-Fehlschläge im Kombi-Lauf sind vorbestehend (Testreihenfolge), nicht durch diesen Fix.
+- **Live verifiziert (1280/25):** Mandantin „Anita Petrovic", Gegner „RCR GmbH" (Anrede: Firma), VHV als GHPV, SV Ninnivaggi.
+- Bekannter Rest (bewusst nicht angefasst): Alt-Heuristik setzt bei Gegnern ohne Vorname `versicherung = name` — die RCR GmbH zeigt daher „RCR GmbH" auch im Versicherung-Feld.
+- Memory: `feedback_ramicro_erste_adresszeile`.
+
+---
+
 ## 2026-08-07 — Abrechnungs-Positionen: fehlender Hauptbetrag + editierbare Positions-Tabelle (Befund 1280/25, Branch `abschlussbericht`)
 
 Befund RA Schatz: Im VHV-Abrechnungsschreiben (Dok 517, Akte 1280/25) fehlte „Abrechnung nach Prüfbericht 5.448,62 EUR" in `felder.positionen` — die LLM-Extraktion las die Zeile als `abrechnungsart`, die Summen-Validierung meldete korrekt die 5.448,62-Differenz, korrigieren ließ es sich aber nicht, weil `positionen`/`zahlungen` im Review nur als rohes JSON angezeigt wurden.
