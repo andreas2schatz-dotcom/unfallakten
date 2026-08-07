@@ -140,6 +140,16 @@ def extrahiere_felder(text: str, klasse: str, registry,
         if werkstatt:
             felder["referenzwerkstatt"] = werkstatt
 
+    # LLM liefert referenzwerkstatt ungeprueft mit beliebigen Keys (z.B.
+    # "entfernung" statt "km_genannt") -- auf kanonische Keys angleichen,
+    # damit Folgeverbraucher (Entfernungspruefung) nicht ins Leere greifen.
+    if klasse == "pruefbericht" and isinstance(felder.get("referenzwerkstatt"), dict):
+        werkstatt = felder["referenzwerkstatt"]
+        for feld in ("name", "adresse", "plz_ort", "telefon"):
+            werkstatt.setdefault(feld, "")
+        werkstatt.setdefault("km_genannt", None)
+        werkstatt.setdefault("quelle", "llm")
+
     ergebnis: Dict[str, Any] = {"felder": felder, "llm_status": llm_status}
 
     konflikte: Dict[str, Dict[str, Any]] = {}

@@ -410,8 +410,27 @@ class TestReferenzwerkstattFallback(unittest.TestCase):
         felder = self._extrahiere(
             self.VHV_TEXT,
             {"referenzwerkstatt": {"name": "LLM-Werkstatt"}})
-        self.assertEqual(felder["referenzwerkstatt"],
-                         {"name": "LLM-Werkstatt"})
+        ws = felder["referenzwerkstatt"]
+        self.assertEqual(ws["name"], "LLM-Werkstatt")
+        self.assertEqual(ws["adresse"], "")
+        self.assertEqual(ws["plz_ort"], "")
+        self.assertEqual(ws["telefon"], "")
+        self.assertIsNone(ws["km_genannt"])
+        self.assertEqual(ws["quelle"], "llm")
+
+    def test_llm_shape_wird_auf_kanonische_keys_normalisiert(self):
+        felder = self._extrahiere(
+            self.VHV_TEXT,
+            {"referenzwerkstatt": {"name": "LLM-Werkstatt",
+                                    "entfernung": "16 km"}})
+        ws = felder["referenzwerkstatt"]
+        self.assertEqual(ws["name"], "LLM-Werkstatt")
+        self.assertEqual(ws["adresse"], "")
+        self.assertEqual(ws["plz_ort"], "")
+        self.assertEqual(ws["telefon"], "")
+        self.assertIsNone(ws["km_genannt"])
+        self.assertEqual(ws["quelle"], "llm")
+        self.assertEqual(ws["entfernung"], "16 km")
 
     def test_ohne_treffer_bleibt_feld_leer(self):
         felder = self._extrahiere("Prüfbericht ohne Werkstatt-Verweis",

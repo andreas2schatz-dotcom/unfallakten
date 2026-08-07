@@ -58,7 +58,7 @@ schema:
     beschreibung: Zeile Ergebnis der Spalte "Erstattung bei fiktiver Abrechnung" (netto)
   referenzwerkstatt:
     typ: object
-    beschreibung: Name, Adresse, Stundensätze und Entfernung des für die Korrekturberechnung verwendeten Reparaturbetriebs
+    beschreibung: "Objekt zum für die Korrekturberechnung verwendeten Reparaturbetrieb; Keys: name, adresse (Straße und Hausnummer), plz_ort, telefon, km_genannt (genannte Entfernungskilometer als Zahl), stundensaetze (optional)"
 
 pflichtfelder:
   - pruefdienstleister
