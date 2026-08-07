@@ -568,7 +568,110 @@ function EntfernungDialog({ ergebnis, onClose }) {
   );
 }
 
-function FelderEditor({ felder, onChange }) {
+// "5.448,62" / "5448,62" / "5448.62" / "30" -> Zahl; sonst null.
+export function parseBetragDe(text) {
+  const s = String(text ?? "").trim().replace(/\s|€|EUR/gi, "");
+  if (!s) return null;
+  const norm = s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s;
+  const n = Number(norm);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatiereZahl(wert) {
+  if (wert == null) return "";
+  if (typeof wert !== "number") return String(wert);
+  return String(wert).replace(".", ",");
+}
+
+// Listen flacher Objekte (positionen, zahlungen) bekommen die Tabellen-
+// Bearbeitung; verschachtelte Strukturen bleiben in der JSON-Anzeige.
+function istFlacheObjektListe(liste) {
+  return liste.every(z => z && typeof z === "object" && !Array.isArray(z)
+    && Object.values(z).every(w => w === null || typeof w !== "object"));
+}
+
+const NUMERISCHE_SPALTEN = /betrag|summe|mwst/i;
+
+function spaltenVon(liste) {
+  const spalten = [];
+  liste.forEach(z => Object.keys(z || {}).forEach(s => {
+    if (!spalten.includes(s)) spalten.push(s);
+  }));
+  if (!spalten.length) spalten.push("bezeichnung", "betrag");
+  return spalten;
+}
+
+function ArrayTabelleEditor({ feldKey, liste, onChange }) {
+  const spalten = spaltenVon(liste);
+  const numerisch = (s) => NUMERISCHE_SPALTEN.test(s)
+    || liste.some(z => typeof z?.[s] === "number");
+  const setZeile = (i, spalte, wert) => onChange(feldKey,
+    liste.map((z, j) => (j === i ? { ...z, [spalte]: wert } : z)));
+  const commitBetrag = (i, spalte, text) => {
+    const zahl = parseBetragDe(text);
+    setZeile(i, spalte, zahl != null ? zahl : (String(text).trim() === "" ? null : text));
+  };
+  const zelle = {
+    width: "100%", boxSizing: "border-box",
+    padding: "3px 6px", border: `1px solid ${T.border}`,
+    borderRadius: 4, fontFamily: T.fontMono,
+    fontSize: T.textXs, background: T.cardBg,
+  };
+  return (
+    <div>
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr>
+            {spalten.map(s => (
+              <th key={s} style={{ textAlign: "left", padding: "0 6px 2px 0",
+                fontSize: T.textXs, fontWeight: 600, color: T.textMuted }}>
+                {s}
+              </th>
+            ))}
+            <th style={{ width: 24 }} />
+          </tr>
+        </thead>
+        <tbody>
+          {liste.map((z, i) => (
+            <tr key={i}>
+              {spalten.map(s => (
+                <td key={s} style={{ padding: "2px 6px 2px 0" }}>
+                  <input
+                    value={numerisch(s) ? formatiereZahl(z?.[s]) : (z?.[s] ?? "")}
+                    onChange={e => setZeile(i, s, e.target.value)}
+                    onBlur={numerisch(s)
+                      ? (e => commitBetrag(i, s, e.target.value)) : undefined}
+                    style={zelle}
+                  />
+                </td>
+              ))}
+              <td style={{ padding: "2px 0" }}>
+                <button type="button" aria-label="Zeile entfernen"
+                  title="Zeile entfernen"
+                  onClick={() => onChange(feldKey, liste.filter((_, j) => j !== i))}
+                  style={{ border: "none", background: "transparent",
+                    cursor: "pointer", color: T.redText, fontSize: 13,
+                    padding: "2px 4px" }}>
+                  ✕
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button type="button"
+        onClick={() => onChange(feldKey, [...liste,
+          Object.fromEntries(spalten.map(s => [s, numerisch(s) ? null : ""]))])}
+        style={{ marginTop: 4, padding: "2px 8px", fontSize: T.textXs,
+          background: T.offWhite, border: `1px solid ${T.border}`,
+          borderRadius: 4, cursor: "pointer" }}>
+        + Zeile hinzufügen
+      </button>
+    </div>
+  );
+}
+
+export function FelderEditor({ felder, onChange }) {
   const eintraege = Object.entries(felder || {});
   if (!eintraege.length) {
     return <div style={{ color: T.textMuted, fontSize: T.textSm }}>Keine Felder extrahiert.</div>;
@@ -582,9 +685,12 @@ function FelderEditor({ felder, onChange }) {
               {k}
             </td>
             <td style={{ padding: "4px 0" }}>
-              {(v !== null && typeof v === "object") ? (
-                // Objekt-Felder (z.B. referenzwerkstatt) entstehen maschinell
-                // ueber den Entfernungspruefen-Endpoint, nicht per Freitext.
+              {(Array.isArray(v) && istFlacheObjektListe(v)) ? (
+                <ArrayTabelleEditor feldKey={k} liste={v} onChange={onChange} />
+              ) : (v !== null && typeof v === "object") ? (
+                // Verschachtelte Objekt-Felder (z.B. referenzwerkstatt)
+                // entstehen maschinell ueber den Entfernungspruefen-Endpoint,
+                // nicht per Freitext.
                 <div style={{
                   padding: "4px 8px", border: `1px solid ${T.borderSoft}`,
                   borderRadius: 4, background: T.surface,
