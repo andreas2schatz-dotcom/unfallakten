@@ -9,7 +9,7 @@
 
 ### Übersicht-Redesign A+B — ✅ implementiert (SDD, 2026-08-10), Branch `abschlussbericht`, NICHT gemergt
 Mockups A+B umgesetzt (11 Tasks): Summen-SSOT aus dem Ereignismodell (löst Befund B3), FinanzBand/RegulierungsTabelle/Forderungshistorie raus aus der Übersicht durch 3 Akkordeons ersetzt bzw. in den Regulierung-Tab verlagert, OnboardingHub → Fächer im PhasenStrip, Check-Pills mit Aktions-Popover, `mandant-checks` nur noch 1 Request statt 3, `dringlichkeit()`-Logik dedupliziert. Mockups: `handover/2026-08-10-uebersicht-redesign-mockups.md`. Protokoll → `docs/CHANGELOG.md`, Summen-SSOT-Entscheidung → `docs/DECISIONS.md`. Frontend-Vollsuite 491/491.
-**Offen:** Browser-Abnahme Übersicht-Redesign durch RA Schatz (Fächer, Pill-Popover, KPI-Zahlen an echter Akte, Bestandsakten-Fallback).
+**Offen:** Browser-Abnahme Übersicht-Redesign durch RA Schatz (Fächer, Pill-Popover, KPI-Zahlen an echter Akte, Bestandsakten-Fallback). Bewusst mitzuprüfen: kurzes KPI-Umspringen beim Öffnen (Alt-Zahlen → Ereignismodell); HQ=0-Semantik (Header zeigt 0 € gefordert, Backend-DOCX rechnet bei HQ=0 weiterhin mit 100 % — bekannte Inkonsistenz).
 
 ### Abschluss-/Sachstandsbericht — implementiert, Abnahme offen (Branch `abschlussbericht`)
 Neuer Typ `abschlussbericht` (Migration 67 `abschluss_status`, Service
