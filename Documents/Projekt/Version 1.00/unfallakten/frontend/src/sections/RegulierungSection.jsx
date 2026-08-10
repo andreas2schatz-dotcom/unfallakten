@@ -4,6 +4,7 @@ import Ic from "../config/icons.jsx";
 import { POSITION_LABELS_FE, POSITION_IST_ABZUG, ART_LABEL, ABRECHNUNG_ART_LABEL, POS_KUERZUNG_KATEGORIE, positionKuerzungBetrag, positionenVorlage, _mapPdfPos } from "../config/constants.js";
 import { fmtEuro } from "../config/utils.js";
 import { Card, CardHead, Btn, FieldInput, FieldSelect, Toast, SlidePanel } from "../components/common.jsx";
+import ForderungshistorieKarte from "../components/ForderungshistorieKarte.jsx";
 import {
   akten as apiAkten,
   kuerzungsarten as apiKuerzungsarten,
@@ -2490,6 +2491,8 @@ function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, s
         {/* ── Runden-Vergleich (Task 9): sichtbar ab 2 Abrechnungsrunden ── */}
         <RundenVergleichKachel akteId={akteId} kuerzungsarten={kuerzungsarten}
           refreshKey={abrechnungen.length} />
+
+        <ForderungshistorieKarte akteId={akteId} />
 
         {/* ── Haupt-Regulierungskarte ── */}
         <Card>
