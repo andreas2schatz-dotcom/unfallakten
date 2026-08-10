@@ -10,27 +10,18 @@ const T = {
   fontBody:    "var(--font-ui)",
 };
 
-export default function OnboardingHub({ az, beteiligte = [], schaden = {}, dokumente = [], aktivitaeten = [], onTabWechsel }) {
+export default function OnboardingHub({ az, akte = {}, beteiligte = [], schaden = {}, dokumente = [], onTabWechsel }) {
 
-  const mandant     = beteiligte.find(b => b.rolle === "mandant");
-  const gegner      = beteiligte.find(b => b.rolle === "gegner");
-  const ghpv        = beteiligte.find(b => ["ghpv", "versicherung", "ghpv_versicherung"].includes(b.rolle));
-  const hatUnfall   = !!(schaden?.unfalldatum && schaden?.unfallort);
-  const hatSchaden  = (schaden?.positionen?.length || 0) > 0;
-  const hatVollmacht = dokumente.some(d => (d.klasse || "").toLowerCase().includes("vollmacht"));
-  const hatErstforderung = aktivitaeten.some(a => a.typ === "forderungsschreiben");
+  const rolleVon  = (b) => (b.rolle || b.kuerzel || "").toLowerCase();
+  const klasseVon = (d) => (d.dokumentenklasse || d.klasse || "").toLowerCase();
 
-  const onboardingNoetig = !mandant || !mandant.iban;
-
-  const storageKey = `onboarding_hub_versteckt_${az}`;
-  const [versteckt, setVersteckt] = useState(
-    () => localStorage.getItem(storageKey) === "true"
-  );
-
-  if (!onboardingNoetig || versteckt) return null;
-
-  const erledigt = [!!mandant, !!gegner, !!ghpv, hatUnfall, hatSchaden, hatVollmacht]
-    .filter(Boolean).length;
+  const mandant     = beteiligte.find(b => rolleVon(b) === "mandant");
+  const gegner      = beteiligte.find(b => rolleVon(b) === "gegner");
+  const ghpv        = beteiligte.find(b => ["ghpv", "ghv", "gbev", "versicherung", "ghpv_versicherung"].includes(rolleVon(b)));
+  const hatUnfall   = !!(akte?.unfalldatum && akte?.unfallort);
+  const hatSchaden  = (parseFloat(schaden?.abrechnungsberechnung?.gesamt_brutto) || parseFloat(schaden?.gesamt_brutto) || 0) > 0;
+  const hatVollmacht = dokumente.some(d => klasseVon(d).includes("vollmacht"));
+  const hatErstforderung = dokumente.some(d => klasseVon(d) === "forderungsschreiben");
 
   const kacheln = [
     { key: "mandant",       label: "Mandant",              ok: !!mandant,        tab: "beteiligte"   },
@@ -41,6 +32,17 @@ export default function OnboardingHub({ az, beteiligte = [], schaden = {}, dokum
     { key: "vollmacht",     label: "Vollmacht & Dokumente",ok: hatVollmacht,     tab: "dokumente"    },
     { key: "erstforderung", label: "Erstforderung",        ok: hatErstforderung, tab: "word", optional: true },
   ];
+
+  const pflicht  = kacheln.filter(k => !k.optional);
+  const erledigt = pflicht.filter(k => k.ok).length;
+  const onboardingNoetig = pflicht.some(k => !k.ok);
+
+  const storageKey = `onboarding_hub_versteckt_${az}`;
+  const [versteckt, setVersteckt] = useState(
+    () => localStorage.getItem(storageKey) === "true"
+  );
+
+  if (!onboardingNoetig || versteckt) return null;
 
   const Kachel = ({ k }) => {
     const bg     = k.ok ? T.greenBg    : k.optional ? T.purpleBg    : T.amberBg;
@@ -78,7 +80,7 @@ export default function OnboardingHub({ az, beteiligte = [], schaden = {}, dokum
     }}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
         <span style={{ fontFamily: T.fontDisplay, fontWeight: 700, color: T.navy, fontSize: "0.9rem" }}>
-          Onboarding — {erledigt} von 6 Bereichen vollständig
+          Onboarding — {erledigt} von {pflicht.length} Bereichen vollständig
         </span>
         <button
           onClick={() => { localStorage.setItem(storageKey, "true"); setVersteckt(true); }}

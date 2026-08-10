@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
 import { HAFTUNGSART_CFG, TIMELINE_FILTER, TIMELINE_TYPE_CFG, POSITION_LABELS_FE, positionKuerzungBetrag } from "../config/constants.js";
 import { fmtEuro } from "../config/utils.js";
 import { Card, CardHead, Btn, Toast } from "../components/common.jsx";
-import StaDialog from "../components/StaDialog.jsx";
 import OnboardingHub from "./OnboardingHub";
 import PositionsDashboard from "../components/PositionsDashboard.jsx";
 import EreignislistePanel from "../components/EreignislistePanel.jsx";
@@ -16,16 +15,6 @@ import {
   request,
   tokenStore,
 } from "../api.js";
-
-function InfoZeile({ label, value, mono=false, bold=false }) {
-  if (!value) return null;
-  return (
-    <div style={{ display:"flex", gap:8, padding:"4px 0", borderBottom:`1px solid ${T.borderSoft}` }}>
-      <span style={{ fontFamily:T.fontBody, fontSize:"0.8rem", color:T.textFaint, width:110, flexShrink:0, paddingTop:1 }}>{label}</span>
-      <span style={{ fontFamily: mono?"ui-monospace,monospace":T.fontBody, fontSize:"0.875rem", color:T.text, fontWeight: bold?600:400 }}>{value}</span>
-    </div>
-  );
-}
 
 /* ──────────────────────────────────────────────────────────────
 ────────────────────────────────────────────────────────────── */
@@ -58,7 +47,7 @@ function RechtsschutzKlappkachel({ beteiligte }) {
           transform: offen ? "rotate(180deg)" : "none",
           transition:"transform 0.2s",
           lineHeight:1,
-        }}>⌄⌄</span>
+        }}>⌄</span>
       </button>
       {/* Ausgeklappter Inhalt */}
       {offen && (
@@ -72,7 +61,7 @@ function RechtsschutzKlappkachel({ beteiligte }) {
           <BeteiligterKachel
             titel="" farbe={T.green}
             beteiligte={beteiligte}
-            zeigeBetreff zeigeAktenzeichen
+            zeigeBetreff
           />
         </div>
       )}
@@ -720,9 +709,11 @@ function AktenTimeline({ abrechnungen, aktivitaeten, akteId, onAktivitaetenChang
   const regEntries = abrechnungen.map(ab => {
     const ha  = HAFTUNGSART_CFG[ab.haftungsart] || HAFTUNGSART_CFG.vollhaftung;
     const typ = ab.haftungsart === "ablehnung" ? "ablehnung" : "abrechnung";
+    const abDatum = ab.datum || "";
     return {
       id: `ab-${ab.id}`, kategorie:"regulierung", typ,
-      datum: ab.datum || "",
+      sortKey: abDatum.includes(".") ? abDatum.split(".").reverse().join("-") : abDatum,
+      datum: abDatum,
       titel: ab.versicherung || "Abrechnungsschreiben",
       zeile1: "Reguliert: " + fmtEuro(ab.gesamt_reguliert) +
               (ab.gesamt_kuerzung > 0 ? "  ·  Kürzung: −" + fmtEuro(ab.gesamt_kuerzung) : ""),
@@ -769,6 +760,7 @@ function AktenTimeline({ abrechnungen, aktivitaeten, akteId, onAktivitaetenChang
     } catch { /* Originalformat behalten */ }
     return {
       id: "ak-" + (a.id ?? i), kategorie:"taetigkeit", typ:"taetigkeit",
+      sortKey: (a.zeitstempel || a.zeit || "").replace(" ", "T"),
       datum,
       datumAnzeige,
       uhrzeitAnzeige,
@@ -779,10 +771,9 @@ function AktenTimeline({ abrechnungen, aktivitaeten, akteId, onAktivitaetenChang
     };
   });
 
-  const alle = [...regEntries, ...aktEntries].sort((a, b) => {
-    const toSort = s => s.includes(".") ? s.split(".").reverse().join("-") : s;
-    return toSort(b.datum).localeCompare(toSort(a.datum));
-  });
+  const alle = [...regEntries, ...aktEntries].sort(
+    (a, b) => (b.sortKey || "").localeCompare(a.sortKey || "")
+  );
 
   const sichtbar = filter === "alle" ? alle :
                    alle.filter(e => e.kategorie === filter);
@@ -897,6 +888,8 @@ function RegulierungsTabelle({
   const repRN = _g("rep_rechnung_netto");
   const wbw = _g("wiederbeschaffung"), rst = _g("restwert");
   const nettoFzg = wbw - rst;
+  const effRep = repRN > 0 ? repRN : repN;
+  const ist130 = repRN > 0 && wbw > 0 && repRN > nettoFzg && repRN <= 1.3 * wbw;
   // art kommt aus Backend (abrechnungsberechnung) – Fallback auf gespeicherten Wert
   const art = schaden?.abrechnungsberechnung?.abrechnungsart
     || schaden?.abrechnungsart
@@ -1440,154 +1433,6 @@ function TodoSection({ akteId, az, onTodoChange }) {
   );
 }
 
-// ── PRD-16: To-Do-Kachel kompakt für Übersicht ─────────────────────────────
-
-
-function TodoKachelKompakt({ az, akteId, azRoh }) {
-  const [todos, setTodos]     = useState([]);
-  const [wvListe, setWvListe] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const todoCall = Promise.race([
-      apiTodos.liste(az),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
-    ]).catch(() => ({ todos: [] }));
-    const wvCall = azRoh && azRoh.includes("/")
-      ? request(`/wiedervorlage/?az=${encodeURIComponent(azRoh)}&alle_gruende=true&alle_daten=true&limit=10`)
-          .then(r => r?.wiedervorlagen || [])
-          .catch(() => [])
-      : Promise.resolve([]);
-
-    Promise.all([todoCall, wvCall])
-      .then(([todoRes, wvRes]) => {
-        setTodos(todoRes?.todos || []);
-        setWvListe(wvRes);
-      })
-      .finally(() => setLoading(false));
-  }, [az, azRoh]);
-
-  const offen = todos.filter(t => !t.erledigt);
-
-  const FARBEN = {
-    rot:    { dot: T.red },
-    orange: { dot: "#f97316" },
-    gelb:   { dot: "#eab308" },
-    grau:   { dot: T.textFaint },
-  };
-
-  const dringlichkeit = (todo) => {
-    const heute = new Date(); heute.setHours(0,0,0,0);
-    if (todo.faellig_am) {
-      const frist = new Date(todo.faellig_am); frist.setHours(0,0,0,0);
-      const tage = Math.round((frist - heute) / 86400000);
-      const s = tage < 0 ? "rot" : tage < 3 ? "rot" : tage < 7 ? "orange" : tage < 14 ? "gelb" : "grau";
-      return todo.frist_typ === "verjaehrung"
-        ? ({rot:"rot",orange:"rot",gelb:"orange",grau:"gelb"}[s] || s) : s;
-    }
-    const alter = Math.round((heute - new Date(todo.erstellt_am)) / 86400000);
-    return alter >= 15 ? "rot" : alter >= 8 ? "orange" : alter >= 4 ? "gelb" : "grau";
-  };
-
-  const fmtWvDatum = (iso) => {
-    if (!iso) return "";
-    try { const [y,m,d] = iso.split("-"); return `${d}.${m}.${y}`; } catch { return iso; }
-  };
-
-  if (loading) return null;
-
-  const hatWv = wvListe.length > 0;
-
-  return (
-    <Card style={ offen.length > 0 ? { border:`1.5px solid ${T.accentTrim}`, background:T.accentPale } : {} }>
-      {/* Header */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.85rem 1.4rem 0.5rem", flexWrap:"wrap", gap:8 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <span style={{ fontFamily:T.fontBody, fontSize:"0.825rem", fontWeight:600, color:T.textMid, textTransform:"uppercase", letterSpacing:"0.08em" }}>
-            📋 To-Dos
-          </span>
-          {offen.length > 0 && (
-            <span style={{ background:T.redBg, color:T.red, borderRadius:10, padding:"1px 7px", fontSize:"0.78rem", fontWeight:600 }}>
-              {offen.length} offen
-            </span>
-          )}
-        </div>
-        {hatWv && (
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <span style={{ fontFamily:T.fontBody, fontSize:"0.825rem", fontWeight:600, color:T.textMid, textTransform:"uppercase", letterSpacing:"0.08em" }}>
-              📅 Wiedervorlagen
-            </span>
-            <span style={{ background:"#fef9c3", color:"#92400e", borderRadius:10, padding:"1px 7px", fontSize:"0.78rem", fontWeight:600 }}>
-              {wvListe.length} fällig
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Body */}
-      <div style={{ display:"grid", gridTemplateColumns: hatWv ? "1fr 1px 1fr" : "1fr", padding:"0 1.4rem 0.85rem", gap:0 }}>
-
-        {/* To-Do-Spalte */}
-        <div style={{ paddingRight: hatWv ? 12 : 0 }}>
-          {offen.length === 0 ? (
-            <div style={{ fontSize:"0.875rem", color:T.textFaint, fontFamily:T.fontBody }}>
-              ✅ Alle To-Dos erledigt
-            </div>
-          ) : (
-            offen.slice(0, 4).map(todo => {
-              const d = dringlichkeit(todo);
-              const f = FARBEN[d];
-              return (
-                <div key={todo.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 0", borderBottom:`1px solid ${T.borderSoft}` }}>
-                  <span style={{ width:8, height:8, borderRadius:"50%", background:f.dot, flexShrink:0, display:"inline-block" }} />
-                  <span style={{ fontFamily:T.fontBody, fontSize:"0.875rem", color:T.text, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                    {todo.text}
-                  </span>
-                  {todo.faellig_am && (
-                    <span style={{ fontSize:"0.75rem", color:T.textFaint, fontFamily:"ui-monospace,monospace", flexShrink:0 }}>
-                      {(() => { try { const [y,m,d]=todo.faellig_am.split("-"); return `${d}.${m}.`; } catch{return "";} })()}
-                    </span>
-                  )}
-                </div>
-              );
-            })
-          )}
-          {offen.length > 4 && (
-            <div style={{ fontSize:"0.8rem", color:T.textFaint, marginTop:5, fontFamily:T.fontBody }}>
-              + {offen.length - 4} weitere …
-            </div>
-          )}
-        </div>
-
-        {/* Trennlinie */}
-        {hatWv && <div style={{ background:T.border, width:1, alignSelf:"stretch" }} />}
-
-        {/* Wiedervorlage-Spalte */}
-        {hatWv && (
-          <div style={{ paddingLeft:12, display:"flex", flexDirection:"column", gap:6 }}>
-            {wvListe.slice(0, 3).map((wv) => (
-              <div key={wv.guid || wv.datum + wv.grund} style={{ background:"#fef9c3", border:"1px solid #fde047", borderRadius:6, padding:"6px 10px" }}>
-                <div style={{ fontFamily:T.fontBody, fontSize:"0.8rem", fontWeight:700, color:"#78350f", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {wv.grund || "Wiedervorlage"}
-                </div>
-                <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.75rem", color:"#92400e", marginTop:2 }}>
-                  fällig: {fmtWvDatum(wv.datum)}
-                </div>
-              </div>
-            ))}
-            {wvListe.length > 3 && (
-              <div style={{ fontSize:"0.78rem", color:T.textFaint, fontFamily:T.fontBody }}>
-                + {wvListe.length - 3} weitere → WVL-Tab
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </Card>
-  );
-}
-
-
 function KlappAbschnitt({ titel, lsKey, children, standardOffen = true }) {
   const [offen, setOffen] = useState(() => {
     try {
@@ -1866,7 +1711,7 @@ function StatusBand({ ibanCheck, todos, hq }) {
   };
 
   const heute = new Date(); heute.setHours(0,0,0,0);
-  const fristTodo = (todos || []).find(t => !t.erledigt && t.frist_typ === "gerichtlich");
+  const fristTodo = (todos || []).find(t => !t.erledigt && (t.frist_typ === "gericht" || t.frist_typ === "gerichtlich"));
   const verjTodo  = (todos || []).find(t => !t.erledigt && t.frist_typ === "verjaehrung");
 
   const tageBis = (iso) => {
@@ -2030,92 +1875,6 @@ function TodoInlineForm({ az, onDone }) {
   );
 }
 
-function AkteActionBoardHeader({ akte, azRoh, mandantName, onNavigate, ibanCheck }) {
-  const [zeigePwModal, setZeigePwModal]       = React.useState(false);
-  const [zeigeStaDialog, setZeigeStaDialog]   = React.useState(false);
-  const [zeigeTodoForm, setZeigeTodoForm]     = React.useState(false);
-
-  const az   = akte.az_roh || akte.az || "";
-  const kurz = akte.kurzbezeichnung || akte.kurzbez || ibanCheck?.kurzbezeichnung || "";
-  const lang = akte.bezeichnung || akte.langbezeichnung || ibanCheck?.bezeichnung || "";
-
-  const BTN = ({ children, onClick, stil = "ghost" }) => {
-    const styles = {
-      ghost:   { background:"rgba(255,255,255,.12)", color:"white",  border:"1px solid rgba(255,255,255,.22)" },
-      primary: { background:T.accent,               color:"white",  border:"none" },
-      warn:    { background:T.amber || "#f59e0b",   color:"#1a1a00",border:"none" },
-      dimmed:  { background:"rgba(255,255,255,.07)", color:T.textFaint, border:"1px solid rgba(255,255,255,.1)" },
-    };
-    return (
-      <button onClick={onClick} style={{
-        ...styles[stil],
-        fontFamily:T.fontBody, fontSize:"0.72rem", fontWeight:600,
-        padding:"5px 12px", borderRadius:6, cursor:"pointer",
-        display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap",
-      }}>{children}</button>
-    );
-  };
-
-  return (
-    <>
-      {zeigePwModal && (
-        <PwaNachrichtModal
-          az={azRoh || az}
-          mandantName={mandantName}
-          onClose={() => setZeigePwModal(false)}
-        />
-      )}
-      {zeigeStaDialog && (
-        <StaDialog
-          az={azRoh || az}
-          onClose={() => setZeigeStaDialog(false)}
-        />
-      )}
-
-      <div style={{ background:T.navy, borderRadius:"10px 10px 0 0", padding:"12px 18px 10px" }}>
-        <div style={{ display:"flex", alignItems:"baseline", gap:14, flexWrap:"wrap", marginBottom:3 }}>
-          <span style={{
-            fontFamily:T.fontDisplay,
-            fontSize:"1.5rem", fontWeight:800, color:"white", letterSpacing:".03em", lineHeight:1,
-          }}>{az}</span>
-          {kurz && (
-            <span style={{
-              fontFamily:T.fontDisplay,
-              fontSize:"1.1rem", fontWeight:600, color:T.accentLight, lineHeight:1,
-            }}>{kurz}</span>
-          )}
-        </div>
-        {lang && (
-          <div style={{
-            fontFamily:T.fontBody, fontSize:"0.88rem", color:T.textFaint, marginTop:2,
-          }}>{lang}</div>
-        )}
-
-        <div style={{
-          display:"flex", gap:6, flexWrap:"wrap",
-          marginTop:10, paddingTop:10,
-          borderTop:"1px solid rgba(255,255,255,.1)",
-        }}>
-          <BTN stil="primary" onClick={() => setZeigePwModal(true)}>💬 Nachricht → Mandant</BTN>
-          <BTN stil="warn"    onClick={() => setZeigeStaDialog(true)}>📤 STA senden</BTN>
-          <BTN stil="ghost"   onClick={() => setZeigeTodoForm(t => !t)}>+ Todo</BTN>
-          <BTN stil="ghost"   onClick={() => onNavigate && onNavigate("word")}>📄 Word</BTN>
-          <BTN stil="dimmed"  onClick={() => onNavigate && onNavigate("klage")}>⚖ Klage</BTN>
-        </div>
-      </div>
-
-      {zeigeTodoForm && (
-        <div style={{
-          background:T.surface, border:`1px solid ${T.border}`,
-          borderTop:"none", padding:"12px 18px",
-        }}>
-          <TodoInlineForm az={azRoh || az} onDone={() => setZeigeTodoForm(false)} />
-        </div>
-      )}
-    </>
-  );
-}
-
 const PWA_VORLAGEN = [
   {
     key: "iban_anfrage",
@@ -2259,18 +2018,8 @@ function UebersichtSection({ akte, st, dispatch, onNavigate }) {
       .catch(() => { /* Fehler ignorieren – Mock-Daten bleiben */ });
   }, [akte.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const mandant    = st.beteiligte?.find(b => b.rolle === "mandant");
-  const gegner     = st.beteiligte?.find(b => b.rolle === "gegner");
   const schaden    = st.schaden || {};
   const abrechnungen = st.abrechnungen || [];
-  // PRD-14: Brutto aus Backend-Berechnung (Single Source of Truth)
-  const _g  = k => parseFloat(schaden[k]) || 0;
-  const _berechneterBruttoKK = schaden?.abrechnungsberechnung?.gesamt_brutto
-    ?? schaden?.gesamt_brutto
-    ?? 0;
-  const brutto = _berechneterBruttoKK > 0 ? _berechneterBruttoKK
-    : (schaden.gesamt_brutto || 0);
-  const netto      = brutto * ((akte.hq || 100) / 100);
 
   // Alle Positionen aus allen Abrechnungen aggregieren
   // Manuell = kumulativ (Teilzahlungen), PDF/WDM = letzter Eintrag gewinnt
@@ -2415,31 +2164,21 @@ function UebersichtSection({ akte, st, dispatch, onNavigate }) {
   const gesamtForderung = alleRows.reduce((s, r) => s + r.forderung, 0);
   const gesamtReguliert = alleRows.reduce((s, r) => s + (r.reguliert ?? 0), 0);
   const gesamtKuerzung  = alleRows.reduce((s, r) => s + (r.kuerzung ?? 0), 0);
-  const klageSumme      = alleRows.filter(r => r.fuerKlage).reduce((s, r) => s + (r.kuerzung || 0), 0);
-  const regGrad         = netto > 0 ? Math.min(100, Math.round(gesamtReguliert / netto * 100)) : 0;
-  const hatRegulierung  = abrechnungen.length > 0;
 
   const phase = berechnePhase({ akte, ibanCheck, schaden, abrechnungen, gesamtForderung, gesamtReguliert, gesamtKuerzung });
 
-  const InfoRow = ({ label, value }) => value ? (
-    <div style={{ borderBottom:`1px solid ${T.borderSoft}`, padding:"6px 0", display:"flex", gap:12 }}>
-      <span style={{ fontSize:"0.84rem", color:T.textFaint, width:110, flexShrink:0 }}>{label}</span>
-      <span style={{ fontSize:"0.93rem", color:T.text }}>{value}</span>
-    </div>
-  ) : null;
 
   const azKlappKey = azRoh.replace(/\//g, "-");
 
-  const mandantName = ibanCheck?.mandant_name || mandant?.name || "";
 
   return (
     <>
       <OnboardingHub
         az={akte.az}
+        akte={akte}
         beteiligte={st?.beteiligte || []}
         schaden={st?.schaden || {}}
         dokumente={st?.dokumente || []}
-        aktivitaeten={st?.aktivitaeten || []}
         onTabWechsel={onNavigate}
       />
 
@@ -2547,5 +2286,6 @@ function UebersichtSection({ akte, st, dispatch, onNavigate }) {
 }
 
 
-export { RegulierungsTabelle, TodoSection, PwaNachrichtModal, StaDialog };
+export { RegulierungsTabelle, TodoSection, PwaNachrichtModal,
+  AktenTimeline, StatusBand, RechtsschutzKlappkachel, TodoInlineForm };
 export default UebersichtSection;

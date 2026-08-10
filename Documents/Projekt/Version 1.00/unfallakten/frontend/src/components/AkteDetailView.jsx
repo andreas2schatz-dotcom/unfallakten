@@ -1,14 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
+import React, { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
-import { STATUS_MAP } from "../config/constants.js";
 import { fmtEuro } from "../config/utils.js";
 import { Toast } from "../components/common.jsx";
 import {
-  akten as apiAkten,
   beteiligte as apiBeteiligte,
   schaden as apiSchaden,
-  apiTodos,
   request,
   ramicroWdm,
   belege as apiBelege,
@@ -17,8 +14,8 @@ import {
 
 // Immer synchron: Default-Tab + kleine Hilfskomponenten
 import UebersichtSection from "../sections/UebersichtSection.jsx";
-import { PwaNachrichtModal, StaDialog } from "../sections/UebersichtSection.jsx";
-import RaMicroSachstandsCard from "../sections/RaMicroSachstandsCard.jsx";
+import { PwaNachrichtModal, TodoInlineForm } from "../sections/UebersichtSection.jsx";
+import StaDialog from "./StaDialog.jsx";
 import AktionBadge from "../views/email_import/components/AktionBadge.jsx";
 
 // Lazy: Werden erst beim ersten Tabwechsel geladen
@@ -47,6 +44,7 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted, onOpenRe
   // Action-Buttons im Haupt-Header
   const [zeigePwModal, setZeigePwModal] = useState(false);
   const [zeigeStaDialog, setZeigeStaDialog] = useState(false);
+  const [zeigeTodoForm, setZeigeTodoForm] = useState(false);
   const mandantName = useMemo(
     () => (st.beteiligte || []).find(b => b.rolle === "mandant")?.name || "",
     [st.beteiligte]
@@ -330,7 +328,7 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted, onOpenRe
           {[
             { label:"💬 Nachricht → Mandant", stil:"primary", onClick:() => setZeigePwModal(true) },
             { label:"📤 STA senden",          stil:"warn",    onClick:() => setZeigeStaDialog(true) },
-            { label:"+ Todo",                 stil:"ghost",   onClick:() => setSec("uebersicht") },
+            { label:"+ Todo",                 stil:"ghost",   onClick:() => setZeigeTodoForm(f => !f) },
             { label:"📄 Word",                stil:"ghost",   onClick:() => setSec("word") },
             { label:"⚖ Klage",               stil:"dimmed",  onClick:() => setSec("klage") },
           ].map(({ label, stil, onClick }) => {
@@ -362,6 +360,12 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted, onOpenRe
             </span>
           </label>
         </div>
+
+        {zeigeTodoForm && (
+          <div style={{ background:T.surface, borderRadius:8, padding:"10px 12px", marginBottom:8 }}>
+            <TodoInlineForm az={akte.az_roh || akte.az} onDone={() => setZeigeTodoForm(false)} />
+          </div>
+        )}
 
         <div style={{ display:"flex", overflowX:"auto", scrollbarWidth:"none" }}>
           {tabs.map(t => (
