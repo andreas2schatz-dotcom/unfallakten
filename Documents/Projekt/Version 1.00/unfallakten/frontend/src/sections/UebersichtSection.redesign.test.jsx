@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 
 vi.mock("../api.js", () => ({
   API_BASE: "",
@@ -14,7 +14,7 @@ vi.mock("../api.js", () => ({
   apiSta: { kontext: vi.fn(), generieren: vi.fn() },
 }));
 
-import UebersichtSection from "./UebersichtSection.jsx";
+import UebersichtSection, { StatusBand } from "./UebersichtSection.jsx";
 
 const PROPS = {
   akte: { id: "123/26", az: "123/26", az_roh: "123/26", hq: 100, status: "offen" },
@@ -48,5 +48,15 @@ describe("Übersicht-Redesign A — eine Wahrheit pro Information", () => {
     expect(screen.getByText(/Chronik/)).toBeInTheDocument();
     expect(screen.getByText(/Notizen/)).toBeInTheDocument();
     expect(screen.queryByText(/Regulierungsdetails/)).toBeNull();
+  });
+});
+
+describe("StatusBand-Aktions-Popover", () => {
+  it("zeigt bei fehlender Vollmacht die Aktionen nach Klick auf die Pill", () => {
+    render(<StatusBand ibanCheck={{ vollmacht_vorhanden: false, iban_vorhanden: true }}
+      todos={[]} hq={100} akteId="123/26" mandant={{ email: "m@example.com", name: "Max Müller" }} />);
+    fireEvent.click(screen.getByText(/Vollmacht fehlt/));
+    expect(screen.getByText(/✉ anfordern/)).toBeInTheDocument();
+    expect(screen.getByText(/PDF generieren/)).toBeInTheDocument();
   });
 });

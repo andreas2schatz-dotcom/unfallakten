@@ -12,8 +12,8 @@ import {
   ramicroAkte as apiRaMicroAkte,
   apiTodos,
   request,
-  tokenStore,
 } from "../api.js";
+import { ibanAnfrageMailto, vollmachtAnfrageMailto, vollmachtPdfLaden } from "./mandantAktionen.js";
 
 /* ──────────────────────────────────────────────────────────────
 ────────────────────────────────────────────────────────────── */
@@ -98,38 +98,6 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
   }, [akteId, titel]);
 
   if (!liste.length) return null;
-
-  const ibanMailtoLink = () => {
-    const mandant = liste[0];
-    const email   = ibanCheck?.mandant_email || mandant?.email || "";
-    const name    = ibanCheck?.mandant_name  || mandant?.name  || "Mandant";
-    const anrede  = ["Herr","Herrn","Hr."].includes((mandant?.anrede||"").trim())
-      ? `Sehr geehrter Herr ${name.split(" ").pop()},`
-      : ["Frau","Fr."].includes((mandant?.anrede||"").trim())
-        ? `Sehr geehrte Frau ${name.split(" ").pop()},`
-        : `Sehr geehrte/r ${name},`;
-    const betreff = encodeURIComponent("Bankverbindung für Ihre Akte");
-    const body    = encodeURIComponent(
-      `${anrede}\n\nfür die Geltendmachung Ihrer Schadensersatzansprüche benötigen wir noch Ihre Bankverbindung (IBAN).\n\nBitte teilen Sie uns Ihre IBAN baldmöglichst mit, damit wir eingegangene Zahlungen umgehend an Sie weiterleiten können.\n\nMit freundlichen Grüßen\nRechtsanwälte Koch, Schatz & Kollegen`
-    );
-    return `mailto:${email}?subject=${betreff}&body=${body}`;
-  };
-
-  const vollmachtMailtoLink = () => {
-    const mandant = liste[0];
-    const email   = ibanCheck?.mandant_email || mandant?.email || "";
-    const name    = ibanCheck?.mandant_name  || mandant?.name  || "Mandant";
-    const anrede  = ["Herr","Herrn","Hr."].includes((mandant?.anrede||"").trim())
-      ? `Sehr geehrter Herr ${name.split(" ").pop()},`
-      : ["Frau","Fr."].includes((mandant?.anrede||"").trim())
-        ? `Sehr geehrte Frau ${name.split(" ").pop()},`
-        : `Sehr geehrte/r ${name},`;
-    const betreff = encodeURIComponent("Vollmacht – Bitte unterzeichnen und zurücksenden");
-    const body    = encodeURIComponent(
-      `${anrede}\n\nim Anhang erhalten Sie die Vollmacht für die Bearbeitung Ihrer Schadenssache.\n\nBitte unterzeichnen Sie diese und senden Sie uns die Vollmacht baldmöglichst zurück – per E-Mail, Post oder Fax.\n\nFür Rückfragen stehen wir Ihnen gerne zur Verfügung.\n\nMit freundlichen Grüßen\nRechtsanwälte Koch, Schatz & Kollegen`
-    );
-    return `mailto:${email}?subject=${betreff}&body=${body}`;
-  };
 
   const mailtoLink = (b) => {
     if (!b.email) return null;
@@ -227,7 +195,7 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
                       IBAN nicht erfasst
                     </span>
                     {(ibanCheck.mandant_email || b.email) && (
-                      <a href={ibanMailtoLink()}
+                      <a href={ibanAnfrageMailto(ibanCheck, liste[0])}
                         style={{ fontFamily:T.fontBody, fontSize:"0.77rem",
                           padding:"2px 8px", background:T.blueBg,
                           border:`1px solid ${T.blue}55`, borderRadius:5,
@@ -265,7 +233,7 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
                       Vollmacht fehlt
                     </span>
                     {(ibanCheck.mandant_email || b.email) && (
-                      <a href={vollmachtMailtoLink()}
+                      <a href={vollmachtAnfrageMailto(ibanCheck, liste[0])}
                         style={{ fontFamily:T.fontBody, fontSize:"0.77rem",
                           padding:"2px 8px", background:"#fdf4ff",
                           border:"1px solid #d8b4fe", borderRadius:5,
@@ -276,31 +244,7 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
                     )}
                     {akteId && (
                       <button
-                        onClick={async () => {
-                          try {
-                            const token = tokenStore.getAccess();
-                            const base = (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) || "";
-                            const res = await fetch(`${base}/ramicro/akte/vollmacht?az=${encodeURIComponent(akteId)}`, {
-                              headers: { Authorization: `Bearer ${token}` }
-                            });
-                            if (!res.ok) {
-                              const err = await res.json().catch(() => ({}));
-                              setToast(`Vollmacht-Fehler: ${err.fehler || err.typ || res.status}`);
-                              return;
-                            }
-                            const blob = await res.blob();
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `Vollmacht_${(akteId||"").replace("/","_")}.pdf`;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            setTimeout(() => URL.revokeObjectURL(url), 5000);
-                          } catch(e) {
-                            setToast(`Vollmacht-Fehler: ${e.message}`);
-                          }
-                        }}
+                        onClick={() => vollmachtPdfLaden(akteId).catch(e => setToast(`Vollmacht-Fehler: ${e.message}`))}
                         style={{ fontFamily:T.fontBody, fontSize:"0.77rem",
                           padding:"2px 8px", background:"#f0fdf4",
                           border:"1px solid #86efac", borderRadius:5,
@@ -1481,7 +1425,7 @@ function PhasenStrip({ phase }) {
   );
 }
 
-function StatusBand({ ibanCheck, todos, hq }) {
+function StatusBand({ ibanCheck, todos, hq, akteId, mandant, onFehler }) {
   const vollmacht = ibanCheck?.vollmacht_vorhanden;
   const iban      = ibanCheck?.iban_vorhanden;
   const rsv       = ibanCheck?.rechtsschutz_deckung;
@@ -1520,6 +1464,42 @@ function StatusBand({ ibanCheck, todos, hq }) {
     try { const [y,m,d] = iso.split("-"); return `${d}.${m}.${y}`; } catch { return iso; }
   };
 
+  const AktionsPill = ({ ok, label, aktionen }) => {
+    const [offen, setOffen] = React.useState(false);
+    const hatAktionen = ok === false && aktionen.length > 0;
+    let bg, color, border;
+    if (ok === true)       { bg = T.greenBg; color = T.greenText; border = T.greenLight; }
+    else if (ok === false) { bg = T.redBg;   color = T.redText;   border = T.redLight;   }
+    else                   { bg = T.surface; color = T.textFaint; border = T.border;     }
+    return (
+      <span style={{ position:"relative", display:"inline-flex" }}>
+        <button
+          onClick={() => hatAktionen && setOffen(o => !o)}
+          style={{ display:"inline-flex", alignItems:"center", gap:4,
+            fontSize:"0.7rem", fontWeight:600, padding:"3px 9px",
+            borderRadius:20, border:`1px solid ${border}`, background:bg, color,
+            whiteSpace:"nowrap", cursor: hatAktionen ? "pointer" : "default",
+            fontFamily:T.fontBody }}>
+          {label}{hatAktionen && " ▾"}
+        </button>
+        {offen && (
+          <span style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:60,
+            background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:8,
+            boxShadow:"0 6px 18px rgba(0,0,0,.14)", padding:"6px 8px",
+            display:"flex", gap:6, whiteSpace:"nowrap" }}>
+            {aktionen}
+          </span>
+        )}
+      </span>
+    );
+  };
+
+  const aktionChip = {
+    fontFamily:T.fontBody, fontSize:"0.72rem", fontWeight:600, padding:"3px 9px",
+    borderRadius:6, border:`1px solid ${T.accentTrim}`, background:T.accentPale,
+    color:T.accentDark, textDecoration:"none", cursor:"pointer",
+  };
+
   return (
     <div style={{
       background:T.surface, borderTop:`1px solid ${T.border}`,
@@ -1528,10 +1508,20 @@ function StatusBand({ ibanCheck, todos, hq }) {
     }}>
       <div style={{ display:"flex", gap:7, alignItems:"center", paddingRight:14, marginRight:14, borderRight:`1px solid ${T.border}`, flexWrap:"wrap" }}>
         <span style={{ fontSize:".62rem", fontWeight:700, color:T.textFaint, textTransform:"uppercase", letterSpacing:".07em" }}>Checks</span>
-        <Pill ok={vollmacht}
-          label={vollmacht === true ? "✓ Vollmacht" : vollmacht === false ? "✗ Vollmacht fehlt" : "○ Vollmacht"} />
-        <Pill ok={iban}
-          label={iban === true ? "✓ IBAN" : iban === false ? "✗ IBAN fehlt" : "○ IBAN"} />
+        <AktionsPill ok={vollmacht}
+          label={vollmacht === true ? "✓ Vollmacht" : vollmacht === false ? "✗ Vollmacht fehlt" : "○ Vollmacht"}
+          aktionen={vollmacht === false ? [
+            <a key="anf" href={vollmachtAnfrageMailto(ibanCheck, mandant)} style={aktionChip}>✉ anfordern</a>,
+            <button key="pdf" style={aktionChip}
+              onClick={() => akteId && vollmachtPdfLaden(akteId).catch(e => onFehler && onFehler(`Vollmacht-Fehler: ${e.message}`))}>
+              ↓ PDF generieren
+            </button>,
+          ] : []} />
+        <AktionsPill ok={iban}
+          label={iban === true ? "✓ IBAN" : iban === false ? "✗ IBAN fehlt" : "○ IBAN"}
+          aktionen={iban === false ? [
+            <a key="anf" href={ibanAnfrageMailto(ibanCheck, mandant)} style={aktionChip}>✉ IBAN anfordern</a>,
+          ] : []} />
         <Pill ok={rsv === true} neutral={rsv === false}
           label={rsv === true ? "✓ RSV" : "○ Keine RSV"} />
       </div>
@@ -1784,7 +1774,10 @@ function UebersichtSection({ akte, st, dispatch, onNavigate, posDaten = null,
 
       <div style={{ border:`1px solid ${T.border}`, borderRadius:10, overflow:"hidden", marginBottom:"1.25rem", boxShadow:"0 1px 4px rgba(0,0,0,.05)" }}>
         <PhasenStrip phase={phase} />
-        <StatusBand ibanCheck={mandantChecks} todos={todosState} hq={akte.hq} />
+        <StatusBand ibanCheck={mandantChecks} todos={todosState} hq={akte.hq}
+          akteId={azRoh}
+          mandant={(st.beteiligte || []).find(b => (b.rolle || "").toLowerCase() === "mandant") || null}
+          onFehler={setToast} />
       </div>
 
       {akte.az && (
