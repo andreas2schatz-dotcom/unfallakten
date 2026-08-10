@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
-import { fmtEuro } from "../config/utils.js";
+import { fmtEuro, summenAusPositionsstatus } from "../config/utils.js";
 import { Toast } from "../components/common.jsx";
 import {
   beteiligte as apiBeteiligte,
@@ -78,6 +78,16 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted, onOpenRe
       .then(d => setRaInfo(d))
       .catch(() => {});
   }, [azRoh]);
+
+  // Positionen-Status aus Ereignismodell für Header-KPI
+  const [posDaten, setPosDaten] = useState(null);
+  React.useEffect(() => {
+    if (!akte.az) return;
+    setPosDaten(null);
+    request(`/akten/${encodeURIComponent(akte.az)}/positionen/status`)
+      .then(d => setPosDaten(d))
+      .catch(() => {});
+  }, [akte.az]);
 
   // Beim ersten Öffnen: Schaden, Regulierungen, Beteiligte und Dokumente aus DB laden
   useEffect(() => {
@@ -181,6 +191,15 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted, onOpenRe
     const _b  = _sd.abrechnungsberechnung?.gesamt_brutto ?? _sd.gesamt_brutto ?? 0;
     return _b > 0 ? _b : (_sd.gesamt_brutto || akte.brutto || 0);
   }, [st.schaden, akte.brutto]);
+
+  // Header-KPI aus Ereignismodell (Summen aus Positionen) oder Fallback auf Alt-Berechnung
+  const kpiSummen = useMemo(() => {
+    const s = summenAusPositionsstatus(posDaten?.positionen);
+    if (s) return { ...s, quelle: "ereignismodell" };
+    const gefordert = liveBrutto * ((akte.hq ?? 100) / 100);
+    const reguliert = (st.abrechnungen || []).reduce((sum, ab) => sum + (parseFloat(ab.gesamt_reguliert) || 0), 0);
+    return { gefordert, reguliert, offen: Math.max(0, gefordert - reguliert), quelle: "alt" };
+  }, [posDaten, liveBrutto, akte.hq, st.abrechnungen]);
 
   // Badge-Logik: localStorage-Timestamps für Neu-Indikatoren
   const azKey    = (akte?.az || "").replace(/\//g, "-");
@@ -298,9 +317,7 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted, onOpenRe
             border:"1px solid rgba(255,255,255,0.1)", borderRadius:10,
             padding:"7px 14px", flexShrink:0, marginLeft:"auto" }}>
             {(() => {
-              const gefordert = liveBrutto * ((akte.hq || 100) / 100);
-              const reguliert = (st.abrechnungen||[]).reduce((s,ab) => s + (parseFloat(ab.gesamt_reguliert)||0), 0);
-              const offen     = Math.max(0, gefordert - reguliert);
+              const { gefordert, reguliert, offen } = kpiSummen;
               return [
                 { l:"Gefordert", v:fmtEuro(gefordert), farbe: gefordert===0?T.green:T.amber, divider:false },
                 { l:"Reguliert", v:fmtEuro(reguliert), farbe:T.green,                        divider:true  },
@@ -406,7 +423,7 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted, onOpenRe
             />
           ) : null}
           {/* Synchron: Übersicht */}
-          {sec==="uebersicht" && <UebersichtSection akte={akte} st={st} dispatch={dispatch} onNavigate={setSec} />}
+          {sec==="uebersicht" && <UebersichtSection akte={akte} st={st} dispatch={dispatch} onNavigate={setSec} posDaten={posDaten} kpiSummen={kpiSummen} mandantChecks={raInfo} />}
           {/* Lazy: alle anderen Sections – werden erst bei erstem Tabwechsel geladen */}
           <Suspense fallback={
             <div style={{ display:"flex", justifyContent:"center", padding:"3rem 0" }}>
