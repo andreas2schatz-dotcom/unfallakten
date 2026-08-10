@@ -7,6 +7,21 @@
 
 ---
 
+## 2026-08-10 — Übersicht-Review: 7 Befunde gefixt + toter Code entfernt (Branch `abschlussbericht`)
+
+Review der ÜbersichtSection/AkteDetailView vom selben Tag (Befund-Protokoll: `handover/2026-08-10-uebersicht-review-befunde.md`, Redesign-Mockups separat). Alle Fixes TDD (11 neue Tests RED→GREEN), Frontend-Vollsuite 476/476 grün.
+
+- **B1 (Crash):** `RegulierungsTabelle` referenzierte `effRep`/`ist130`, die dort nie definiert waren (unvollständig aus `constants.js` kopiert) — ReferenceError, sobald keine Abrechnungsart gesetzt und WBW > 0. Definitionen ergänzt (identisch zu `positionenVorlage`).
+- **B2 (OnboardingHub):** prüfte Phantomfelder (`schaden.positionen`, `schaden.unfalldatum`, `a.typ`, kleingeschriebene Rollen, `d.klasse`) → 4 Kacheln konnten nie grün werden, Hub erschien wegen `!mandant.iban` quasi immer. Jetzt echte Quellen (`akte.unfalldatum`/`unfallort`, `gesamt_brutto`, `dokumentenklasse`, Rollen case-insensitive inkl. GHV/GBEV); Sichtbarkeit hängt an der eigenen Checkliste (verschwindet, sobald alle Pflichtbereiche ✓); Zähler dynamisch statt hartem „von 6".
+- **B4:** „+ Todo" im Akten-Header öffnet jetzt wirklich das Inline-Formular (vorher nur Navigation zur Übersicht).
+- **B6:** Akten-Chronik sortierte über formatierte Datums-Strings (innerhalb eines Jahres nach Uhrzeit statt Monat); jetzt ISO-`sortKey` vor der Formatierung.
+- **B7:** §3a-Frist-Pill matchte `frist_typ === "gerichtlich"`, das To-Do-Formular vergibt aber `gericht` — beide Werte akzeptiert.
+- **B8:** RSV-Kachel zeigte das Aktenzeichen doppelt (`zeigeBetreff` + `zeigeAktenzeichen`); dazu Doppel-Chevron `⌄⌄` korrigiert.
+- **B5 (toter Code):** `AkteActionBoardHeader`, `TodoKachelKompakt`, `InfoZeile`, `InfoRow` + verwaiste Berechnungen (`regGrad`, `klageSumme`, brutto/netto-Block, `mandantName`) entfernt (~10,5 kB); `StaDialog` in `AkteDetailView` direkt importiert statt über den UebersichtSection-Re-Export; ungenutzte Importe bereinigt. Für Tests neu exportiert: `AktenTimeline`, `StatusBand`, `RechtsschutzKlappkachel`, `TodoInlineForm`.
+- **Bewusst offen (Redesign-Session, `handover/2026-08-10-uebersicht-redesign-mockups.md`):** B3 — Header-KPI (mit HQ) und FinanzBand (ohne HQ) rechnen Summen unterschiedlich; Design-Entscheidung „eine Summen-SSOT" nötig. Ebenso: 3× `mandant-checks`-Request pro Aktenöffnung, 3× kopierte `dringlichkeit()`-Logik, 2× posMap-Aggregation.
+
+---
+
 ## 2026-08-07 — Referenzwerkstatt editierbar in der ReviewQueue (Befund RA Schatz, Branch `abschlussbericht`, `a0d38d13`)
 
 Befund bei der Browser-Abnahme: Das Feld `referenzwerkstatt` im Prüfbericht-Review erschien nur als JSON-Box, nicht korrigierbar — obwohl die Extraktion danebenliegen kann (Dok 555/Akte 332/26: Name „Postanschrift:", Ort „14329 Berlin\nFirmensitz"). Falsche Werkstatt-Adressen hätten die Entfernungsprüfung mit Müll gefüttert; Heilung ging nur über „Erneut parsen".
