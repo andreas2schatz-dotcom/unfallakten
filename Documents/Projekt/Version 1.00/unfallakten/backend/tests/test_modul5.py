@@ -313,6 +313,17 @@ class TestForderungsschreiben(unittest.TestCase):
         self.assertTrue(_ist_docx(data))
         self.assertIn("KEINE ADRESSE ERFASST", _docx_text(data))
 
+    def test_schmerzensgeld_freitext_wdm_crasht_nicht(self):
+        """I-3: varSCHMGELD mit Freitext (z.B. 'ca. 2.500 EUR') darf die
+        Generierung nicht abbrechen."""
+        from unittest.mock import patch
+        daten = _akte_daten(SCHADEN)
+        daten["wdm_roh"] = {"varANSPR-SG": "Ja", "varSCHMGELD": "ca. 2.500 EUR"}
+        with patch("backend.services.standardtext_registry.hole_texte_aufgeloest",
+                   return_value={"sg_beweis_atteste": "Atteste"}):
+            data = self.gen(daten)
+        self.assertTrue(_ist_docx(data))
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SACHSTANDSANFRAGE TESTS
@@ -513,6 +524,27 @@ class TestWordService(unittest.TestCase):
         with self.assertRaises(self.WordFehler) as ctx:
             self.generiere(self.akte.id, "geheimbrief")
         self.assertEqual(ctx.exception.status_code, 422)
+
+    def test_registry_typ_ohne_generator_422(self):
+        """I-1: Registry-Typen ohne Word-Generator (z.B. mahnschreiben)
+        müssen sauber mit 422 abgelehnt werden statt KeyError-500."""
+        with self.assertRaises(self.WordFehler) as ctx:
+            self.generiere(self.akte.id, "mahnschreiben",
+                           self.user.id, in_db=False)
+        self.assertEqual(ctx.exception.status_code, 422)
+
+    def test_wdm_vorsteuer_override_greift(self):
+        """I-6: varSSTF=J aus WDM muss das SQLite-Vorsteuer-Flag des
+        Mandanten überschreiben."""
+        from unittest.mock import patch
+        from backend.word import word_service as ws
+        from backend.models.akte import hole_akte_by_id
+        akte = hole_akte_by_id(self.akte.id)
+        with patch.object(ws, "_lade_wdm_kontrollvars",
+                          return_value={"varSSTF": "J"}):
+            daten = ws._lade_akte_daten(self.akte.id, akte,
+                                        dok_typ="forderungsschreiben")
+        self.assertEqual((daten["mandant"] or {}).get("vorsteuer"), "Y")
 
     def test_dateiname_enthaelt_aktenzeichen(self):
         ergebnis = self.generiere(self.akte.id, "forderungsschreiben",

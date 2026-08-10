@@ -305,6 +305,8 @@ def forderungs_zusammenfassung(akte_id: str) -> dict:
 
 def aktualisiere_position(
     position_id: int,
+    *,
+    akte_id: str,
     status: Optional[str] = None,
     betrag_reguliert: Optional[float] = None,
     fuer_klage: Optional[bool] = None,
@@ -313,7 +315,9 @@ def aktualisiere_position(
 ) -> Optional[ForderungPosition]:
     """
     Aktualisiert Status und Regulierungsdaten einer Forderungsposition.
-    Alle Parameter sind optional — nur übergebene Felder werden geändert.
+    Alle Feld-Parameter sind optional — nur übergebene Felder werden geändert.
+    akte_id ist Pflicht: Positionen fremder Akten werden nie geändert
+    (Rückgabe None).
     """
     updates: dict = {}
 
@@ -342,11 +346,13 @@ def aktualisiere_position(
     set_clause = ", ".join(f"{k} = ?" for k in updates)
     with get_connection() as conn:
         conn.execute(
-            f"UPDATE forderung_positionen SET {set_clause} WHERE id = ?",
-            list(updates.values()) + [position_id]
+            f"UPDATE forderung_positionen SET {set_clause} "
+            f"WHERE id = ? AND akte_id = ?",
+            list(updates.values()) + [position_id, akte_id]
         )
         row = conn.execute(
-            "SELECT * FROM forderung_positionen WHERE id = ?", (position_id,)
+            "SELECT * FROM forderung_positionen WHERE id = ? AND akte_id = ?",
+            (position_id, akte_id)
         ).fetchone()
     return ForderungPosition.from_row(row) if row else None
 

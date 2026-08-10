@@ -686,9 +686,8 @@ def _baue_verletzungsblock(wdm: dict, gram: dict, ps_data: dict = None) -> str:
         ))
 
     # Schmerzensgeld (PRD-29: echte Verletzungsdaten wenn vorhanden)
+    # varSCHMGELD kann Freitext enthalten ("ca. 2.500 EUR") → nie crashen
     schmgeld = wv("SCHMGELD")
-    sg_mind  = float(schmgeld.replace(".", "").replace(",", ".").replace(" €", "").replace("€", "").strip()) \
-               if schmgeld else 0.0
     try:
         sg_mind = float(schmgeld.replace(".", "").replace(",", ".").strip().rstrip("€").strip()) \
                   if schmgeld else 0.0

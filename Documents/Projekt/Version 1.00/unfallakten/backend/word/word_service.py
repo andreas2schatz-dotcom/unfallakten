@@ -141,7 +141,11 @@ def generiere_und_speichere(
         "abschlussbericht":      generiere_abschlussbericht,
         "klage":                 generiere_klageschrift,
     }
-    generator = generator_map[dok_typ]
+    generator = generator_map.get(dok_typ)
+    if generator is None:
+        raise WordFehler(
+            f"Für Dokumenttyp '{dok_typ}' existiert kein Word-Generator.", 422
+        )
 
     try:
         doc_bytes = generator(akte_daten)
@@ -418,16 +422,7 @@ def _lade_akte_daten(akte_id: int, akte, dok_typ: str = "", variante: str = "aut
             logger.debug("Mandant-Nachladen aus RA-Micro: %s", e)
 
 
-    # Vorsteuer: WDM-Variable hat Vorrang vor SQLite-Feld
-    # wdm_kontroll wird weiter unten geladen; hier nur als Fallback-Vorbelegung
     wdm_kontroll = {}
-    if dok_typ == "forderungsschreiben" and mandant_dict:
-        wdm_sstf = wdm_kontroll.get("varSSTF", "").strip().upper()
-        if wdm_sstf in ("J", "JA", "Y", "1"):
-            mandant_dict["vorsteuer"] = "Y"
-        elif wdm_sstf in ("N", "NEIN", "0"):
-            mandant_dict["vorsteuer"] = "N"
-        # SQLite-Feld bleibt wenn WDM nichts liefert
 
     # ── Unfalldatum/Unfallort aus WDM wenn SQLite leer ───────────────────────
     akte_unfalldatum = akte.unfalldatum
@@ -463,6 +458,13 @@ def _lade_akte_daten(akte_id: int, akte, dok_typ: str = "", variante: str = "aut
             ermittelte_variante = "hoehe" if hat_schadensdaten(schaden_dict) else "grunde"
         # Kontrollvariablen immer aus WDM laden (unabhängig von Variante)
         wdm_kontroll = _lade_wdm_kontrollvars(akte.aktenzeichen)
+        # Vorsteuer: WDM-Variable varSSTF hat Vorrang vor dem SQLite-Feld
+        if mandant_dict:
+            wdm_sstf = (wdm_kontroll.get("varSSTF") or "").strip().upper()
+            if wdm_sstf in ("J", "JA", "Y", "1"):
+                mandant_dict["vorsteuer"] = "Y"
+            elif wdm_sstf in ("N", "NEIN", "0"):
+                mandant_dict["vorsteuer"] = "N"
 
     # ── Abrechnungsübersicht: Unfalldaten aus WDM laden ──────────────────────
     # varU-ORT, varU-TAG, varM-KZ, varG-KZ sind jetzt in KONTROLL_VARS →

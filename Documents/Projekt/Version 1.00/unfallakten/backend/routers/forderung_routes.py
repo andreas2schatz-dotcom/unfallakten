@@ -172,6 +172,7 @@ def aktualisiere(akte_id: str, position_id: int):
     try:
         pos = aktualisiere_position(
             position_id,
+            akte_id=akte_id,
             status=status,
             betrag_reguliert=betrag_reguliert,
             fuer_klage=fuer_klage,
