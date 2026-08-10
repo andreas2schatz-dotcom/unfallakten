@@ -51,4 +51,22 @@ function summenAusPositionsstatus(positionen) {
   }), { gefordert: 0, reguliert: 0, offen: 0 });
 }
 
+export function todoDringlichkeit(todo, heute = new Date()) {
+  const h = new Date(heute); h.setHours(0, 0, 0, 0);
+  if (todo.faellig_am) {
+    const frist = new Date(todo.faellig_am); frist.setHours(0, 0, 0, 0);
+    const tage = Math.round((frist - h) / 86400000);
+    const stufe = tage < 3 ? "rot" : tage < 7 ? "orange" : tage < 14 ? "gelb" : "grau";
+    return todo.frist_typ === "verjaehrung"
+      ? { rot: "rot", orange: "rot", gelb: "orange", grau: "gelb" }[stufe] || stufe
+      : stufe;
+  }
+  const erstellt = new Date(todo.erstellt_am); erstellt.setHours(0, 0, 0, 0);
+  const alter = Math.round((h - erstellt) / 86400000);
+  if (alter >= 15) return "rot";
+  if (alter >= 8)  return "orange";
+  if (alter >= 4)  return "gelb";
+  return "grau";
+}
+
 export { fmtEuro, fmtSize, fmtDatumDe, verzugEintrittDefault, summenAusPositionsstatus };

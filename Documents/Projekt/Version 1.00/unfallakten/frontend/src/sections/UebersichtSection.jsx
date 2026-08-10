@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
 import { HAFTUNGSART_CFG, TIMELINE_FILTER, TIMELINE_TYPE_CFG, POSITION_LABELS_FE } from "../config/constants.js";
-import { fmtEuro } from "../config/utils.js";
+import { fmtEuro, todoDringlichkeit } from "../config/utils.js";
 import { Card, Btn, Toast } from "../components/common.jsx";
 import OnboardingFaecher from "./OnboardingFaecher.jsx";
 import PositionsDashboard from "../components/PositionsDashboard.jsx";
@@ -759,28 +759,6 @@ function TodoSection({ az, onTodoChange }) {
 
   useEffect(() => { ladeTodos(); }, [ladeTodos]);
 
-  // Dringlichkeit berechnen
-  const dringlichkeit = (todo) => {
-    const heute = new Date();
-    heute.setHours(0, 0, 0, 0);
-    if (todo.faellig_am) {
-      const frist = new Date(todo.faellig_am);
-      frist.setHours(0, 0, 0, 0);
-      const tage = Math.round((frist - heute) / 86400000);
-      const stufe = tage < 0 ? "rot" : tage < 3 ? "rot" : tage < 7 ? "orange" : tage < 14 ? "gelb" : "grau";
-      return todo.frist_typ === "verjaehrung"
-        ? { rot:"rot", orange:"rot", gelb:"orange", grau:"gelb" }[stufe] || stufe
-        : stufe;
-    }
-    const erstellt = new Date(todo.erstellt_am);
-    erstellt.setHours(0, 0, 0, 0);
-    const alter = Math.round((heute - erstellt) / 86400000);
-    if (alter >= 15) return "rot";
-    if (alter >= 8)  return "orange";
-    if (alter >= 4)  return "gelb";
-    return "grau";
-  };
-
   const FARBEN = {
     rot:    { bg: T.redBg, border: T.redLight, dot: T.red, label: "Dringend" },
     orange: { bg: "#fff7ed", border: "#fdba74", dot: "#f97316", label: "Bald fällig" },
@@ -833,7 +811,7 @@ function TodoSection({ az, onTodoChange }) {
   const erledigt = todos.filter(t => t.erledigt);
 
   const renderTodo = (todo) => {
-    const d = dringlichkeit(todo);
+    const d = todoDringlichkeit(todo);
     const f = FARBEN[d];
     const istSystem = todo.quelle === "system";
     return (
@@ -1141,18 +1119,6 @@ function TodoWvSpalten({ azRoh, todos = [] }) {
 
   const offen = todos.filter(t => !t.erledigt);
 
-  const dringlichkeit = (todo) => {
-    const heute = new Date(); heute.setHours(0,0,0,0);
-    if (todo.faellig_am) {
-      const f = new Date(todo.faellig_am); f.setHours(0,0,0,0);
-      const tage = Math.round((f - heute) / 86400000);
-      const s = tage < 0 ? "rot" : tage < 3 ? "rot" : tage < 7 ? "orange" : tage < 14 ? "gelb" : "grau";
-      return todo.frist_typ === "verjaehrung" ? ({rot:"rot",orange:"rot",gelb:"orange",grau:"gelb"}[s]||s) : s;
-    }
-    const alter = Math.round((heute - new Date(todo.erstellt_am)) / 86400000);
-    return alter >= 15 ? "rot" : alter >= 8 ? "orange" : alter >= 4 ? "gelb" : "grau";
-  };
-
   const DOT = { rot:"#ef4444", orange:"#f97316", gelb:"#eab308", grau:T.textFaint };
 
   const fmtD = (iso) => {
@@ -1184,7 +1150,7 @@ function TodoWvSpalten({ azRoh, todos = [] }) {
           <div style={{ fontSize:".875rem", color:T.textFaint, fontFamily:T.fontBody }}>✅ Alle erledigt</div>
         ) : (
           offen.slice(0, 5).map(todo => {
-            const d = dringlichkeit(todo);
+            const d = todoDringlichkeit(todo);
             return (
               <div key={todo.id} style={{ display:"flex", alignItems:"flex-start", gap:7, padding:"5px 0", borderBottom:`1px solid ${T.borderSoft}` }}>
                 <span style={{ width:8, height:8, borderRadius:"50%", background:DOT[d], flexShrink:0, marginTop:5 }} />
