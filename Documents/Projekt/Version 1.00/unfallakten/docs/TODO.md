@@ -9,7 +9,9 @@
 
 ### Übersicht-Redesign A+B — ✅ implementiert (SDD, 2026-08-10), Branch `abschlussbericht`, NICHT gemergt
 Mockups A+B umgesetzt (11 Tasks): Summen-SSOT aus dem Ereignismodell (löst Befund B3), FinanzBand/RegulierungsTabelle/Forderungshistorie raus aus der Übersicht durch 3 Akkordeons ersetzt bzw. in den Regulierung-Tab verlagert, OnboardingHub → Fächer im PhasenStrip, Check-Pills mit Aktions-Popover, `mandant-checks` nur noch 1 Request statt 3, `dringlichkeit()`-Logik dedupliziert. Mockups: `handover/2026-08-10-uebersicht-redesign-mockups.md`. Protokoll → `docs/CHANGELOG.md`, Summen-SSOT-Entscheidung → `docs/DECISIONS.md`. Frontend-Vollsuite 491/491.
-**Offen:** Browser-Abnahme Übersicht-Redesign durch RA Schatz (Fächer, Pill-Popover, KPI-Zahlen an echter Akte, Bestandsakten-Fallback). Bewusst mitzuprüfen: kurzes KPI-Umspringen beim Öffnen (Alt-Zahlen → Ereignismodell); HQ=0-Semantik (Header zeigt 0 € gefordert, Backend-DOCX rechnet bei HQ=0 weiterhin mit 100 % — bekannte Inkonsistenz).
+**Browser-Abnahme ✅ per Playwright durchgeführt (2026-08-10, Auftrag RA Schatz):** 19 fachliche Checks an echten Akten — 828/24 (Ereignismodell: Header-KPI == PositionsDashboard, 69.520,32 €), 285/26 (Bestandsakten-Fallback, Wert = `abrechnungsberechnung.gesamt_brutto` verifiziert), 1280/25 (Fächer-Chip 2/6 öffnet/schließt, Pill-Popover „Vollmacht fehlt" sichtbar mit echtem mailto-Empfänger, Escape + Klick-daneben schließen), Schnellwechsel ohne Stale-Summen, Tab-Leiste mit Badges/💰. Screenshots im Session-Scratchpad.
+**Offen:** Merge-Strategie (unten bei Intake-Review-Sichtbarkeit). Optional Sichtkontrolle RA Schatz am eigenen Rechner — bewusste Eigenheiten: kurzes KPI-Umspringen beim Öffnen (Alt-Zahlen → Ereignismodell); HQ=0-Semantik (Header 0 € gefordert, Backend-DOCX rechnet bei HQ=0 mit 100 % — bekannte Inkonsistenz).
+**Folgebefund (vorbestehend, nicht Redesign):** React-Warnung „two children with the same key" im ActionBoard (`views/action_board/boardUi.jsx` `ZeilenListe`, Keys wie `35/26AS2026-07-27` doppelt bei gleichem AZ+SB+Datum) — bei Dashboard-Hell-Nacharbeit mitfixen (Eintrag dort ergänzt).
 
 ### Abschluss-/Sachstandsbericht — implementiert, Abnahme offen (Branch `abschlussbericht`)
 Neuer Typ `abschlussbericht` (Migration 67 `abschluss_status`, Service
@@ -45,7 +47,7 @@ Feature live abgenommen: Prefill Mandant, OMA-XML **strukturgleich** zum echten 
 - Prod-Rollout: `oma-share`-Volume steht in `docker-compose.prod.yml`; bei non-root Gunicorn ggf. `uid`/`gid` anpassen.
 
 ### Dashboard-Hell — ✅ gemergt (2026-08-03), Nacharbeit offen
-Feinschliff separat: Sidebar-Emoji-Icons App.jsx, SB-Klarnamen-Tooltips (Kürzel-Liste von RA Schatz nötig); totes `pendingEmailId`-Gerüst + ungenutzter `nachrichtenNeu`-Endpoint entfernen; A11y (aria-pressed SB-Chips, role=alert Fehlerblock, aria-hidden Skeleton); `type=button` + Retry-Disable + Badge-Logik-Konsolidierung in `boardUi`.
+Feinschliff separat: Sidebar-Emoji-Icons App.jsx, SB-Klarnamen-Tooltips (Kürzel-Liste von RA Schatz nötig); totes `pendingEmailId`-Gerüst + ungenutzter `nachrichtenNeu`-Endpoint entfernen; A11y (aria-pressed SB-Chips, role=alert Fehlerblock, aria-hidden Skeleton); `type=button` + Retry-Disable + Badge-Logik-Konsolidierung in `boardUi`; **NEU (Befund Playwright-Abnahme 2026-08-10):** doppelte React-Keys in `boardUi.jsx` `ZeilenListe` (Key = AZ+SB+Datum kollidiert bei mehreren Einträgen derselben Akte am selben Tag — eindeutigen Key ergänzen).
 
 ### Kürzungstaxonomie — Phase 0 ✅ · Phase 1 ✅ · **in `main` gemergt + gepusht (2026-07-24, `febe6f06`)**
 Alle 12 Tasks + Genus-Platzhalter-Nachtrag (Weg 2). Abnahme: Bausteine von RA Schatz gegengelesen ✅; Katalog-Editor, Wizard-Zitat, Genus-Formen, Speichern-Sperre per Playwright-E2E bestanden ✅ (2026-07-24). Protokoll → `docs/CHANGELOG.md`.
