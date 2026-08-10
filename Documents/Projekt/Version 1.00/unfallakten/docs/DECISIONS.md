@@ -5,6 +5,32 @@ Format: Entscheidung → Grund → Alternative → Konsequenz.
 
 ---
 
+## Übersicht-Tab / AkteDetailView (Review 2026-08-10)
+
+### OnboardingHub-Sichtbarkeit an die eigene Checkliste gekoppelt (statt lokalem IBAN-Feld)
+
+**Entscheidung:** Der OnboardingHub zeigt sich nur noch, solange mindestens ein Pflichtbereich seiner Checkliste unvollständig ist, und verschwindet automatisch, sobald alle sechs ✓ sind. Die Checks lesen echte Datenquellen: `akte.unfalldatum`/`unfallort`, `schaden.gesamt_brutto` (bzw. `abrechnungsberechnung`), `dokumentenklasse` (Vollmacht/Forderungsschreiben), Beteiligten-Rollen case-insensitive inkl. `GHV`/`GBEV`.
+
+**Grund:** Die alte Sichtbarkeitsbedingung `!mandant.iban` hing an einem lokalen Feld, das bei RA-MICRO-Akten praktisch immer leer ist (der echte IBAN-Check läuft über `/ramicro/akte/mandant-checks`) — der Hub erschien dadurch in fast jeder Akte dauerhaft. Zusätzlich prüften 4 von 7 Kacheln Felder, die es im Datenmodell nicht gibt (`schaden.positionen`, `schaden.unfalldatum`, `a.typ`, kleingeschriebene Rollen) und konnten nie grün werden (Review 2026-08-10, Befund B2 — der Kern von „stört mehr, als es hilft").
+
+**Alternative:** Den RA-MICRO-IBAN-Check in den Hub ziehen (weiterer Request pro Akte; IBAN ist ohnehin im StatusBand sichtbar). Oder den Hub sofort durch den geplanten Fächer-Chip im PhasenStrip ersetzen — bewusst vertagt, Bugfix vor Redesign.
+
+**Konsequenz:** Der Hub taugt wieder als Fortschrittsanzeige und räumt sich selbst weg; das manuelle Wegklicken (localStorage) bleibt als Zusatzweg. Geplante Ablösung: Fächer-Chip im PhasenStrip (`handover/2026-08-10-uebersicht-redesign-mockups.md`, Mockup B). (2026-08-10)
+
+---
+
+### Befund B3 (Summen-Inkonsistenz Header vs. FinanzBand) bewusst NICHT im Bugfix gelöst
+
+**Entscheidung:** Die Header-KPI (Gefordert = Brutto × Haftungsquote) und das FinanzBand der Übersicht (Positionssummen ohne Quote, Manuell-kumulativ-Logik) rechnen weiterhin unterschiedlich; die Vereinheitlichung auf EINE Summen-Quelle passiert erst in der Redesign-Session.
+
+**Grund:** Welche Zahl die maßgebliche ist — Forderung mit oder ohne angewandte Quote (Teilhaftung!) — ist eine fachlich-juristische Darstellungsentscheidung von RA Schatz, kein mechanischer Fix. Zudem sind fünf Anzeigestellen betroffen (Header-KPI, FinanzBand, PositionsDashboard, RegulierungsTabelle, Forderungshistorie); ein Schnellfix an einer Stelle verschiebt den Widerspruch nur.
+
+**Alternative:** FinanzBand kurzfristig auf die Header-Formel umbiegen — verworfen, weil das Positionsmodell (Ereignismodell hinter dem PositionsDashboard) ohnehin als künftige SSOT vorgesehen ist; ein Zwischenumbau wäre Doppelarbeit.
+
+**Konsequenz:** Bis zum Redesign können Header und FinanzBand bei Teilhaftung oder Teilzahlungen unterschiedliche Beträge direkt übereinander zeigen. Festgehalten in TODO-Backlog („Übersicht-Redesign") und `handover/2026-08-10-uebersicht-review-befunde.md` (B3). (2026-08-10)
+
+---
+
 ## Aktenanlage aus der ReviewQueue
 
 ### Gruppen-Schließregel hat Vorrang vor dem ursprünglichen Spec-Wortlaut 5.4
