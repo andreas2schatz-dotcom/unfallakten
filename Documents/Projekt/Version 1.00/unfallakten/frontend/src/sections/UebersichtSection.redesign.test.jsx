@@ -60,3 +60,32 @@ describe("StatusBand-Aktions-Popover", () => {
     expect(screen.getByText(/PDF generieren/)).toBeInTheDocument();
   });
 });
+
+describe("Redesign B — Onboarding-Fächer", () => {
+  const onboardingProps = {
+    ...PROPS,
+    akte: { ...PROPS.akte },
+    st: { ...PROPS.st, schaden: {}, beteiligte: [{ rolle: "mandant", name: "Max Müller" }] },
+    posDaten: { positionen: {} },
+    kpiSummen: { gefordert: 0, reguliert: 0, offen: 0, quelle: "alt" },
+    mandantChecks: { iban_vorhanden: false, vollmacht_vorhanden: false },
+  };
+
+  it("zeigt keinen OnboardingHub-Banner mehr", () => {
+    render(<UebersichtSection {...onboardingProps} />);
+    expect(screen.queryByText(/Bereichen vollständig/)).toBeNull();
+  });
+
+  it("öffnet den Fächer per Klick auf die Onboarding-Phase", () => {
+    render(<UebersichtSection {...onboardingProps} />);
+    fireEvent.click(screen.getByText(/1\/6/));
+    expect(screen.getByText("Gegner / Schädiger")).toBeInTheDocument();
+    expect(screen.getByText("Schadenspositionen")).toBeInTheDocument();
+  });
+
+  it("zeigt in Phase Regulierung keinen Onboarding-Chip", () => {
+    render(<UebersichtSection {...PROPS}
+      st={{ ...PROPS.st, abrechnungen: [{ id: 1, gesamt_reguliert: 6900, positionen: [] }] }} />);
+    expect(screen.queryByText(/\/6/)).toBeNull();
+  });
+});

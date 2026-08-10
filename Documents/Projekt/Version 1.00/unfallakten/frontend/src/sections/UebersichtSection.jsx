@@ -4,7 +4,7 @@ import Ic from "../config/icons.jsx";
 import { HAFTUNGSART_CFG, TIMELINE_FILTER, TIMELINE_TYPE_CFG, POSITION_LABELS_FE } from "../config/constants.js";
 import { fmtEuro } from "../config/utils.js";
 import { Card, Btn, Toast } from "../components/common.jsx";
-import OnboardingHub from "./OnboardingHub";
+import OnboardingFaecher from "./OnboardingFaecher.jsx";
 import PositionsDashboard from "../components/PositionsDashboard.jsx";
 import EreignislistePanel from "../components/EreignislistePanel.jsx";
 import {
@@ -14,6 +14,7 @@ import {
   request,
 } from "../api.js";
 import { ibanAnfrageMailto, vollmachtAnfrageMailto, vollmachtPdfLaden } from "./mandantAktionen.js";
+import { berechneOnboardingChecks } from "./onboardingChecks.js";
 
 /* ──────────────────────────────────────────────────────────────
 ────────────────────────────────────────────────────────────── */
@@ -1389,7 +1390,7 @@ function berechnePhase({ akte, ibanCheck, schaden, abrechnungen, summen }) {
   return { aktiv, istKlage: statusKlage, phasenFertig };
 }
 
-function PhasenStrip({ phase }) {
+function PhasenStrip({ phase, onboarding = null, faecherOffen = false, onToggleFaecher = null }) {
   if (!phase) return null;
   const { aktiv, istKlage, phasenFertig } = phase;
   const PHASEN = [
@@ -1408,17 +1409,35 @@ function PhasenStrip({ phase }) {
         const bg    = fertig ? T.greenBg  : isAktiv ? T.blueBg  : T.cardBg;
         const color = fertig ? T.greenText : isAktiv ? T.accent   : T.textFaint;
         const icon  = fertig ? "✓"        : isAktiv ? "▶"        : "○";
-        return (
-          <div key={p.id} style={{
-            flex:1, display:"flex", alignItems:"center", justifyContent:"center",
-            gap:4, padding:"6px 4px",
-            background:bg, color,
-            borderRight: last ? "none" : `1px solid ${T.border}`,
-            fontSize:"0.68rem", fontWeight:600,
-            letterSpacing:"0.04em", textTransform:"uppercase", whiteSpace:"nowrap",
-          }}>
+        const mitFaecher = p.id === "onboarding" && isAktiv && onboarding;
+        const inhalt = (
+          <>
             <span>{icon}</span><span>{p.label}</span>
-          </div>
+            {mitFaecher && (
+              <span style={{ background:T.amberMid, color:T.amberText, borderRadius:10,
+                padding:"0 6px", fontWeight:700 }}>
+                {onboarding.erledigt}/{onboarding.pflichtAnzahl}
+              </span>
+            )}
+            {mitFaecher && <span>{faecherOffen ? "▴" : "▾"}</span>}
+          </>
+        );
+        const stil = {
+          flex:1, display:"flex", alignItems:"center", justifyContent:"center",
+          gap:4, padding:"6px 4px",
+          background:bg, color,
+          borderRight: last ? "none" : `1px solid ${T.border}`,
+          fontSize:"0.68rem", fontWeight:600,
+          letterSpacing:"0.04em", textTransform:"uppercase", whiteSpace:"nowrap",
+          fontFamily:T.fontBody,
+        };
+        return mitFaecher ? (
+          <button key={p.id} onClick={onToggleFaecher} style={{ ...stil, border:"none", cursor:"pointer",
+            borderRight: last ? "none" : `1px solid ${T.border}` }}>
+            {inhalt}
+          </button>
+        ) : (
+          <div key={p.id} style={stil}>{inhalt}</div>
         );
       })}
     </div>
@@ -1723,6 +1742,7 @@ function UebersichtSection({ akte, st, dispatch, onNavigate, posDaten = null,
   const [stripOffene, setStripOffene] = useState([]);
   const [todosState,  setTodosState]  = useState([]);
   const [ereignislisteKey, setEreignislisteKey] = useState(null);
+  const [faecherOffen, setFaecherOffen] = useState(false);
 
   const azRoh = akte.az_roh || akte.az || "";
 
@@ -1755,29 +1775,27 @@ function UebersichtSection({ akte, st, dispatch, onNavigate, posDaten = null,
 
   const phase = berechnePhase({ akte, ibanCheck: mandantChecks, schaden, abrechnungen, summen: kpiSummen });
 
+  const onboarding = berechneOnboardingChecks({
+    akte, beteiligte: st?.beteiligte || [], schaden, dokumente: st?.dokumente || [],
+  });
+  const mandantBeteiligter = (st.beteiligte || []).find(b => (b.rolle || "").toLowerCase() === "mandant") || null;
 
   const azKlappKey = azRoh.replace(/\//g, "-");
 
 
   return (
     <>
-      <OnboardingHub
-        az={akte.az}
-        akte={akte}
-        beteiligte={st?.beteiligte || []}
-        schaden={st?.schaden || {}}
-        dokumente={st?.dokumente || []}
-        onTabWechsel={onNavigate}
-      />
-
       {toast && <Toast msg={toast} onDone={() => setToast("")} />}
 
       <div style={{ border:`1px solid ${T.border}`, borderRadius:10, overflow:"hidden", marginBottom:"1.25rem", boxShadow:"0 1px 4px rgba(0,0,0,.05)" }}>
-        <PhasenStrip phase={phase} />
+        <PhasenStrip phase={phase} onboarding={onboarding}
+          faecherOffen={faecherOffen} onToggleFaecher={() => setFaecherOffen(o => !o)} />
+        {faecherOffen && phase.aktiv === "onboarding" && (
+          <OnboardingFaecher checks={onboarding} onNavigate={onNavigate} akteId={azRoh}
+            mandantChecks={mandantChecks} mandant={mandantBeteiligter} onFehler={setToast} />
+        )}
         <StatusBand ibanCheck={mandantChecks} todos={todosState} hq={akte.hq}
-          akteId={azRoh}
-          mandant={(st.beteiligte || []).find(b => (b.rolle || "").toLowerCase() === "mandant") || null}
-          onFehler={setToast} />
+          akteId={azRoh} mandant={mandantBeteiligter} onFehler={setToast} />
       </div>
 
       {akte.az && (
