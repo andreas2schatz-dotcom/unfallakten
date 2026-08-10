@@ -239,22 +239,18 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted, onOpenRe
       ? (st.abrechnungen[0]?.erstellt_am || "") > besuchReg
       : false;
 
-    const sp = (ok, fehlt) => {
-      if (ok)    return { dot: "✅", color: T.green };
-      if (fehlt) return { dot: "⚠️", color: T.amber };
-      return { dot: "⬜", color: T.textFaint };
-    };
+    const sp = (ok, fehlt) => ok ? { status: "ok" } : fehlt ? { status: "warn" } : {};
 
     return [
       { id:"uebersicht",    label:"⚡ Übersicht" },
-      { id:"beteiligte",    label:`👥 Beteiligte`, ...sp(beteiligteOk,  !beteiligteOk  && st.beteiligte  !== undefined) },
+      { id:"beteiligte",    label:"👥 Beteiligte", ...sp(beteiligteOk, !beteiligteOk && st.beteiligte !== undefined) },
       { id:"unfalldetails", label:"🔍 Unfalldetails" },
-      { id:"schaden",       label:`🚗 Schaden`,    ...sp(schadenOk,     !schadenOk     && st.schaden     !== undefined) },
-      { id:"dokumente",     label: neueDokumente > 0 ? `📄 Dokumente (${dokumenteAnz}) 🔴${neueDokumente}` : `📄 Dokumente (${dokumenteAnz})` },
-      { id:"regulierung",   label: neueAbrechnung ? `💶 Regulierung 🔴` : `💶 Regulierung`, ...sp(regulierungOk, false) },
-      { id:"klage",         label:`⚖ Klage`,        ...sp(klageStatus,   false) },
+      { id:"schaden",       label:"🚗 Schaden", ...sp(schadenOk, !schadenOk && st.schaden !== undefined) },
+      { id:"dokumente",     label:"📄 Dokumente", anzahl: dokumenteAnz, neu: neueDokumente },
+      { id:"regulierung",   label:"💶 Regulierung", neu: neueAbrechnung ? 1 : 0, ...sp(regulierungOk, false) },
+      { id:"klage",         label:"⚖ Klage", ...sp(klageStatus, false) },
       { id:"word",          label:"📝 Word" },
-      { id:"gebuehren",     label:"⚖️ Gebühren" },
+      { id:"gebuehren",     label:"💰 Gebühren" },
     ];
   }, [st.beteiligte, st.schaden, st.dokumente, st.abrechnungen, akte.status, besuchDok, besuchReg]);
 
@@ -341,7 +337,7 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted, onOpenRe
         </div>
 
         {/* ── Action-Buttons (Option C: zwischen KPI-Zeile und Tabs) ── */}
-        <div style={{ display:"flex", gap:6, padding:"6px 1.75rem 8px", flexWrap:"wrap", alignItems:"center" }}>
+        <div style={{ display:"flex", gap:6, padding:"6px 0 8px", flexWrap:"wrap", alignItems:"center" }}>
           {[
             { label:"💬 Nachricht → Mandant", stil:"primary", onClick:() => setZeigePwModal(true) },
             { label:"📤 STA senden",          stil:"warn",    onClick:() => setZeigeStaDialog(true) },
@@ -404,8 +400,21 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted, onOpenRe
                 transition:"all 0.15s", whiteSpace:"nowrap", flexShrink:0,
                 display:"flex", alignItems:"center", gap:5 }}>
               {t.label}
-              {t.dot && t.dot !== "⬜" && (
-                <span style={{ fontSize:"0.7rem", lineHeight:1 }}>{t.dot}</span>
+              {t.anzahl != null && (
+                <span style={{ fontSize:"0.68rem", fontWeight:600, lineHeight:1,
+                  background:"rgba(255,255,255,0.12)", borderRadius:9, padding:"2px 6px" }}>
+                  {t.anzahl}
+                </span>
+              )}
+              {t.neu > 0 && (
+                <span style={{ fontSize:"0.66rem", fontWeight:700, lineHeight:1,
+                  background:"#ef4444", color:"#fff", borderRadius:9, padding:"2px 6px" }}>
+                  {t.neu} neu
+                </span>
+              )}
+              {t.status && (
+                <span style={{ width:7, height:7, borderRadius:"50%", flexShrink:0,
+                  background: t.status === "ok" ? "#34d399" : "#fbbf24" }} />
               )}
             </button>
           ))}
