@@ -189,23 +189,24 @@ function AggregationsZeile({ gruppe, positionen }) {
   );
 }
 
-export default function PositionsDashboard({ az, onOeffneEreignisse = () => {} }) {
-  const [daten, setDaten] = useState(null);
+export default function PositionsDashboard({ az, daten: datenProp = null, onOeffneEreignisse = () => {} }) {
+  const [geladen, setGeladen] = useState(null);
   const [fehler, setFehler] = useState(null);
   const [view, setView] = useState('getrennt');
+  const daten = datenProp ?? geladen;
 
   useEffect(() => {
-    if (!az) return;
+    if (!az || datenProp) return;
     let abgebrochen = false;
     const token = tokenStore.getAccess();
     fetch(`${API_BASE}/akten/${encodeURIComponent(az)}/positionen/status`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
       .then(res => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
-      .then(d => { if (!abgebrochen) setDaten(d); })
+      .then(d => { if (!abgebrochen) setGeladen(d); })
       .catch(e => { if (!abgebrochen) setFehler(e.message || String(e)); });
     return () => { abgebrochen = true; };
-  }, [az]);
+  }, [az, datenProp]);
 
   const gruppen = useMemo(() => {
     if (!daten?.positionen) return {};

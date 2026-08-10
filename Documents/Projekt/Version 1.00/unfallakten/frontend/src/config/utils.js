@@ -41,4 +41,14 @@ function verzugEintrittDefault(schreibDatum) {
   return `${String(d.getUTCDate()).padStart(2, "0")}.${String(d.getUTCMonth() + 1).padStart(2, "0")}.${d.getUTCFullYear()}`;
 }
 
-export { fmtEuro, fmtSize, fmtDatumDe, verzugEintrittDefault };
+function summenAusPositionsstatus(positionen) {
+  const eintraege = Object.values(positionen || {});
+  if (!eintraege.length) return null;
+  return eintraege.reduce((acc, p) => ({
+    gefordert: acc.gefordert + Number(p.gefordert || 0),
+    reguliert: acc.reguliert + Number(p.anerkannt || 0),
+    offen:     acc.offen     + Number(p.offen     || 0),
+  }), { gefordert: 0, reguliert: 0, offen: 0 });
+}
+
+export { fmtEuro, fmtSize, fmtDatumDe, verzugEintrittDefault, summenAusPositionsstatus };
