@@ -70,7 +70,7 @@ function RechtsschutzKlappkachel({ beteiligte }) {
 }
 
 
-function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBetreff=false, zeigeAktenzeichen=false, nurEiner=false, akteId=null, ausklappbar=false, standardOffen=true, localStorageKey=null }) {
+function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBetreff=false, zeigeAktenzeichen=false, nurEiner=false, ausklappbar=false, standardOffen=true, localStorageKey=null }) {
   const liste = nurEiner ? beteiligte.slice(0,1) : beteiligte;
 
   const [offen, setOffen] = useState(() => {
@@ -88,16 +88,6 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
     if (localStorageKey) localStorage.setItem(localStorageKey, String(neu));
   };
 
-  // IBAN-Check: nur für Mandantenkachel
-  const [ibanCheck, setIbanCheck] = useState(null); // null=lädt, {iban_vorhanden, mandant_email, ...}
-  const [toast, setToast]        = useState("");
-  React.useEffect(() => {
-    if (titel !== "Mandant" || !akteId || !akteId.includes("/")) return;
-    request(`/ramicro/akte/mandant-checks?az=${encodeURIComponent(akteId)}`)
-      .then(d => setIbanCheck(d))
-      .catch(() => setIbanCheck({ iban_vorhanden: null }));
-  }, [akteId, titel]);
-
   if (!liste.length) return null;
 
   const mailtoLink = (b) => {
@@ -107,7 +97,6 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
   };
 
   return (
-    <>
     <div style={{ background:T.cardBg, border: titel ? `1px solid ${T.border}` : "none", borderRadius: titel ? 10 : 0, overflow:"hidden", boxShadow: titel ? "0 1px 4px rgba(0,0,0,0.04)" : "none" }}>
       {/* Kachel-Header – wird ausgeblendet wenn kein Titel (z.B. in RechtsschutzKlappkachel) */}
       {titel && (
@@ -172,92 +161,6 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
                 ✉ {b.email}
               </a>
             )}
-            {/* IBAN-Check nur bei Mandanten */}
-            {titel === "Mandant" && (
-              <div style={{ marginTop:4, display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-                {ibanCheck === null ? (
-                  <span style={{ fontFamily:T.fontBody, fontSize:"0.8rem", color:T.textFaint }}>
-                    ⟳ IBAN wird geprüft…
-                  </span>
-                ) : ibanCheck.iban_vorhanden ? (
-                  <span style={{ fontFamily:T.fontBody, fontSize:"0.8rem",
-                    color:"#16a34a", display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:"0.9rem" }}>✅</span>
-                    IBAN erfasst
-                    {ibanCheck.geldinstitut && (
-                      <span style={{ color:T.textFaint, fontSize:"0.77rem" }}>({ibanCheck.geldinstitut})</span>
-                    )}
-                  </span>
-                ) : ibanCheck.iban_vorhanden === false ? (
-                  <span style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-                    <span style={{ fontFamily:T.fontBody, fontSize:"0.8rem",
-                      color:T.red, display:"flex", alignItems:"center", gap:4 }}>
-                      <span style={{ fontSize:"0.9rem" }}>❌</span>
-                      IBAN nicht erfasst
-                    </span>
-                    {(ibanCheck.mandant_email || b.email) && (
-                      <a href={ibanAnfrageMailto(ibanCheck, liste[0])}
-                        style={{ fontFamily:T.fontBody, fontSize:"0.77rem",
-                          padding:"2px 8px", background:T.blueBg,
-                          border:`1px solid ${T.blue}55`, borderRadius:5,
-                          color:T.navy, textDecoration:"none", whiteSpace:"nowrap",
-                          cursor:"pointer", fontWeight:600 }}>
-                        ✉ IBAN anfordern
-                      </a>
-                    )}
-                  </span>
-                ) : (
-                  <span style={{ fontFamily:T.fontBody, fontSize:"0.8rem", color:T.textFaint }}>
-                    ○ IBAN: keine RA-Micro-Verbindung
-                  </span>
-                )}
-              </div>
-            )}
-            {/* Vollmacht-Check */}
-            {titel === "Mandant" && (
-              <div style={{ marginTop:4, display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-                {ibanCheck === null ? (
-                  <span style={{ fontFamily:T.fontBody, fontSize:"0.8rem", color:T.textFaint }}>
-                    ⟳ Vollmacht wird geprüft…
-                  </span>
-                ) : ibanCheck.vollmacht_vorhanden ? (
-                  <span style={{ fontFamily:T.fontBody, fontSize:"0.8rem",
-                    color:"#16a34a", display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:"0.9rem" }}>✅</span>
-                    Vollmacht liegt vor
-                  </span>
-                ) : ibanCheck.vollmacht_vorhanden === false ? (
-                  <span style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-                    <span style={{ fontFamily:T.fontBody, fontSize:"0.8rem",
-                      color:T.red, display:"flex", alignItems:"center", gap:4 }}>
-                      <span style={{ fontSize:"0.9rem" }}>❌</span>
-                      Vollmacht fehlt
-                    </span>
-                    {(ibanCheck.mandant_email || b.email) && (
-                      <a href={vollmachtAnfrageMailto(ibanCheck, liste[0])}
-                        style={{ fontFamily:T.fontBody, fontSize:"0.77rem",
-                          padding:"2px 8px", background:"#fdf4ff",
-                          border:"1px solid #d8b4fe", borderRadius:5,
-                          color:"#6b21a8", textDecoration:"none", whiteSpace:"nowrap",
-                          cursor:"pointer", fontWeight:600 }}>
-                        ✉ Vollmacht anfordern
-                      </a>
-                    )}
-                    {akteId && (
-                      <button
-                        onClick={() => vollmachtPdfLaden(akteId).catch(e => setToast(`Vollmacht-Fehler: ${e.message}`))}
-                        style={{ fontFamily:T.fontBody, fontSize:"0.77rem",
-                          padding:"2px 8px", background:"#f0fdf4",
-                          border:"1px solid #86efac", borderRadius:5,
-                          color:"#15803d", cursor:"pointer", fontWeight:600,
-                          whiteSpace:"nowrap", outline:"none" }}>
-                        ↓ Vollmacht generieren
-                      </button>
-                    )}
-                  </span>
-                ) : null}
-              </div>
-            )}
             {/* Vorsteuerabzug nur bei Mandanten anzeigen */}
             {titel === "Mandant" && (
               <span style={{
@@ -275,8 +178,6 @@ function BeteiligterKachel({ titel, farbe, beteiligte, zeigeFirma=false, zeigeBe
         </div>
       ))}
     </div>
-    {toast && <Toast msg={toast} onDone={() => setToast("")} />}
-    </>
   );
 }
 
@@ -339,34 +240,10 @@ function RaMicroAkteUebersicht({ azRoh }) {
 
   if (!daten) return null;
 
-  const { stammdaten: s, beteiligte: b } = daten;
+  const { beteiligte: b } = daten;
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:"1.1rem" }}>
-
-      {/* Stammdaten kompakt – zwei Zeilen, alle Felder nebeneinander */}
-      <Card>
-        <div style={{ padding:"0.7rem 1.4rem", display:"flex", flexWrap:"wrap", gap:"0.4rem 2rem", alignItems:"baseline" }}>
-          {[
-            { l:"AZ",         v:s.az,            mono:true,  bold:true  },
-            { l:"SB",         v:s.sachbearbeiter, mono:true              },
-            { l:"Unfalltag",  v:s.unfalltag,     mono:true              },
-            { l:"KFZ",        v:s.kfz_mandant,   mono:true, bold:true   },
-            { l:"KFZ Gegner", v:s.kfz_gegner,    mono:true              },
-            { l:"Mandant",    v:s.mandant                                },
-            { l:"Gegner",     v:s.gegner                                 },
-            { l:"Kurzbezeichnung", v:s.kurzbezeichnung                  },
-          ].filter(f => f.v).map(f => (
-            <div key={f.l} style={{ display:"flex", alignItems:"baseline", gap:5 }}>
-              <span style={{ fontFamily:T.fontBody, fontSize:"0.75rem", color:T.textFaint, whiteSpace:"nowrap" }}>{f.l}</span>
-              <span style={{ fontFamily: f.mono ? "ui-monospace,monospace" : T.fontBody, fontSize:"0.875rem", color:T.text, fontWeight: f.bold ? 700 : 400, whiteSpace:"nowrap" }}>{f.v}</span>
-            </div>
-          ))}
-        </div>
-        {s.bezeichnung && (
-          <div style={{ padding:"0 1.4rem 0.6rem", fontFamily:T.fontBody, fontSize:"0.82rem", color:T.textMuted }}>{s.bezeichnung}</div>
-        )}
-      </Card>
 
       {/* Beteiligten-Kacheln */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))", gap:"0.9rem" }}>
@@ -380,7 +257,6 @@ function RaMicroAkteUebersicht({ azRoh }) {
                   titel="Mandant" farbe={T.navy}
                   beteiligte={b.mandant} nurEiner
                   zeigeBetreff zeigeAktenzeichen={false}
-                  akteId={azRoh}
                   ausklappbar={true}
                   localStorageKey={`uebersicht-kachel-mandant-${azRoh}`}
                 />
@@ -1821,7 +1697,7 @@ function UebersichtSection({ akte, st, dispatch, onNavigate, posDaten = null,
 
       {stripOffene.includes("ramicro") && azRoh.includes("/") && (
         <div style={{ marginBottom:"1rem" }}>
-          <RaMicroAkteUebersicht azRoh={azRoh} mandantChecks={mandantChecks} />
+          <RaMicroAkteUebersicht azRoh={azRoh} />
         </div>
       )}
 

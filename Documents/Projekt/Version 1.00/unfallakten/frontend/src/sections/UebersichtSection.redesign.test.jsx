@@ -15,6 +15,7 @@ vi.mock("../api.js", () => ({
 }));
 
 import UebersichtSection, { StatusBand } from "./UebersichtSection.jsx";
+import { ramicroAkte } from "../api.js";
 
 const PROPS = {
   akte: { id: "123/26", az: "123/26", az_roh: "123/26", hq: 100, status: "offen" },
@@ -87,5 +88,19 @@ describe("Redesign B — Onboarding-Fächer", () => {
     render(<UebersichtSection {...PROPS}
       st={{ ...PROPS.st, abrechnungen: [{ id: 1, gesamt_reguliert: 6900, positionen: [] }] }} />);
     expect(screen.queryByText(/\/6/)).toBeNull();
+  });
+});
+
+describe("RA-Micro-Akkordeon ohne Stammdaten-Doppel", () => {
+  it("zeigt im Akkordeon keine AZ/SB-Stammdatenzeile mehr", async () => {
+    ramicroAkte.laden.mockResolvedValueOnce({
+      stammdaten: { az: "123/26", sachbearbeiter: "AS", kurzbezeichnung: "Müller ./. HUK" },
+      beteiligte: { mandant: [{ name: "Max Müller" }], gegner: [], behoerde: [],
+        rechtsschutz: [], eigene_versicherung: [], weitere: [] },
+    });
+    render(<UebersichtSection {...PROPS} />);
+    fireEvent.click(screen.getByText(/RA-Micro Beteiligte/));
+    expect(await screen.findByText("Max Müller")).toBeInTheDocument();
+    expect(screen.queryByText("Kurzbezeichnung")).toBeNull();
   });
 });
