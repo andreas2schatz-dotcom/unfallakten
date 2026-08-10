@@ -27,9 +27,6 @@ logger = logging.getLogger(__name__)
 _MODUL_DIR = os.path.dirname(__file__)
 _VORLAGE   = Path(_MODUL_DIR) / "forderungsschreiben_vorlage.docx"
 
-_KANZLEI_IBAN = os.environ.get("KANZLEI_IBAN", "DE12 3456 7890 1234 5678 90")
-_KANZLEI_BIC  = os.environ.get("KANZLEI_BIC",  "COBADEFFXXX")
-
 # Bewährtes SA-Drawing (rId10, byte-identisch mit SA-Vorlage)
 _SIG_RID       = "rId18"        # Eigene rId für Unterschrift in document.xml.rels
 _SIG_MEDIA     = "word/media/image2.png"   # Unterschrift-Platzhalter in der Vorlage

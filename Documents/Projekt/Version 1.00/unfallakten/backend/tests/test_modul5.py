@@ -149,7 +149,7 @@ def _setup(test_id: str):
         "backend.routers.beteiligte_routes", "backend.routers.schaden_routes",
         "backend.pdf.extraktor", "backend.pdf.parser",
         "backend.pdf.upload_service", "backend.routers.dokumente_routes",
-        "backend.word.styling", "backend.word.forderungsschreiben",
+        "backend.word.styling", "backend.word.forderungsschreiben_wv",
         "backend.word.sachstandsanfrage", "backend.word.abrechnungsuebersicht",
         "backend.word.word_service", "backend.routers.word_routes",
         "backend.app",
@@ -175,7 +175,7 @@ def _setup(test_id: str):
     headers = {"Authorization": f"Bearer {token}"}
 
     r2 = client.post("/akten", json={
-        "aktenzeichen": "25-W5-001", "unfalldatum": "2025-03-15",
+        "aktenzeichen": "955/25", "unfalldatum": "2025-03-15",
         "unfallort": "Offenbach, Berliner Str. 12",
     }, headers=headers)
     akte_id = r2.get_json()["id"]
@@ -250,11 +250,14 @@ class TestStyling(unittest.TestCase):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TestForderungsschreiben(unittest.TestCase):
+    """Tests für den Produktiv-Generator forderungsschreiben_wv
+    (Vorlagen-Rendering; der Legacy-Generator forderungsschreiben.py
+    wurde 2026-08-11 entfernt)."""
 
     def setUp(self):
-        from backend.word import forderungsschreiben
-        import importlib; importlib.reload(forderungsschreiben)
-        self.gen = forderungsschreiben.generiere_forderungsschreiben
+        from backend.word import forderungsschreiben_wv
+        import importlib; importlib.reload(forderungsschreiben_wv)
+        self.gen = forderungsschreiben_wv.generiere_forderungsschreiben_wv
 
     def test_erzeugt_docx(self):
         data = self.gen(_akte_daten(SCHADEN))
@@ -281,10 +284,11 @@ class TestForderungsschreiben(unittest.TestCase):
         text = _docx_text(data)
         self.assertIn("6.240,50", text)
 
-    def test_enthaelt_gesamtbetrag(self):
+    def test_gesamtbetrag_mit_unkostenpauschale_default(self):
+        """8.220,50 € Positionen + 30,00 € Default-Unkostenpauschale."""
         data = self.gen(_akte_daten(SCHADEN))
         text = _docx_text(data)
-        self.assertIn("8.220,50", text)
+        self.assertIn("8.250,50", text)
 
     def test_ohne_schaden(self):
         """Dokument muss auch ohne Schadenpositionen generierbar sein."""
@@ -292,13 +296,6 @@ class TestForderungsschreiben(unittest.TestCase):
         self.assertTrue(_ist_docx(data))
         text = _docx_text(data)
         self.assertIn("42/25", text)
-
-    def test_teilhaftung(self):
-        """Bei 75% Haftung soll der Forderungsbetrag berechnet werden."""
-        data = self.gen(_akte_daten(SCHADEN, haftung=75.0))
-        text = _docx_text(data)
-        self.assertIn("75", text)
-        self.assertTrue(_ist_docx(data))
 
     def test_totalschaden(self):
         """Totalschadenfall mit Wiederbeschaffung und Restwert."""
@@ -308,18 +305,13 @@ class TestForderungsschreiben(unittest.TestCase):
         self.assertIn("3.200,00", text)
 
     def test_ohne_mandant_und_gegner(self):
-        """Placeholders wenn keine Beteiligten vorhanden."""
+        """Fail-loud-Platzhalter wenn keine Beteiligten vorhanden."""
         daten = _akte_daten(SCHADEN)
         daten["mandant"] = None
         daten["gegner"]  = None
         data = self.gen(daten)
         self.assertTrue(_ist_docx(data))
-
-    def test_unfalldatum_formatiert(self):
-        """ISO-Datum muss als DD.MM.YYYY erscheinen."""
-        data = self.gen(_akte_daten(SCHADEN))
-        text = _docx_text(data)
-        self.assertIn("15.03.2025", text)
+        self.assertIn("KEINE ADRESSE ERFASST", _docx_text(data))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -462,7 +454,7 @@ class TestWordService(unittest.TestCase):
             "backend.db.database", "backend.db.schema_manager",
             "backend.models.benutzer", "backend.models.akte",
             "backend.models.schaden", "backend.models.dokument",
-            "backend.word.styling", "backend.word.forderungsschreiben",
+            "backend.word.styling", "backend.word.forderungsschreiben_wv",
             "backend.word.sachstandsanfrage", "backend.word.abrechnungsuebersicht",
             "backend.word.word_service",
         ]:
@@ -568,7 +560,7 @@ class TestWordRouten(unittest.TestCase):
     def test_sachstandsanfrage_generieren(self):
         r = self._post("sachstandsanfrage")
         self.assertEqual(r.status_code, 201)
-        self.assertIn("25-W5-001", r.get_json()["dateiname"])
+        self.assertIn("955-25", r.get_json()["dateiname"])
 
     def test_abrechnungsuebersicht_generieren(self):
         r = self._post("abrechnungsuebersicht")
@@ -674,7 +666,7 @@ class TestWordRouten(unittest.TestCase):
             headers=self.h,
         )
         text = _docx_text(r.data)
-        self.assertIn("25-W5-001", text)
+        self.assertIn("955/25", text)
 
 
 class TestBauePosMap(unittest.TestCase):

@@ -104,7 +104,7 @@ def _setup(test_id: str):
         "backend.routers.beteiligte_routes", "backend.routers.schaden_routes",
         "backend.pdf.extraktor", "backend.pdf.parser",
         "backend.pdf.upload_service", "backend.routers.dokumente_routes",
-        "backend.word.styling", "backend.word.forderungsschreiben",
+        "backend.word.styling", "backend.word.forderungsschreiben_wv",
         "backend.word.sachstandsanfrage", "backend.word.abrechnungsuebersicht",
         "backend.word.word_service", "backend.routers.word_routes",
         "backend.email_import.imap_client",
