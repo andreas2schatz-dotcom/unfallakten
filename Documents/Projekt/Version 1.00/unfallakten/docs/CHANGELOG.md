@@ -22,6 +22,7 @@ Umsetzung der Redesign-Mockups A+B (`handover/2026-08-10-uebersicht-redesign-moc
 - **Task 9 (`a326ab08`):** Tab-Leiste mit Farbpunkten/Badges statt Status-Emojis, 💰-Icon für den Gebühren-Tab, Button-Einrückung gefixt.
 - **Task 10 (`7d4c3487`):** `dringlichkeit()`-Ampel zu `todoDringlichkeit()` dedupliziert (vorher 3× kopierte Logik).
 - **Task 11 (dieser Eintrag):** Doku-Abschluss — DECISIONS.md (Summen-SSOT-Entscheidung), CHANGELOG.md, TODO.md.
+- **Final-Review-Fixes (`dece57ef` + `70b2cee4`):** Whole-Branch-Review fand 1 Critical + 2 Important, alle behoben: (1) Aktions-Popover wurde vom `overflow:hidden` der Leisten-Box abgeschnitten (im Browser unsichtbar, jsdom-blind) — Rundung jetzt auf den Kind-Elementen, dazu Escape-/Click-Outside-Schließen; (2) `posDaten`-Fetch ohne Abbruch-Guard konnte bei schnellem Aktenwechsel fremde Summen anzeigen — Cleanup-Flag ergänzt; (3) PositionsDashboard fetchte parallel zum Header selbst (Doppel-Request + mögliche Header/Tabelle-Divergenz) — neuer `ladeStatus`-Durchgriff, Parent lädt exklusiv; dazu mailto-Guard ohne bekannte E-Mail. +3 Tests, Vollsuite danach 494/494. Re-Review: READY.
 - **Offen (Human-Gate):** Browser-Abnahme durch RA Schatz (Fächer, Pill-Popover, KPI-Zahlen an echter Akte, Bestandsakten-Fallback) — siehe TODO. Merge-Strategie `abschlussbericht` → `main` weiterhin ungeklärt (Branch stapelt auf Intake-Branch). Mockup C (Cockpit) nur bei Bedarf.
 
 ---
