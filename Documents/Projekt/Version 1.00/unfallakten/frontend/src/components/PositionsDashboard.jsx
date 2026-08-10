@@ -263,7 +263,7 @@ export default function PositionsDashboard({ az, daten: datenProp = null, onOeff
       }}>
         <div>
           <div style={{ fontFamily: T.fontDisplay, fontSize: '0.98rem', fontWeight: 600, color: T.navy }}>
-            Forderungen · Positions-Übersicht
+            Positionen
           </div>
           <div style={{ fontSize: '0.72rem', color: T.textMuted, marginTop: 2 }}>
             {eintraege.length} Positionen · gefordert{' '}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
-import { HAFTUNGSART_CFG, TIMELINE_FILTER, TIMELINE_TYPE_CFG, POSITION_LABELS_FE, positionKuerzungBetrag } from "../config/constants.js";
+import { HAFTUNGSART_CFG, TIMELINE_FILTER, TIMELINE_TYPE_CFG, POSITION_LABELS_FE } from "../config/constants.js";
 import { fmtEuro } from "../config/utils.js";
 import { Card, CardHead, Btn, Toast } from "../components/common.jsx";
 import OnboardingHub from "./OnboardingHub";
@@ -1475,11 +1475,9 @@ function KlappAbschnitt({ titel, lsKey, children, standardOffen = true }) {
 }
 
 const STRIP_TABS = [
-  { id:"ramicro",     label:"🏛 RA-Micro Stammdaten" },
-  { id:"historie",    label:"📜 Forderungshistorie" },
-  { id:"regulierung", label:"⚖️ Regulierungsdetails" },
-  { id:"chronik",     label:"🕒 Akten-Chronik" },
-  { id:"notizen",     label:"📝 Notizen" },
+  { id:"ramicro", label:"🏛 RA-Micro Beteiligte" },
+  { id:"chronik", label:"🕒 Chronik" },
+  { id:"notizen", label:"📝 Notizen" },
 ];
 
 function AkkordeonStrip({ offene, onToggle }) {
@@ -1632,21 +1630,21 @@ function TodoWvSpalten({ az, azRoh, onTodoChange, todos = [] }) {
 
 const _PHASEN_ORDER = ["onboarding", "erstforderung", "regulierung", "stellungnahme", "abschluss"];
 
-function berechnePhase({ akte, ibanCheck, schaden, abrechnungen, gesamtForderung, gesamtReguliert, gesamtKuerzung }) {
+function berechnePhase({ akte, ibanCheck, schaden, abrechnungen, summen }) {
   const hatIban       = !!ibanCheck?.iban_vorhanden;
-  const hatSchaden    = parseFloat(schaden?.gesamt_brutto || 0) > 0;
+  const hatSchaden    = parseFloat(schaden?.gesamt_brutto || 0) > 0 || summen.gefordert > 0;
   const hatAbrechnung = (abrechnungen || []).length > 0;
-  const hatKuerzung   = gesamtKuerzung > 0;
-  const vollreguliert = gesamtForderung > 0 && gesamtReguliert >= gesamtForderung * 0.99;
+  const hatKuerzung   = hatAbrechnung && summen.offen > 0.005;
+  const vollreguliert = summen.gefordert > 0 && summen.reguliert >= summen.gefordert * 0.99;
   const statusKlage   = akte.status === "klage";
   const istAbschluss  = vollreguliert || akte.status === "abgeschlossen" || statusKlage;
 
   let aktiv;
-  if (istAbschluss)                     aktiv = "abschluss";
+  if (istAbschluss)                      aktiv = "abschluss";
   else if (hatAbrechnung && hatKuerzung) aktiv = "stellungnahme";
-  else if (hatAbrechnung)               aktiv = "regulierung";
-  else if (hatIban && hatSchaden)       aktiv = "erstforderung";
-  else                                  aktiv = "onboarding";
+  else if (hatAbrechnung)                aktiv = "regulierung";
+  else if (hatIban && hatSchaden)        aktiv = "erstforderung";
+  else                                   aktiv = "onboarding";
 
   const aktivIdx     = _PHASEN_ORDER.indexOf(aktiv);
   const phasenFertig = Object.fromEntries(_PHASEN_ORDER.map((p, i) => [p, i < aktivIdx]));
@@ -1774,49 +1772,6 @@ function StatusBand({ ibanCheck, todos, hq }) {
           }}>HQ {hq} %</span>
         )}
       </div>
-    </div>
-  );
-}
-
-function FinanzBand({ gesamtForderung, gesamtReguliert, gesamtKuerzung, anzahlSchreiben }) {
-  const offen   = Math.max(0, gesamtForderung - gesamtReguliert);
-  const regGrad = gesamtForderung > 0 ? Math.min(100, Math.round(gesamtReguliert / gesamtForderung * 100)) : 0;
-  const hatReg  = anzahlSchreiben > 0;
-
-  const Item = ({ label, value, farbe }) => (
-    <div style={{ display:"flex", flexDirection:"column", paddingRight:20, marginRight:20, borderRight:`1px solid ${T.border}` }}>
-      <span style={{ fontSize:".62rem", fontWeight:600, color:T.accent, textTransform:"uppercase", letterSpacing:".06em" }}>{label}</span>
-      <span style={{ fontFamily:T.fontMono, fontSize:"1rem", fontWeight:700, color:farbe || T.navy, marginTop:1 }}>
-        {fmtEuro(value)}
-      </span>
-    </div>
-  );
-
-  if (!hatReg && gesamtForderung === 0) return null;
-
-  return (
-    <div style={{
-      background:T.accentPale, borderTop:`1px solid ${T.accentTrim}`,
-      padding:"8px 18px", display:"flex", alignItems:"center", flexWrap:"wrap", gap:0,
-    }}>
-      <Item label="Gefordert"   value={gesamtForderung} />
-      {hatReg && <Item label="Reguliert"  value={gesamtReguliert} farbe={T.green} />}
-      {hatReg && <Item label="Noch offen" value={offen}           farbe={offen > 0 ? T.red : T.green} />}
-      {hatReg && gesamtKuerzung > 0 && <Item label="Kürzungen" value={gesamtKuerzung} farbe={T.amber} />}
-
-      {hatReg && (
-        <div style={{ flex:1, minWidth:140, display:"flex", flexDirection:"column", justifyContent:"center" }}>
-          <span style={{ fontSize:".62rem", fontWeight:600, color:T.accentDark, textTransform:"uppercase", letterSpacing:".06em" }}>
-            Regulierungsfortschritt
-          </span>
-          <div style={{ height:6, background:T.border, borderRadius:3, overflow:"hidden", marginTop:4 }}>
-            <div style={{ height:"100%", width:`${regGrad}%`, background:T.accent, borderRadius:3, transition:"width .8s" }} />
-          </div>
-          <span style={{ fontSize:".65rem", color:T.accentDark, fontWeight:600, marginTop:2 }}>
-            {regGrad} % · {anzahlSchreiben} {anzahlSchreiben === 1 ? "Schreiben" : "Schreiben"}
-          </span>
-        </div>
-      )}
     </div>
   );
 }
@@ -1976,23 +1931,16 @@ function PwaNachrichtModal({ az, mandantName, onClose }) {
   );
 }
 
-function UebersichtSection({ akte, st, dispatch, onNavigate }) {
+function UebersichtSection({ akte, st, dispatch, onNavigate, posDaten = null,
+  kpiSummen = { gefordert: 0, reguliert: 0, offen: 0, quelle: "alt" }, mandantChecks = null }) {
   const [notizen, setNotizen] = useState(st.notizen || "");
   const [nChanged, setNC]     = useState(false);
   const [toast, setToast]     = useState("");
-  const [ibanCheck,   setIbanCheck]   = useState(null);
-  const [stripOffene, setStripOffene] = useState(["regulierung"]);
+  const [stripOffene, setStripOffene] = useState([]);
   const [todosState,  setTodosState]  = useState([]);
   const [ereignislisteKey, setEreignislisteKey] = useState(null);
 
   const azRoh = akte.az_roh || akte.az || "";
-
-  React.useEffect(() => {
-    if (!azRoh.includes("/")) return;
-    request(`/ramicro/akte/mandant-checks?az=${encodeURIComponent(azRoh)}`)
-      .then(d => setIbanCheck(d))
-      .catch(() => setIbanCheck({ iban_vorhanden: null }));
-  }, [azRoh]);
 
   React.useEffect(() => {
     if (!akte.az) return;
@@ -2021,151 +1969,7 @@ function UebersichtSection({ akte, st, dispatch, onNavigate }) {
   const schaden    = st.schaden || {};
   const abrechnungen = st.abrechnungen || [];
 
-  // Alle Positionen aus allen Abrechnungen aggregieren
-  // Manuell = kumulativ (Teilzahlungen), PDF/WDM = letzter Eintrag gewinnt
-  const posMap = {};
-  abrechnungen.slice().reverse().forEach(ab => {
-    (ab.positionen || []).forEach(p => {
-      const key = p.position_key || p.art || "sonstiges";
-      if (!posMap[key]) posMap[key] = { gefordert: 0, reguliert: 0, kuerungenBetrag: 0, fuerKlage: false, eintraege: [] };
-      posMap[key].gefordert = Math.max(posMap[key].gefordert, parseFloat(p.betrag_gefordert) || 0);
-      if (ab.quelle === "manuell") {
-        posMap[key].reguliert += parseFloat(p.betrag_reguliert) || 0;
-      } else {
-        posMap[key].reguliert = parseFloat(p.betrag_reguliert) || 0;
-      }
-      posMap[key].kuerungenBetrag = positionKuerzungBetrag(p);
-      if (p.fuer_klage_vorgemerkt) posMap[key].fuerKlage = true;
-      posMap[key].eintraege.push({
-        betrag: parseFloat(p.betrag_reguliert) || 0,
-        datum: ab.datum || "", versicherung: ab.versicherung || "",
-        quelle: ab.quelle || "pdf", ab_id: ab.id,
-      });
-    });
-  });
-
-  // Schadenpositionen aus st.schaden als Forderungs-Basis (wenn noch keine Abrechnungen)
-  const SCHADEN_POS_MAP = {
-    rep_gutachten_netto:  "Reparaturkosten lt. Gutachten (netto)",
-    rep_rechnung_netto:   "Reparaturkosten lt. Rechnung (netto)",
-    rep_rechnung_brutto:  "Reparaturkosten lt. Rechnung (brutto)",
-    reparaturkosten:      "Reparaturkosten",
-    wiederbeschaffung:    "Wiederbeschaffungswert",
-    restwert:             "Restwert (−)",
-    wertminderung:        "Wertminderung",
-    nutzungsausfall:      "Nutzungsausfallschaden",
-    mietwagenkosten:      "Mietwagenkosten",
-    sv_kosten:            "SV-/Gutachterkosten",
-    abschleppkosten:      "Abschleppkosten",
-    standkosten:          "Standkosten",
-    anabmeldekosten:      "An-/Abmeldekosten",
-    schmerzensgeld:       "Schmerzensgeld",
-    verdienstausfall:     "Verdienstausfall",
-    haushalt:             "Haushaltsführungsschaden",
-    unkostenpauschale:    "Unkostenpauschale",
-    sonstiges:            "Sonstiges",
-  };
-  const ABZUG_FELDER = new Set(["restwert"]);
-
-  // Fahrzeug-Schlüssel je Abrechnungsart (PRD-14: aus Backend-Berechnung)
-  const _art = schaden?.abrechnungsberechnung?.abrechnungsart
-    || schaden?.abrechnungsart
-    || null;
-  const _pvRepN  = parseFloat(schaden?.rep_gutachten_netto || schaden?.reparaturkosten || 0);
-  const _pvRepRN = parseFloat(schaden?.rep_rechnung_netto || 0);
-  const _wbw2    = parseFloat(schaden?.wiederbeschaffung || 0);
-  const _rst2    = parseFloat(schaden?.restwert || 0);
-
-  // Welche Fahrzeug-Keys sollen in der Tabelle erscheinen?
-  let _fahrzeugKeysSet;
-  if (_art === "totalschaden") {
-    _fahrzeugKeysSet = new Set(["wiederbeschaffung", "restwert"]);
-  } else if (_art === "konkret") {
-    _fahrzeugKeysSet = new Set(["rep_rechnung_netto"]);
-  } else if (_art === "fiktiv") {
-    _fahrzeugKeysSet = new Set(["rep_gutachten_netto"]);
-  } else if (_wbw2 > 0) {
-    _fahrzeugKeysSet = new Set(["wiederbeschaffung", "restwert"]);
-  } else {
-    _fahrzeugKeysSet = new Set(["rep_gutachten_netto"]); // Fallback
-  }
-
-  // Alle Fahrzeug-Keys die wir NICHT anzeigen wollen (unterdrücken)
-  const _ALLE_FAHRZEUG_KEYS = new Set([
-    "wiederbeschaffung","restwert","rep_gutachten_netto","rep_rechnung_netto",
-    "rep_rechnung_brutto","reparaturkosten"
-  ]);
-
-  // Betrag für Fahrzeugschaden-Keys korrekt ermitteln
-  const _getFahrzeugBetrag = (key) => {
-    if (key === "rep_rechnung_netto")  return _pvRepRN;
-    if (key === "rep_gutachten_netto") return _pvRepN;
-    if (key === "wiederbeschaffung")   return _wbw2;
-    if (key === "restwert")            return _rst2;
-    return parseFloat(schaden?.[key]) || 0;
-  };
-
-  // Extras aus schaden._extras – muss VOR alleKeys stehen (für _extraCoveredKeys)
-  const _rawExtras = (() => {
-    if (schaden._extras && schaden._extras.length > 0) return schaden._extras;
-    if (schaden.wdm_extras_json) {
-      try { const p = JSON.parse(schaden.wdm_extras_json); if (Array.isArray(p)) return p; } catch {}
-    }
-    return [];
-  })();
-  // Keys die durch Extras abgedeckt sind (wdm_ss1 und sonstiges_wdm_1 sind dasselbe)
-  const _extraCoveredKeys = new Set(_rawExtras.flatMap(e => {
-    const slot = String(e.id || "").replace("wdm_ss", "");
-    return slot && !isNaN(slot) ? [e.id, `sonstiges_wdm_${slot}`] : [e.id];
-  }));
-
-  // Alle Positions-Keys: Fahrzeug-Keys gefiltert + alle anderen > 0 + posMap-Keys
-  const _nichtFahrzeugKeys = Object.keys(SCHADEN_POS_MAP).filter(k =>
-    !_ALLE_FAHRZEUG_KEYS.has(k) && (schaden[k] || 0) > 0
-  );
-  const _posMapNichtFahrzeug = Object.keys(posMap).filter(k => !_ALLE_FAHRZEUG_KEYS.has(k));
-
-  const alleKeys = new Set([
-    ...[..._fahrzeugKeysSet].filter(k => _getFahrzeugBetrag(k) > 0),
-    ..._nichtFahrzeugKeys,
-    ..._posMapNichtFahrzeug.filter(k => !_extraCoveredKeys.has(k)),
-    // Aus posMap auch Fahrzeug-Keys übernehmen wenn reguliert (für Regulierungshistorie)
-    ...Object.keys(posMap).filter(k => _fahrzeugKeysSet.has(k)),
-  ]);
-
-  const posTableRows = [...alleKeys].map(key => {
-    const istAbzug  = ABZUG_FELDER.has(key);
-    const betrag    = _ALLE_FAHRZEUG_KEYS.has(key)
-      ? _getFahrzeugBetrag(key)
-      : (parseFloat(schaden[key]) || posMap[key]?.gefordert || 0);
-    const forderung = istAbzug ? -betrag : betrag;
-    const reguliert = posMap[key]?.reguliert ?? null;
-    const kuerzung  = reguliert != null ? Math.max(0, Math.abs(forderung) - (reguliert ?? 0)) : null;
-    const label     = POSITION_LABELS_FE[key] || SCHADEN_POS_MAP[key] || key;
-    const fuerKlage = posMap[key]?.fuerKlage || false;
-    return { key, label, forderung, betrag, istAbzug, reguliert, kuerzung, fuerKlage };
-  }).filter(r => r.betrag > 0 || (r.reguliert != null && r.reguliert > 0));
-
-  // Extras: Regulierungsstand mergen via posMap (wdm_ss1 direkt, sonstiges_wdm_1 als Fallback)
-  const extraRows = _rawExtras.filter(e => (e.betrag||0) > 0).map(e => {
-    const slot = String(e.id || "").replace("wdm_ss", "");
-    const reg = posMap[e.id] || (slot && !isNaN(slot) ? posMap[`sonstiges_wdm_${slot}`] : null);
-    const betrag = e.betrag;
-    const reguliert = reg?.reguliert ?? null;
-    const kuerzung  = reguliert != null ? Math.max(0, betrag - reguliert) : null;
-    return {
-      key: `extra_${e.id}`, label: e.label || "Sonstiger Schaden",
-      forderung: betrag, betrag, istAbzug: false,
-      reguliert, kuerzung, fuerKlage: reg?.fuerKlage || false,
-    };
-  });
-  const alleRows = [...posTableRows, ...extraRows];
-
-  const gesamtForderung = alleRows.reduce((s, r) => s + r.forderung, 0);
-  const gesamtReguliert = alleRows.reduce((s, r) => s + (r.reguliert ?? 0), 0);
-  const gesamtKuerzung  = alleRows.reduce((s, r) => s + (r.kuerzung ?? 0), 0);
-
-  const phase = berechnePhase({ akte, ibanCheck, schaden, abrechnungen, gesamtForderung, gesamtReguliert, gesamtKuerzung });
+  const phase = berechnePhase({ akte, ibanCheck: mandantChecks, schaden, abrechnungen, summen: kpiSummen });
 
 
   const azKlappKey = azRoh.replace(/\//g, "-");
@@ -2184,34 +1988,15 @@ function UebersichtSection({ akte, st, dispatch, onNavigate }) {
 
       {toast && <Toast msg={toast} onDone={() => setToast("")} />}
 
-      {/* ── Action Board ── */}
       <div style={{ border:`1px solid ${T.border}`, borderRadius:10, overflow:"hidden", marginBottom:"1.25rem", boxShadow:"0 1px 4px rgba(0,0,0,.05)" }}>
-
         <PhasenStrip phase={phase} />
-
-        <StatusBand
-          ibanCheck={ibanCheck}
-          todos={todosState}
-          hq={akte.hq}
-        />
-
-        <FinanzBand
-          gesamtForderung={gesamtForderung}
-          gesamtReguliert={gesamtReguliert}
-          gesamtKuerzung={gesamtKuerzung}
-          anzahlSchreiben={abrechnungen.length}
-        />
-
-        <TodoWvSpalten az={akte.az} azRoh={azRoh} todos={todosState} />
-
-        <AkkordeonStrip offene={stripOffene} onToggle={toggleStrip} />
-
+        <StatusBand ibanCheck={mandantChecks} todos={todosState} hq={akte.hq} />
       </div>
 
-      {/* ── P1.7: Positions-Dashboard (Positionsmodell-Ableitung) ── */}
       {akte.az && (
         <PositionsDashboard
           az={akte.az}
+          daten={posDaten}
           onOeffneEreignisse={(key) => setEreignislisteKey(key)}
         />
       )}
@@ -2221,30 +2006,17 @@ function UebersichtSection({ akte, st, dispatch, onNavigate }) {
         onClose={() => setEreignislisteKey(null)}
       />
 
-      {/* ── Ausklappbare Abschnitte ── */}
+      <div style={{ border:`1px solid ${T.border}`, borderRadius:10, overflow:"hidden", marginBottom:"1.25rem", background:T.cardBg, boxShadow:"0 1px 4px rgba(0,0,0,.05)" }}>
+        <TodoWvSpalten az={akte.az} azRoh={azRoh} todos={todosState} />
+      </div>
+
+      <div style={{ marginBottom:"1rem" }}>
+        <AkkordeonStrip offene={stripOffene} onToggle={toggleStrip} />
+      </div>
+
       {stripOffene.includes("ramicro") && azRoh.includes("/") && (
         <div style={{ marginBottom:"1rem" }}>
-          <RaMicroAkteUebersicht azRoh={azRoh} />
-        </div>
-      )}
-
-      {stripOffene.includes("historie") && (
-        <KlappAbschnitt titel="Forderungshistorie" lsKey={`uebersicht-historie-${azKlappKey}`}>
-          <ForderungshistorieKarte akteId={akte.id} />
-        </KlappAbschnitt>
-      )}
-
-      {stripOffene.includes("regulierung") && (
-        <div style={{ marginBottom:"1rem" }}>
-          <Card style={{ background:"rgba(84,136,212,0.06)", border:"1px solid rgba(84,136,212,0.25)" }}>
-            <CardHead title="Forderung vs. Regulierung – Positionsübersicht" />
-            <RegulierungsTabelle
-              schaden={schaden}
-              abrechnungen={abrechnungen}
-              showCheckboxes={false}
-              showKlageBadge={true}
-            />
-          </Card>
+          <RaMicroAkteUebersicht azRoh={azRoh} mandantChecks={mandantChecks} />
         </div>
       )}
 
