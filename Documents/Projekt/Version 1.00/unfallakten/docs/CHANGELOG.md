@@ -7,6 +7,25 @@
 
 ---
 
+## 2026-08-10 — Übersicht-Redesign A+B: Summen-SSOT, 3 Akkordeons, Onboarding-Fächer, Aktions-Pills (Branch `abschlussbericht`)
+
+Umsetzung der Redesign-Mockups A+B (`handover/2026-08-10-uebersicht-redesign-mockups.md`, von RA Schatz freigegeben), SDD-Plan mit 11 Tasks im Anschluss an die Review-Session vom selben Tag (Befund-Katalog: `handover/2026-08-10-uebersicht-review-befunde.md`, löst B3 sowie die dort unter „Bewusst offen" vermerkten Doppel-Requests/-Logiken). Frontend-Vollsuite 491/491 grün.
+
+- **Task 1 (`ddcccc82`):** Summen-Helfer extrahiert, `PositionsDashboard` bekommt eine `daten`-Prop statt eigenem Fetch — Vorbereitung für die gemeinsame Summen-Quelle.
+- **Task 2 (`837ac355`, Befund B3):** Header-KPI rechnet jetzt aus den Ereignismodell-Summen (`/akten/<az>/positionen/status`); die Alt-Berechnung (`liveBrutto × HQ`) läuft nur noch als Fallback für Bestandsakten ohne Ereignisse. Siehe DECISIONS.md.
+- **Task 3 (`68a8bed9`):** Redesign A umgesetzt — FinanzBand, RegulierungsTabelle und Forderungshistorie aus der Übersicht entfernt, durch 3 Akkordeons ersetzt, Phasenberechnung liest dieselben SSOT-Summen; `PositionsDashboard`-Titel zu „Positionen" vereinfacht.
+- **Task 4 (`11e417c6`):** Forderungshistorie in den Regulierung-Tab verschoben (neue Komponente `components/ForderungshistorieKarte.jsx`).
+- **Task 5 (`bae596fd`, Fix `723d51a4`):** Check-Pills mit Aktions-Popover, `mandantAktionen.js` als wiederverwendbare Helfer; Review-Fix hebt `AktionsPill` auf Modulebene, damit der Popover-State Re-Renders übersteht.
+- **Task 6 (`4029846a`):** Onboarding-Checks als pure Funktion (`onboardingChecks.js`) — Vorbereitung für die Fächer-Darstellung.
+- **Task 7 (`8d65f540`):** Redesign B umgesetzt — Onboarding-Fächer im PhasenStrip ersetzen den bisherigen Hub-Banner, `OnboardingHub` komplett entfernt.
+- **Task 8 (`4703fb03`):** RA-Micro-Akkordeon zeigt nur noch Beteiligte, Kachel-Checks raus, `mandant-checks` nur noch 1 Request pro Akte statt 3.
+- **Task 9 (`a326ab08`):** Tab-Leiste mit Farbpunkten/Badges statt Status-Emojis, 💰-Icon für den Gebühren-Tab, Button-Einrückung gefixt.
+- **Task 10 (`7d4c3487`):** `dringlichkeit()`-Ampel zu `todoDringlichkeit()` dedupliziert (vorher 3× kopierte Logik).
+- **Task 11 (dieser Eintrag):** Doku-Abschluss — DECISIONS.md (Summen-SSOT-Entscheidung), CHANGELOG.md, TODO.md.
+- **Offen (Human-Gate):** Browser-Abnahme durch RA Schatz (Fächer, Pill-Popover, KPI-Zahlen an echter Akte, Bestandsakten-Fallback) — siehe TODO. Merge-Strategie `abschlussbericht` → `main` weiterhin ungeklärt (Branch stapelt auf Intake-Branch). Mockup C (Cockpit) nur bei Bedarf.
+
+---
+
 ## 2026-08-10 — Übersicht-Review: 7 Befunde gefixt + toter Code entfernt (Branch `abschlussbericht`)
 
 Review der ÜbersichtSection/AkteDetailView vom selben Tag (Befund-Protokoll: `handover/2026-08-10-uebersicht-review-befunde.md`, Redesign-Mockups separat). Alle Fixes TDD (11 neue Tests RED→GREEN), Frontend-Vollsuite 476/476 grün.

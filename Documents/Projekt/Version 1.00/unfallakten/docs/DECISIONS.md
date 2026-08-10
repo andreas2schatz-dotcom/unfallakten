@@ -31,6 +31,18 @@ Format: Entscheidung → Grund → Alternative → Konsequenz.
 
 ---
 
+### Summen-SSOT (Befund B3): Ereignismodell statt Doppel-Berechnung
+
+**Entscheidung:** Einzige Geld-Wahrheit der Akte ist das Ereignismodell (`/akten/<az>/positionen/status`). Header-KPI, `PositionsDashboard` und Phasenberechnung lesen dieselbe Response — ein Fetch in `AkteDetailView`, an die drei Stellen durchgereicht. Die Alt-Berechnung (`liveBrutto × HQ` bzw. `Σ gesamt_reguliert`) existiert nur noch als Fallback für Bestandsakten ohne Ereignisse und wird über das Feld `quelle: "alt"` markiert.
+
+**Grund:** Die oben vertagte Entscheidung zu Befund B3 ist jetzt gefallen — welche Zahl maßgeblich ist, war eine fachliche Frage (Forderung mit oder ohne Haftungsquote), aber das Ereignismodell (`ereignis_service.py`, Tabellen `ereignisse`/`ereignis_positionen`) war ohnehin bereits als künftige Positions-SSOT vorgesehen; ein Parallelbetrieb zweier Formeln hätte den Widerspruch nur verschoben. Umgesetzt in der Redesign-Session (Mockups A+B, `handover/2026-08-10-uebersicht-redesign-mockups.md`, freigegeben durch RA Schatz).
+
+**Alternative:** Header-KPI weiter separat aus `liveBrutto × HQ` berechnen und nur das FinanzBand entfernen — verworfen, weil dann zwei Formeln unsichtbar nebeneinander weiterleben und der Widerspruch bei der nächsten Bestandsakte erneut auftaucht.
+
+**Konsequenz:** FinanzBand, RegulierungsTabelle (Übersicht) und Forderungshistorie (Übersicht) wurden entfernt bzw. in den Regulierung-Tab verlagert (`components/ForderungshistorieKarte.jsx`). Bestandsakten ohne Ereignisse zeigen weiterhin die Alt-Formel, jetzt aber explizit als `quelle: "alt"` gekennzeichnet statt unmarkiert gemischt. Browser-Abnahme (stimmen Header-KPI und PositionsDashboard jetzt überein, funktioniert der Fallback) steht noch aus — siehe TODO. (2026-08-10)
+
+---
+
 ## Aktenanlage aus der ReviewQueue
 
 ### Gruppen-Schließregel hat Vorrang vor dem ursprünglichen Spec-Wortlaut 5.4
