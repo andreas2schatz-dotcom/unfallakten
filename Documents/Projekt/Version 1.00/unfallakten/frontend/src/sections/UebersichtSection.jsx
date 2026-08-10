@@ -1425,6 +1425,42 @@ function PhasenStrip({ phase }) {
   );
 }
 
+const AktionsPill = ({ ok, label, aktionen }) => {
+  const [offen, setOffen] = React.useState(false);
+  const hatAktionen = ok === false && aktionen.length > 0;
+  let bg, color, border;
+  if (ok === true)       { bg = T.greenBg; color = T.greenText; border = T.greenLight; }
+  else if (ok === false) { bg = T.redBg;   color = T.redText;   border = T.redLight;   }
+  else                   { bg = T.surface; color = T.textFaint; border = T.border;     }
+  return (
+    <span style={{ position:"relative", display:"inline-flex" }}>
+      <button
+        onClick={() => hatAktionen && setOffen(o => !o)}
+        style={{ display:"inline-flex", alignItems:"center", gap:4,
+          fontSize:"0.7rem", fontWeight:600, padding:"3px 9px",
+          borderRadius:20, border:`1px solid ${border}`, background:bg, color,
+          whiteSpace:"nowrap", cursor: hatAktionen ? "pointer" : "default",
+          fontFamily:T.fontBody }}>
+        {label}{hatAktionen && " ▾"}
+      </button>
+      {offen && (
+        <span style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:60,
+          background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:8,
+          boxShadow:"0 6px 18px rgba(0,0,0,.14)", padding:"6px 8px",
+          display:"flex", gap:6, whiteSpace:"nowrap" }}>
+          {aktionen}
+        </span>
+      )}
+    </span>
+  );
+};
+
+const aktionChip = {
+  fontFamily:T.fontBody, fontSize:"0.72rem", fontWeight:600, padding:"3px 9px",
+  borderRadius:6, border:`1px solid ${T.accentTrim}`, background:T.accentPale,
+  color:T.accentDark, textDecoration:"none", cursor:"pointer",
+};
+
 function StatusBand({ ibanCheck, todos, hq, akteId, mandant, onFehler }) {
   const vollmacht = ibanCheck?.vollmacht_vorhanden;
   const iban      = ibanCheck?.iban_vorhanden;
@@ -1462,42 +1498,6 @@ function StatusBand({ ibanCheck, todos, hq, akteId, mandant, onFehler }) {
   const fmtDatum = (iso) => {
     if (!iso) return "";
     try { const [y,m,d] = iso.split("-"); return `${d}.${m}.${y}`; } catch { return iso; }
-  };
-
-  const AktionsPill = ({ ok, label, aktionen }) => {
-    const [offen, setOffen] = React.useState(false);
-    const hatAktionen = ok === false && aktionen.length > 0;
-    let bg, color, border;
-    if (ok === true)       { bg = T.greenBg; color = T.greenText; border = T.greenLight; }
-    else if (ok === false) { bg = T.redBg;   color = T.redText;   border = T.redLight;   }
-    else                   { bg = T.surface; color = T.textFaint; border = T.border;     }
-    return (
-      <span style={{ position:"relative", display:"inline-flex" }}>
-        <button
-          onClick={() => hatAktionen && setOffen(o => !o)}
-          style={{ display:"inline-flex", alignItems:"center", gap:4,
-            fontSize:"0.7rem", fontWeight:600, padding:"3px 9px",
-            borderRadius:20, border:`1px solid ${border}`, background:bg, color,
-            whiteSpace:"nowrap", cursor: hatAktionen ? "pointer" : "default",
-            fontFamily:T.fontBody }}>
-          {label}{hatAktionen && " ▾"}
-        </button>
-        {offen && (
-          <span style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:60,
-            background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:8,
-            boxShadow:"0 6px 18px rgba(0,0,0,.14)", padding:"6px 8px",
-            display:"flex", gap:6, whiteSpace:"nowrap" }}>
-            {aktionen}
-          </span>
-        )}
-      </span>
-    );
-  };
-
-  const aktionChip = {
-    fontFamily:T.fontBody, fontSize:"0.72rem", fontWeight:600, padding:"3px 9px",
-    borderRadius:6, border:`1px solid ${T.accentTrim}`, background:T.accentPale,
-    color:T.accentDark, textDecoration:"none", cursor:"pointer",
   };
 
   return (
