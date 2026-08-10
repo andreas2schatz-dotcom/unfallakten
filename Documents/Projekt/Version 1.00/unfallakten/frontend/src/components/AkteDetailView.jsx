@@ -81,12 +81,16 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted, onOpenRe
 
   // Positionen-Status aus Ereignismodell für Header-KPI
   const [posDaten, setPosDaten] = useState(null);
+  const [posStatus, setPosStatus] = useState("laedt");
   React.useEffect(() => {
     if (!akte.az) return;
+    let abgebrochen = false;
     setPosDaten(null);
+    setPosStatus("laedt");
     request(`/akten/${encodeURIComponent(akte.az)}/positionen/status`)
-      .then(d => setPosDaten(d))
-      .catch(() => {});
+      .then(d => { if (!abgebrochen) { setPosDaten(d); setPosStatus("ok"); } })
+      .catch(() => { if (!abgebrochen) setPosStatus("fehler"); });
+    return () => { abgebrochen = true; };
   }, [akte.az]);
 
   // Beim ersten Öffnen: Schaden, Regulierungen, Beteiligte und Dokumente aus DB laden
@@ -432,7 +436,7 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted, onOpenRe
             />
           ) : null}
           {/* Synchron: Übersicht */}
-          {sec==="uebersicht" && <UebersichtSection akte={akte} st={st} dispatch={dispatch} onNavigate={setSec} posDaten={posDaten} kpiSummen={kpiSummen} mandantChecks={raInfo} />}
+          {sec==="uebersicht" && <UebersichtSection akte={akte} st={st} dispatch={dispatch} onNavigate={setSec} posDaten={posDaten} posStatus={posStatus} kpiSummen={kpiSummen} mandantChecks={raInfo} />}
           {/* Lazy: alle anderen Sections – werden erst bei erstem Tabwechsel geladen */}
           <Suspense fallback={
             <div style={{ display:"flex", justifyContent:"center", padding:"3rem 0" }}>

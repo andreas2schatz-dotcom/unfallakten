@@ -27,4 +27,16 @@ describe("PositionsDashboard mit daten-Prop", () => {
     expect(screen.getByText("Reparatur")).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
   });
+
+  it("zeigt bei ladeStatus=fehler die Fehlermeldung ohne eigenen Fetch", () => {
+    render(<PositionsDashboard az="123/26" ladeStatus="fehler" />);
+    expect(screen.getByText(/Positionsstatus nicht geladen: Verbindung fehlgeschlagen/)).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("zeigt bei ladeStatus=laedt den Ladehinweis ohne eigenen Fetch", () => {
+    render(<PositionsDashboard az="123/26" ladeStatus="laedt" />);
+    expect(screen.getByText(/Lade Positionsstatus/)).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
+  });
 });

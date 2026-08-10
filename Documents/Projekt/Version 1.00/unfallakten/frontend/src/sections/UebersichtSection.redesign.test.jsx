@@ -60,6 +60,15 @@ describe("StatusBand-Aktions-Popover", () => {
     expect(screen.getByText(/✉ anfordern/)).toBeInTheDocument();
     expect(screen.getByText(/PDF generieren/)).toBeInTheDocument();
   });
+
+  it("schließt das Popover bei Escape", () => {
+    render(<StatusBand ibanCheck={{ vollmacht_vorhanden: false, iban_vorhanden: true }}
+      todos={[]} hq={100} akteId="123/26" mandant={{ email: "m@example.com", name: "Max Müller" }} />);
+    fireEvent.click(screen.getByText(/Vollmacht fehlt/));
+    expect(screen.getByText(/PDF generieren/)).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByText(/PDF generieren/)).toBeNull();
+  });
 });
 
 describe("Redesign B — Onboarding-Fächer", () => {
@@ -84,7 +93,7 @@ describe("Redesign B — Onboarding-Fächer", () => {
     expect(screen.getByText("Schadenspositionen")).toBeInTheDocument();
   });
 
-  it("zeigt in Phase Regulierung keinen Onboarding-Chip", () => {
+  it("zeigt außerhalb der Onboarding-Phase keinen Onboarding-Chip", () => {
     render(<UebersichtSection {...PROPS}
       st={{ ...PROPS.st, abrechnungen: [{ id: 1, gesamt_reguliert: 6900, positionen: [] }] }} />);
     expect(screen.queryByText(/\/6/)).toBeNull();

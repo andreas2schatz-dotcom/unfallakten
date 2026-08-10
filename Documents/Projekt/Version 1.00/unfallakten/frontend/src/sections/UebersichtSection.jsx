@@ -1243,7 +1243,7 @@ function PhasenStrip({ phase, onboarding = null, faecherOffen = false, onToggleF
     { id: "abschluss",     label: istKlage ? "⚖ Klage" : "Abschluss" },
   ];
   return (
-    <div style={{ display:"flex", alignItems:"stretch", borderBottom:`1px solid ${T.border}`, overflow:"hidden" }}>
+    <div style={{ display:"flex", alignItems:"stretch", borderBottom:`1px solid ${T.border}`, borderRadius:"10px 10px 0 0", overflow:"hidden" }}>
       {PHASEN.map((p, i) => {
         const fertig  = phasenFertig[p.id];
         const isAktiv = aktiv === p.id;
@@ -1288,13 +1288,27 @@ function PhasenStrip({ phase, onboarding = null, faecherOffen = false, onToggleF
 
 const AktionsPill = ({ ok, label, aktionen }) => {
   const [offen, setOffen] = React.useState(false);
+  const ref = React.useRef(null);
   const hatAktionen = ok === false && aktionen.length > 0;
   let bg, color, border;
   if (ok === true)       { bg = T.greenBg; color = T.greenText; border = T.greenLight; }
   else if (ok === false) { bg = T.redBg;   color = T.redText;   border = T.redLight;   }
   else                   { bg = T.surface; color = T.textFaint; border = T.border;     }
+
+  React.useEffect(() => {
+    if (!offen) return;
+    const onKeyDown = (e) => { if (e.key === "Escape") setOffen(false); };
+    const onMouseDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOffen(false); };
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("mousedown", onMouseDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("mousedown", onMouseDown);
+    };
+  }, [offen]);
+
   return (
-    <span style={{ position:"relative", display:"inline-flex" }}>
+    <span ref={ref} style={{ position:"relative", display:"inline-flex" }}>
       <button
         onClick={() => hatAktionen && setOffen(o => !o)}
         style={{ display:"inline-flex", alignItems:"center", gap:4,
@@ -1364,6 +1378,7 @@ function StatusBand({ ibanCheck, todos, hq, akteId, mandant, onFehler }) {
   return (
     <div style={{
       background:T.surface, borderTop:`1px solid ${T.border}`,
+      borderRadius:"0 0 10px 10px",
       padding:"7px 18px", display:"flex", alignItems:"center",
       flexWrap:"wrap", gap:0,
     }}>
@@ -1372,7 +1387,9 @@ function StatusBand({ ibanCheck, todos, hq, akteId, mandant, onFehler }) {
         <AktionsPill ok={vollmacht}
           label={vollmacht === true ? "✓ Vollmacht" : vollmacht === false ? "✗ Vollmacht fehlt" : "○ Vollmacht"}
           aktionen={vollmacht === false ? [
-            <a key="anf" href={vollmachtAnfrageMailto(ibanCheck, mandant)} style={aktionChip}>✉ anfordern</a>,
+            ...(ibanCheck?.mandant_email || mandant?.email
+              ? [<a key="anf" href={vollmachtAnfrageMailto(ibanCheck, mandant)} style={aktionChip}>✉ anfordern</a>]
+              : []),
             <button key="pdf" style={aktionChip}
               onClick={() => akteId && vollmachtPdfLaden(akteId).catch(e => onFehler && onFehler(`Vollmacht-Fehler: ${e.message}`))}>
               ↓ PDF generieren
@@ -1380,7 +1397,7 @@ function StatusBand({ ibanCheck, todos, hq, akteId, mandant, onFehler }) {
           ] : []} />
         <AktionsPill ok={iban}
           label={iban === true ? "✓ IBAN" : iban === false ? "✗ IBAN fehlt" : "○ IBAN"}
-          aktionen={iban === false ? [
+          aktionen={iban === false && (ibanCheck?.mandant_email || mandant?.email) ? [
             <a key="anf" href={ibanAnfrageMailto(ibanCheck, mandant)} style={aktionChip}>✉ IBAN anfordern</a>,
           ] : []} />
         <Pill ok={rsv === true} neutral={rsv === false}
@@ -1577,7 +1594,7 @@ function PwaNachrichtModal({ az, mandantName, onClose }) {
 }
 
 function UebersichtSection({ akte, st, dispatch, onNavigate, posDaten = null,
-  kpiSummen = { gefordert: 0, reguliert: 0, offen: 0, quelle: "alt" }, mandantChecks = null }) {
+  kpiSummen = { gefordert: 0, reguliert: 0, offen: 0, quelle: "alt" }, mandantChecks = null, posStatus = "ok" }) {
   const [notizen, setNotizen] = useState(st.notizen || "");
   const [nChanged, setNC]     = useState(false);
   const [toast, setToast]     = useState("");
@@ -1629,7 +1646,7 @@ function UebersichtSection({ akte, st, dispatch, onNavigate, posDaten = null,
     <>
       {toast && <Toast msg={toast} onDone={() => setToast("")} />}
 
-      <div style={{ border:`1px solid ${T.border}`, borderRadius:10, overflow:"hidden", marginBottom:"1.25rem", boxShadow:"0 1px 4px rgba(0,0,0,.05)" }}>
+      <div style={{ border:`1px solid ${T.border}`, borderRadius:10, marginBottom:"1.25rem", boxShadow:"0 1px 4px rgba(0,0,0,.05)" }}>
         <PhasenStrip phase={phase} onboarding={onboarding}
           faecherOffen={faecherOffen} onToggleFaecher={() => setFaecherOffen(o => !o)} />
         {faecherOffen && phase.aktiv === "onboarding" && (
@@ -1644,6 +1661,7 @@ function UebersichtSection({ akte, st, dispatch, onNavigate, posDaten = null,
         <PositionsDashboard
           az={akte.az}
           daten={posDaten}
+          ladeStatus={posStatus}
           onOeffneEreignisse={(key) => setEreignislisteKey(key)}
         />
       )}

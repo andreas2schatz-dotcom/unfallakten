@@ -189,14 +189,14 @@ function AggregationsZeile({ gruppe, positionen }) {
   );
 }
 
-export default function PositionsDashboard({ az, daten: datenProp = null, onOeffneEreignisse = () => {} }) {
+export default function PositionsDashboard({ az, daten: datenProp = null, ladeStatus = null, onOeffneEreignisse = () => {} }) {
   const [geladen, setGeladen] = useState(null);
   const [fehler, setFehler] = useState(null);
   const [view, setView] = useState('getrennt');
   const daten = datenProp ?? geladen;
 
   useEffect(() => {
-    if (!az || datenProp) return;
+    if (!az || datenProp || ladeStatus !== null) return;
     let abgebrochen = false;
     const token = tokenStore.getAccess();
     fetch(`${API_BASE}/akten/${encodeURIComponent(az)}/positionen/status`, {
@@ -206,7 +206,7 @@ export default function PositionsDashboard({ az, daten: datenProp = null, onOeff
       .then(d => { if (!abgebrochen) setGeladen(d); })
       .catch(e => { if (!abgebrochen) setFehler(e.message || String(e)); });
     return () => { abgebrochen = true; };
-  }, [az, datenProp]);
+  }, [az, datenProp, ladeStatus]);
 
   const gruppen = useMemo(() => {
     if (!daten?.positionen) return {};
@@ -218,10 +218,24 @@ export default function PositionsDashboard({ az, daten: datenProp = null, onOeff
     return g;
   }, [daten]);
 
+  if (ladeStatus === "fehler") {
+    return (
+      <div style={{ padding: 12, background: T.redBg, border: `1px solid ${T.red}`, borderRadius: 8, color: T.redText, fontSize: '0.85rem' }}>
+        Positionsstatus nicht geladen: Verbindung fehlgeschlagen
+      </div>
+    );
+  }
   if (fehler) {
     return (
       <div style={{ padding: 12, background: T.redBg, border: `1px solid ${T.red}`, borderRadius: 8, color: T.redText, fontSize: '0.85rem' }}>
         Positionsstatus nicht geladen: {fehler}
+      </div>
+    );
+  }
+  if (ladeStatus === "laedt" && !daten) {
+    return (
+      <div style={{ padding: 12, color: T.textMuted, fontSize: '0.85rem' }}>
+        Lade Positionsstatus…
       </div>
     );
   }
