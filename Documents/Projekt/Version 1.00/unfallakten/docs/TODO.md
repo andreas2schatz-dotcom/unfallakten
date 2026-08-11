@@ -20,6 +20,10 @@ Code-Review + Bugfix-Runde komplett (C-1 Historie=Brief-SSOT, I-1–I-9, Aufräu
 - Minors opportunistisch bei nächster Anfassung (Liste in `bugfixes.md`).
 - ~~`test_modul6`/`test_modul7`: 95 vorbestehende Failures~~ — **✅ saniert 2026-08-11** (Mounts in Dev-Compose + Portierung auf heutige API, 74/74 + 56/56 grün; Protokoll → CHANGELOG). Hinweis: braucht einmalig `docker compose up -d --force-recreate backend`.
 
+### Sachstandsanfrage — Review ✅ + Sofort-Fixes ✅ (2026-08-11, Branch `abschlussbericht`)
+Code-Review des STA-Features (Befund-Katalog: `handover/2026-08-11-sachstandsanfrage-review-befunde.md`). Sofort-Fixes per TDD umgesetzt: M-1 (StaDialog/AbschlussberichtDialog bekamen je nach Öffnungsweg die volle RA-MICRO-AZ → jetzt Basis-AZ), M-2 (Genus/Kasus im Brieftext: neuer Platzhalter `{SchreibenDativ}`, „womit" statt „mit dem", genus-korrekte Referenz), G-1 (PII-Debug-Log in wiedervorlage_routes entfernt), G-2 (Fristanzeige im StaDialog aus konfigurierten `frist_tage` statt Hardcode), G-3 (totes textareaRef), G-7 (Stufenlogik erstmals getestet: 19 neue BE-Tests `test_sta_service.py`, 4 neue FE-Tests).
+**Offen (Kernbefunde, größerer Umbau):** K-1 Eskalation ignoriert eingegangene Antworten (Ereignis-Modell wird nicht konsultiert), K-2 RA-MICRO-Vorlagen-Weg für die Stufenlogik unsichtbar, K-3 keine Rundenlogik, M-3–M-6, G-4–G-6 — gehört zur PRD-25d-Neuplanung auf dem Ereignis-Modell (Backlog „Später", eigenes Brainstorming; Empfehlung in Befund-Katalog Abschnitt 6).
+
 ### Abschluss-/Sachstandsbericht — implementiert, Abnahme offen (Branch `abschlussbericht`)
 Neuer Typ `abschlussbericht` (Migration 67 `abschluss_status`, Service
 `abschluss_uebersicht.py`, DOCX via styling.py, GET/PUT-Routen, Kurationsdialog

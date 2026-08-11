@@ -7,6 +7,20 @@
 
 ---
 
+## 2026-08-11 — Sachstandsanfrage: Code-Review + Sofort-Fixes M-1/M-2/G-1/G-2/G-3/G-7 (Branch `abschlussbericht`)
+
+Review-Auftrag RA Schatz („weiß die STA, was abgefragt wurde, ob es schon eine gab, und eskaliert sie?"). Befund-Katalog: `handover/2026-08-11-sachstandsanfrage-review-befunde.md` — Bestandsaufnahme ergab DREI parallele Erzeugungswege (StaDialog/PRD-25d · RA-MICRO-Vorlage · Legacy-word_route) und drei Kernbefunde (K-1 Antworten werden ignoriert, K-2 Vorlagen-Weg unsichtbar für die Stufenlogik, K-3 keine Rundenlogik) → gehören zur PRD-25d-Neuplanung aufs Ereignis-Modell. In dieser Runde nur die Sofort-Fixes, alle TDD (RED verifiziert):
+
+- **M-2 Genus/Kasus im Brieftext (`sta_service.py`):** Der Fehler war größer als im Review notiert — „unser Sachstandsanfrage vom …" (Genus), „mit unser Forderungsschreiben" (Dativ fehlte in Stufe 2/3 für ALLE Typen) und „…, mit dem wir" nach femininen Typen (Relativpronomen, Stufe 1). Lösung: `_SCHREIBEN_REF`-Map (Nominativ/Akkusativ + Dativ je Typ), neuer Template-Platzhalter `{SchreibenDativ}`, Stufe-1-Default mit invariantem „womit". Platzhalter-Hinweis in den Einstellungen ergänzt. Live-DB hat keine Text-Overrides → korrigierte Defaults greifen sofort.
+- **M-1 AZ-Format der Dialog-Einstiege (`WordSection.jsx`):** StaDialog + AbschlussberichtDialog bekamen `akte.az`, das je nach Öffnungsweg (z. B. ActionBoard) die volle RA-MICRO-AZ mit SB-Kürzel trägt („312/26 AS") — Backend-Queries liefen dann ins Leere (leerer Kontext, 404 beim Generieren). Jetzt `az_roh || id || az` wie in AkteDetailView.
+- **G-2 Fristanzeige StaDialog:** Stufen-Chip zeigte hartcodiert „14/7/5 Tage" statt der in den Einstellungen konfigurierten Werte. `GET /sta/kontext` liefert jetzt `frist_tage` (neues `hole_frist_tage()` in sta_service), Dialog zeigt den Live-Wert und aktualisiert beim Stufenwechsel.
+- **G-1 PII-Debug-Logging entfernt (`wiedervorlage_routes.py`):** als „temporär" markiertes `logger.warning` loggte bei jeder WV-Generierung sämtliche Empfänger-Adressdaten.
+- **G-3:** ungenutztes `textareaRef` im StaDialog entfernt.
+- **G-7 Testlücke geschlossen:** `test_sta_service.py` neu (19 Tests): `_empfohlene_stufe`-Grenzwerte, Genus-/Platzhalter-Ersetzung, `analysiere_regulierung` (Todo-Vorrang, Fallback, leere Akte), Route-Test `frist_tage`. FE: `StaDialog.test.jsx` neu (2 Tests Fristanzeige/Stufenwechsel) + 2 M-1-Tests in `WordSection.test.jsx`.
+- Testbilanz: `test_sta_service` 19/19, Frontend-Vollsuite 502/502. Backend-Vollsuite: vorbestehende Failures unabhängig von dieser Runde (test_modul4/test_prd27/test_sv_portal/test_s19-Guard, per Stash-Gegenprobe verifiziert; Guard schlägt auf verschobene Whitelist-Zeilen in `email_import/import_service.py` an — vorbestehend, separates Thema).
+
+---
+
 ## 2026-08-11 — Testsanierung test_modul6/test_modul7: 95 vorbestehende Failures behoben (Branch `abschlussbericht`)
 
 Auftrag: `handover/naechste_session_testsanierung_modul6_7_prompt.md` (Befund aus der Forderungsschreiben-Bugfix-Runde vom selben Tag). Reine Test-Verrottung — **kein Produktcode geändert**, nur Tests + Dev-Compose. Commits `cf4641f1`, `df749801`, `c5602cb9`.
