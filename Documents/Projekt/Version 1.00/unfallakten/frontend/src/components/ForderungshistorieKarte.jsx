@@ -7,15 +7,25 @@ import { forderungen as apiForderungen } from "../api.js";
 export default function ForderungshistorieKarte({ akteId }) {
   const [schreiben, setSchreiben] = React.useState([]);
   const [laden, setLaden]         = React.useState(true);
+  const [fehler, setFehler]       = React.useState(false);
   const [offen, setOffen]         = React.useState({});   // { nr: bool }
   const [toast, setToast]         = React.useState("");
 
   React.useEffect(() => {
-    if (!akteId || !String(akteId).includes("/")) { setLaden(false); return; }
+    if (!akteId || !String(akteId).includes("/")) {
+      setSchreiben([]); setLaden(false); setFehler(false);
+      return;
+    }
+    // Ignore-Guard: verspätete Antwort einer vorherigen Akte darf den
+    // State der aktuellen Akte nicht überschreiben
+    let aktiv = true;
+    setLaden(true);
+    setFehler(false);
     apiForderungen.nachSchreiben(akteId)
-      .then(r => setSchreiben(r?.schreiben || []))
-      .catch(() => {})
-      .finally(() => setLaden(false));
+      .then(r => { if (aktiv) setSchreiben(r?.schreiben || []); })
+      .catch(() => { if (aktiv) { setSchreiben([]); setFehler(true); } })
+      .finally(() => { if (aktiv) setLaden(false); });
+    return () => { aktiv = false; };
   }, [akteId]);
 
   const toggleKlage = async (pos) => {
@@ -56,6 +66,15 @@ export default function ForderungshistorieKarte({ akteId }) {
   if (laden) return (
     <Card style={{ padding: "1.2rem 1.4rem", color: T.textFaint, fontSize: "0.9rem" }}>
       Forderungshistorie wird geladen …
+    </Card>
+  );
+
+  if (fehler) return (
+    <Card style={{ padding: "1.2rem 1.4rem" }}>
+      <CardHead title="Forderungshistorie" />
+      <p style={{ color: T.redText, fontSize: "0.9rem", margin: 0 }} role="alert">
+        Forderungshistorie konnte nicht geladen werden.
+      </p>
     </Card>
   );
 

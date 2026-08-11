@@ -41,6 +41,12 @@ function WordSection({ akte, st, dispatch }) {
   // id kann null sein (RA-Micro-Fallback) → dann kein adressat_id mitsenden
   const [adressatId, setAdressatId] = useState(ghpv?.id ?? null);
 
+  // Beteiligte laden asynchron nach — Vorbelegung nachziehen, sonst zeigt
+  // das <select> optisch die erste Option, gesendet würde aber null (I-2)
+  useEffect(() => {
+    if (adressatId == null && ghpv?.id != null) setAdressatId(ghpv.id);
+  }, [beteiligte_alle, adressatId, ghpv?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Adressaten-Optionen: alle Gegner + Versicherungen
   // Adressaten: alle Gegner + Beteiligte mit Versicherung/Kürzel
   const adressatOptionen = beteiligte_alle.filter(b =>

@@ -550,6 +550,18 @@ class TestWordService(unittest.TestCase):
             self.generiere(self.akte.id, "geheimbrief")
         self.assertEqual(ctx.exception.status_code, 422)
 
+    def test_adressat_id_wird_beruecksichtigt(self):
+        """I-2: Der im Dropdown gewählte Adressat muss im Brief landen —
+        bisher wurde adressat_id verworfen und immer der GHPV/erste
+        Gegner verwendet."""
+        from backend.models.schaden import erstelle_beteiligten
+        g2 = erstelle_beteiligten(self.akte.id, "gegner", "Zweitgegner",
+                                  versicherung="Allianz", schaden_nr="AZ-2")
+        ergebnis = self.generiere(self.akte.id, "forderungsschreiben",
+                                  self.user.id, in_db=False,
+                                  adressat_id=g2.id)
+        self.assertIn("Allianz", _docx_text(ergebnis["bytes"]))
+
     def test_ohne_schaden_422_statt_grunde(self):
         """I-5: Ohne Schadenpositionen gibt es kein bezifferbares
         Forderungsschreiben — sauberer 422 statt Pseudo-'grunde'-Dokument

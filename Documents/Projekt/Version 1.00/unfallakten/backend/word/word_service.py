@@ -129,7 +129,8 @@ def generiere_und_speichere(
         raise WordFehler(f"Akte {akte_id} nicht gefunden.", 404)
 
     # ── Daten aus DB laden + Quellenprüfung ──────────────────────────────────
-    akte_daten = _lade_akte_daten(akte_id, akte, dok_typ=dok_typ, variante=variante)
+    akte_daten = _lade_akte_daten(akte_id, akte, dok_typ=dok_typ,
+                                  variante=variante, adressat_id=adressat_id)
 
     # variante kommt aus _lade_akte_daten() — für alle anderen Dokumenttypen None
     # bereits korrekt bestimmt — für alle anderen Dokumenttypen None/unverändert
@@ -415,7 +416,9 @@ def _lade_akte_daten(akte_id: int, akte, dok_typ: str = "", variante: str = "aut
             gegner_dict is None or
             not (gegner_dict.get("anschrift") or gegner_dict.get("plz") or gegner_dict.get("ort"))
         )
-        if _gegner_braucht_adresse:
+        # Nur ohne explizit gewählten Adressaten — sonst würde der
+        # RA-MICRO-GHPV die Dropdown-Auswahl wieder überschreiben (I-2)
+        if _gegner_braucht_adresse and not adressat_id:
             ra_g = _lade_gegner_adresse_aus_ramicro(akte.aktenzeichen)
             if ra_g:
                 gegner_dict = ra_g
