@@ -62,6 +62,18 @@ services:
       - dev-uploads:/app/uploads
       - /mnt/eakte:/mnt/eakte:ro
       - oma-share:/app/oma_export
+      # Infra-Guard-Tests (test_modul6) pruefen diese Repo-Dateien relativ zur
+      # Projektwurzel (/app im Container) -- ohne die Mounts koennen die Tests
+      # im Container prinzipiell nicht gruen werden (Sanierung 2026-08-11).
+      - ./Dockerfile:/app/Dockerfile:ro
+      - ./docker-compose.yml:/app/docker-compose.yml:ro
+      - ./docker-compose.prod.yml:/app/docker-compose.prod.yml:ro
+      - ./.env.example:/app/.env.example:ro
+      - ./.gitignore:/app/.gitignore:ro
+      - ./Makefile:/app/Makefile:ro
+      - ./nginx/nginx.conf:/app/nginx/nginx.conf:ro
+      - ./nginx/proxy_params.conf:/app/nginx/proxy_params.conf:ro
+      - ./scripts:/app/scripts:ro
     ports:
       - "5000:5000"
     healthcheck:

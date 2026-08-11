@@ -114,19 +114,23 @@ class TestHealthEndpunkt(unittest.TestCase):
         self.assertGreater(r.get_json()["dauer_ms"], 0)
 
     def test_health_nach_akte_anlegen(self):
-        """health.akten zählt korrekt."""
-        # Login + Akte anlegen
+        """health.akten zählt korrekt.
+
+        Login mit den conftest-Bootstrap-Credentials (erstelle_app() legt den
+        Admin bereits an, /auth/register/erster gibt danach 409); AZ im
+        heutigen Pflichtformat ####/YY.
+        """
         self.client.post("/auth/register/erster", json={
-            "name": "Admin", "email": "a@b.de", "passwort": "Admin1234!"
+            "name": "Admin", "email": "admin@test.de", "passwort": "Admin123!"
         })
         r = self.client.post("/auth/login", json={
-            "email": "a@b.de", "passwort": "Admin1234!"
+            "email": "admin@test.de", "passwort": "Admin123!"
         })
         token = r.get_json()["access_token"]
         h = {"Authorization": f"Bearer {token}"}
 
         self.client.post("/akten", json={
-            "aktenzeichen": "25-H-001", "unfalldatum": "2025-01-01"
+            "aktenzeichen": "1/25", "unfalldatum": "2025-01-01"
         }, headers=h)
 
         r2 = self.client.get("/health")
