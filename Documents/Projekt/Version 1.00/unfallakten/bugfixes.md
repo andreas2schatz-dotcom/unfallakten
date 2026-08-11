@@ -37,6 +37,7 @@ Branch: `abschlussbericht`. Vorgehen: TDD (Test zuerst, rot sehen, dann fixen).
 - `naechste_schreiben_nr`-Race (eigene Connection) · `kuerzungsart_id` ohne Validierung · leerer PATCH → 404 statt 422 · `_pruefe_akte`-Rückgabewert verworfen in `word_routes.py:54,76` + `int(adressat_id)` ohne try · `vorschau` fängt nur `WordFehler` · Sofort-Download regeneriert statt E-Akte-Datei · `_merge_split_placeholders` verliert Misch-Formatierung · MwSt 19 % dreifach hartkodiert · `/zusammenfassung` FE-ungenutzt + zwei „Klagepotential"-Definitionen
 
 ### Vermerke ohne Fix-Zwang (aus Review)
+- **Nachtrag Testsanierung 2026-08-11:** `backend/email_import/import_service.py:39` nutzt `logger` im `except ImportError`-Zweig, bevor `logger` (Zeile 48) definiert ist — latenter NameError, falls `backend.ramicro.email_matching` je fehlen sollte. Aktuell nie getroffen (Modul importiert sauber); bei nächster Anfassung der Datei `logger`-Definition vor die try/except-Blöcke ziehen.
 - **V-3** Positionsliste berechnen / XML rendern trennen (wird mit C-1 miterledigt)
 - **V-4** Status `vollreguliert` → `betrag_reguliert` automatisch nachziehen (oder warnen)
 - **V-5** Frontend-Tests `ForderungshistorieKarte` nachziehen
@@ -56,5 +57,5 @@ Testbilanz: Backend `test_modul5` 84/84 + `test_forderung_modell` 8/8 (23 neue T
 Besonderheiten / bewusste Entscheidungen:
 - **Restwert wird jetzt negativ gespeichert** (`forderung_positionen.betrag_gefordert`) — Summen ergeben den echten Forderungsbetrag. Bestandszeilen mit positivem Restwert bleiben unverändert (kein Backfill; betrifft nur Alt-Akten mit Totalschaden-Historie).
 - **Aggregat-Semantik:** `gesamt_gefordert`/`offen`/`klagepotential`/Streitwert-Fallback = Stand des jeweils letzten Schreibens je `position_key` (vollregulierte Positionen behalten ihren letzten Stand automatisch).
-- `test_modul6`/`test_modul7` haben 95 vorbestehende Failures (gleiche Zahl vor/nach allen Änderungen, gleiche Ursachen-Klasse wie die reparierte AZ-Verrottung) — separates Sanierungsthema, nicht Forderungsmodul.
+- ~~`test_modul6`/`test_modul7` haben 95 vorbestehende Failures~~ — ✅ saniert 2026-08-11 (74/74 + 56/56 grün, Protokoll → `docs/CHANGELOG.md`).
 - I-10 (Haftungsquote/Alleinschuld-Baustein) bewusst offen: juristische Formulierung gehört RA Schatz vorgelegt.

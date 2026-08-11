@@ -18,7 +18,7 @@ Code-Review + Bugfix-Runde komplett (C-1 Historie=Brief-SSOT, I-1–I-9, Aufräu
 **Offen:**
 - **I-10 Haftungsquote (Entscheidung RA Schatz):** Brief behauptet bei erfasster Teilhaftung weiterhin Alleinschuld und fordert ungekürzt; FE-Banner quotiert daneben. Braucht juristische Formulierung für den Teilhaftungs-Baustein (+ HQ=0-Konvention, vgl. bekannte Inkonsistenz Übersicht/DOCX).
 - Minors opportunistisch bei nächster Anfassung (Liste in `bugfixes.md`).
-- `test_modul6`/`test_modul7`: 95 vorbestehende Failures (Test-Verrottung, u. a. AZ-Format) — separates Sanierungsthema, nicht Forderungsmodul.
+- ~~`test_modul6`/`test_modul7`: 95 vorbestehende Failures~~ — **✅ saniert 2026-08-11** (Mounts in Dev-Compose + Portierung auf heutige API, 74/74 + 56/56 grün; Protokoll → CHANGELOG). Hinweis: braucht einmalig `docker compose up -d --force-recreate backend`.
 
 ### Abschluss-/Sachstandsbericht — implementiert, Abnahme offen (Branch `abschlussbericht`)
 Neuer Typ `abschlussbericht` (Migration 67 `abschluss_status`, Service

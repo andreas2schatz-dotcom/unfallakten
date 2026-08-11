@@ -7,6 +7,18 @@
 
 ---
 
+## 2026-08-11 — Testsanierung test_modul6/test_modul7: 95 vorbestehende Failures behoben (Branch `abschlussbericht`)
+
+Auftrag: `handover/naechste_session_testsanierung_modul6_7_prompt.md` (Befund aus der Forderungsschreiben-Bugfix-Runde vom selben Tag). Reine Test-Verrottung — **kein Produktcode geändert**, nur Tests + Dev-Compose. Commits `cf4641f1`, `df749801`, `c5602cb9`.
+
+- **modul6 (47 Failures): Infra-Dateien fehlten im Container.** Die Infra-Guard-Tests (Dockerfile/Compose/Nginx/Makefile/.gitignore/Backup — u. a. der bewusste `TestBackupInfra`-Guard aus N-10) prüfen Repo-Dateien relativ zur Projektwurzel, die im Backend-Container `/app` ist; dort waren nur `backend/`, `tools/`, `requirements.txt`, `gunicorn.conf.py` gemountet. Alle Inhalts-Assertions waren gegen die Host-Dateien korrekt — reines Umgebungsproblem. **Entscheidung:** Dateien read-only in den Dev-Container mounten (docker-compose.yml) statt Skip-wenn-fehlt, damit die Guards im kanonischen Testlauf (Container) scharf bleiben und bei fehlendem Mount laut fehlschlagen. **Deploy-Hinweis:** einmalig `docker compose up -d --force-recreate backend` nötig, sonst bleiben die modul6-Tests rot. Dazu 1 verrotteter Health-Test repariert (Bootstrap-Admin → 409 bei Neuregistrierung; AZ-Format `####/YY`).
+- **modul7 (48 Failures): Tests prüften die tote `email_import.parser`-API** (vor dem E-Mail-Workflow-Umbau). Auf die heutige Produktiv-API portiert, kein Rückbau: Modul `email_parser`, `finde_akte()` liefert `(az, erkannt, match_methode)`, `unfallakte`-PK ist az (TEXT), Log-/Statistik-Status `zugeordnet`/`nicht_zugeordnet` (v9), AZ-Pflichtformat `####/YY(SB)`, Anhang-Semantik unter `INTAKE_REVIEW_PFLICHT` (Anhänge → `intake_dokumente`/Review-Queue, `dokumente` bleibt bis zur Freigabe leer — Assertions prüfen genau das). Ersatzlos gestrichen wurde nichts; einzig `test_az_variante_slash` (totes Format `25/0042`) durch SB-Kürzel-Tests am realen Format `955/25AS` ersetzt.
+- **Test-Härtung:** Import-Lauf-Tests deaktivieren das RA-MICRO-Matching (`_RAMICRO_VERFUEGBAR=False`) — die portierten Läufe hätten sonst in die echte, aus dem Container erreichbare RA-MICRO-DB gegriffen (Determinismus + read-only-Gebot). `teste_verbindung` im Status-Routen-Test gemockt (vorher echter IMAP-Connect-Versuch auf `mail.test.de`).
+- **Befund ohne Fix (kein Test betroffen, Produktcode-Tabu):** `backend/email_import/import_service.py:39` nutzt `logger` im `except ImportError`-Zweig vor dessen Definition (Zeile 48) — latenter NameError, falls `backend.ramicro.email_matching` je fehlen sollte. Als Minor in `bugfixes.md` vermerkt.
+- Testbilanz: modul6 74/74, modul7 56/56 (vorher zusammen 35 passed / 95 failed), Gesamtlauf modul5–7 + `test_forderung_modell` 222/222 grün, Frontend-Vollsuite unangetastet 498/498.
+
+---
+
 ## 2026-08-11 — Forderungsschreiben-Modul: Code-Review-Fixes C-1 + I-1..I-9 + Aufräumen (Branch `abschlussbericht`)
 
 Modul-Review vom 2026-08-10 (Befund-Katalog: `handover/2026-08-10-forderungsschreiben-review-befunde.md`, Arbeitsliste: `bugfixes.md` im Projektroot). Alle Fixes TDD (23 neue BE- + 4 neue FE-Tests, jeweils RED verifiziert). Commits `520e75af..1b8d2402`.
