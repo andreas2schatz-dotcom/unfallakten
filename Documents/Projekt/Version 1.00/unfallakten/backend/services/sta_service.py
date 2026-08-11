@@ -10,7 +10,9 @@ Stufenlogik:
   3 – Klage-Ankündigung (≥2 STAs + >42 Tage)         Frist: konfigurierbar (Default  5 Tage)
 
 Texte und Fristen sind über die konfiguration-Tabelle anpassbar.
-Platzhalter in den Templates: {Schreiben}, {Mandant}, {Frist}
+Platzhalter in den Templates: {Schreiben}, {SchreibenDativ}, {Mandant}, {Frist}
+{Schreiben} steht im Nominativ/Akkusativ ("unsere Sachstandsanfrage vom ..."),
+{SchreibenDativ} im Dativ ("mit unserer Sachstandsanfrage vom ...").
 """
 
 import logging
@@ -31,14 +33,14 @@ _FRIST_DEFAULTS = {
 _TEXT_DEFAULTS = {
     "sta_stufe1_text": (
         "in vorbezeichneter Angelegenheit erlauben wir uns, auf {Schreiben} hinzuweisen, "
-        "mit dem wir die Schadensersatzansprüche für {Mandant} geltend gemacht haben.\n\n"
+        "womit wir die Schadensersatzansprüche für {Mandant} geltend gemacht haben.\n\n"
         "Eine Rückmeldung Ihrerseits ist bislang ausgeblieben. Wir bitten Sie, "
         "die Angelegenheit zu bearbeiten und uns bis zum {Frist} eine Stellungnahme "
         "zukommen zu lassen.\n\n"
         "Für Rückfragen stehen wir Ihnen gerne zur Verfügung."
     ),
     "sta_stufe2_text": (
-        "in vorbezeichneter Angelegenheit haben wir Ihnen mit {Schreiben} "
+        "in vorbezeichneter Angelegenheit haben wir Ihnen mit {SchreibenDativ} "
         "die Schadensersatzansprüche für {Mandant} angezeigt. "
         "Trotz Ablauf der gesetzten Frist ist eine Reaktion Ihrerseits bisher ausgeblieben.\n\n"
         "Wir fordern Sie auf, bis spätestens {Frist} eine verbindliche Stellungnahme abzugeben "
@@ -49,7 +51,7 @@ _TEXT_DEFAULTS = {
     ),
     "sta_stufe3_text": (
         "in vorbezeichneter Angelegenheit haben wir uns mehrfach schriftlich an Sie gewandt, "
-        "zuletzt mit {Schreiben}. Eine Reaktion Ihrerseits ist in keinem Fall erfolgt.\n\n"
+        "zuletzt mit {SchreibenDativ}. Eine Reaktion Ihrerseits ist in keinem Fall erfolgt.\n\n"
         "Wir kündigen hiermit an, ohne weiteres Zuwarten gerichtliche Schritte einzuleiten. "
         "Sollten wir bis zum {Frist} keine verbindliche Regulierungszusage erhalten, "
         "werden wir Klage erheben.\n\n"
@@ -63,6 +65,14 @@ TYP_LABEL = {
     "sachstandsanfrage":   "Sachstandsanfrage",
     "stellungnahme":       "Stellungnahme",
 }
+
+# Genus-korrekte Referenz auf das letzte Schreiben: (Nominativ/Akkusativ, Dativ)
+_SCHREIBEN_REF = {
+    "forderungsschreiben": ("unser Forderungsschreiben", "unserem Forderungsschreiben"),
+    "sachstandsanfrage":   ("unsere Sachstandsanfrage",  "unserer Sachstandsanfrage"),
+    "stellungnahme":       ("unsere Stellungnahme",      "unserer Stellungnahme"),
+}
+_SCHREIBEN_FALLBACK = ("unser Schreiben", "unserem Schreiben")
 
 
 # ── Öffentliche API ────────────────────────────────────────────────────────────
@@ -168,7 +178,7 @@ def generiere_sta_text(stufe, kontext):
 
     Lädt das Template aus der konfiguration-Tabelle (falls vorhanden),
     fällt sonst auf die eingebauten Defaults zurück.
-    Ersetzt Platzhalter: {Schreiben}, {Mandant}, {Frist}.
+    Ersetzt Platzhalter: {Schreiben}, {SchreibenDativ}, {Mandant}, {Frist}.
     """
     stufe = max(1, min(3, int(stufe)))
 
@@ -176,18 +186,28 @@ def generiere_sta_text(stufe, kontext):
     mandant = kontext.get("mandant_name") or "unsere Mandantschaft"
     frist   = (date.today() + timedelta(days=_frist_tage(stufe))).strftime("%d.%m.%Y")
 
-    schreiben_ref = (
-        "unser {} vom {}".format(ls["typ_label"], ls["datum_fmt"])
-        if ls else "unser Schreiben"
+    ref_nom, ref_dat = (
+        _SCHREIBEN_REF.get(ls["typ"], _SCHREIBEN_FALLBACK)
+        if ls else _SCHREIBEN_FALLBACK
     )
+    if ls:
+        ref_nom = "{} vom {}".format(ref_nom, ls["datum_fmt"])
+        ref_dat = "{} vom {}".format(ref_dat, ls["datum_fmt"])
 
     template = _lese_text_template(stufe)
     return (
         template
-        .replace("{Schreiben}", schreiben_ref)
-        .replace("{Mandant}",   mandant)
-        .replace("{Frist}",     frist)
+        .replace("{SchreibenDativ}", ref_dat)
+        .replace("{Schreiben}",      ref_nom)
+        .replace("{Mandant}",        mandant)
+        .replace("{Frist}",          frist)
     )
+
+
+def hole_frist_tage(stufe):
+    # type: (int) -> int
+    """Konfigurierte Antwortfrist (in Tagen) für eine STA-Stufe."""
+    return _frist_tage(max(1, min(3, int(stufe))))
 
 
 # ── Interne Hilfsfunktionen ───────────────────────────────────────────────────

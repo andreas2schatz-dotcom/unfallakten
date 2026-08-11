@@ -402,7 +402,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                         <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.755rem",
                           color:T.textFaint, background:T.offWhite, padding:"2px 8px",
                           borderRadius:5, border:`1px solid ${T.border}` }}>
-                          {"{Schreiben}"} · {"{Mandant}"} · {"{Frist}"}
+                          {"{Schreiben}"} · {"{SchreibenDativ}"} · {"{Mandant}"} · {"{Frist}"}
                         </span>
                       </div>
                       <textarea

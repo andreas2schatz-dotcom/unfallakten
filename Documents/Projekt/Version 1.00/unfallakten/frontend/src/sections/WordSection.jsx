@@ -102,13 +102,13 @@ function WordSection({ akte, st, dispatch }) {
       {toast && <Toast msg={toast} onDone={() => setT("")} />}
       {staOffen && (
         <StaDialog
-          az={akte.az || akte.id}
+          az={akte.az_roh || akte.id || akte.az}
           onClose={(generated) => { setStaOffen(false); if (generated) setT("✓ Sachstandsanfrage generiert."); }}
         />
       )}
       {abschlussOffen && (
         <AbschlussberichtDialog
-          az={akte.az || akte.id}
+          az={akte.az_roh || akte.id || akte.az}
           onClose={(generated) => { setAbschlussOffen(false); if (generated) setT("✓ Abschluss-/Sachstandsbericht erstellt."); }}
         />
       )}

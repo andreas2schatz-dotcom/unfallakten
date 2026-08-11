@@ -18,7 +18,9 @@ from ..auth.middleware import login_erforderlich
 from ..db.database import get_connection
 from ..models.dokument import registriere_dokument
 from ..services.fristen_service import setze_antwort_frist
-from ..services.sta_service import analysiere_regulierung, generiere_sta_text
+from ..services.sta_service import (
+    analysiere_regulierung, generiere_sta_text, hole_frist_tage,
+)
 from ..word.sachstandsanfrage import generiere_sachstandsanfrage
 
 logger = logging.getLogger(__name__)
@@ -55,8 +57,9 @@ def sta_kontext(az: str):
 
     return jsonify({
         **kontext,
-        "stufe":     stufe,
-        "brieftext": brieftext,
+        "stufe":      stufe,
+        "brieftext":  brieftext,
+        "frist_tage": hole_frist_tage(stufe),
     })
 
 

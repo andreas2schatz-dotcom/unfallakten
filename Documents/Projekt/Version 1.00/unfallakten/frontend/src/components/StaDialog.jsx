@@ -9,19 +9,20 @@
  * - "Generieren + Word öffnen" → Download + Todo
  */
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import T from "../config/theme.js";
 import { apiSta } from "../api.js";
 
 const STUFEN_LABEL = {
-  1: { name: "Erinnerung",        farbe: T.green, frist: "14 Tage" },
-  2: { name: "Mahnung",           farbe: T.amber, frist: "7 Tage"  },
-  3: { name: "Klage-Ankündigung", farbe: T.red, frist: "5 Tage"  },
+  1: { name: "Erinnerung",        farbe: T.green },
+  2: { name: "Mahnung",           farbe: T.amber },
+  3: { name: "Klage-Ankündigung", farbe: T.red },
 };
 
 export default function StaDialog({ az, onClose }) {
   const [kontext,    setKontext]    = useState(null);
   const [stufe,      setStufe]      = useState(null);     // null bis geladen
+  const [fristTage,  setFristTage]  = useState(null);     // konfigurierte Frist der Stufe
   const [brieftext,  setBrieftext]  = useState("");
   const [dirty,      setDirty]      = useState(false);    // manuell bearbeitet?
   const [confirm,    setConfirm]    = useState(null);     // {zielStufe} wenn Warnung aktiv
@@ -29,7 +30,6 @@ export default function StaDialog({ az, onClose }) {
   const [generating, setGenerating] = useState(false);
   const [fehler,     setFehler]     = useState(null);
   const [erfolg,     setErfolg]     = useState(false);
-  const textareaRef = useRef(null);
 
   // Kontext laden (empfohlene Stufe)
   useEffect(() => {
@@ -39,6 +39,7 @@ export default function StaDialog({ az, onClose }) {
       .then(data => {
         setKontext(data);
         setStufe(data.stufe);
+        setFristTage(data.frist_tage ?? null);
         setBrieftext(data.brieftext || "");
         setDirty(false);
       })
@@ -52,6 +53,7 @@ export default function StaDialog({ az, onClose }) {
     apiSta.kontext(az, neueStufe)
       .then(data => {
         setStufe(neueStufe);
+        setFristTage(data.frist_tage ?? null);
         setBrieftext(data.brieftext || "");
         setDirty(false);
       })
@@ -210,9 +212,11 @@ export default function StaDialog({ az, onClose }) {
                   <span style={{ fontFamily: T.fontBody, fontSize: "0.915rem", fontWeight: 700, color: stufeInfo.farbe }}>
                     Stufe {stufe} – {stufeInfo.name}
                   </span>
-                  <span style={{ fontFamily: T.fontBody, fontSize: "0.8rem", color: T.textMuted, marginLeft: "auto", flexShrink: 0 }}>
-                    {stufeInfo.frist}
-                  </span>
+                  {fristTage != null && (
+                    <span style={{ fontFamily: T.fontBody, fontSize: "0.8rem", color: T.textMuted, marginLeft: "auto", flexShrink: 0 }}>
+                      {fristTage} Tage
+                    </span>
+                  )}
                 </div>
                 <button
                   onClick={() => versucheStufeWechsel(stufe + 1)}
@@ -266,7 +270,6 @@ export default function StaDialog({ az, onClose }) {
                   Brieftext (editierbar)
                 </label>
                 <textarea
-                  ref={textareaRef}
                   value={brieftext}
                   onChange={e => { setBrieftext(e.target.value); setDirty(true); }}
                   rows={10}

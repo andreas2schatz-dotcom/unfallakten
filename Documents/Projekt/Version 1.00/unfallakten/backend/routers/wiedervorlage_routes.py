@@ -241,10 +241,6 @@ def generiere_sachstandsanfrage(guid: str):
     if not wv:
         return _err(f"Wiedervorlage mit GUID '{guid}' nicht gefunden.", 404)
 
-    # DEBUG – temporär
-    logger.warning("WV-DATEN ALLE KEYS: %s", list(wv.keys()))
-    logger.warning("WV-DATEN ADRESSE: %s", {k: v for k, v in wv.items() if any(x in k.lower() for x in ["strasse","plz","ort","betreff","adresse","name","vorname","erste","brief","gegner"])})
-
     # Word generieren
     try:
         docx_bytes = generiere_sachstandsanfrage_wv(wv)
