@@ -7,6 +7,20 @@
 
 ---
 
+## 2026-08-11 — Forderungsschreiben-Modul: Code-Review-Fixes C-1 + I-1..I-9 + Aufräumen (Branch `abschlussbericht`)
+
+Modul-Review vom 2026-08-10 (Befund-Katalog: `handover/2026-08-10-forderungsschreiben-review-befunde.md`, Arbeitsliste: `bugfixes.md` im Projektroot). Alle Fixes TDD (23 neue BE- + 4 neue FE-Tests, jeweils RED verifiziert). Commits `520e75af..1b8d2402`.
+
+- **Aufräumen (`a4cf92ca`):** Toter Alt-Generator `word/forderungsschreiben.py` + 8 ungenutzte Vorlagen gelöscht (nur `forderungsschreiben_vorlage.docx` wird geladen); `TestForderungsschreiben` auf die Produktiv-Variante `_wv` portiert; Fantasie-IBAN-Totcode raus. Nebenbei 15 verrottete `TestWordRouten`-Tests repariert (Setup-AZ scheiterte seit der AZ-Normalisierung an `####/YY`).
+- **C-1 (Critical, `9e787541`):** Forderungshistorie erfasste andere Beträge als der Brief (staler Key `rep_fiktiv_netto` → Reparaturkosten fehlten bei fiktiver Abrechnung; Doppelerfassung; Restwert-Vorzeichen; Unkostenpauschale; Nebenkosten brutto/netto). Neu: `berechne_positionen()` als SSOT für Brief-Tabelle UND `erfasse_forderung(akte_id, positionen)`; Restwert wird negativ gespeichert; word_service übergibt das kanonische AZ. **Aggregat-Semantik (I-8):** Zusammenfassung + Gebühren-Streitwert-Fallback zählen je `position_key` nur den Stand des letzten Schreibens.
+- **Quick-Wins (`ed797f17`):** I-3 Freitext-`varSCHMGELD` crasht nicht mehr; I-1 Registry-Typen ohne Generator (mahnschreiben/klagedrohung) → 422 statt KeyError-500; I-6 `varSSTF`-Vorsteuer-Override las leeres Dict, greift jetzt; I-7 PATCH auf Forderungspositionen ist akte-gescoped.
+- **Juristische Texte (`9d93a951`):** I-4 Schmerzensgeld-Block sprach vorgerichtlich vom „Kläger" — jetzt „Unser(e) Mandant(in)/Mandanten" mit korrektem Numerus (auch wurde/wurden, war/waren); I-5 Pseudo-Variante „grunde" (erzeugte Höhe-Dokument mit 30-€-Tabelle) → 422 „Keine Schadenpositionen erfasst".
+- **Frontend (`1b8d2402`):** I-2 Adressat-Dropdown wirkt jetzt (BE reichte `adressat_id` nie durch; FE-Vorbelegung zog bei spät geladenen Beteiligten nicht nach; RA-MICRO-Fallback überschreibt explizite Auswahl nicht mehr); I-9 `ForderungshistorieKarte` mit Ignore-Guard, Ladezustand-Reset und sichtbarem Fehlerzustand.
+- Testbilanz: `test_modul5` 84/84, `test_forderung_modell` 8/8 (neu), angrenzende Suiten (Klage, P1.4, Abschlussbericht) 69/69, Frontend-Vollsuite 498/498. `test_modul6`/`7`: 95 vorbestehende Failures (vor/nach identisch) — separates Sanierungsthema.
+- **Offen:** I-10 Haftungsquote (Alleinschuld-Baustein trotz erfasster Teilhaftung; HQ=0-Semantik) — braucht Formulierungsentscheidung RA Schatz; Minors laut `bugfixes.md` opportunistisch.
+
+---
+
 ## 2026-08-10 — Übersicht-Redesign A+B: Summen-SSOT, 3 Akkordeons, Onboarding-Fächer, Aktions-Pills (Branch `abschlussbericht`)
 
 Umsetzung der Redesign-Mockups A+B (`handover/2026-08-10-uebersicht-redesign-mockups.md`, von RA Schatz freigegeben), SDD-Plan mit 11 Tasks im Anschluss an die Review-Session vom selben Tag (Befund-Katalog: `handover/2026-08-10-uebersicht-review-befunde.md`, löst B3 sowie die dort unter „Bewusst offen" vermerkten Doppel-Requests/-Logiken). Frontend-Vollsuite 491/491 grün.

@@ -13,6 +13,13 @@ Mockups A+B umgesetzt (11 Tasks): Summen-SSOT aus dem Ereignismodell (löst Befu
 **Offen:** Merge-Strategie (unten bei Intake-Review-Sichtbarkeit). Optional Sichtkontrolle RA Schatz am eigenen Rechner — bewusste Eigenheiten: kurzes KPI-Umspringen beim Öffnen (Alt-Zahlen → Ereignismodell); HQ=0-Semantik (Header 0 € gefordert, Backend-DOCX rechnet bei HQ=0 mit 100 % — bekannte Inkonsistenz).
 **Folgebefund (vorbestehend, nicht Redesign):** React-Warnung „two children with the same key" im ActionBoard (`views/action_board/boardUi.jsx` `ZeilenListe`, Keys wie `35/26AS2026-07-27` doppelt bei gleichem AZ+SB+Datum) — bei Dashboard-Hell-Nacharbeit mitfixen (Eintrag dort ergänzt).
 
+### Forderungsschreiben-Modul — Review-Fixes ✅ (2026-08-11, Branch `abschlussbericht`, `520e75af..1b8d2402`)
+Code-Review + Bugfix-Runde komplett (C-1 Historie=Brief-SSOT, I-1–I-9, Aufräumen). Befunde: `handover/2026-08-10-forderungsschreiben-review-befunde.md` · Arbeitsliste/Protokoll: `bugfixes.md` · CHANGELOG 2026-08-11.
+**Offen:**
+- **I-10 Haftungsquote (Entscheidung RA Schatz):** Brief behauptet bei erfasster Teilhaftung weiterhin Alleinschuld und fordert ungekürzt; FE-Banner quotiert daneben. Braucht juristische Formulierung für den Teilhaftungs-Baustein (+ HQ=0-Konvention, vgl. bekannte Inkonsistenz Übersicht/DOCX).
+- Minors opportunistisch bei nächster Anfassung (Liste in `bugfixes.md`).
+- `test_modul6`/`test_modul7`: 95 vorbestehende Failures (Test-Verrottung, u. a. AZ-Format) — separates Sanierungsthema, nicht Forderungsmodul.
+
 ### Abschluss-/Sachstandsbericht — implementiert, Abnahme offen (Branch `abschlussbericht`)
 Neuer Typ `abschlussbericht` (Migration 67 `abschluss_status`, Service
 `abschluss_uebersicht.py`, DOCX via styling.py, GET/PUT-Routen, Kurationsdialog
