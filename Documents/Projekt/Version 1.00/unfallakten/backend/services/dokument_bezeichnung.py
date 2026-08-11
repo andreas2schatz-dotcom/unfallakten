@@ -81,7 +81,8 @@ def baue_bezeichnung(klasse: Optional[str], felder: Optional[Dict[str, Any]],
             datum = _fmt_datum(kontext.get("eingangsdatum"))
         return _zusammen(label, None, datum, None)
 
-    label = spec.get("label") or klasse or "Dokument"
+    label = (spec.get("bezeichnung_label") or spec.get("label")
+             or klasse or "Dokument")
     aussteller = _text(felder.get(rollen["aussteller"])) if rollen.get("aussteller") else None
     datum = _fmt_datum(felder.get(rollen["datum"])) if rollen.get("datum") else None
     betrag = _fmt_betrag(felder.get(rollen["betrag"])) if rollen.get("betrag") else None

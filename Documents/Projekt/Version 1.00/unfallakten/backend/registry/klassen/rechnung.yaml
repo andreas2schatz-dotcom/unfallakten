@@ -44,6 +44,9 @@ validierungsregeln:
 fristrelevanz: false
 loeschfrist_jahre: 10
 label: Rechnung (Auffang)
+# "(Auffang)" ist interne Taxonomie fuers Klassen-Dropdown -- in der
+# nutzersichtbaren Dokumentbezeichnung soll nur "Rechnung" stehen
+bezeichnung_label: Rechnung
 bezeichnung_felder:
   aussteller: aussteller
   datum: rechnungsdatum
