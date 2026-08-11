@@ -31,8 +31,9 @@ def _ns(test_id: str):
     for m in (db_mod, sm_mod, ben_mod, akte_mod, schaden_mod, dok_mod):
         importlib.reload(m)
 
-    # Schema sofort erstellen
+    # Schema sofort erstellen (wie init_db(): Basis-DDL + alle Migrationen)
     sm_mod.create_schema()
+    sm_mod.run_migrations()
 
     class NS:
         check_schema        = staticmethod(sm_mod.check_schema)
@@ -99,7 +100,40 @@ class TestDatenbankSetup(unittest.TestCase):
         import backend.db.schema_manager as sm
         importlib.reload(sm)
         sm.create_schema()  # zweiter Aufruf
+        sm.run_migrations()
         self.assertTrue(f.check_schema()["ok"])
+
+    def test_fk_abrechnungsschreiben_und_pruefberichte_zeigen_auf_az(self):
+        # Regression: Migration 3 legte akte_id INTEGER REFERENCES unfallakte(id)
+        # an -- unfallakte hat aber kein id (PK ist az). Auf frischen DBs crashte
+        # dadurch jedes INSERT/DELETE mit "foreign key mismatch".
+        f = _ns("db_fk_az")
+        with f.get_connection() as conn:
+            for tbl in ("abrechnungsschreiben", "pruefberichte"):
+                sql = conn.execute(
+                    "SELECT sql FROM sqlite_master WHERE name=?", (tbl,)
+                ).fetchone()["sql"]
+                self.assertIn("REFERENCES unfallakte(az)", sql,
+                              f"{tbl}: FK muss auf unfallakte(az) zeigen")
+        a = f.erstelle_akte("99/25", "2025-01-01")
+        with f.get_connection() as conn:
+            conn.execute(
+                "INSERT INTO abrechnungsschreiben (akte_id, datum) VALUES (?, ?)",
+                (a.az, "2025-02-01"))
+            conn.execute(
+                "INSERT INTO pruefberichte (akte_id, datum) VALUES (?, ?)",
+                (a.az, "2025-02-01"))
+            # todos (z.B. automatische Verjaehrungsfristen) duerfen den
+            # Akten-Delete nicht blockieren
+            conn.execute(
+                "INSERT INTO todos (akte_az, text) VALUES (?, ?)",
+                (a.az, "Frist"))
+        f.loesche_akte(a.id)
+        with f.get_connection() as conn:
+            rest = conn.execute(
+                "SELECT COUNT(*) FROM abrechnungsschreiben WHERE akte_id=?",
+                (a.az,)).fetchone()[0]
+        self.assertEqual(rest, 0)
 
 
 class TestBenutzer(unittest.TestCase):
@@ -168,11 +202,13 @@ class TestUnfallakte(unittest.TestCase):
         self.assertEqual(a.status, "offen")
         self.assertEqual(a.haftungsquote, 100.0)
 
-    def test_doppeltes_aktenzeichen(self):
+    def test_doppeltes_aktenzeichen_liefert_bestehende_akte(self):
+        # Heutige Semantik (on-demand RA-MICRO): zweiter Aufruf gibt die
+        # bestehende Akte zurueck statt ValueError zu werfen.
         f = _ns("akte_dup")
-        f.erstelle_akte("25-DUP", "2025-01-01")
-        with self.assertRaises(ValueError):
-            f.erstelle_akte("25-DUP", "2025-01-01")
+        a1 = f.erstelle_akte("25-DUP", "2025-01-01")
+        a2 = f.erstelle_akte("25-DUP", "2025-01-01")
+        self.assertEqual(a1.id, a2.id)
 
     def test_leeres_aktenzeichen(self):
         f = _ns("akte_leer")
@@ -180,8 +216,11 @@ class TestUnfallakte(unittest.TestCase):
             f.erstelle_akte("", "2025-01-01")
 
     def test_ungueltige_haftungsquote(self):
+        # Validierung liegt heute im DB-CHECK-Constraint (0..100), nicht mehr
+        # in Python -> IntegrityError statt ValueError.
+        import sqlite3
         f = _ns("akte_hq")
-        with self.assertRaises(ValueError):
+        with self.assertRaises(sqlite3.IntegrityError):
             f.erstelle_akte("AZ-X", "2025-01-01", haftungsquote=150.0)
 
     def test_by_aktenzeichen(self):
@@ -346,9 +385,20 @@ class TestRegulierung(unittest.TestCase):
             f.erstelle_regulierung(a.id, "2025-02-01", 8000, -100)
 
     def test_status_view(self):
+        # v_regulierungsstatus speist sich seit dem Option-B-Redesign aus
+        # regulierung_positionen (Abrechnungsschreiben-Modell); die Legacy-
+        # Tabelle regulierung fliesst bewusst nicht mehr ein.
         f = _ns("reg_view")
         a = f.erstelle_akte("AZ", "2025-01-01")
-        f.erstelle_regulierung(a.id, "2025-02-01", 8000, 5000)
+        with f.get_connection() as conn:
+            cur = conn.execute(
+                "INSERT INTO abrechnungsschreiben (akte_id, datum) VALUES (?, ?)",
+                (a.az, "2025-02-01"))
+            conn.execute(
+                "INSERT INTO regulierung_positionen "
+                "(abrechnungsschreiben_id, position_key, betrag_gefordert, "
+                " betrag_reguliert) VALUES (?, 'reparaturkosten', 8000, 5000)",
+                (cur.lastrowid,))
         s = f.hole_regulierungsstatus(a.id)
         self.assertAlmostEqual(s["betrag_reguliert"], 5000.0)
 

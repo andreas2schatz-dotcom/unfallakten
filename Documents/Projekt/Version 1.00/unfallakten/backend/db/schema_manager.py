@@ -96,7 +96,10 @@ VALUES
 -- ============================================================
 CREATE TABLE IF NOT EXISTS abrechnungsschreiben (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    akte_id             INTEGER NOT NULL REFERENCES unfallakte(id) ON DELETE CASCADE,
+    -- akte_id haelt das Aktenzeichen (az ist PK von unfallakte, ein
+    -- numerisches id existiert dort nicht); Alt-DBs wurden durch den
+    -- Migration-5-Rebuild korrigiert, frische DBs brauchen es direkt hier
+    akte_id             TEXT NOT NULL REFERENCES unfallakte(az) ON DELETE CASCADE,
     datum               TEXT    NOT NULL,
     versicherung        TEXT,
     referenz_nr         TEXT,
@@ -160,7 +163,7 @@ CREATE INDEX IF NOT EXISTS idx_regpos_klage         ON regulierung_positionen(fu
 -- ============================================================
 CREATE TABLE IF NOT EXISTS pruefberichte (
     id                              INTEGER PRIMARY KEY AUTOINCREMENT,
-    akte_id                         INTEGER NOT NULL REFERENCES unfallakte(id) ON DELETE CASCADE,
+    akte_id                         TEXT NOT NULL REFERENCES unfallakte(az) ON DELETE CASCADE,
     abrechnungsschreiben_id         INTEGER REFERENCES abrechnungsschreiben(id) ON DELETE SET NULL,
     datum                           TEXT    NOT NULL,
     gutachter                       TEXT,
@@ -3111,7 +3114,7 @@ def _run_migration_23(conn: sqlite3.Connection) -> None:
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS todos (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            akte_az      TEXT    NOT NULL REFERENCES unfallakte(az),
+            akte_az      TEXT    NOT NULL REFERENCES unfallakte(az) ON DELETE CASCADE,
             text         TEXT    NOT NULL,
             erstellt_am  TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
             faellig_am   TEXT,
@@ -3520,7 +3523,7 @@ def _run_migration_32(conn):
 
         CREATE TABLE IF NOT EXISTS todos_new (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            akte_az      TEXT    NOT NULL REFERENCES unfallakte(az),
+            akte_az      TEXT    NOT NULL REFERENCES unfallakte(az) ON DELETE CASCADE,
             text         TEXT    NOT NULL,
             erstellt_am  TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
             faellig_am   TEXT,
