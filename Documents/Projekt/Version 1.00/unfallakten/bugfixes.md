@@ -38,6 +38,8 @@ Branch: `abschlussbericht`. Vorgehen: TDD (Test zuerst, rot sehen, dann fixen).
 
 ### Vermerke ohne Fix-Zwang (aus Review)
 - **Nachtrag Testsanierung 2026-08-11:** `backend/email_import/import_service.py:39` nutzt `logger` im `except ImportError`-Zweig, bevor `logger` (Zeile 48) definiert ist — latenter NameError, falls `backend.ramicro.email_matching` je fehlen sollte. Aktuell nie getroffen (Modul importiert sauber); bei nächster Anfassung der Datei `logger`-Definition vor die try/except-Blöcke ziehen.
+- **Nachtrag Vollsuite-Sanierung 2026-08-11:** `GET /akten` liefert `"gesamt": len(seite)` statt der Gesamtzahl (akten_routes.py) — Paginierungs-Metadatum irreführend, FE nutzt das Feld aber nicht. Bei nächster Anfassung: COUNT-Query ergänzen.
+- **Nachtrag Vollsuite-Sanierung 2026-08-11:** Die `PRAGMA foreign_keys = OFF`-Workarounds in `models/abrechnungsschreiben.py` (erstelle_abrechnungsschreiben / erstelle_pruefbericht, „etabliertes Muster") sind nach dem Migration-3-DDL-Fix (FK jetzt `unfallakte(az)`) obsolet — opportunistisch entfernen, Kommentar dort korrigieren.
 - **V-3** Positionsliste berechnen / XML rendern trennen (wird mit C-1 miterledigt)
 - **V-4** Status `vollreguliert` → `betrag_reguliert` automatisch nachziehen (oder warnen)
 - **V-5** Frontend-Tests `ForderungshistorieKarte` nachziehen

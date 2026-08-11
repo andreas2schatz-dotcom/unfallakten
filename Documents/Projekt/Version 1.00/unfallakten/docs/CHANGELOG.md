@@ -7,6 +7,29 @@
 
 ---
 
+## 2026-08-11 — Testsanierung Backend-Vollsuite: 123 vorbestehende Failures → 0 (Branch `abschlussbericht`)
+
+Auftrag: `handover/naechste_session_testsanierung_vollsuite_prompt.md` (Fortsetzung der modul6/7-Sanierung). Vorher 123 failed / 1610 passed, nachher **0 failed / 1735 passed / 20 skipped**. Kategorisierung: überwiegend Test-Verrottung (die ältesten Suiten modul1–4 + Nachbarn), 2 Isolationsprobleme, **3 echte Produkt-Befunde** (separat ausgewiesen, alle TDD mit RED-Nachweis).
+
+**Echte Befunde (Produktcode geändert):**
+- **Frisch-DB-Schema: FK auf nicht existierendes `unfallakte(id)`** (`schema_manager.py` Migration 3): `abrechnungsschreiben` + `pruefberichte` referenzierten `unfallakte(id)` — die Spalte gibt es nicht (PK ist `az`). Auf Alt-DBs hat der Migration-5-Rebuild das längst korrigiert (Live-DB verifiziert: FK auf `az`), Migration 5 überspringt aber frische DBs → dort crashte jedes INSERT/DELETE mit „foreign key mismatch" (deshalb auch die `PRAGMA foreign_keys=OFF`-Workarounds in `models/abrechnungsschreiben.py`, jetzt obsolet → Vermerk in `bugfixes.md`). Fix im Migration-3-DDL: `akte_id TEXT REFERENCES unfallakte(az)`; Bestands-DBs (Version ≥ 3) unberührt. Guard-Test `test_fk_abrechnungsschreiben_und_pruefberichte_zeigen_auf_az` in modul1.
+- **`todos` blockierte den Akten-Delete** (Migration 23 + 32): FK ohne `ON DELETE`-Klausel; da jede neue Akte automatisch Verjährungsfristen-Todos bekommt (PRD-25a), schlug `DELETE /akten/<az>` auf frischen DBs immer fehl (Live-DB hat gar keinen todos-FK — Bestand unberührt). Fix: `ON DELETE CASCADE` im Frisch-DDL, entspricht der dokumentierten Route-Semantik („löscht inkl. aller verknüpften Daten").
+- **„Rechnung (Auffang)" in der nutzersichtbaren Dokumentbezeichnung** (`rechnung.yaml` + `services/dokument_bezeichnung.py`): Die SSOT-Klassen-Registry setzte `label: Rechnung (Auffang)` (Dropdown-Unterscheidung zu Spezialrechnungen) — `baue_bezeichnung()` übernahm das 1:1 in `dokumente.bezeichnung` („Rechnung (Auffang) Autohaus Müller vom …"). Fix: optionales `bezeichnung_label: Rechnung` in der YAML, Service nutzt es mit Fallback auf `label`. Dropdown behält „(Auffang)".
+
+**Test-Verrottung (nur Tests portiert):**
+- **modul2 (16) + modul3-Basis + modul4-Basis + prd27 + dashboard_uebersicht (9):** Auth-Bootstrap veraltet — `erstelle_app()` seedet seit v41 Admins (`_ensure_admin_exists`), conftest.py setzt dafür `ADMIN_EMAIL=admin@test.de`; die alten Tests registrierten per `register/erster` (→ 409) bzw. nutzten die Kanzlei-Default-Credentials oder das tote `benutzername`-Login-Format.
+- **modul3 (50):** AZ-Format-Validierung `####/YY(SB)` (Tests nutzten `25-T-001` etc.), Response-Shape (`regulierungsstatus` statt `regulierungen`), Duplikat-AZ liefert heute die bestehende Akte (on-demand-Semantik) statt 422, `pruefe_akte` behandelt AZ-förmige IDs als potenzielle RA-MICRO-Akten (404-Tests auf nicht-AZ-förmige Kennung umgestellt), `v_regulierungsstatus` speist sich seit Option B aus `regulierung_positionen` (Legacy-`regulierung` zählt bewusst nicht mehr).
+- **modul4 (32):** Setup-AZ ungültig; Upload-POST liefert unter `INTAKE_REVIEW_PFLICHT` 202 → Review-Queue (keine dokumente-Zeile, kein typ-Check, keine Auto-Schaden-Übernahme = S1.9c BREAKING #2, jetzt explizit getestet); Routen-Tests an bestehenden Dokumenten seeden über den Upload-Service (Alt-Pfad).
+- **modul1 (6):** `_ns` rief nur `create_schema()` ohne `run_migrations()` (check_schema erwartet Migrations-Tabellen); Duplikat-AZ/Haftungsquoten-Validierung auf heutige Semantik (IntegrityError via CHECK-Constraint) portiert.
+- **migration_46 (1):** Test entfernte nur Migration 46 aus MIGRATIONS und lief dann in Migration 48, die die intake-Tabellen aus 46 voraussetzt — jetzt werden alle ≥ 46 entfernt/restauriert.
+- **s19-Guard (1):** reiner Zeilen-Drift durch die E-Mail-Hotfixes `34342daa`/`8e9b50ea` — per git-Diff seit `2a358bd8` verifiziert, dass KEIN `registriere_dokument`-Aufruf hinzukam; Whitelist auf {324, 784, 814, 1182} nachgezogen.
+- **sv_portal (4, Isolationsproblem):** `app_client`-Fixture setzte nie `DB_PATH` und hing vom zufällig zuletzt gesetzten Wert des vorher gelaufenen Testmoduls ab → eigene frische DB je Test. Toggle-Test auf die heutige On-demand-Semantik portiert (Akte wird per `INSERT OR IGNORE` angelegt statt 404 — RA-MICRO ist SSOT).
+- **intake_akten_matching (1, Isolationsproblem):** Der Score-Test lief gegen das **echte** RA-MICRO (im Dev-Container erreichbar) — der Fallback lieferte 1.0 statt des SQLite-Basis-Scores 0.9. `_suche_in_ramicro` jetzt klassenweit gemockt (analog `_RAMICRO_VERFUEGBAR=False` aus der modul6/7-Runde).
+- **Minor ausgewiesen (kein Fix):** `GET /akten` liefert `gesamt` = Seitengröße statt Gesamtzahl (FE nutzt das Feld nicht) → `bugfixes.md`.
+- Testbilanz: Backend-Vollsuite **1735/1735 grün** (20 skipped, 7:05 min). Frontend unberührt (keine FE-Änderungen; Registry-`label` fürs Dropdown unverändert).
+
+---
+
 ## 2026-08-11 — Sachstandsanfrage: Code-Review + Sofort-Fixes M-1/M-2/G-1/G-2/G-3/G-7 (Branch `abschlussbericht`)
 
 Review-Auftrag RA Schatz („weiß die STA, was abgefragt wurde, ob es schon eine gab, und eskaliert sie?"). Befund-Katalog: `handover/2026-08-11-sachstandsanfrage-review-befunde.md` — Bestandsaufnahme ergab DREI parallele Erzeugungswege (StaDialog/PRD-25d · RA-MICRO-Vorlage · Legacy-word_route) und drei Kernbefunde (K-1 Antworten werden ignoriert, K-2 Vorlagen-Weg unsichtbar für die Stufenlogik, K-3 keine Rundenlogik) → gehören zur PRD-25d-Neuplanung aufs Ereignis-Modell. In dieser Runde nur die Sofort-Fixes, alle TDD (RED verifiziert):
