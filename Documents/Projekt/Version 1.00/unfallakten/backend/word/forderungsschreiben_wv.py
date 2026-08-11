@@ -596,6 +596,7 @@ def _baue_verletzungsblock(wdm: dict, gram: dict, ps_data: dict = None) -> str:
     PP1A = gram.get("@PP1A", "Er")
     P1A  = gram.get("@P1A",  "")
     S1A  = gram.get("@S1A",  "")
+    ist_plural = S1A == "en"
 
     PPR = '<w:pPr><w:jc w:val="both"/></w:pPr>'
     RPR = '<w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>'
@@ -617,7 +618,10 @@ def _baue_verletzungsblock(wdm: dict, gram: dict, ps_data: dict = None) -> str:
     absaetze = []
 
     # Einleitung
-    absaetze.append(_p(f"Bei dem Unfall wurde unser{P1A} Mandant{S1A} verletzt."))
+    absaetze.append(_p(
+        f"Bei dem Unfall {'wurden' if ist_plural else 'wurde'} "
+        f"unser{P1A} Mandant{S1A} verletzt."
+    ))
 
     # Krankenhaus
     kh_name = wv("V-KHADR.NName")
@@ -664,7 +668,10 @@ def _baue_verletzungsblock(wdm: dict, gram: dict, ps_data: dict = None) -> str:
     if wv("V-HKRANK").lower() == "ja":
         kr_von = wv("V-KRVON")
         kr_bis = wv("V-KRBIS")
-        verb   = "war" if kr_bis else "ist"
+        if ist_plural:
+            verb = "waren" if kr_bis else "sind"
+        else:
+            verb = "war" if kr_bis else "ist"
         if kr_von and kr_bis:
             zeitraum = f" für die Zeit vom {kr_von} bis zum {kr_bis}"
         elif kr_von:
@@ -694,7 +701,12 @@ def _baue_verletzungsblock(wdm: dict, gram: dict, ps_data: dict = None) -> str:
     except Exception:
         sg_mind = 0.0
 
-    sg_absaetze, _, sg_vgl = _baue_sg_abschnitt(ps_data or {}, gram.get("kl_nom") or "Der Kläger", sg_mind)
+    # Vorgerichtlich gibt es keinen "Kläger" — Subjekt ist der Mandant,
+    # Genus/Numerus aus den Grammatik-Vars (Review-Befund I-4)
+    mandant_nom = f"Unser{P1A} Mandant{S1A}"
+    sg_absaetze, _, sg_vgl = _baue_sg_abschnitt(
+        ps_data or {}, mandant_nom, sg_mind,
+        verb_hat="haben" if ist_plural else "hat")
     sg_text = " ".join(sg_absaetze)
     if sg_vgl:
         sg_text += f" ({sg_vgl})"

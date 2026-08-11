@@ -101,20 +101,22 @@ def generiere_und_speichere(
                       'abrechnungsuebersicht' | 'klage'
         bearbeiter_id: Wer das Dokument generiert
         in_db:        True → Dokument in DB als Eintrag speichern
-        variante:     Für forderungsschreiben: 'hoehe' | 'grunde'
-                      'hoehe'  → Forderungsschreiben der Höhe nach (DOCX-Vorlage)
-                      'grunde' → Forderungsschreiben dem Grunde nach (RTF-Vorlage)
+        variante:     Für forderungsschreiben: nur 'hoehe' (der Höhe nach).
+                      Ohne erfasste Schadenpositionen wird mit 422
+                      abgebrochen — ein unbeziffertes Schreiben "dem Grunde
+                      nach" existiert nicht als Vorlage.
 
     Returns:
         {
           "bytes":     <Dokument-Bytes>,
           "dateiname": "42-25_forderungsschreiben.docx",
           "dokument":  { DB-Eintrag } oder None,
-          "variante":  "hoehe" | "grunde" | None,
+          "variante":  "hoehe" | None,
         }
 
     Raises:
-        WordFehler bei ungültiger Akte oder unbekanntem Typ
+        WordFehler bei ungültiger Akte, unbekanntem Typ oder fehlenden
+        Schadenpositionen (Forderungsschreiben)
     """
     if dok_typ not in gueltige_dok_typen():
         raise WordFehler(
@@ -132,6 +134,15 @@ def generiere_und_speichere(
     # variante kommt aus _lade_akte_daten() — für alle anderen Dokumenttypen None
     # bereits korrekt bestimmt — für alle anderen Dokumenttypen None/unverändert
     tatsaechliche_variante = akte_daten.get("variante", variante)
+
+    # Ohne Schadenpositionen ("grunde") gibt es kein bezifferbares
+    # Forderungsschreiben — die frühere Variante erzeugte das "Höhe"-Dokument
+    # mit leerer Tabelle + 30-€-Default (Review-Befund I-5).
+    if dok_typ == "forderungsschreiben" and tatsaechliche_variante != "hoehe":
+        raise WordFehler(
+            "Keine Schadenpositionen erfasst — das Forderungsschreiben kann "
+            "nicht beziffert werden. Bitte zuerst den Schaden erfassen.", 422
+        )
 
     # ── Generator aufrufen ────────────────────────────────────────────────────
     def _forderung(ad): return generiere_forderungsschreiben_wv(ad, tatsaechliche_variante)

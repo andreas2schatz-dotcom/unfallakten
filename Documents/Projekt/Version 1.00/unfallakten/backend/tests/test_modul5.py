@@ -313,6 +313,31 @@ class TestForderungsschreiben(unittest.TestCase):
         self.assertTrue(_ist_docx(data))
         self.assertIn("KEINE ADRESSE ERFASST", _docx_text(data))
 
+    def test_schmerzensgeld_ohne_klaeger_formulierung(self):
+        """I-4: Vorgerichtlich gibt es keinen 'Kläger' — der
+        Schmerzensgeld-Block muss vom Mandanten sprechen (mit Genus)."""
+        from unittest.mock import patch
+        daten = _akte_daten(SCHADEN)
+        daten["mandant"]["anrede"] = "Herr"
+        daten["wdm_roh"] = {"varANSPR-SG": "Ja"}
+        with patch("backend.services.standardtext_registry.hole_texte_aufgeloest",
+                   return_value={"sg_beweis_atteste": "Atteste"}):
+            text = _docx_text(self.gen(daten))
+        self.assertNotIn("Der Kläger", text)
+        self.assertIn("Unser Mandant hat durch den Unfall", text)
+
+    def test_schmerzensgeld_plural_eheleute(self):
+        """I-4: Plural-Mandanten (Eheleute) → 'Unsere Mandanten haben …'."""
+        from unittest.mock import patch
+        daten = _akte_daten(SCHADEN)
+        daten["mandant"]["anrede"] = "Eheleute"
+        daten["wdm_roh"] = {"varANSPR-SG": "Ja"}
+        with patch("backend.services.standardtext_registry.hole_texte_aufgeloest",
+                   return_value={"sg_beweis_atteste": "Atteste"}):
+            text = _docx_text(self.gen(daten))
+        self.assertIn("Unsere Mandanten haben durch den Unfall", text)
+        self.assertIn("Bei dem Unfall wurden unsere Mandanten verletzt.", text)
+
     def test_schmerzensgeld_freitext_wdm_crasht_nicht(self):
         """I-3: varSCHMGELD mit Freitext (z.B. 'ca. 2.500 EUR') darf die
         Generierung nicht abbrechen."""
@@ -523,6 +548,18 @@ class TestWordService(unittest.TestCase):
     def test_ungültiger_typ_422(self):
         with self.assertRaises(self.WordFehler) as ctx:
             self.generiere(self.akte.id, "geheimbrief")
+        self.assertEqual(ctx.exception.status_code, 422)
+
+    def test_ohne_schaden_422_statt_grunde(self):
+        """I-5: Ohne Schadenpositionen gibt es kein bezifferbares
+        Forderungsschreiben — sauberer 422 statt Pseudo-'grunde'-Dokument
+        mit 30-€-Default-Tabelle."""
+        from backend.models.akte import erstelle_akte
+        akte2 = erstelle_akte("26-SVC-002", "2025-05-01", self.user.id,
+                              unfallort="Hanau")
+        with self.assertRaises(self.WordFehler) as ctx:
+            self.generiere(akte2.id, "forderungsschreiben",
+                           self.user.id, in_db=False)
         self.assertEqual(ctx.exception.status_code, 422)
 
     def test_registry_typ_ohne_generator_422(self):
