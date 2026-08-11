@@ -31,7 +31,9 @@ from ..models.dokument import registriere_dokument
 from ..models.forderung import erfasse_forderung
 
 from .forderungsschreiben_wv import (
-    generiere_forderungsschreiben_wv, hat_schadensdaten, dateiendung as forderung_ext
+    generiere_forderungsschreiben_wv, hat_schadensdaten,
+    dateiendung as forderung_ext,
+    berechne_positionen, ist_vorsteuerabzugsberechtigt,
 )
 from .sachstandsanfrage import generiere_sachstandsanfrage
 from .abrechnungsuebersicht_service import generiere_abrechnungsuebersicht
@@ -195,11 +197,16 @@ def generiere_und_speichere(
         # Nur für Forderungsschreiben der Höhe nach — dem Grunde nach hat
         # keine bezifferten Positionen die zu tracken wären.
         if dok_typ == "forderungsschreiben" and tatsaechliche_variante == "hoehe":
-            schaden_fuer_forderung = akte_daten.get("schaden") or {}
             try:
+                # Exakt die Positionen des Briefs (C-1) — gleiche Quelle wie
+                # die Schadenstabelle, unter dem kanonischen Aktenzeichen.
+                brief_positionen = berechne_positionen(
+                    akte_daten.get("schaden") or {},
+                    ist_vorsteuerabzugsberechtigt(akte_daten.get("mandant")),
+                )
                 erfasse_forderung(
-                    akte_id      = akte_id,
-                    schaden      = schaden_fuer_forderung,
+                    akte_id      = akte.aktenzeichen,
+                    positionen   = brief_positionen,
                     dokument_id  = dok.id if dok else None,
                     bearbeiter_id = bearbeiter_id,
                 )
@@ -539,9 +546,18 @@ def _lade_gebuehren_kontext(az: str):
             g = conn.execute(
                 "SELECT faktor_final FROM gebuehren_berechnung WHERE akte_id = ?",
                 (az,)).fetchone()
+            # Je position_key nur der Stand des letzten Schreibens (I-8) —
+            # Folgeschreiben legen neue Zeilen an, SUM über alles verdoppelt.
             fw = conn.execute(
-                "SELECT SUM(betrag_gefordert) AS s FROM forderung_positionen "
-                "WHERE akte_id = ?", (az,)).fetchone()
+                """SELECT SUM(betrag_gefordert) AS s
+                   FROM forderung_positionen fp
+                   WHERE fp.akte_id = ?
+                     AND fp.forderungsschreiben_nr = (
+                         SELECT MAX(f2.forderungsschreiben_nr)
+                         FROM forderung_positionen f2
+                         WHERE f2.akte_id = fp.akte_id
+                           AND f2.position_key = fp.position_key)""",
+                (az,)).fetchone()
             streitwert = float(fw["s"] or 0) if fw else 0.0
             if streitwert == 0.0:
                 sp = conn.execute(

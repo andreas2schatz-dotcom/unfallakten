@@ -551,6 +551,40 @@ class TestWordService(unittest.TestCase):
                                    in_db=False)
         self.assertIn("25-SVC-001", ergebnis["dateiname"])
 
+    def test_forderungshistorie_entspricht_brief(self):
+        """C-1: Die Historie muss exakt die Positionen des Briefs übernehmen
+        (kanonische Keys, unter dem Aktenzeichen, inkl. Unkostenpauschale)."""
+        self.generiere(self.akte.id, "forderungsschreiben",
+                       self.user.id, in_db=True)
+        from backend.models.forderung import hole_forderung_positionen
+        pos = hole_forderung_positionen("25-SVC-001")
+        d = {p.position_key: p.betrag_gefordert for p in pos}
+        self.assertEqual(d.get("rep_gutachten_netto"), 6240.50)
+        self.assertEqual(d.get("sv_kosten"), 890.0)
+        self.assertEqual(d.get("unkostenpauschale"), 30.0)
+        self.assertNotIn("reparaturkosten", d)
+
+    def test_gebuehren_streitwert_dedupliziert_schreiben(self):
+        """I-8: Streitwert-Fallback darf Positionen über mehrere Schreiben
+        nicht doppelt zählen — es zählt der Stand des letzten Schreibens."""
+        from backend.word import word_service as ws
+        from backend.db.database import get_connection
+        az = "25-SVC-001"
+        with get_connection() as conn:
+            for nr, betrag in ((1, 500.0), (2, 300.0)):
+                conn.execute(
+                    """
+                    INSERT INTO forderung_positionen
+                        (akte_id, forderungsschreiben_nr, datum, position_key,
+                         position_label, betrag_gefordert, status)
+                    VALUES (?, ?, date('now'), 'nutzungsausfall',
+                            'Nutzungsausfallschaden', ?, 'gefordert')
+                    """,
+                    (az, nr, betrag),
+                )
+        ctx = ws._lade_gebuehren_kontext(az)
+        self.assertEqual(ctx["streitwert"], 300.0)
+
     def test_bytes_sind_nicht_leer(self):
         ergebnis = self.generiere(self.akte.id, "abrechnungsuebersicht",
                                    in_db=False)
@@ -701,6 +735,71 @@ class TestWordRouten(unittest.TestCase):
         self.assertIn("955/25", text)
 
 
+class TestBerechnePositionen(unittest.TestCase):
+    """Unit-Tests für die kanonische Positionsliste (C-1/V-3):
+    eine Quelle für Brief-Tabelle UND Forderungshistorie."""
+
+    def setUp(self):
+        from backend.word import forderungsschreiben_wv
+        import importlib; importlib.reload(forderungsschreiben_wv)
+        self.fn = forderungsschreiben_wv.berechne_positionen
+
+    def _map(self, res):
+        return {p["key"]: p["betrag"] for p in res}
+
+    def test_fiktiv_nutzt_gutachten_key(self):
+        pm = self._map(self.fn({"rep_gutachten_netto": 5000.0}, vorsteuer=False))
+        self.assertEqual(pm["rep_gutachten_netto"], 5000.0)
+        self.assertNotIn("reparaturkosten", pm)
+        self.assertEqual(pm["unkostenpauschale"], 30.0)
+
+    def test_legacy_reparaturkosten_wird_gutachten_key(self):
+        pm = self._map(self.fn({"reparaturkosten": 6240.50}, vorsteuer=False))
+        self.assertEqual(pm["rep_gutachten_netto"], 6240.50)
+        self.assertNotIn("reparaturkosten", pm)
+
+    def test_totalschaden_restwert_negativ(self):
+        pm = self._map(self.fn(
+            {"wiederbeschaffung": 18500.0, "restwert": 3200.0}, vorsteuer=False))
+        self.assertEqual(pm["wiederbeschaffung"], 18500.0)
+        self.assertEqual(pm["restwert"], -3200.0)
+        self.assertNotIn("wertminderung", pm)
+
+    def test_konkret_brutto_ohne_vorsteuer(self):
+        pm = self._map(self.fn(
+            {"rep_rechnung_netto": 1000.0, "rep_rechnung_brutto": 1190.0,
+             "abrechnungsart": "konkret"}, vorsteuer=False))
+        self.assertEqual(pm["rep_rechnung_brutto"], 1190.0)
+        self.assertNotIn("rep_rechnung_netto", pm)
+
+    def test_konkret_netto_mit_vorsteuer(self):
+        pm = self._map(self.fn(
+            {"rep_rechnung_netto": 1000.0, "rep_rechnung_brutto": 1190.0,
+             "abrechnungsart": "konkret"}, vorsteuer=True))
+        self.assertEqual(pm["rep_rechnung_netto"], 1000.0)
+        self.assertNotIn("rep_rechnung_brutto", pm)
+
+    def test_nebenkosten_brutto_umrechnung(self):
+        pm = self._map(self.fn(
+            {"rep_gutachten_netto": 1.0, "sv_kosten_netto": 100.0,
+             "sv_kosten_ust": 19.0}, vorsteuer=False))
+        self.assertEqual(pm["sv_kosten"], 119.0)
+
+    def test_nullzeilen_gefiltert(self):
+        pm = self._map(self.fn(
+            {"rep_gutachten_netto": 5000.0, "nutzungsausfall": 0.0},
+            vorsteuer=False))
+        self.assertNotIn("nutzungsausfall", pm)
+
+    def test_summe_entspricht_tabelle(self):
+        from backend.word.forderungsschreiben_wv import _baue_tabelle
+        schaden = {"rep_gutachten_netto": 5000.0, "wertminderung": 350.0,
+                   "nutzungsausfall": 560.0}
+        _, gesamt = _baue_tabelle(schaden, vorsteuer=False)
+        erwartet = sum(p["betrag"] for p in self.fn(schaden, vorsteuer=False))
+        self.assertEqual(round(gesamt, 2), round(erwartet, 2))
+
+
 class TestBauePosMap(unittest.TestCase):
     """Unit-Tests für _baue_pos_map (Summierung + Key-Normalisierung)."""
 
@@ -796,6 +895,7 @@ if __name__ == "__main__":
         TestAbrechnungsuebersicht,
         TestWordService,
         TestWordRouten,
+        TestBerechnePositionen,
         TestBauePosMap,
     ]:
         suite.addTests(loader.loadTestsFromTestCase(cls))

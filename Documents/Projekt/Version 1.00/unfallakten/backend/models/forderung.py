@@ -31,7 +31,7 @@ GUELTIGE_STATUS = ("gefordert", "teilreguliert", "vollreguliert", "gekuerzt", "a
 # Feste Bezeichnungen für Standard-Schadenpositionen (für Dokumente)
 POSITION_LABELS: dict[str, str] = {
     "reparaturkosten":     "Reparaturkosten",
-    "rep_fiktiv_netto":    "Reparaturkosten lt. Gutachten (netto)",
+    "rep_gutachten_netto": "Reparaturkosten lt. Gutachten (netto)",
     "rep_rechnung_netto":  "Reparaturkosten lt. Rechnung (netto)",
     "rep_rechnung_brutto": "Reparaturkosten lt. Rechnung (brutto)",
     "wiederbeschaffung":   "Wiederbeschaffungswert",
@@ -110,7 +110,7 @@ def naechste_schreiben_nr(akte_id: str) -> int:
 
 def erfasse_forderung(
     akte_id: str,
-    schaden: dict,
+    positionen: list[dict],
     dokument_id: Optional[int] = None,
     bearbeiter_id: Optional[int] = None,
     datum: Optional[str] = None,
@@ -118,13 +118,19 @@ def erfasse_forderung(
     """
     Legt Forderungsposition-Zeilen für ein neues Forderungsschreiben an.
 
-    Nur Positionen mit Betrag > 0 werden erfasst.
-    Positionen die bereits 'vollreguliert' sind werden übersprungen.
-    Extras aus wdm_extras_json werden als 'extra_1'..'extra_6' gespeichert.
+    positionen ist die gerenderte Brief-Positionsliste aus
+    forderungsschreiben_wv.berechne_positionen() — dieselbe Quelle wie die
+    Schadenstabelle im Dokument. Die Historie interpretiert das Schaden-Dict
+    nicht mehr selbst (Review-Befund C-1: Key-Drift, Doppelerfassung).
+
+    - Positionen mit Betrag 0 werden übersprungen.
+    - 'restwert' kommt als Abzug negativ an und wird negativ gespeichert,
+      damit Summen den tatsächlichen Forderungsbetrag ergeben.
+    - Bereits 'vollregulierte' position_keys werden übersprungen.
 
     Args:
         akte_id:      Aktenzeichen
-        schaden:      Schaden-Dict aus word_service (SQLite-Werte)
+        positionen:   [{key, label, betrag, ...}] aus berechne_positionen()
         dokument_id:  ID des generierten Dokuments in der dokumente-Tabelle
         bearbeiter_id: Wer das Schreiben erstellt hat
         datum:        Datum des Schreibens (ISO, Standard: heute)
@@ -137,44 +143,23 @@ def erfasse_forderung(
     # Bereits vollregulierte Positionen dieser Akte holen
     vollreguliert = _hole_vollregulierte_keys(akte_id)
 
-    positionen: list[tuple] = []
-
-    # Standard-Schadenpositionen
-    for key, label in POSITION_LABELS.items():
-        if key in vollreguliert:
+    zeilen: list[tuple] = []
+    for p in positionen or []:
+        key    = (p.get("key") or "").strip()
+        betrag = float(p.get("betrag") or 0)
+        if not key or betrag == 0 or key in vollreguliert:
             continue
-        betrag = float(schaden.get(key) or 0)
-        if betrag <= 0:
-            continue
-        # Restwert: wird im Schreiben als Abzug geführt — trotzdem positiv speichern
-        positionen.append((key, label, betrag))
+        label = p.get("label") or POSITION_LABELS.get(key, key)
+        zeilen.append((key, label, betrag))
 
-    # Extras (sonstige Schäden 1-6 aus wdm_extras_json)
-    import json
-    extras_raw = schaden.get("wdm_extras_json") or "[]"
-    try:
-        extras = json.loads(extras_raw) if isinstance(extras_raw, str) else (extras_raw or [])
-        if not isinstance(extras, list):
-            extras = []
-    except Exception:
-        extras = []
-
-    for i, ex in enumerate(extras[:6], 1):
-        betrag = float(ex.get("betrag") or ex.get("netto") or 0)
-        label  = ex.get("label") or f"Sonstiger Schaden {i}"
-        key    = f"extra_{i}"
-        if betrag <= 0 or key in vollreguliert:
-            continue
-        positionen.append((key, label, betrag))
-
-    if not positionen:
+    if not zeilen:
         logger.info("Keine offenen Positionen für Forderungsschreiben %s/%d.",
                     akte_id, schreiben_nr)
         return []
 
     with get_connection() as conn:
         ids = []
-        for key, label, betrag in positionen:
+        for key, label, betrag in zeilen:
             cur = conn.execute(
                 """
                 INSERT INTO forderung_positionen
@@ -281,10 +266,20 @@ def forderungs_zusammenfassung(akte_id: str) -> dict:
             "positionen_gesamt": 0,
         }
 
-    gesamt_gefordert = sum(p.betrag_gefordert for p in positionen)
-    gesamt_reguliert = sum(p.betrag_reguliert for p in positionen)
+    # Je position_key zählt nur der Stand des LETZTEN Schreibens — jedes
+    # Folgeschreiben legt für offene Positionen neue Zeilen an, sonst
+    # verdoppeln sich die Summen (Review-Befund I-8). Vollregulierte
+    # Positionen tauchen in Folgeschreiben nicht mehr auf und behalten
+    # dadurch automatisch ihren letzten Stand.
+    letzte: dict[str, ForderungPosition] = {}
+    for p in positionen:  # sortiert nach forderungsschreiben_nr, id
+        letzte[p.position_key] = p
+    aktuelle = list(letzte.values())
+
+    gesamt_gefordert = sum(p.betrag_gefordert for p in aktuelle)
+    gesamt_reguliert = sum(p.betrag_reguliert for p in aktuelle)
     klagepotential   = sum(
-        p.differenz for p in positionen
+        p.differenz for p in aktuelle
         if p.status in ("gekuerzt", "abgelehnt", "teilreguliert")
     )
 
@@ -294,8 +289,8 @@ def forderungs_zusammenfassung(akte_id: str) -> dict:
         "gesamt_reguliert":  round(gesamt_reguliert, 2),
         "offen":             round(gesamt_gefordert - gesamt_reguliert, 2),
         "klagepotential":    round(klagepotential, 2),
-        "positionen_offen":  sum(1 for p in positionen if not p.ist_vollreguliert),
-        "positionen_gesamt": len(positionen),
+        "positionen_offen":  sum(1 for p in aktuelle if not p.ist_vollreguliert),
+        "positionen_gesamt": len(aktuelle),
     }
 
 

@@ -398,7 +398,7 @@ def _generiere(akte_daten: dict) -> bytes:
         )
     else:
         einleitung_tabelle = "Wir beziffern den Schaden vorläufig wie folgt:"
-    vorsteuer = str(mandant.get("vorsteuer") or "N").strip().upper() in ("Y", "J", "JA", "1", "TRUE")
+    vorsteuer = ist_vorsteuerabzugsberechtigt(mandant)
     tabelle_xml, _ = _baue_tabelle(schaden, bw, einleitung_tabelle, vorsteuer=vorsteuer)
     ps_data = akte_daten.get("personenschaden") or {}
     verletzung_xml = _baue_verletzungsblock(wdm, gram, ps_data)
@@ -741,7 +741,24 @@ def _ermittle_abrechnungsart(schaden: dict, vorsteuer: bool = False) -> str:
     return _berechne_abrechnungsart(schaden, vorsteuer=vorsteuer)["abrechnungsart"]
 
 
-def _baue_tabelle(schaden: dict, body_width: int = 9163, einleitung: str = "", vorsteuer: bool = False) -> tuple:
+def ist_vorsteuerabzugsberechtigt(mandant: Optional[dict]) -> bool:
+    return str((mandant or {}).get("vorsteuer") or "N").strip().upper() in (
+        "Y", "J", "JA", "1", "TRUE")
+
+
+def berechne_positionen(schaden: dict, vorsteuer: bool = False) -> list[dict]:
+    """
+    Kanonische Positionsliste des Forderungsschreibens.
+
+    Einzige Quelle für die Schadenstabelle im Brief UND die
+    Forderungshistorie (erfasse_forderung) — Review-Befund C-1: die Historie
+    hatte eine eigene, gedriftete Interpretation des Schaden-Dicts.
+
+    Rückgabe: [{key, label, betrag, farbe}] — 'restwert' mit negativem
+    Betrag (Abzug), 0-Zeilen bereits gefiltert.
+    """
+    schaden = schaden or {}
+
     def _f(key): return float(schaden.get(key) or 0)
 
     rep_gut_netto   = _f("rep_gutachten_netto") or _f("reparaturkosten")
@@ -749,7 +766,6 @@ def _baue_tabelle(schaden: dict, body_width: int = 9163, einleitung: str = "", v
     rep_rech_brutto = _f("rep_rechnung_brutto")
     wbw = _f("wiederbeschaffung")
     rst = abs(_f("restwert"))
-    n_fzg = wbw - rst
 
     # ── Abrechnungsart ermitteln (explizit gesetzt oder automatisch) ──────────
     art = _ermittle_abrechnungsart(schaden, vorsteuer)
@@ -757,25 +773,30 @@ def _baue_tabelle(schaden: dict, body_width: int = 9163, einleitung: str = "", v
     # ── Fahrzeugschaden-Positionen je Abrechnungsart ──────────────────────────
     if art == "totalschaden":
         fahrzeug = [
-            ("Wiederbeschaffungswert", wbw, ""),
-            ("abzgl. Restwert", -rst, "rot"),
+            ("wiederbeschaffung", "Wiederbeschaffungswert", wbw, ""),
+            ("restwert", "abzgl. Restwert", -rst, "rot"),
         ] if wbw > 0 else []
 
     elif art == "konkret":
-        ist_130 = rep_rech_netto > 0 and wbw > 0 and rep_rech_netto > n_fzg and rep_rech_netto <= 1.3 * wbw
         if rep_rech_netto > 0:
             if vorsteuer:
                 # Vorsteuerabzugsberechtigt → Nettobetrag maßgeblich
-                fahrzeug = [("Reparaturkosten lt. Rechnung (netto)", rep_rech_netto, "")]
+                fahrzeug = [("rep_rechnung_netto",
+                             "Reparaturkosten lt. Rechnung (netto)",
+                             rep_rech_netto, "")]
             else:
                 # Kein Vorsteuerabzug → Bruttobetrag maßgeblich
                 betrag_konkret = rep_rech_brutto if rep_rech_brutto > 0 else rep_rech_netto * 1.19
-                fahrzeug = [("Reparaturkosten lt. Rechnung (brutto)", betrag_konkret, "")]
+                fahrzeug = [("rep_rechnung_brutto",
+                             "Reparaturkosten lt. Rechnung (brutto)",
+                             betrag_konkret, "")]
         else:
             fahrzeug = []
 
     else:  # fiktiv
-        fahrzeug = [("Reparaturkosten lt. Gutachten (netto)", rep_gut_netto, "")] if rep_gut_netto > 0 else []
+        fahrzeug = [("rep_gutachten_netto",
+                     "Reparaturkosten lt. Gutachten (netto)",
+                     rep_gut_netto, "")] if rep_gut_netto > 0 else []
 
     def _nb(key_n, key_u, key_b):
         """Nebenkosten: netto oder brutto je Vorsteuer."""
@@ -785,7 +806,7 @@ def _baue_tabelle(schaden: dict, body_width: int = 9163, einleitung: str = "", v
 
     # Wertminderung nur bei Reparaturschäden (fiktiv/konkret) – nicht bei Totalschaden
     wertminderung_pos = [] if art == "totalschaden" else [
-        ("Merkantile Wertminderung", _f("wertminderung"), ""),
+        ("wertminderung", "Merkantile Wertminderung", _f("wertminderung"), ""),
     ]
 
     # Unkostenpauschale: Key fehlt/None → Default 30,00 €; explizit gesetzter
@@ -797,39 +818,52 @@ def _baue_tabelle(schaden: dict, body_width: int = 9163, einleitung: str = "", v
     )
 
     positionen = fahrzeug + wertminderung_pos + [
-        ("Nutzungsausfallschaden",            _f("nutzungsausfall"),                            ""),
-        ("Mietwagenkosten" + suf,            _nb("mietwagenkosten_netto","mietwagenkosten_ust","mietwagenkosten"), ""),
-        ("Sachverständigenkosten" + suf,     _nb("sv_kosten_netto",      "sv_kosten_ust",      "sv_kosten"),       ""),
-        ("Nachbesichtigungskosten" + suf,    _nb("kostennb",             "kostennb_ust",       "kostennb"),        ""),
-        ("Abschleppkosten" + suf,            _nb("abschleppkosten_netto","abschleppkosten_ust","abschleppkosten"), ""),
-        ("Standkosten" + suf,                _nb("standkosten_netto",    "standkosten_ust",    "standkosten"),     ""),
-        ("An-/Abmeldekosten" + suf,          _nb("anabmeldekosten_netto","anabmeldekosten_ust","anabmeldekosten"), ""),
-        ("Schmerzensgeld",              _f("schmerzensgeld"),             ""),
-        ("Verdienstausfall",            _f("verdienstausfall"),           ""),
-        ("Haushaltsführungsschaden",    _f("haushalt"),                   ""),
-        ("Unkostenpauschale",           unkostenpauschale_wert,           ""),
+        ("nutzungsausfall", "Nutzungsausfallschaden", _f("nutzungsausfall"), ""),
+        ("mietwagenkosten", "Mietwagenkosten" + suf,
+         _nb("mietwagenkosten_netto", "mietwagenkosten_ust", "mietwagenkosten"), ""),
+        ("sv_kosten", "Sachverständigenkosten" + suf,
+         _nb("sv_kosten_netto", "sv_kosten_ust", "sv_kosten"), ""),
+        ("kostennb", "Nachbesichtigungskosten" + suf,
+         _nb("kostennb", "kostennb_ust", "kostennb"), ""),
+        ("abschleppkosten", "Abschleppkosten" + suf,
+         _nb("abschleppkosten_netto", "abschleppkosten_ust", "abschleppkosten"), ""),
+        ("standkosten", "Standkosten" + suf,
+         _nb("standkosten_netto", "standkosten_ust", "standkosten"), ""),
+        ("anabmeldekosten", "An-/Abmeldekosten" + suf,
+         _nb("anabmeldekosten_netto", "anabmeldekosten_ust", "anabmeldekosten"), ""),
+        ("schmerzensgeld",     "Schmerzensgeld",            _f("schmerzensgeld"), ""),
+        ("verdienstausfall",   "Verdienstausfall",          _f("verdienstausfall"), ""),
+        ("haushalt",           "Haushaltsführungsschaden",  _f("haushalt"), ""),
+        ("unkostenpauschale",  "Unkostenpauschale",         unkostenpauschale_wert, ""),
     ]
 
     # SQLite-Feld "sonstiges" → als Position wenn > 0
     sonstiges_val  = float(schaden.get("sonstiges") or 0)
     sonstiges_beschr = (schaden.get("sonstiges_beschr") or "Sonstiges").strip() or "Sonstiges"
     if sonstiges_val > 0:
-        positionen.append((sonstiges_beschr, sonstiges_val, ""))
+        positionen.append(("sonstiges", sonstiges_beschr, sonstiges_val, ""))
 
     # WDM-Extras (JSON-Array mit zusätzlichen Schadenpositionen aus WDM)
     extras_raw = schaden.get("wdm_extras_json") or "[]"
     try:
         extras = json.loads(extras_raw) if isinstance(extras_raw, str) else (extras_raw or [])
         if not isinstance(extras, list): extras = []
-        for ex in extras:
-            positionen.append((ex.get("label", "Sonstiges"),
+        for i, ex in enumerate(extras, 1):
+            positionen.append((f"extra_{i}", ex.get("label", "Sonstiges"),
                                float(ex.get("betrag") or ex.get("netto") or 0), ""))
     except Exception:
         pass
 
     # Zeilen mit 0-Wert filtern, AUSSER explizit gesetzten (z.B. Restwert=0 bei Totalschaden)
-    positionen = [(l, v, c) for l, v, c in positionen if v != 0 or c == "rot"]
-    gesamt = sum(v for _, v, _ in positionen)
+    return [
+        {"key": k, "label": l, "betrag": v, "farbe": c}
+        for k, l, v, c in positionen if v != 0 or c == "rot"
+    ]
+
+
+def _baue_tabelle(schaden: dict, body_width: int = 9163, einleitung: str = "", vorsteuer: bool = False) -> tuple:
+    positionen = berechne_positionen(schaden, vorsteuer)
+    gesamt = sum(p["betrag"] for p in positionen)
 
     col_l = int(body_width * 0.75)
     col_r = body_width - col_l
@@ -914,7 +948,7 @@ def _baue_tabelle(schaden: dict, body_width: int = 9163, einleitung: str = "", v
         '<w:insideH w:val="none"/><w:insideV w:val="none"/>'
         '</w:tblBorders></w:tblPr>'
         + header
-        + "".join(_zeile(l, v, c) for l, v, c in positionen)
+        + "".join(_zeile(p["label"], p["betrag"], p["farbe"]) for p in positionen)
         + gesamt_zeile
         + '</w:tbl>'
         # Leerzeile nach Tabelle
