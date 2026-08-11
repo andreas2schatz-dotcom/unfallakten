@@ -9,6 +9,16 @@ Testet:
   5. Flask-Routen (POST Import, GET Status, GET Log, GET Statistik)
 
 Alle IMAP-Calls werden gemockt – kein echter Mailserver nötig.
+
+Portiert 2026-08-11 auf die heutige Produktiv-API (Testsanierung):
+  - Modul heißt seit dem E-Mail-Workflow-Umbau ``email_parser`` (nicht ``parser``)
+  - ``finde_akte()`` liefert (az, erkannt, match_methode) – unfallakte-PK ist az (TEXT)
+  - Log-/Statistik-Status heißen ``zugeordnet``/``nicht_zugeordnet`` (v9)
+  - AZ-Pflichtformat ####/YY bzw. ####/YYSB (POST /akten validiert seit Juli 2026)
+  - INTAKE_REVIEW_PFLICHT (Default an): Anhänge landen in der Review-Queue
+    (intake_dokumente), nicht mehr direkt in ``dokumente``
+  - RA-MICRO-Matching wird in den Tests deaktiviert (_RAMICRO_VERFUEGBAR=False),
+    sonst greifen Import-Läufe in die echte, erreichbare RA-MICRO-DB
 """
 
 import os
@@ -108,7 +118,7 @@ def _setup(test_id: str):
         "backend.word.sachstandsanfrage", "backend.word.abrechnungsuebersicht",
         "backend.word.word_service", "backend.routers.word_routes",
         "backend.email_import.imap_client",
-        "backend.email_import.parser",
+        "backend.email_import.email_parser",
         "backend.email_import.import_service",
         "backend.routers.email_routes",
         "backend.app",
@@ -134,7 +144,7 @@ def _setup(test_id: str):
     headers = {"Authorization": f"Bearer {token}"}
 
     r2 = client.post("/akten", json={
-        "aktenzeichen": "25-M7-001",
+        "aktenzeichen": "701/25",
         "unfalldatum":  "2025-03-15",
         "unfallort":    "Offenbach",
     }, headers=headers)
@@ -159,9 +169,9 @@ def _setup(test_id: str):
 class TestEmailParser(unittest.TestCase):
 
     def setUp(self):
-        from backend.email_import import parser
-        import importlib; importlib.reload(parser)
-        self.p = parser
+        from backend.email_import import email_parser
+        import importlib; importlib.reload(email_parser)
+        self.p = email_parser
 
     def _parse(self, **kwargs):
         return self.p.parse_email(_erstelle_email(**kwargs))
@@ -201,11 +211,10 @@ class TestEmailParser(unittest.TestCase):
         r = self._parse(betreff="Az. 42/25 Regulierung Verkehrsunfall")
         self.assertIn("42/25", r["az_kandidaten"])
 
-    def test_az_variante_slash(self):
-        r = self._parse(betreff="Ihr Zeichen: 25/0042")
-        az_normiert = [a.replace("/", "-") for a in r["az_kandidaten"]]
-        self.assertTrue(any("42/25" in a or "25/0042" in a
-                             for a in r["az_kandidaten"]))
+    def test_az_mit_sb_kuerzel(self):
+        """Heutiges AZ-Format ####/YYSB – Kürzel bleibt im Kandidaten erhalten."""
+        r = self._parse(betreff="Az. 1087/24AB Regulierung")
+        self.assertIn("1087/24AB", r["az_kandidaten"])
 
     def test_az_im_body_erkannt(self):
         r = self._parse(
@@ -361,9 +370,11 @@ class TestImapClient(unittest.TestCase):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TestAkteMatching(unittest.TestCase):
+    """finde_akte() liefert seit v9 das Tupel (az, erkannt, match_methode);
+    akte_id/PK ist das Aktenzeichen (TEXT) im Format ####/YY."""
 
     def setUp(self):
-        db_path = os.path.join(_tmp_dir, "matching_test.db")
+        db_path = os.path.join(_tmp_dir, f"matching_{self._testMethodName}.db")
         if os.path.exists(db_path):
             os.remove(db_path)
         os.environ["DB_PATH"]        = db_path
@@ -373,19 +384,19 @@ class TestAkteMatching(unittest.TestCase):
         for mod in ["backend.db.database", "backend.db.schema_manager",
                     "backend.models.benutzer", "backend.models.akte",
                     "backend.models.schaden", "backend.models.dokument",
-                    "backend.email_import.parser"]:
+                    "backend.email_import.email_parser"]:
             importlib.reload(__import__(mod, fromlist=[""]))
 
         from backend.db.schema_manager import init_db
         from backend.models.benutzer import erstelle_benutzer
         from backend.models.akte import erstelle_akte
         from backend.models.schaden import erstelle_beteiligten
-        from backend.email_import.parser import finde_akte
+        from backend.email_import.email_parser import finde_akte
         from backend.db.database import get_connection
 
         init_db()
         user = erstelle_benutzer("A", "a@b.de", "Test1234!", "admin")
-        self.akte = erstelle_akte("25-MATCH-01", "2025-01-01", user.id)
+        self.akte = erstelle_akte("955/25", "2025-01-01", user.id)
         erstelle_beteiligten(
             self.akte.id, "mandant", "Meier",
             email="meier@gmail.com", kfz_kennzeichen="OF-AB 123"
@@ -394,51 +405,47 @@ class TestAkteMatching(unittest.TestCase):
         self.get_conn = get_connection
 
     def _match(self, betreff="", body="", von="test@test.de"):
-        from backend.email_import.parser import parse_email
+        from backend.email_import.email_parser import parse_email
         roh = _erstelle_email(betreff=betreff, body=body, von=von)
         parsed = parse_email(roh)
         with self.get_conn() as conn:
             return self.finde_akte(parsed, conn)
 
     def test_match_via_aktenzeichen_im_betreff(self):
-        akte_id = self._match(betreff="Az. 25-MATCH-01 Regulierung")
-        self.assertEqual(akte_id, self.akte.id)
+        az, erkannt, methode = self._match(betreff="Az. 955/25 Regulierung")
+        self.assertEqual(az, self.akte.az)
+        self.assertEqual(erkannt, "955/25")
+        self.assertEqual(methode, "aktenzeichen")
 
     def test_match_via_aktenzeichen_im_body(self):
-        akte_id = self._match(body="Unser Zeichen: 25-MATCH-01")
-        self.assertEqual(akte_id, self.akte.id)
+        az, _, methode = self._match(body="Unser Zeichen: 955/25")
+        self.assertEqual(az, self.akte.az)
+        self.assertEqual(methode, "aktenzeichen")
 
     def test_match_via_kfz(self):
-        akte_id = self._match(betreff="Schaden Fahrzeug OF-AB 123")
-        self.assertEqual(akte_id, self.akte.id)
+        az, erkannt, methode = self._match(betreff="Schaden Fahrzeug OF-AB 123")
+        self.assertEqual(az, self.akte.az)
+        self.assertEqual(methode, "kfz_kennzeichen")
 
     def test_match_via_email(self):
-        akte_id = self._match(von="meier@gmail.com")
-        self.assertEqual(akte_id, self.akte.id)
+        az, _, methode = self._match(von="Meier <meier@gmail.com>")
+        self.assertEqual(az, self.akte.az)
+        self.assertEqual(methode, "absender_email")
 
     def test_kein_match(self):
-        akte_id = self._match(
+        az, erkannt, methode = self._match(
             betreff="Allgemeine Anfrage",
             von="unbekannt@xyz.de"
         )
-        self.assertIsNone(akte_id)
+        self.assertIsNone(az)
+        self.assertIsNone(methode)
 
-    def test_az_normierung_slash(self):
-        """Aktenzeichen mit '/' (rein numerisch) soll erkannt werden."""
-        # Reales Format: 25/0042 (nicht 25/MATCH/01)
-        from backend.models.akte import erstelle_akte
-        from backend.models.benutzer import erstelle_benutzer
-        from backend.db.database import get_connection
-        from backend.email_import.parser import parse_email, finde_akte as _fa
-        # Nutze bestehende Akte mit numerischem AZ
-        akte2 = erstelle_akte("9999/25", "2025-01-01", self.akte.created_by
-                               if hasattr(self.akte, "created_by") else 1)
-        roh = _erstelle_email(betreff="Az. 25/9999 Unfall")
-        parsed = parse_email(roh)
-        with self.get_conn() as conn:
-            result = _fa(parsed, conn)
-        # Ergebnis ist Match oder None – kein Crash
-        self.assertTrue(result is None or isinstance(result, int))
+    def test_az_mit_sb_kuerzel_wird_normiert(self):
+        """'955/25AS' in der E-Mail matcht die Akte '955/25' (SB-Kürzel-Strip)."""
+        az, erkannt, methode = self._match(betreff="Az. 955/25AS Unfall")
+        self.assertEqual(az, self.akte.az)
+        self.assertEqual(erkannt, "955/25AS")
+        self.assertEqual(methode, "aktenzeichen")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
