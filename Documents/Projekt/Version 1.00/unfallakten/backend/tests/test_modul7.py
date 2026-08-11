@@ -476,30 +476,30 @@ class TestImportService(unittest.TestCase):
             "backend.pdf.extraktor", "backend.pdf.parser",
             "backend.pdf.upload_service",
             "backend.email_import.imap_client",
-            "backend.email_import.parser",
+            "backend.email_import.email_parser",
             "backend.email_import.import_service",
         ]:
             importlib.reload(__import__(mod, fromlist=[""]))
 
         from backend.db.schema_manager import init_db
+        from backend.email_import import import_service as svc
+        # Tests duerfen NIE in die aus dem Container erreichbare RA-MICRO-DB
+        # greifen (Determinismus + read-only-Gebot) -- Matching nur via SQLite.
+        svc._RAMICRO_VERFUEGBAR = False
         from backend.models.benutzer import erstelle_benutzer
         from backend.models.akte import erstelle_akte
         from backend.models.schaden import erstelle_beteiligten
-        from backend.email_import.import_service import (
-            fuehre_import_lauf_durch, hole_import_log,
-            hole_import_statistik
-        )
 
         init_db()
         user = erstelle_benutzer("A", "a@b.de", "Test1234!", "admin")
-        self.akte = erstelle_akte("25-SVC-001", "2025-03-15", user.id)
+        self.akte = erstelle_akte("801/25", "2025-03-15", user.id)
         erstelle_beteiligten(
             self.akte.id, "gegner", "Versicherung",
             email="regulierung@huk.de"
         )
-        self.starte   = fuehre_import_lauf_durch
-        self.hole_log = hole_import_log
-        self.statistik = hole_import_statistik
+        self.starte   = svc.fuehre_import_lauf_durch
+        self.hole_log = svc.hole_import_log
+        self.statistik = svc.hole_import_statistik
 
     def _mock_imap(self, nachrichten: list) -> MagicMock:
         """Erstellt einen IMAP-Mock mit vordefinierten Nachrichten."""
@@ -542,7 +542,7 @@ class TestImportService(unittest.TestCase):
     def test_eine_nachricht_mit_az_match(self):
         """E-Mail mit Aktenzeichen → wird verarbeitet."""
         roh = _erstelle_email(
-            betreff="Az. 25-SVC-001 Regulierung",
+            betreff="Az. 801/25 Regulierung",
             von="versicherung@huk.de",
             message_id="<az-match-001@test.de>",
         )
@@ -566,7 +566,7 @@ class TestImportService(unittest.TestCase):
     def test_duplikat_wird_ignoriert(self):
         """Gleiche Message-ID zweimal → zweite wird ignoriert."""
         roh = _erstelle_email(
-            betreff="Az. 25-SVC-001 Regulierung",
+            betreff="Az. 801/25 Regulierung",
             message_id="<duplikat-001@test.de>",
         )
         mock1 = self._mock_imap([(b"1", roh)])
@@ -578,18 +578,26 @@ class TestImportService(unittest.TestCase):
         self.assertEqual(bericht2["verarbeitet"], 0)
 
     def test_pdf_anhang_wird_gespeichert(self):
-        """PDF-Anhang bei gefundener Akte wird als Dokument registriert."""
+        """PDF-Anhang wird gezählt und landet unter INTAKE_REVIEW_PFLICHT
+        als Intake-Dokument in der Review-Queue (nicht direkt in dokumente)."""
         roh = _erstelle_email(
-            betreff="Az. 25-SVC-001 Gutachten",
+            betreff="Az. 801/25 Gutachten",
             message_id="<pdf-anhang-001@test.de>",
             anhaenge=[("gutachten.pdf", _minimales_pdf(), "application/pdf")],
         )
         mock = self._mock_imap([(b"1", roh)])
         bericht = self.starte(imap_mock=mock)
         self.assertGreaterEqual(bericht["anhaenge"], 1)
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            intake = conn.execute(
+                "SELECT COUNT(*) AS n FROM intake_dokumente"
+            ).fetchone()["n"]
+        self.assertGreaterEqual(intake, 1)
 
     def test_anhang_ohne_akte_nicht_gespeichert(self):
-        """Anhänge bei kein_treffer werden NICHT gespeichert."""
+        """Ohne Akte-Match entsteht KEIN Akten-Dokument -- der Anhang wartet
+        in der Review-Queue (Review-Freigabe ist der einzige Schreibweg)."""
         roh = _erstelle_email(
             betreff="Allgemeine Anfrage",
             message_id="<kein-treffer-pdf@test.de>",
@@ -597,18 +605,24 @@ class TestImportService(unittest.TestCase):
         )
         mock = self._mock_imap([(b"1", roh)])
         bericht = self.starte(imap_mock=mock)
-        self.assertEqual(bericht["anhaenge"], 0)
+        self.assertEqual(bericht["kein_treffer"], 1)
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            doks = conn.execute(
+                "SELECT COUNT(*) AS n FROM dokumente"
+            ).fetchone()["n"]
+        self.assertEqual(doks, 0)
 
     def test_log_wird_geschrieben(self):
         roh = _erstelle_email(
-            betreff="Az. 25-SVC-001 Test",
+            betreff="Az. 801/25 Test",
             message_id="<log-test-001@test.de>",
         )
         mock = self._mock_imap([(b"1", roh)])
         self.starte(imap_mock=mock)
         log = self.hole_log()
         self.assertGreater(len(log), 0)
-        self.assertEqual(log[0]["status"], "verarbeitet")
+        self.assertEqual(log[0]["status"], "zugeordnet")
 
     def test_kein_treffer_in_log(self):
         roh = _erstelle_email(
@@ -618,21 +632,21 @@ class TestImportService(unittest.TestCase):
         )
         mock = self._mock_imap([(b"1", roh)])
         self.starte(imap_mock=mock)
-        log = self.hole_log(status="kein_treffer")
+        log = self.hole_log(status="nicht_zugeordnet")
         self.assertEqual(len(log), 1)
         self.assertIsNotNone(log[0]["notizen"])
 
     def test_statistik_nach_lauf(self):
         for i in range(3):
             roh = _erstelle_email(
-                betreff=f"Az. 25-SVC-001 Lauf {i}",
+                betreff=f"Az. 801/25 Lauf {i}",
                 message_id=f"<stat-{i}@test.de>",
             )
             mock = self._mock_imap([(b"1", roh)])
             self.starte(imap_mock=mock)
 
         stat = self.statistik()
-        self.assertGreaterEqual(stat["verarbeitet"], 3)
+        self.assertGreaterEqual(stat["zugeordnet"], 3)
         self.assertIsNotNone(stat["letzter_import"])
 
     def test_nicht_konfiguriert_wirft_fehler(self):
@@ -669,6 +683,8 @@ class TestEmailRouten(unittest.TestCase):
         """Startet einen Import mit gemocktem IMAP."""
         from backend.email_import import import_service
         import importlib; importlib.reload(import_service)
+        # Kein Zugriff auf die echte RA-MICRO-DB aus Tests (s. TestImportService)
+        import_service._RAMICRO_VERFUEGBAR = False
 
         mock_imap = MagicMock()
         if nachrichten:
@@ -706,7 +722,7 @@ class TestEmailRouten(unittest.TestCase):
 
     def test_import_verarbeitet_az_match(self):
         roh = _erstelle_email(
-            betreff="Az. 25-M7-001 Regulierung",
+            betreff="Az. 701/25 Regulierung",
             message_id="<route-az-001@test.de>",
         )
         r = self._starte_import(nachrichten=[roh])
@@ -732,7 +748,12 @@ class TestEmailRouten(unittest.TestCase):
     # ── GET /email/import/status ──────────────────────────────────────────────
 
     def test_status_konfiguriert(self):
-        r = self.client.get("/email/import/status", headers=self.h)
+        # teste_verbindung mocken -- sonst echter IMAP-Connect auf mail.test.de
+        from backend.routers import email_routes
+        with patch.object(email_routes, "teste_verbindung", return_value={
+            "ok": True, "nachricht": "Mock-Verbindung.", "ungelesen": 0,
+        }):
+            r = self.client.get("/email/import/status", headers=self.h)
         self.assertEqual(r.status_code, 200)
         data = r.get_json()
         self.assertIn("konfiguriert", data)
@@ -759,7 +780,7 @@ class TestEmailRouten(unittest.TestCase):
 
     def test_log_nach_import(self):
         roh = _erstelle_email(
-            betreff="Az. 25-M7-001 Log-Test",
+            betreff="Az. 701/25 Log-Test",
             message_id="<log-route-001@test.de>",
         )
         self._starte_import(nachrichten=[roh])
@@ -767,7 +788,7 @@ class TestEmailRouten(unittest.TestCase):
         self.assertGreater(r.get_json()["gesamt"], 0)
 
     def test_log_filter_status(self):
-        r = self.client.get("/email/import/log?status=verarbeitet",
+        r = self.client.get("/email/import/log?status=zugeordnet",
                              headers=self.h)
         self.assertEqual(r.status_code, 200)
 
@@ -786,8 +807,8 @@ class TestEmailRouten(unittest.TestCase):
         r = self.client.get("/email/import/log/statistik", headers=self.h)
         self.assertEqual(r.status_code, 200)
         data = r.get_json()
-        for feld in ["gesamt", "verarbeitet", "kein_treffer",
-                      "fehler", "ignoriert"]:
+        for feld in ["gesamt", "zugeordnet", "nicht_zugeordnet",
+                      "fehler", "ignoriert", "letzter_import"]:
             self.assertIn(feld, data)
 
     def test_statistik_ohne_token_401(self):
