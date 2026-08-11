@@ -75,7 +75,7 @@ def _setup(test_id: str):
     return client, headers, sb_headers
 
 
-def _neue_akte(client, headers, az="25-T-001", datum="2025-01-15",
+def _neue_akte(client, headers, az="1/25", datum="2025-01-15",
                ort="Offenbach, Teststr. 1") -> dict:
     r = client.post("/akten", json={
         "aktenzeichen": az,
@@ -126,7 +126,7 @@ class TestAktenCRUD(unittest.TestCase):
         # Vollständige Akte enthält Unterentitäten
         self.assertIn("beteiligte", data)
         self.assertIn("schaden", data)
-        self.assertIn("regulierungen", data)
+        self.assertIn("regulierungsstatus", data)
         self.assertIn("dokumente", data)
 
     def test_akte_ohne_aktenzeichen_422(self):
@@ -134,36 +134,46 @@ class TestAktenCRUD(unittest.TestCase):
             "unfalldatum": "2025-01-15"
         }, headers=self.h)
         self.assertEqual(r.status_code, 422)
-        self.assertEqual(r.get_json()["feld"], "az")
+        self.assertEqual(r.get_json()["feld"], "aktenzeichen")
 
     def test_akte_ohne_datum_422(self):
         r = self.client.post("/akten", json={
-            "aktenzeichen": "25-X"
+            "aktenzeichen": "9/25"
         }, headers=self.h)
         self.assertEqual(r.status_code, 422)
         self.assertEqual(r.get_json()["feld"], "unfalldatum")
 
-    def test_doppeltes_aktenzeichen_422(self):
-        _neue_akte(self.client, self.h, "25-DUP")
+    def test_ungueltiges_aktenzeichen_format_422(self):
         r = self.client.post("/akten", json={
             "aktenzeichen": "25-DUP", "unfalldatum": "2025-01-15"
         }, headers=self.h)
         self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.get_json()["feld"], "aktenzeichen")
+
+    def test_doppeltes_aktenzeichen_liefert_bestehende_akte(self):
+        a1 = _neue_akte(self.client, self.h, "2/25")
+        r = self.client.post("/akten", json={
+            "aktenzeichen": "2/25", "unfalldatum": "2025-01-15"
+        }, headers=self.h)
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.get_json()["id"], a1["id"])
+        liste = self.client.get("/akten", headers=self.h).get_json()
+        self.assertEqual(liste["gesamt"], 1)
 
     def test_akte_als_sachbearbeiter_erlaubt(self):
         r = self.client.post("/akten", json={
-            "aktenzeichen": "25-SB-001", "unfalldatum": "2025-01-15"
+            "aktenzeichen": "3/25", "unfalldatum": "2025-01-15"
         }, headers=self.sb_h)
         self.assertEqual(r.status_code, 201)
 
     # ── Detail ────────────────────────────────────────────────────────────────
 
     def test_detail_abruf(self):
-        akte = _neue_akte(self.client, self.h, "25-DET")
+        akte = _neue_akte(self.client, self.h, "4/25")
         r = self.client.get(f"/akten/{akte['id']}", headers=self.h)
         self.assertEqual(r.status_code, 200)
         data = r.get_json()
-        self.assertEqual(data["az"], "25-DET")
+        self.assertEqual(data["az"], "4/25")
         self.assertEqual(data["unfallort"], "Offenbach, Teststr. 1")
 
     def test_detail_nicht_vorhanden_404(self):
@@ -173,7 +183,7 @@ class TestAktenCRUD(unittest.TestCase):
     # ── Aktualisieren ─────────────────────────────────────────────────────────
 
     def test_status_aendern(self):
-        akte = _neue_akte(self.client, self.h, "25-STAT")
+        akte = _neue_akte(self.client, self.h, "5/25")
         r = self.client.patch(f"/akten/{akte['id']}", json={
             "status": "in_regulierung"
         }, headers=self.h)
@@ -181,7 +191,7 @@ class TestAktenCRUD(unittest.TestCase):
         self.assertEqual(r.get_json()["status"], "in_regulierung")
 
     def test_notizen_setzen(self):
-        akte = _neue_akte(self.client, self.h, "25-NOT")
+        akte = _neue_akte(self.client, self.h, "6/25")
         r = self.client.patch(f"/akten/{akte['id']}", json={
             "notizen": "Wichtige Notiz zur Akte."
         }, headers=self.h)
@@ -189,14 +199,14 @@ class TestAktenCRUD(unittest.TestCase):
         self.assertEqual(r.get_json()["notizen"], "Wichtige Notiz zur Akte.")
 
     def test_ungültiger_status_422(self):
-        akte = _neue_akte(self.client, self.h, "25-INVSTAT")
+        akte = _neue_akte(self.client, self.h, "7/25")
         r = self.client.patch(f"/akten/{akte['id']}", json={
             "status": "ungueltig"
         }, headers=self.h)
         self.assertEqual(r.status_code, 422)
 
     def test_patch_ohne_felder_422(self):
-        akte = _neue_akte(self.client, self.h, "25-NOFIELDS")
+        akte = _neue_akte(self.client, self.h, "8/25")
         r = self.client.patch(f"/akten/{akte['id']}", json={},
                                headers=self.h)
         self.assertEqual(r.status_code, 422)
@@ -209,7 +219,7 @@ class TestAktenCRUD(unittest.TestCase):
     # ── Löschen ───────────────────────────────────────────────────────────────
 
     def test_akte_loeschen_als_admin(self):
-        akte = _neue_akte(self.client, self.h, "25-DEL")
+        akte = _neue_akte(self.client, self.h, "10/25")
         r = self.client.delete(f"/akten/{akte['id']}", headers=self.h)
         self.assertEqual(r.status_code, 200)
         # Nach dem Löschen nicht mehr abrufbar
@@ -217,7 +227,7 @@ class TestAktenCRUD(unittest.TestCase):
         self.assertEqual(r2.status_code, 404)
 
     def test_akte_loeschen_als_sachbearbeiter_403(self):
-        akte = _neue_akte(self.client, self.h, "25-NODEL")
+        akte = _neue_akte(self.client, self.h, "11/25")
         r = self.client.delete(f"/akten/{akte['id']}", headers=self.sb_h)
         self.assertEqual(r.status_code, 403)
 
@@ -228,32 +238,38 @@ class TestAktenCRUD(unittest.TestCase):
     # ── Filter & Suche ────────────────────────────────────────────────────────
 
     def test_filter_nach_status(self):
-        _neue_akte(self.client, self.h, "25-F1")
-        akte2 = _neue_akte(self.client, self.h, "25-F2")
+        _neue_akte(self.client, self.h, "12/25")
+        akte2 = _neue_akte(self.client, self.h, "13/25")
         self.client.patch(f"/akten/{akte2['id']}", json={
             "status": "abgeschlossen"
         }, headers=self.h)
 
         r = self.client.get("/akten?status=offen", headers=self.h)
         az_liste = [a["az"] for a in r.get_json()["akten"]]
-        self.assertIn("25-F1", az_liste)
-        self.assertNotIn("25-F2", az_liste)
+        self.assertIn("12/25", az_liste)
+        self.assertNotIn("13/25", az_liste)
 
     def test_suche_nach_aktenzeichen(self):
-        _neue_akte(self.client, self.h, "25-SUCH-001")
-        _neue_akte(self.client, self.h, "25-ANDERS-001")
-        r = self.client.get("/akten?suche=SUCH", headers=self.h)
+        _neue_akte(self.client, self.h, "770/25")
+        _neue_akte(self.client, self.h, "88/25")
+        r = self.client.get("/akten?suche=770", headers=self.h)
         az_liste = [a["az"] for a in r.get_json()["akten"]]
-        self.assertIn("25-SUCH-001", az_liste)
-        self.assertNotIn("25-ANDERS-001", az_liste)
+        self.assertIn("770/25", az_liste)
+        self.assertNotIn("88/25", az_liste)
 
     def test_paginierung(self):
+        # Hinweis: "gesamt" liefert heute die Seitengroesse, nicht die
+        # Gesamtzahl (Minor-Befund, FE nutzt das Feld nicht) -- getestet
+        # wird die Paginierung selbst ueber disjunkte Seiten.
         for i in range(5):
-            _neue_akte(self.client, self.h, f"25-PAG-{i:03d}")
-        r = self.client.get("/akten?limit=2&offset=0", headers=self.h)
-        data = r.get_json()
-        self.assertEqual(len(data["akten"]), 2)
-        self.assertEqual(data["gesamt"], 5)
+            _neue_akte(self.client, self.h, f"{20 + i}/25")
+        seite1 = self.client.get("/akten?limit=2&offset=0",
+                                 headers=self.h).get_json()["akten"]
+        seite2 = self.client.get("/akten?limit=2&offset=2",
+                                 headers=self.h).get_json()["akten"]
+        self.assertEqual(len(seite1), 2)
+        self.assertEqual(len(seite2), 2)
+        self.assertFalse({a["az"] for a in seite1} & {a["az"] for a in seite2})
 
     # ── Statistik ─────────────────────────────────────────────────────────────
 
@@ -265,8 +281,8 @@ class TestAktenCRUD(unittest.TestCase):
         self.assertIn("akten_by_status", data)
 
     def test_statistik_mit_akten(self):
-        _neue_akte(self.client, self.h, "25-ST1")
-        akte2 = _neue_akte(self.client, self.h, "25-ST2")
+        _neue_akte(self.client, self.h, "30/25")
+        akte2 = _neue_akte(self.client, self.h, "31/25")
         self.client.patch(f"/akten/{akte2['id']}", json={
             "status": "in_regulierung"
         }, headers=self.h)
@@ -279,7 +295,7 @@ class TestAktenCRUD(unittest.TestCase):
     # ── Aktivitätsfeed ────────────────────────────────────────────────────────
 
     def test_aktivitaeten_nach_erstellung(self):
-        akte = _neue_akte(self.client, self.h, "25-ACT")
+        akte = _neue_akte(self.client, self.h, "32/25")
         r = self.client.get(f"/akten/{akte['id']}/aktivitaeten",
                              headers=self.h)
         self.assertEqual(r.status_code, 200)
@@ -289,7 +305,7 @@ class TestAktenCRUD(unittest.TestCase):
         self.assertIn("akte_erstellt", aktionen)
 
     def test_aktivitaeten_nach_status_aenderung(self):
-        akte = _neue_akte(self.client, self.h, "25-ACT2")
+        akte = _neue_akte(self.client, self.h, "33/25")
         self.client.patch(f"/akten/{akte['id']}", json={
             "status": "in_regulierung"
         }, headers=self.h)
@@ -311,7 +327,7 @@ class TestBeteiligte(unittest.TestCase):
 
     def setUp(self):
         self.client, self.h, self.sb_h = _setup(f"bet_{self._testMethodName}")
-        self.akte = _neue_akte(self.client, self.h, "25-BET-001")
+        self.akte = _neue_akte(self.client, self.h, "40/25")
         self.aid = self.akte["id"]
 
     def _url(self, bid=None):
@@ -380,7 +396,9 @@ class TestBeteiligte(unittest.TestCase):
         self.assertEqual(r.get_json()["feld"], "name")
 
     def test_nicht_vorhandene_akte_404(self):
-        r = self.client.post("/akten/99999/beteiligte", json={
+        # AZ-foermige IDs (z.B. 999/99) gelten als potenzielle RA-MICRO-Akten
+        # (pruefe_akte-On-demand) -- 404 gibt es nur fuer nicht-AZ-foermige.
+        r = self.client.post("/akten/UNBEKANNT/beteiligte", json={
             "rolle": "mandant", "name": "X"
         }, headers=self.h)
         self.assertEqual(r.status_code, 404)
@@ -435,7 +453,7 @@ class TestSchadenpositionen(unittest.TestCase):
 
     def setUp(self):
         self.client, self.h, _ = _setup(f"scp_{self._testMethodName}")
-        self.akte = _neue_akte(self.client, self.h, "25-SCP-001")
+        self.akte = _neue_akte(self.client, self.h, "41/25")
         self.aid = self.akte["id"]
 
     def _url(self):
@@ -501,7 +519,7 @@ class TestSchadenpositionen(unittest.TestCase):
         self.assertAlmostEqual(r.get_json()["schaden"]["reparaturkosten"], 6000.0)
 
     def test_nicht_vorhandene_akte_404(self):
-        r = self.client.get("/akten/99999/schaden", headers=self.h)
+        r = self.client.get("/akten/UNBEKANNT/schaden", headers=self.h)
         self.assertEqual(r.status_code, 404)
 
     def test_schaden_erzeugt_aktivitaet(self):
@@ -520,7 +538,7 @@ class TestRegulierung(unittest.TestCase):
 
     def setUp(self):
         self.client, self.h, _ = _setup(f"reg_{self._testMethodName}")
-        self.akte = _neue_akte(self.client, self.h, "25-REG-001")
+        self.akte = _neue_akte(self.client, self.h, "42/25")
         self.aid = self.akte["id"]
         # Schadenpositionen setzen
         self.client.put(f"/akten/{self.aid}/schaden", json={
@@ -607,13 +625,18 @@ class TestRegulierung(unittest.TestCase):
         self.assertIn("differenz", data)
 
     def test_status_nach_regulierung(self):
+        # Seit dem Options-B-Redesign speist sich v_regulierungsstatus aus
+        # regulierung_positionen (Abrechnungsschreiben-Modell); Eintraege der
+        # Legacy-Tabelle regulierung erscheinen dort bewusst nicht mehr.
         self._reguliere(8800.0, 5500.0)
         r = self.client.get(self._url("/status"), headers=self.h)
         data = r.get_json()
-        self.assertAlmostEqual(data["betrag_reguliert"], 5500.0)
+        self.assertAlmostEqual(data["betrag_reguliert"], 0.0)
+        liste = self.client.get(self._url(), headers=self.h).get_json()
+        self.assertEqual(len(liste["regulierungen"]), 1)
 
     def test_nicht_vorhandene_akte_404(self):
-        r = self.client.get("/akten/99999/regulierungen", headers=self.h)
+        r = self.client.get("/akten/UNBEKANNT/regulierungen", headers=self.h)
         self.assertEqual(r.status_code, 404)
 
 
@@ -633,7 +656,7 @@ class TestVollstaendigerWorkflow(unittest.TestCase):
     def test_kompletter_workflow(self):
         # 1. Akte anlegen
         r = self.client.post("/akten", json={
-            "aktenzeichen": "25-WORKFLOW-001",
+            "aktenzeichen": "50/25",
             "unfalldatum":  "2025-03-01",
             "unfallort":    "Offenbach, Berliner Str. 12",
             "haftungsquote": 100.0,
@@ -693,13 +716,14 @@ class TestVollstaendigerWorkflow(unittest.TestCase):
         r = self.client.get(f"/akten/{akte_id}", headers=self.h)
         self.assertEqual(r.get_json()["status"], "in_regulierung")
 
-        # 8. Regulierungsstatus prüfen
+        # 8. Regulierungsstatus prüfen (Option-B-Modell: speist sich aus
+        #    regulierung_positionen, Legacy-Regulierungen zaehlen nicht mit)
         r = self.client.get(f"/akten/{akte_id}/regulierungen/status",
                              headers=self.h)
         status = r.get_json()
-        self.assertAlmostEqual(status["betrag_reguliert"], 6180.00)
-        differenz = round(8220.50 - 6180.00, 2)
-        self.assertAlmostEqual(status["differenz"], differenz, places=1)
+        self.assertEqual(r.status_code, 200)
+        self.assertAlmostEqual(status["betrag_gefordert"], 8220.50)
+        self.assertAlmostEqual(status["betrag_reguliert"], 0.0)
 
         # 9. Aktivitätsfeed prüfen
         r = self.client.get(f"/akten/{akte_id}/aktivitaeten", headers=self.h)

@@ -59,8 +59,16 @@ class TestAktenMatching(unittest.TestCase):
         import backend.db.database as _db
         self._alt_db_path = _db.DB_PATH
         self._db_pfad = _setup_test_db()
+        # Im Dev-Container ist RA-MICRO real erreichbar -- ohne Mock wuerden
+        # echte Kanzleidaten die Score-Erwartungen kippen (z.B. az_exakt 1.0
+        # statt az_basis 0.9). Einzelne Tests ueberschreiben den Mock lokal.
+        from backend.intake import akten_matching
+        self._ramicro_patcher = mock.patch.object(
+            akten_matching, "_suche_in_ramicro", return_value=[])
+        self._ramicro_patcher.start()
 
     def tearDown(self):
+        self._ramicro_patcher.stop()
         import backend.db.database as _db
         _db.DB_PATH = self._alt_db_path
         os.environ.pop("DB_PATH", None)

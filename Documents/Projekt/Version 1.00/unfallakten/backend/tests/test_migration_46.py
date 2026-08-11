@@ -293,13 +293,14 @@ class TestMigration46LegacyDokumenteTabelle(unittest.TestCase):
         # 1) sauberes Schema anlegen (via create_schema + alle Migrationen 2..45)
         sm_mod.create_schema()
         # Migrationen bis 45 einzeln aufrufen ist zu invasiv — wir laufen einfach
-        # bis Version 45 durch, indem wir Migration 46 vorerst aus MIGRATIONS entfernen.
-        entfernt = sm_mod.MIGRATIONS.pop(46, None)
+        # bis Version 45 durch, indem wir Migration 46 UND alle spaeteren
+        # vorerst entfernen (47+ setzen die intake-Tabellen aus 46 voraus).
+        entfernt = {v: sm_mod.MIGRATIONS.pop(v)
+                    for v in sorted(sm_mod.MIGRATIONS) if v >= 46}
         try:
             sm_mod.run_migrations()
         finally:
-            if entfernt is not None:
-                sm_mod.MIGRATIONS[46] = entfernt
+            sm_mod.MIGRATIONS.update(entfernt)
 
         # 2) dokumente-Tabelle DESTRUKTIV neu anlegen mit `id INT` ohne PK — Bestandsschaden.
         with db_mod.get_connection() as conn:

@@ -75,7 +75,7 @@ class TestVorschauEndpoint(unittest.TestCase):
 
     def _login(self) -> dict:
         r = self.client.post("/auth/login",
-                             json={"benutzername": "admin", "passwort": "admin123"})
+                             json={"email": "admin@test.de", "passwort": "Admin123!"})
         return json.loads(r.data)
 
     def test_vorschau_ohne_akte_gibt_404(self):

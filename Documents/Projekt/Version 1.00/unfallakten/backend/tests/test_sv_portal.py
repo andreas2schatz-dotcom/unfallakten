@@ -129,10 +129,25 @@ from backend.app import erstelle_app
 
 
 @pytest.fixture
-def app_client():
-    """Flask-Testclient – bereinigt sv_portal_accounts vor und nach jedem Test."""
+def app_client(request, tmp_path):
+    """Flask-Testclient mit eigener frischer DB (kein Verlass auf das
+    DB_PATH-Environment zuvor gelaufener Testmodule)."""
+    import importlib
+    os.environ["DB_PATH"] = str(tmp_path / f"svp_{request.node.name}.db")
+    os.environ.setdefault("JWT_SECRET_KEY", "test-jwt-secret-key-minimum-32-chars!!")
+    import backend.db.database as db_mod
+    import backend.db.schema_manager as sm_mod
+    import backend.models.benutzer as ben_mod
+    import backend.auth.jwt_handler as jwt_mod
+    import backend.auth.middleware as mw_mod
+    import backend.auth.service as svc_mod
+    import backend.routers.auth_routes as auth_routes_mod
+    import backend.app as app_mod
+    for m in (db_mod, sm_mod, ben_mod, jwt_mod, mw_mod, svc_mod,
+              auth_routes_mod, app_mod):
+        importlib.reload(m)
     from backend.db.database import get_connection
-    app = erstelle_app(test_config={"TESTING": True})
+    app = app_mod.erstelle_app(test_config={"TESTING": True})
 
     def _cleanup():
         with app.app_context():
@@ -143,7 +158,7 @@ def app_client():
     _cleanup()
     with app.test_client() as c:
         rv = c.post("/auth/login",
-                    json={"email": "koch@anwalt-offenbach.de", "passwort": "Kanzlei2024!"},
+                    json={"email": "admin@test.de", "passwort": "Admin123!"},
                     content_type="application/json")
         data = rv.get_json() or {}
         token = data.get("access_token", "")
@@ -195,10 +210,19 @@ def test_sv_portal_einladung_setzt_zeitstempel(app_client):
     assert data["einladung_gesendet_am"] is not None
 
 
-def test_sv_portal_toggle_portal_aktiv_akte_404(app_client):
+def test_sv_portal_toggle_portal_aktiv_legt_akte_on_demand_an(app_client):
+    # Heutige Semantik: Akten kommen aus RA-MICRO (SSOT); die lokale Zeile
+    # wird beim Toggle on demand angelegt (INSERT OR IGNORE) statt 404.
     rv = app_client.patch(
         "/einstellungen/sv-portal/akten/999%2F99/portal_aktiv",
         json={"portal_aktiv": 1},
         content_type="application/json",
     )
-    assert rv.status_code == 404
+    assert rv.status_code == 200
+    assert rv.get_json() == {"az": "999/99", "portal_aktiv": 1}
+    from backend.db.database import get_connection
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT portal_aktiv FROM unfallakte WHERE az = '999/99'"
+        ).fetchone()
+    assert row is not None and row["portal_aktiv"] == 1

@@ -176,7 +176,7 @@ def _setup(test_id: str):
     headers = {"Authorization": f"Bearer {token}"}
 
     r2 = client.post("/akten", json={
-        "aktenzeichen": "25-M4-001", "unfalldatum": "2025-03-15"
+        "aktenzeichen": "64/25", "unfalldatum": "2025-03-15"
     }, headers=headers)
     akte_id = r2.get_json()["id"]
 
@@ -552,11 +552,22 @@ class TestDokumenteRouten(unittest.TestCase):
     def _url(self, suffix=""):
         return f"/akten/{self.akte_id}/dokumente{suffix}"
 
-    def _upload_gutachten(self, auto=False) -> dict:
-        r = _upload(self.client, self.h, self.akte_id,
-                    _gutachten_pdf(), auto_schaden=auto)
-        self.assertEqual(r.status_code, 201, r.get_json())
-        return r.get_json()
+    def _upload_gutachten(self, auto=False, pdf_bytes=None,
+                          dateiname="test.pdf", typ="gutachten") -> dict:
+        # Seit Pipeline v7 (INTAKE_REVIEW_PFLICHT) legt der POST-Upload keine
+        # dokumente-Zeile mehr an (202 -> Review-Queue). Fuer Routen-Tests an
+        # bestehenden Dokumenten seeden wir daher direkt ueber den Service
+        # (Alt-Pfad, von TestUploadService abgedeckt).
+        import backend.pdf.upload_service as svc
+        ergebnis = svc.verarbeite_upload(
+            akte_id=self.akte_id,
+            dateiname=dateiname,
+            datei_bytes=pdf_bytes if pdf_bytes is not None else _gutachten_pdf(),
+            typ=typ,
+            auto_schaden=auto,
+        )
+        self.assertIn("dokument", ergebnis)
+        return ergebnis
 
     # ── Liste ─────────────────────────────────────────────────────────────────
 
@@ -572,9 +583,7 @@ class TestDokumenteRouten(unittest.TestCase):
 
     def test_liste_filter_typ(self):
         self._upload_gutachten()
-        _upload(self.client, self.h, self.akte_id,
-                _gutachten_pdf(), typ="abrechnungsschreiben",
-                dateiname="abr.pdf")
+        self._upload_gutachten(typ="abrechnungsschreiben", dateiname="abr.pdf")
         r = self.client.get(self._url() + "?typ=gutachten", headers=self.h)
         doks = r.get_json()["dokumente"]
         self.assertEqual(len(doks), 1)
@@ -582,13 +591,17 @@ class TestDokumenteRouten(unittest.TestCase):
 
     # ── Upload ────────────────────────────────────────────────────────────────
 
-    def test_upload_erfolgreich(self):
+    def test_upload_geht_in_review_queue(self):
+        # Heutiger Kontrakt (INTAKE_REVIEW_PFLICHT): 202, Dokument wartet in
+        # der Review-Queue, es entsteht KEINE dokumente-Zeile.
         r = _upload(self.client, self.h, self.akte_id, _gutachten_pdf())
-        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.status_code, 202)
         data = r.get_json()
-        self.assertIn("dokument", data)
-        self.assertIn("parse_ergebnis", data)
-        self.assertEqual(data["dokument"]["dateityp"], "pdf")
+        self.assertTrue(data["in_review"])
+        self.assertIn("intake_dokument_id", data)
+        self.assertIn("sha256", data)
+        liste = self.client.get(self._url(), headers=self.h).get_json()
+        self.assertEqual(liste["dokumente"], [])
 
     def test_upload_ohne_datei_422(self):
         r = self.client.post(
@@ -599,10 +612,12 @@ class TestDokumenteRouten(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 422)
 
-    def test_upload_falscher_typ_422(self):
+    def test_upload_typ_wird_erst_in_review_bestimmt(self):
+        # Der typ-Parameter wird im Review-Pfad nicht mehr validiert --
+        # die Klasse wird erst bei der Review-Freigabe festgelegt.
         r = _upload(self.client, self.h, self.akte_id,
                     _gutachten_pdf(), typ="ungueltig")
-        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.status_code, 202)
 
     def test_upload_kein_pdf_422(self):
         r = _upload(self.client, self.h, self.akte_id,
@@ -610,7 +625,9 @@ class TestDokumenteRouten(unittest.TestCase):
         self.assertEqual(r.status_code, 422)
 
     def test_upload_nicht_vorhandene_akte_404(self):
-        r = _upload(self.client, self.h, 99999, _gutachten_pdf())
+        # AZ-foermige IDs gelten als potenzielle RA-MICRO-Akten (pruefe_akte),
+        # 404 gibt es nur fuer nicht-AZ-foermige Kennungen.
+        r = _upload(self.client, self.h, "UNBEKANNT", _gutachten_pdf())
         self.assertEqual(r.status_code, 404)
 
     def test_upload_ohne_token_401(self):
@@ -620,9 +637,8 @@ class TestDokumenteRouten(unittest.TestCase):
     def test_upload_totalschaden(self):
         r = _upload(self.client, self.h, self.akte_id,
                     _totalschaden_pdf(), dateiname="totalschaden.pdf")
-        self.assertEqual(r.status_code, 201)
-        parse = r.get_json()["parse_ergebnis"]
-        self.assertIsNotNone(parse)
+        self.assertEqual(r.status_code, 202)
+        self.assertTrue(r.get_json()["in_review"])
 
     # ── Metadaten ─────────────────────────────────────────────────────────────
 
@@ -729,18 +745,16 @@ class TestDokumenteRouten(unittest.TestCase):
 
     # ── Auto-Schaden ─────────────────────────────────────────────────────────
 
-    def test_auto_schaden_true(self):
-        """Upload mit auto_schaden=true soll Schadenpositionen setzen."""
-        r = _upload(self.client, self.h, self.akte_id,
-                    _gutachten_pdf(), auto_schaden=True)
-        self.assertEqual(r.status_code, 201)
-        # Akte abrufen und Schaden prüfen
+    def test_auto_schaden_unter_review_pflicht_deaktiviert(self):
+        """S1.9c BREAKING #2: Unter INTAKE_REVIEW_PFLICHT (Default) werden
+        Schadenpositionen NICHT mehr automatisch uebernommen -- sie entstehen
+        erst mit der Review-Freigabe."""
+        ergebnis = self._upload_gutachten(auto=True)
+        parse = ergebnis.get("parse_ergebnis")
+        self.assertIsNotNone(parse)
+        self.assertGreaterEqual(parse.get("konfidenz", 0), 0.3)
         r2 = self.client.get(f"/akten/{self.akte_id}", headers=self.h)
-        akte = r2.get_json()
-        # Bei hoher Konfidenz: Schaden vorhanden
-        parse = r.get_json()["parse_ergebnis"]
-        if parse and parse.get("konfidenz", 0) >= 0.3:
-            self.assertIsNotNone(akte["schaden"])
+        self.assertIsNone(r2.get_json()["schaden"])
 
 
 if __name__ == "__main__":

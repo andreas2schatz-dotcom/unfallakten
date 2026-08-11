@@ -218,18 +218,17 @@ class TestAuthRouten(unittest.TestCase):
 
     def setUp(self):
         self.client, self.jwt, _ = _setup(f"routes_{self._testMethodName}")
-        # Ersten Admin anlegen
-        self.client.post("/auth/register/erster", json={
-            "name": "Admin Koch", "email": "admin@k.de", "passwort": "Admin123!"
-        })
+        # Der Admin ist durch _ensure_admin_exists() (app.py) bereits angelegt;
+        # conftest.py setzt ADMIN_EMAIL=admin@test.de / ADMIN_PASSWORT=Admin123!.
+        # register/erster wuerde 409 liefern -- wir loggen direkt ein.
 
-    def _login(self, email="admin@k.de", passwort="Admin123!") -> dict:
+    def _login(self, email="admin@test.de", passwort="Admin123!") -> dict:
         r = self.client.post("/auth/login", json={
             "email": email, "passwort": passwort
         })
         return r.get_json()
 
-    def _auth_header(self, email="admin@k.de", passwort="Admin123!") -> dict:
+    def _auth_header(self, email="admin@test.de", passwort="Admin123!") -> dict:
         data = self._login(email, passwort)
         return {"Authorization": f"Bearer {data['access_token']}"}
 
@@ -252,7 +251,7 @@ class TestAuthRouten(unittest.TestCase):
 
     def test_login_erfolgreich(self):
         r = self.client.post("/auth/login", json={
-            "email": "admin@k.de", "passwort": "Admin123!"
+            "email": "admin@test.de", "passwort": "Admin123!"
         })
         data = r.get_json()
         self.assertEqual(r.status_code, 200)
@@ -263,7 +262,7 @@ class TestAuthRouten(unittest.TestCase):
 
     def test_login_falsches_passwort(self):
         r = self.client.post("/auth/login", json={
-            "email": "admin@k.de", "passwort": "FalschesPasswort1!"
+            "email": "admin@test.de", "passwort": "FalschesPasswort1!"
         })
         self.assertEqual(r.status_code, 401)
 
@@ -318,7 +317,7 @@ class TestAuthRouten(unittest.TestCase):
         r = self.client.get("/auth/profil", headers=headers)
         self.assertEqual(r.status_code, 200)
         data = r.get_json()
-        self.assertEqual(data["email"], "admin@k.de")
+        self.assertEqual(data["email"], "admin@test.de")
         self.assertNotIn("passwort_hash", data)
 
     def test_profil_ohne_token(self):
@@ -361,7 +360,7 @@ class TestAuthRouten(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         # Mit neuem Passwort einloggen
         r2 = self.client.post("/auth/login", json={
-            "email": "admin@k.de", "passwort": "NeuesAdmin456!"
+            "email": "admin@test.de", "passwort": "NeuesAdmin456!"
         })
         self.assertEqual(r2.status_code, 200)
 

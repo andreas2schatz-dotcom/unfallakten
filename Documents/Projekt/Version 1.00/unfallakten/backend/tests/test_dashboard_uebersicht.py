@@ -51,14 +51,13 @@ class TestDashboardUebersicht(unittest.TestCase):
 
     def setUp(self):
         self.client, self.jwt = _setup(f"dbu_{self._testMethodName}")
-        # App erstellt automatisch einen Default-Admin:
-        # Email: koch@anwalt-offenbach.de
-        # Passwort: Kanzlei2024!
+        # App erstellt automatisch einen Default-Admin; conftest.py setzt
+        # ADMIN_EMAIL=admin@test.de / ADMIN_PASSWORT=Admin123!
 
     def _auth_header(self):
         """Gibt Authorization-Header mit gültigem Token zurück."""
         r = self.client.post("/auth/login", json={
-            "email": "koch@anwalt-offenbach.de", "passwort": "Kanzlei2024!"
+            "email": "admin@test.de", "passwort": "Admin123!"
         })
         if r.status_code != 200:
             raise RuntimeError(f"Login failed: {r.status_code} - {r.get_json()}")
