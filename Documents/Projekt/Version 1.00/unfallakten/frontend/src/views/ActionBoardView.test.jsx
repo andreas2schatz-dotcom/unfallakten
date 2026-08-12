@@ -203,4 +203,36 @@ describe("ActionBoardView", () => {
     expect(screen.getByRole("button", { name: "AS" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "TB" })).toHaveAttribute("aria-pressed", "false");
   });
+
+  it("persistiert die um ein neues Kürzel erweiterte Auswahl schon beim ersten Laden (Mount-Pfad)", async () => {
+    localStorage.setItem("dashboard.aktiveSB", JSON.stringify(["AS"]));
+    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "TB"]));
+    mockOk();
+    einst.sachbearbeiter.mockResolvedValue({ eintraege: [
+      ...SB_LISTE,
+      { kuerzel: "CS", name: "Carina Salvagnin", titel: "Rechtsanwältin", aktiv: 1,
+        ignoriert: 0, dashboard_vorauswahl: 0, sortierung: 60 },
+    ] });
+
+    const { unmount } = render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    expect(await screen.findByRole("button", { name: "CS" })).toHaveAttribute("aria-pressed", "true");
+    const gespeichert = JSON.parse(localStorage.getItem("dashboard.aktiveSB"));
+    expect(gespeichert).toEqual(expect.arrayContaining(["AS", "CS"]));
+
+    unmount();
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    expect(await screen.findByRole("button", { name: "CS" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("überschreibt den bekannten Bestand nicht mit einer leeren Antwort", async () => {
+    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "TB"]));
+    api.termineHeute.mockResolvedValue({ eintraege: [] });
+    api.fristen.mockResolvedValue({ eintraege: [] });
+    api.wiedervorlagen.mockResolvedValue({ wv: [], ohne_wv: [] });
+    einst.sachbearbeiter.mockResolvedValue({ eintraege: [] });
+
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
+    expect(JSON.parse(localStorage.getItem("dashboard.bekannteSB"))).toEqual(["AS", "TB"]);
+  });
 });

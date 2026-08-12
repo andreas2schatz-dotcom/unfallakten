@@ -58,6 +58,16 @@ function initialeAuswahl(liste, bekanntVorher) {
   return auswahl;
 }
 
+// Vergleicht eine Set-Auswahl mit dem rohen localStorage-Wert (Array oder
+// null), damit der Mount-Pfad nur dann in localStorage schreibt, wenn sich
+// initialeAuswahl() tatsächlich von der gespeicherten Auswahl unterscheidet
+// (z. B. weil neue Kürzel gemergt wurden).
+function auswahlWeichtAb(auswahl, gespeichert) {
+  const gespeichertArr = gespeichert || [];
+  if (auswahl.size !== gespeichertArr.length) return true;
+  return gespeichertArr.some((k) => !auswahl.has(k));
+}
+
 const START = {
   termine: { status: "laedt", eintraege: [] },
   fristen: { status: "laedt", eintraege: [] },
@@ -101,19 +111,29 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
       const aktiveKuerzel = aktive.map((e) => e.kuerzel);
       setSbListe(aktive);
 
+      const gespeichert   = gespeicherteAuswahl();
       const bekanntVorher = gespeicherterBekanntBestand();
-      const initial = initialeAuswahl(aktive, bekanntVorher);
-      const neueKuerzel = bekanntVorher === null
+      const initial       = initialeAuswahl(aktive, bekanntVorher);
+      const neueKuerzel   = bekanntVorher === null
         ? []
         : aktiveKuerzel.filter((k) => !bekanntVorher.includes(k));
 
-      // prev === null: erster erfolgreicher Ladevorgang -> initiale Auswahl.
+      // prev === null: erster erfolgreicher Ladevorgang -> initiale Auswahl;
+      // weicht sie von der gespeicherten Auswahl ab (z. B. weil neue Kürzel
+      // gemergt wurden), wird das sofort persistiert -- sonst geht das neue
+      // Kürzel beim nächsten Seitenaufruf wieder verloren (bekannteSB kennt
+      // es dann schon, aktiveSB nie).
       // Sonst: neue Kürzel, die während der laufenden Sitzung dazukommen,
       // sofort in die bestehende Auswahl mergen (nicht erst nach Neuladen
       // der Seite sichtbar machen) -- ohne bereits abgewählte Kürzel
       // anzurühren.
       setAktiveSB((prev) => {
-        if (prev === null) return initial;
+        if (prev === null) {
+          if (auswahlWeichtAb(initial, gespeichert)) {
+            localStorage.setItem(SB_KEY, JSON.stringify([...initial]));
+          }
+          return initial;
+        }
         if (neueKuerzel.length === 0) return prev;
         const next = new Set(prev);
         neueKuerzel.forEach((k) => next.add(k));
@@ -121,7 +141,12 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
         return next;
       });
 
-      localStorage.setItem(BEKANNT_KEY, JSON.stringify(aktiveKuerzel));
+      // Eine leere Antwort darf den Bestand nicht überschreiben -- sonst
+      // gelten beim nächsten Laden alle Kürzel als neu und bewusst
+      // abgewählte werden ungewollt wieder aktiviert.
+      if (aktiveKuerzel.length > 0) {
+        localStorage.setItem(BEKANNT_KEY, JSON.stringify(aktiveKuerzel));
+      }
     }
   }
 
