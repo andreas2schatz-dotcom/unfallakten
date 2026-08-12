@@ -80,3 +80,44 @@ describe("SachbearbeiterTab", () => {
     expect(screen.getByDisplayValue("Jochen Hofmann (Entwurf)")).toBeInTheDocument();
   });
 });
+
+describe("SachbearbeiterTab – anlegen und löschen", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    api.sachbearbeiter.mockResolvedValue({ eintraege: EINTRAEGE });
+    api.sachbearbeiterAbgleich.mockResolvedValue({ verfuegbar: false, kuerzel: {}, unbekannt: [] });
+  });
+
+  it("legt einen neuen Sachbearbeiter an", async () => {
+    api.sachbearbeiterAnlegen.mockResolvedValue({ ok: true });
+    render(<SachbearbeiterTab />);
+    fireEvent.click(await screen.findByRole("button", { name: "+ Sachbearbeiter" }));
+    fireEvent.change(screen.getByLabelText("Neues Kürzel"), { target: { value: "xx" } });
+    fireEvent.change(screen.getByLabelText("Neuer Name"),   { target: { value: "Neue Kollegin" } });
+    fireEvent.click(screen.getByRole("button", { name: "Anlegen" }));
+    await waitFor(() => expect(api.sachbearbeiterAnlegen).toHaveBeenCalledWith(
+      expect.objectContaining({ kuerzel: "XX", name: "Neue Kollegin" })));
+  });
+
+  it("weist ein Kürzel mit falscher Länge ohne Serveraufruf ab", async () => {
+    render(<SachbearbeiterTab />);
+    fireEvent.click(await screen.findByRole("button", { name: "+ Sachbearbeiter" }));
+    fireEvent.change(screen.getByLabelText("Neues Kürzel"), { target: { value: "ABC" } });
+    fireEvent.change(screen.getByLabelText("Neuer Name"),   { target: { value: "Test" } });
+    fireEvent.click(screen.getByRole("button", { name: "Anlegen" }));
+    expect(await screen.findByText(/genau zwei Großbuchstaben/)).toBeInTheDocument();
+    expect(api.sachbearbeiterAnlegen).not.toHaveBeenCalled();
+  });
+
+  it("löscht erst nach Bestätigung", async () => {
+    api.sachbearbeiterLoeschen.mockResolvedValue({ ok: true });
+    const bestaetigen = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<SachbearbeiterTab />);
+    fireEvent.click((await screen.findAllByRole("button", { name: "Löschen" }))[0]);
+    expect(api.sachbearbeiterLoeschen).not.toHaveBeenCalled();
+    bestaetigen.mockReturnValue(true);
+    fireEvent.click(screen.getAllByRole("button", { name: "Löschen" })[0]);
+    await waitFor(() => expect(api.sachbearbeiterLoeschen).toHaveBeenCalledWith("AS"));
+    bestaetigen.mockRestore();
+  });
+});
