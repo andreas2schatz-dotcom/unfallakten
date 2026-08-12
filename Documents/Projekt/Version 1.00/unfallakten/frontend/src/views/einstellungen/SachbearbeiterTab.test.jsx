@@ -54,4 +54,29 @@ describe("SachbearbeiterTab", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
     expect(await screen.findByText(/bereits AS zugeordnet/)).toBeInTheDocument();
   });
+
+  it("bewahrt ungespeicherte Änderungen anderer Zeilen beim Speichern und übernimmt den Server-Wert der gespeicherten Zeile", async () => {
+    const eintraegeNachSpeichern = [
+      { ...EINTRAEGE[0], name: "Andreas Schatz (Server)" },
+      EINTRAEGE[1],
+    ];
+    api.sachbearbeiter
+      .mockResolvedValueOnce({ eintraege: EINTRAEGE })
+      .mockResolvedValueOnce({ eintraege: eintraegeNachSpeichern });
+    api.sachbearbeiterSpeichern.mockResolvedValue({ ok: true, eintrag: eintraegeNachSpeichern[0] });
+
+    render(<SachbearbeiterTab />);
+    const feldAS = await screen.findByDisplayValue("Andreas Schatz");
+    const feldJH = await screen.findByDisplayValue("Jochen Hofmann");
+
+    fireEvent.change(feldAS, { target: { value: "Andreas Schatz jun." } });
+    fireEvent.change(feldJH, { target: { value: "Jochen Hofmann (Entwurf)" } });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
+
+    await waitFor(() => expect(api.sachbearbeiter).toHaveBeenCalledTimes(2));
+
+    expect(await screen.findByDisplayValue("Andreas Schatz (Server)")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Jochen Hofmann (Entwurf)")).toBeInTheDocument();
+  });
 });

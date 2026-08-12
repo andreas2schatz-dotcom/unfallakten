@@ -1050,7 +1050,7 @@ In `frontend/src/api.js` im Objekt `apiEinstellungen` ergänzen:
 `frontend/src/views/einstellungen/SachbearbeiterTab.jsx`:
 
 ```jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import T from "../../config/theme.js";
 import { Card, Btn } from "../../components/common.jsx";
 import { apiEinstellungen } from "../../api.js";
@@ -1068,18 +1068,25 @@ export default function SachbearbeiterTab() {
   const [entwurf, setEntwurf]     = useState({});
   const [meldung, setMeldung]     = useState(null);
   const [fehler, setFehler]       = useState(null);
+  const schmutzigeZeilen          = useRef(new Set());
 
   const laden = () => apiEinstellungen.sachbearbeiter()
     .then(r => {
-      setEintraege(r.eintraege || []);
-      setEntwurf(Object.fromEntries((r.eintraege || []).map(e => [e.kuerzel, { ...e }])));
+      const liste = r.eintraege || [];
+      setEintraege(liste);
+      setEntwurf(prev => Object.fromEntries(liste.map(e => [
+        e.kuerzel,
+        schmutzigeZeilen.current.has(e.kuerzel) ? (prev[e.kuerzel] || { ...e }) : { ...e },
+      ])));
     })
     .catch(e => setFehler(`Laden fehlgeschlagen: ${e.message}`));
 
   useEffect(() => { laden(); }, []);
 
-  const setzeFeld = (kuerzel, feld, wert) =>
+  const setzeFeld = (kuerzel, feld, wert) => {
+    schmutzigeZeilen.current.add(kuerzel);
     setEntwurf(prev => ({ ...prev, [kuerzel]: { ...prev[kuerzel], [feld]: wert } }));
+  };
 
   const speichern = async (kuerzel) => {
     const e = entwurf[kuerzel];
@@ -1090,6 +1097,7 @@ export default function SachbearbeiterTab() {
         aktiv: !!e.aktiv, dashboard_vorauswahl: !!e.dashboard_vorauswahl,
         kalender_name: e.kalender_name || "", sortierung: e.sortierung,
       });
+      schmutzigeZeilen.current.delete(kuerzel);
       setMeldung(`${kuerzel} gespeichert.`);
       await laden();
     } catch (err) {
