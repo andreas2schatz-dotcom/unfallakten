@@ -35,10 +35,14 @@ _SPALTEN = ("kuerzel, name, titel, anrede, rolle, aktiv, ignoriert, "
             "dashboard_vorauswahl, kalender_name, sortierung, geaendert_am")
 
 
+_FALLBACK_VORAUSWAHL = {"AS", "PK", "CO", "MM", "AH"}  # deckt sich mit Migration 68 (_SACHBEARBEITER_SEED)
+
+
 def _fallback_zeilen() -> list[dict]:
     return [
         {"kuerzel": k, "name": v["name"], "titel": v["titel"], "anrede": "",
-         "rolle": "anwalt", "aktiv": 1, "ignoriert": 0, "dashboard_vorauswahl": 0,
+         "rolle": "anwalt", "aktiv": 1, "ignoriert": 0,
+         "dashboard_vorauswahl": 1 if k in _FALLBACK_VORAUSWAHL else 0,
          "kalender_name": None, "sortierung": 100, "geaendert_am": None}
         for k, v in _FALLBACK.items()
     ]

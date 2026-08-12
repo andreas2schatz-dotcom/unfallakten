@@ -184,6 +184,21 @@ class TestSachbearbeiterModul(unittest.TestCase):
             conn.commit()
         self.assertEqual(hole_sachbearbeiter("AS")["name"], "Andreas Schatz")
 
+    def test_fallback_vorauswahl_deckt_sich_mit_dem_seed(self):
+        """Fallback-Liste (Bestands-DB ohne Migration 68) muss dieselbe
+        Dashboard-Vorauswahl tragen wie die Startzeilen der Tabelle, sonst
+        waehlt die Tagesuebersicht ohne gespeicherte Auswahl entweder gar
+        niemanden (Frist-Verlust) oder -- seit dem Frontend-Fix -- alle zehn
+        statt der fuenf kuratierten Anwaelte.
+        """
+        from backend.ramicro.sachbearbeiter import alle_sachbearbeiter
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            conn.execute("DROP TABLE sachbearbeiter")
+            conn.commit()
+        vorausgewaehlt = {e["kuerzel"] for e in alle_sachbearbeiter() if e["dashboard_vorauswahl"]}
+        self.assertEqual(vorausgewaehlt, {"AS", "PK", "CO", "MM", "AH"})
+
 
 class TestKalenderMapping(unittest.TestCase):
 

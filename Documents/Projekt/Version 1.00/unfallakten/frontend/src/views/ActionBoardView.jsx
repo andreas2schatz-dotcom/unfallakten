@@ -47,7 +47,14 @@ function initialeAuswahl(liste, bekanntVorher) {
   const gueltig     = new Set(liste.map((e) => e.kuerzel));
   const gespeichert = gespeicherteAuswahl();
   if (gespeichert === null) {
-    return new Set(liste.filter((e) => e.dashboard_vorauswahl).map((e) => e.kuerzel));
+    const vorauswahl = new Set(liste.filter((e) => e.dashboard_vorauswahl).map((e) => e.kuerzel));
+    // Keine gespeicherte Auswahl UND keine gepflegte Vorauswahl (Fallback-
+    // Liste ohne dashboard_vorauswahl, oder alle Haken im Reiter entfernt)
+    // -- lieber zu viel zeigen als eine Frist verschlucken: dann lieber
+    // alle aktiven Kürzel auswählen als gar keines. Eine vom Nutzer selbst
+    // geleerte Auswahl ist davon nicht betroffen, weil dann gespeichert
+    // nicht null ist.
+    return vorauswahl.size > 0 ? vorauswahl : gueltig;
   }
   const auswahl = new Set(gespeichert.filter((k) => gueltig.has(k)));
   if (bekanntVorher === null) return auswahl;

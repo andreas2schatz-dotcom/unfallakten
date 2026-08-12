@@ -255,4 +255,22 @@ describe("ActionBoardView", () => {
     expect(await screen.findByRole("button", { name: "AS" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "TB" })).toHaveAttribute("aria-pressed", "false");
   });
+
+  it("wählt ohne gespeicherte Auswahl und ohne jede Vorauswahl alle aktiven Kürzel (lieber zu viel zeigen als eine Frist verschlucken)", async () => {
+    const listeOhneVorauswahl = [
+      { kuerzel: "AS", name: "Andreas Schatz", titel: "Rechtsanwalt", aktiv: 1, ignoriert: 0,
+        dashboard_vorauswahl: 0, sortierung: 10 },
+      { kuerzel: "TB", name: "Tanja Brunner", titel: "Rechtsanwalts- und Notarfachangestellte",
+        aktiv: 1, ignoriert: 0, dashboard_vorauswahl: 0, sortierung: 70 },
+    ];
+    mockOk({ fristen: [FRIST] });
+    einst.sachbearbeiter.mockResolvedValue({ eintraege: listeOhneVorauswahl });
+
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+
+    expect(await screen.findByRole("button", { name: "AS" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "TB" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText("Kein Sachbearbeiter ausgewählt")).toBeNull();
+    expect(screen.getByText("Jetzt dran")).toBeInTheDocument();
+  });
 });
