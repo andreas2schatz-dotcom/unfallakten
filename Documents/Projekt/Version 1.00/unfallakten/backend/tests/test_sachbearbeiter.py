@@ -23,9 +23,13 @@ def _setup(test_id: str):
     import backend.db.schema_manager as schema_mod
     import backend.ramicro.sachbearbeiter as sb_mod
     import backend.routers.einstellungen_routes as eins_mod
+    import backend.auth.jwt_handler as jwt_mod
+    import backend.auth.middleware as mw_mod
+    import backend.auth.service as svc_mod
+    import backend.routers.auth_routes as auth_routes_mod
     import backend.app as app_mod
 
-    for m in (db_mod, schema_mod, sb_mod, eins_mod, app_mod):
+    for m in (db_mod, schema_mod, sb_mod, eins_mod, jwt_mod, mw_mod, svc_mod, auth_routes_mod, app_mod):
         importlib.reload(m)
 
     app = app_mod.erstelle_app({"TESTING": True})
@@ -153,6 +157,16 @@ class TestKalenderMapping(unittest.TestCase):
     def setUp(self):
         self.client = _setup(self._testMethodName)
 
+    def _auth_header(self):
+        """Gibt Authorization-Header mit gültigem Token zurück."""
+        r = self.client.post("/auth/login", json={
+            "email": "admin@test.de", "passwort": "Admin123!"
+        })
+        if r.status_code != 200:
+            raise RuntimeError(f"Login failed: {r.status_code} - {r.get_json()}")
+        data = r.get_json()
+        return {"Authorization": f"Bearer {data['access_token']}"}
+
     def test_dashboard_hat_keine_hartcodierte_kalenderliste_mehr(self):
         import backend.routers.dashboard_routes as dash
         self.assertFalse(hasattr(dash, "_KALENDER_ZU_SB"))
@@ -165,6 +179,82 @@ class TestKalenderMapping(unittest.TestCase):
                          "WHERE kuerzel = 'SK'")
             conn.commit()
         self.assertEqual(kalender_zu_kuerzel().get("S. Koch"), "SK")
+
+    def test_endpoint_termine_heute_nutzt_kalender_mapping_bekannt(self):
+        """Integration: GET /dashboard/termine-heute mit bekanntem Kalendernamen."""
+        from datetime import datetime
+        from unittest.mock import patch, MagicMock
+        from backend.db.database import get_connection
+
+        with get_connection() as conn:
+            conn.execute("UPDATE sachbearbeiter SET kalender_name = 'S. Koch' "
+                         "WHERE kuerzel = 'SK'")
+            conn.commit()
+
+        headers = self._auth_header()
+        heute = datetime.now()
+
+        mock_cursor = MagicMock()
+        mock_row = {
+            "StartDateTime": heute,
+            "Subject": "Termin",
+            "Aktennummer": "123/26",
+            "Aktenkurzbezeichnung": "Test-Akte",
+            "IsGerichtstermin": False,
+            "GerichtName": None,
+            "CalendarName": "S. Koch",
+        }
+        mock_cursor.fetchall.return_value = [mock_row]
+
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.__exit__.return_value = None
+
+        with patch("backend.routers.dashboard_routes.get_ramicro_connection", return_value=mock_conn):
+            resp = self.client.get("/dashboard/termine-heute", headers=headers)
+            self.assertEqual(resp.status_code, 200)
+            data = resp.get_json()
+            self.assertGreater(len(data["eintraege"]), 0)
+            eintrag = data["eintraege"][0]
+            self.assertEqual(eintrag["az"], "123/26SK",
+                           f"Erwartet '123/26SK', erhalten '{eintrag['az']}'")
+            self.assertEqual(eintrag["sb"], "SK")
+
+    def test_endpoint_termine_heute_nutzt_kalender_mapping_unbekannt(self):
+        """Integration: GET /dashboard/termine-heute mit unbekanntem Kalendernamen."""
+        from datetime import datetime
+        from unittest.mock import patch, MagicMock
+
+        headers = self._auth_header()
+        heute = datetime.now()
+
+        mock_cursor = MagicMock()
+        mock_row = {
+            "StartDateTime": heute,
+            "Subject": "Termin",
+            "Aktennummer": "456/26",
+            "Aktenkurzbezeichnung": "Andere-Akte",
+            "IsGerichtstermin": False,
+            "GerichtName": None,
+            "CalendarName": "Unbekannter Kalendername",
+        }
+        mock_cursor.fetchall.return_value = [mock_row]
+
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.__exit__.return_value = None
+
+        with patch("backend.routers.dashboard_routes.get_ramicro_connection", return_value=mock_conn):
+            resp = self.client.get("/dashboard/termine-heute", headers=headers)
+            self.assertEqual(resp.status_code, 200)
+            data = resp.get_json()
+            self.assertGreater(len(data["eintraege"]), 0)
+            eintrag = data["eintraege"][0]
+            self.assertEqual(eintrag["az"], "456/26",
+                           f"Erwartet '456/26', erhalten '{eintrag['az']}'")
+            self.assertEqual(eintrag["sb"], "")
 
 
 if __name__ == "__main__":
