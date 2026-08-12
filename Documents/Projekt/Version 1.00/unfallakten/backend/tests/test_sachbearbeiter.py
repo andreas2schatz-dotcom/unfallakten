@@ -86,5 +86,67 @@ class TestMigration68(unittest.TestCase):
                 )
 
 
+class TestSachbearbeiterModul(unittest.TestCase):
+
+    def setUp(self):
+        self.client = _setup(self._testMethodName)
+
+    def test_name_kommt_aus_der_tabelle(self):
+        from backend.ramicro.sachbearbeiter import hole_sachbearbeiter
+        self.assertEqual(hole_sachbearbeiter("AS")["name"], "Andreas Schatz")
+        self.assertEqual(hole_sachbearbeiter("as")["titel"], "Rechtsanwalt")
+
+    def test_aenderung_wirkt_sofort(self):
+        from backend.db.database import get_connection
+        from backend.ramicro.sachbearbeiter import hole_sachbearbeiter
+        with get_connection() as conn:
+            conn.execute("UPDATE sachbearbeiter SET titel = 'Fachanwalt für Verkehrsrecht' "
+                         "WHERE kuerzel = 'AS'")
+            conn.commit()
+        self.assertEqual(hole_sachbearbeiter("AS")["titel"], "Fachanwalt für Verkehrsrecht")
+
+    def test_unbekanntes_kuerzel_bleibt_platzhalter(self):
+        from backend.ramicro.sachbearbeiter import hole_sachbearbeiter
+        self.assertEqual(hole_sachbearbeiter("XY")["name"], "[XY]")
+
+    def test_ignoriertes_kuerzel_liefert_platzhalter(self):
+        from backend.db.database import get_connection
+        from backend.ramicro.sachbearbeiter import hole_sachbearbeiter
+        with get_connection() as conn:
+            conn.execute("INSERT INTO sachbearbeiter (kuerzel, name, aktiv, ignoriert) "
+                         "VALUES ('ME', 'ME', 0, 1)")
+            conn.commit()
+        self.assertEqual(hole_sachbearbeiter("ME")["name"], "[ME]")
+
+    def test_leeres_kuerzel_liefert_kanzlei(self):
+        from backend.ramicro.sachbearbeiter import hole_sachbearbeiter
+        self.assertIn("Koch, Schatz", hole_sachbearbeiter("")["name"])
+
+    def test_nur_aktive_ohne_ausgeschiedene_und_ignorierte(self):
+        from backend.ramicro.sachbearbeiter import alle_sachbearbeiter
+        kuerzel = [e["kuerzel"] for e in alle_sachbearbeiter(nur_aktive=True)]
+        self.assertIn("AS", kuerzel)
+        self.assertNotIn("JH", kuerzel)
+        self.assertEqual(kuerzel, sorted(kuerzel, key=lambda k: kuerzel.index(k)))
+
+    def test_kalender_mapping_aus_der_tabelle(self):
+        from backend.db.database import get_connection
+        from backend.ramicro.sachbearbeiter import kalender_zu_kuerzel
+        self.assertEqual(kalender_zu_kuerzel()["RA.Schatz"], "AS")
+        with get_connection() as conn:
+            conn.execute("UPDATE sachbearbeiter SET kalender_name = 'T. Brunner' "
+                         "WHERE kuerzel = 'TB'")
+            conn.commit()
+        self.assertEqual(kalender_zu_kuerzel()["T. Brunner"], "TB")
+
+    def test_fallback_wenn_tabelle_fehlt(self):
+        from backend.db.database import get_connection
+        from backend.ramicro.sachbearbeiter import hole_sachbearbeiter
+        with get_connection() as conn:
+            conn.execute("DROP TABLE sachbearbeiter")
+            conn.commit()
+        self.assertEqual(hole_sachbearbeiter("AS")["name"], "Andreas Schatz")
+
+
 if __name__ == "__main__":
     unittest.main()
