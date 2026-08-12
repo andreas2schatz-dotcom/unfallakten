@@ -348,6 +348,60 @@ class TestSachbearbeiterEndpunkte(unittest.TestCase):
             self.client.delete("/einstellungen/sachbearbeiter/SN",
                                headers=self._header()).status_code, 404)
 
+    def test_kalender_name_null_entfernt_zuordnung(self):
+        r = self.client.put("/einstellungen/sachbearbeiter/AS", headers=self._header(),
+                            json={"kalender_name": None})
+        self.assertEqual(r.status_code, 200)
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            row = conn.execute("SELECT kalender_name FROM sachbearbeiter "
+                               "WHERE kuerzel = 'AS'").fetchone()
+        self.assertIsNone(row["kalender_name"])
+
+    def test_freigewordener_kalendername_kann_neu_vergeben_werden(self):
+        r = self.client.put("/einstellungen/sachbearbeiter/AS", headers=self._header(),
+                            json={"kalender_name": None})
+        self.assertEqual(r.status_code, 200)
+
+        r = self.client.put("/einstellungen/sachbearbeiter/TB", headers=self._header(),
+                            json={"kalender_name": "RA.Schatz"})
+        self.assertEqual(r.status_code, 200)
+
+        r = self.client.put("/einstellungen/sachbearbeiter/AS", headers=self._header(),
+                            json={"kalender_name": "Schatz.Neu"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.get_json()["eintrag"]["kalender_name"], "Schatz.Neu")
+
+    def test_mehrere_zeilen_koennen_kalender_name_gleichzeitig_entfernen(self):
+        """Kein Geisterkonflikt: zwei mit null geleerte Zeilen dürfen nicht
+        über den Text 'None' aneinander kollidieren."""
+        r = self.client.put("/einstellungen/sachbearbeiter/AS", headers=self._header(),
+                            json={"kalender_name": None})
+        self.assertEqual(r.status_code, 200)
+        r = self.client.put("/einstellungen/sachbearbeiter/PK", headers=self._header(),
+                            json={"kalender_name": None})
+        self.assertEqual(r.status_code, 200)
+
+    def test_name_null_400(self):
+        r = self.client.put("/einstellungen/sachbearbeiter/AS", headers=self._header(),
+                            json={"name": None})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("Name", r.get_json()["fehler"])
+
+    def test_anlegen_ignorierte_zeile(self):
+        r = self.client.post("/einstellungen/sachbearbeiter", headers=self._header(), json={
+            "kuerzel": "ME", "name": "ME", "aktiv": False, "ignoriert": True})
+        self.assertEqual(r.status_code, 201)
+        liste = self.client.get("/einstellungen/sachbearbeiter",
+                                headers=self._header()).get_json()["eintraege"]
+        me = next(e for e in liste if e["kuerzel"] == "ME")
+        self.assertFalse(me["aktiv"])
+        self.assertTrue(me["ignoriert"])
+
+        from backend.ramicro.sachbearbeiter import hole_sachbearbeiter
+        ergebnis = hole_sachbearbeiter("ME")
+        self.assertEqual(ergebnis["name"], "[ME]")
+
 
 if __name__ == "__main__":
     unittest.main()

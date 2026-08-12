@@ -440,24 +440,29 @@ def _sb_liste(conn):
     ).fetchall()]
 
 
+def _sb_text(wert):
+    """JSON-null wird zu Leerstring statt zur Zeichenkette 'None'."""
+    return "" if wert is None else str(wert).strip()
+
+
 def _sb_pruefe_felder(conn, body, kuerzel):
     """Gibt (werte, fehler) zurück. werte enthält nur übergebene Felder."""
     werte, fehler = {}, []
 
     if "name" in body:
-        name = str(body["name"]).strip()
+        name = _sb_text(body["name"])
         if not name:
             fehler.append("Name darf nicht leer sein.")
         werte["name"] = name
     if "titel" in body:
-        werte["titel"] = str(body["titel"]).strip()
+        werte["titel"] = _sb_text(body["titel"])
     if "anrede" in body:
-        anrede = str(body["anrede"]).strip().lower()
+        anrede = _sb_text(body["anrede"]).lower()
         if anrede not in _ANREDEN:
             fehler.append("Anrede muss 'herr', 'frau' oder leer sein.")
         werte["anrede"] = anrede
     if "rolle" in body:
-        rolle = str(body["rolle"]).strip().lower()
+        rolle = _sb_text(body["rolle"]).lower()
         if rolle not in _ROLLEN:
             fehler.append("Rolle muss 'anwalt' oder 'refa' sein.")
         werte["rolle"] = rolle
@@ -470,7 +475,7 @@ def _sb_pruefe_felder(conn, body, kuerzel):
         except (ValueError, TypeError):
             fehler.append("Sortierung muss eine ganze Zahl sein.")
     if "kalender_name" in body:
-        kal = (str(body["kalender_name"]).strip() or None)
+        kal = _sb_text(body["kalender_name"]) or None
         if kal:
             belegt = conn.execute(
                 "SELECT kuerzel FROM sachbearbeiter WHERE kalender_name = ? AND kuerzel <> ?",
