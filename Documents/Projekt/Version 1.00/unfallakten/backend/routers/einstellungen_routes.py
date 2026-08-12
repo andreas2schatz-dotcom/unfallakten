@@ -5,9 +5,15 @@ GET  /einstellungen/sta-fristen   → Fristenzeiten + Texttemplates
 PUT  /einstellungen/sta-fristen   → Fristen + Texte aktualisieren
 GET  /einstellungen/ki            → KI-Modell + Prompts
 PUT  /einstellungen/ki            → KI-Modell + Prompts aktualisieren
+GET    /einstellungen/sachbearbeiter          → alle Sachbearbeiter
+POST   /einstellungen/sachbearbeiter          → Sachbearbeiter anlegen
+PUT    /einstellungen/sachbearbeiter/<kuerzel> → Sachbearbeiter ändern
+DELETE /einstellungen/sachbearbeiter/<kuerzel> → Sachbearbeiter löschen
 """
 
 import logging
+import re
+from datetime import datetime
 from flask import Blueprint, jsonify, request
 from ..auth.middleware import login_erforderlich
 from ..db.database import get_connection
@@ -411,3 +417,140 @@ def put_lg_grenzwert():
             (str(wert),)
         )
     return jsonify({"ok": True, "lg_grenzwert": wert})
+
+
+_KUERZEL_RE = re.compile(r"^[A-Z]{2}$")
+_ROLLEN     = ("anwalt", "refa")
+_ANREDEN    = ("", "herr", "frau")
+
+_SB_SPALTEN = ("kuerzel, name, titel, anrede, rolle, aktiv, ignoriert, "
+               "dashboard_vorauswahl, kalender_name, sortierung, geaendert_am")
+
+
+def _sb_zeile(conn, kuerzel):
+    row = conn.execute(
+        f"SELECT {_SB_SPALTEN} FROM sachbearbeiter WHERE kuerzel = ?", (kuerzel,)
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def _sb_liste(conn):
+    return [dict(r) for r in conn.execute(
+        f"SELECT {_SB_SPALTEN} FROM sachbearbeiter ORDER BY sortierung, kuerzel"
+    ).fetchall()]
+
+
+def _sb_pruefe_felder(conn, body, kuerzel):
+    """Gibt (werte, fehler) zurück. werte enthält nur übergebene Felder."""
+    werte, fehler = {}, []
+
+    if "name" in body:
+        name = str(body["name"]).strip()
+        if not name:
+            fehler.append("Name darf nicht leer sein.")
+        werte["name"] = name
+    if "titel" in body:
+        werte["titel"] = str(body["titel"]).strip()
+    if "anrede" in body:
+        anrede = str(body["anrede"]).strip().lower()
+        if anrede not in _ANREDEN:
+            fehler.append("Anrede muss 'herr', 'frau' oder leer sein.")
+        werte["anrede"] = anrede
+    if "rolle" in body:
+        rolle = str(body["rolle"]).strip().lower()
+        if rolle not in _ROLLEN:
+            fehler.append("Rolle muss 'anwalt' oder 'refa' sein.")
+        werte["rolle"] = rolle
+    for feld in ("aktiv", "ignoriert", "dashboard_vorauswahl"):
+        if feld in body:
+            werte[feld] = 1 if body[feld] else 0
+    if "sortierung" in body:
+        try:
+            werte["sortierung"] = int(body["sortierung"])
+        except (ValueError, TypeError):
+            fehler.append("Sortierung muss eine ganze Zahl sein.")
+    if "kalender_name" in body:
+        kal = (str(body["kalender_name"]).strip() or None)
+        if kal:
+            belegt = conn.execute(
+                "SELECT kuerzel FROM sachbearbeiter WHERE kalender_name = ? AND kuerzel <> ?",
+                (kal, kuerzel or ""),
+            ).fetchone()
+            if belegt:
+                fehler.append(
+                    f"Kalendername '{kal}' ist bereits {belegt['kuerzel']} zugeordnet.")
+        werte["kalender_name"] = kal
+
+    return werte, fehler
+
+
+@einstellungen_bp.route("/sachbearbeiter", methods=["GET"])
+@login_erforderlich
+def get_sachbearbeiter():
+    """Alle Sachbearbeiter inklusive ausgeschiedener und ignorierter."""
+    with get_connection() as conn:
+        return jsonify({"eintraege": _sb_liste(conn)})
+
+
+@einstellungen_bp.route("/sachbearbeiter", methods=["POST"])
+@login_erforderlich
+def post_sachbearbeiter():
+    """Legt einen Sachbearbeiter an."""
+    body   = request.get_json(silent=True) or {}
+    kuerzel = str(body.get("kuerzel", "")).strip().upper()
+    if not _KUERZEL_RE.match(kuerzel):
+        return jsonify({"fehler": "Kürzel muss aus genau zwei Großbuchstaben bestehen."}), 400
+
+    with get_connection() as conn:
+        if _sb_zeile(conn, kuerzel):
+            return jsonify({"fehler": f"Kürzel {kuerzel} ist bereits vergeben."}), 409
+
+        werte, fehler = _sb_pruefe_felder(conn, body, kuerzel)
+        if not werte.get("name"):
+            fehler.append("Name darf nicht leer sein.")
+        if fehler:
+            return jsonify({"fehler": " ".join(fehler)}), 400
+
+        werte["kuerzel"] = kuerzel
+        spalten = ", ".join(werte)
+        platz   = ", ".join("?" for _ in werte)
+        conn.execute(f"INSERT INTO sachbearbeiter ({spalten}) VALUES ({platz})",
+                     tuple(werte.values()))
+        conn.commit()
+        return jsonify({"ok": True, "eintrag": _sb_zeile(conn, kuerzel)}), 201
+
+
+@einstellungen_bp.route("/sachbearbeiter/<kuerzel>", methods=["PUT"])
+@login_erforderlich
+def put_sachbearbeiter(kuerzel):
+    """Ändert einen Sachbearbeiter; das Kürzel selbst bleibt unverändert."""
+    kuerzel = kuerzel.strip().upper()
+    body    = request.get_json(silent=True) or {}
+
+    with get_connection() as conn:
+        if not _sb_zeile(conn, kuerzel):
+            return jsonify({"fehler": f"Sachbearbeiter {kuerzel} nicht gefunden."}), 404
+
+        werte, fehler = _sb_pruefe_felder(conn, body, kuerzel)
+        if fehler:
+            return jsonify({"fehler": " ".join(fehler)}), 400
+        if werte:
+            werte["geaendert_am"] = datetime.now().isoformat(timespec="seconds")
+            zuweisung = ", ".join(f"{k} = ?" for k in werte)
+            conn.execute(f"UPDATE sachbearbeiter SET {zuweisung} WHERE kuerzel = ?",
+                         (*werte.values(), kuerzel))
+            conn.commit()
+        return jsonify({"ok": True, "eintrag": _sb_zeile(conn, kuerzel)})
+
+
+@einstellungen_bp.route("/sachbearbeiter/<kuerzel>", methods=["DELETE"])
+@login_erforderlich
+def delete_sachbearbeiter(kuerzel):
+    """Löscht einen Sachbearbeiter. Altakten zeigen danach [XY]."""
+    kuerzel = kuerzel.strip().upper()
+    with get_connection() as conn:
+        if not _sb_zeile(conn, kuerzel):
+            return jsonify({"fehler": f"Sachbearbeiter {kuerzel} nicht gefunden."}), 404
+        conn.execute("DELETE FROM sachbearbeiter WHERE kuerzel = ?", (kuerzel,))
+        conn.commit()
+        return jsonify({"ok": True})

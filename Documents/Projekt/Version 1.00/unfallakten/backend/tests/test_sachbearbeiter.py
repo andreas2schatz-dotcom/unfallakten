@@ -257,5 +257,97 @@ class TestKalenderMapping(unittest.TestCase):
             self.assertEqual(eintrag["sb"], "")
 
 
+class TestSachbearbeiterEndpunkte(unittest.TestCase):
+
+    def setUp(self):
+        self.client = _setup(self._testMethodName)
+
+    def _header(self):
+        r = self.client.post("/auth/login", json={
+            "email": "admin@test.de", "passwort": "Admin123!"})
+        return {"Authorization": f"Bearer {r.get_json()['access_token']}"}
+
+    def test_liste_liefert_alle_inklusive_inaktiver(self):
+        r = self.client.get("/einstellungen/sachbearbeiter", headers=self._header())
+        self.assertEqual(r.status_code, 200)
+        eintraege = r.get_json()["eintraege"]
+        self.assertEqual(len(eintraege), 11)
+        jh = next(e for e in eintraege if e["kuerzel"] == "JH")
+        self.assertFalse(jh["aktiv"])
+        self.assertEqual(eintraege[0]["kuerzel"], "AS")
+
+    def test_ohne_token_401(self):
+        self.assertEqual(self.client.get("/einstellungen/sachbearbeiter").status_code, 401)
+
+    def test_anlegen_und_wieder_lesen(self):
+        r = self.client.post("/einstellungen/sachbearbeiter", headers=self._header(), json={
+            "kuerzel": "XX", "name": "Neue Kollegin", "titel": "Rechtsanwältin",
+            "anrede": "frau", "rolle": "anwalt", "aktiv": True,
+            "dashboard_vorauswahl": True, "sortierung": 55})
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.get_json()["eintrag"]["name"], "Neue Kollegin")
+        liste = self.client.get("/einstellungen/sachbearbeiter",
+                                headers=self._header()).get_json()["eintraege"]
+        self.assertIn("XX", [e["kuerzel"] for e in liste])
+
+    def test_kuerzel_muss_genau_zwei_grossbuchstaben_sein(self):
+        for falsch in ("A", "ABC", "a1", "12"):
+            r = self.client.post("/einstellungen/sachbearbeiter", headers=self._header(),
+                                 json={"kuerzel": falsch, "name": "Test"})
+            self.assertEqual(r.status_code, 400, falsch)
+            self.assertIn("Kürzel", r.get_json()["fehler"])
+
+    def test_doppeltes_kuerzel_409(self):
+        r = self.client.post("/einstellungen/sachbearbeiter", headers=self._header(),
+                             json={"kuerzel": "AS", "name": "Doppelt"})
+        self.assertEqual(r.status_code, 409)
+
+    def test_leerer_name_400(self):
+        r = self.client.post("/einstellungen/sachbearbeiter", headers=self._header(),
+                             json={"kuerzel": "XX", "name": "   "})
+        self.assertEqual(r.status_code, 400)
+
+    def test_unbekannte_rolle_oder_anrede_400(self):
+        r = self.client.post("/einstellungen/sachbearbeiter", headers=self._header(),
+                             json={"kuerzel": "XX", "name": "Test", "rolle": "chef"})
+        self.assertEqual(r.status_code, 400)
+        r = self.client.post("/einstellungen/sachbearbeiter", headers=self._header(),
+                             json={"kuerzel": "XY", "name": "Test", "anrede": "divers"})
+        self.assertEqual(r.status_code, 400)
+
+    def test_doppelter_kalendername_400(self):
+        r = self.client.put("/einstellungen/sachbearbeiter/TB", headers=self._header(),
+                            json={"kalender_name": "RA.Schatz"})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("Kalender", r.get_json()["fehler"])
+
+    def test_aendern_setzt_geaendert_am(self):
+        r = self.client.put("/einstellungen/sachbearbeiter/AS", headers=self._header(),
+                            json={"titel": "Fachanwalt für Verkehrsrecht", "aktiv": True})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.get_json()["eintrag"]["titel"], "Fachanwalt für Verkehrsrecht")
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            row = conn.execute("SELECT geaendert_am FROM sachbearbeiter "
+                               "WHERE kuerzel = 'AS'").fetchone()
+        self.assertIsNotNone(row["geaendert_am"])
+
+    def test_aendern_unbekannt_404(self):
+        r = self.client.put("/einstellungen/sachbearbeiter/ZZ", headers=self._header(),
+                            json={"name": "Niemand"})
+        self.assertEqual(r.status_code, 404)
+
+    def test_loeschen(self):
+        self.assertEqual(
+            self.client.delete("/einstellungen/sachbearbeiter/SN",
+                               headers=self._header()).status_code, 200)
+        liste = self.client.get("/einstellungen/sachbearbeiter",
+                                headers=self._header()).get_json()["eintraege"]
+        self.assertNotIn("SN", [e["kuerzel"] for e in liste])
+        self.assertEqual(
+            self.client.delete("/einstellungen/sachbearbeiter/SN",
+                               headers=self._header()).status_code, 404)
+
+
 if __name__ == "__main__":
     unittest.main()
