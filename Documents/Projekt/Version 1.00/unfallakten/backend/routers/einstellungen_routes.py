@@ -583,8 +583,11 @@ def get_sachbearbeiter_ramicro_abgleich():
                 for r in cur.fetchall()
                 if (r["k"] or "").strip()
             }
-    except Exception as e:
+    except (connector.RaMicroVerbindungsFehler, connector.RaMicroNichtAktiv) as e:
         logger.warning("RA-MICRO-Abgleich nicht möglich: %s", e)
+        return jsonify({"verfuegbar": False, "kuerzel": {}, "unbekannt": []})
+    except Exception:
+        logger.exception("RA-MICRO-Abgleich: unerwarteter Fehler bei der Auswertung")
         return jsonify({"verfuegbar": False, "kuerzel": {}, "unbekannt": []})
 
     with get_connection() as conn:

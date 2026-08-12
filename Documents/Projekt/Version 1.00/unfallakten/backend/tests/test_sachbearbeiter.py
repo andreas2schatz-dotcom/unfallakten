@@ -474,6 +474,45 @@ class TestRamicroAbgleich(unittest.TestCase):
                                 headers=self._header())
         self.assertEqual(r.get_json()["unbekannt"], [])
 
+    def test_unerwarteter_fehler_wird_als_error_geloggt(self):
+        from contextlib import contextmanager
+        from unittest.mock import patch
+
+        class _Cursor:
+            def execute(self, *a, **k): pass
+            def fetchall(self): return [{"falscher_schluessel": "AS", "n": 3201}]
+
+        class _Conn:
+            def cursor(self): return _Cursor()
+
+        @contextmanager
+        def _fake():
+            yield _Conn()
+
+        with patch("backend.ramicro.connector.get_ramicro_connection", _fake):
+            with self.assertLogs("backend.routers.einstellungen_routes", level="ERROR") as protokoll:
+                r = self.client.get("/einstellungen/sachbearbeiter/ramicro-abgleich",
+                                    headers=self._header())
+        self.assertEqual(r.status_code, 200)
+        daten = r.get_json()
+        self.assertFalse(daten["verfuegbar"])
+        self.assertEqual(daten["kuerzel"], {})
+        self.assertEqual(daten["unbekannt"], [])
+        self.assertTrue(any(satz.levelname == "ERROR" for satz in protokoll.records))
+
+    def test_verbindungsfehler_wird_nicht_als_error_geloggt(self):
+        from unittest.mock import patch
+        from backend.ramicro.connector import RaMicroVerbindungsFehler
+
+        with patch("backend.ramicro.connector.get_ramicro_connection",
+                   side_effect=RaMicroVerbindungsFehler("offline")):
+            with self.assertLogs("backend.routers.einstellungen_routes", level="WARNING") as protokoll:
+                r = self.client.get("/einstellungen/sachbearbeiter/ramicro-abgleich",
+                                    headers=self._header())
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.get_json()["verfuegbar"])
+        self.assertTrue(all(satz.levelname != "ERROR" for satz in protokoll.records))
+
 
 if __name__ == "__main__":
     unittest.main()
