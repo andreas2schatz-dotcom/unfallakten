@@ -403,5 +403,77 @@ class TestSachbearbeiterEndpunkte(unittest.TestCase):
         self.assertEqual(ergebnis["name"], "[ME]")
 
 
+class TestRamicroAbgleich(unittest.TestCase):
+
+    def setUp(self):
+        self.client = _setup(self._testMethodName)
+
+    def _header(self):
+        r = self.client.post("/auth/login", json={
+            "email": "admin@test.de", "passwort": "Admin123!"})
+        return {"Authorization": f"Bearer {r.get_json()['access_token']}"}
+
+    def test_ohne_ramicro_verfuegbar_false(self):
+        from unittest.mock import patch
+        from backend.ramicro.connector import RaMicroVerbindungsFehler
+        with patch("backend.ramicro.connector.get_ramicro_connection",
+                   side_effect=RaMicroVerbindungsFehler("offline")):
+            r = self.client.get("/einstellungen/sachbearbeiter/ramicro-abgleich",
+                                headers=self._header())
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.get_json()["verfuegbar"])
+        self.assertEqual(r.get_json()["unbekannt"], [])
+
+    def test_unbekannte_kuerzel_werden_gemeldet(self):
+        from contextlib import contextmanager
+        from unittest.mock import patch
+
+        class _Cursor:
+            def execute(self, *a, **k): pass
+            def fetchall(self):
+                return [{"k": "AS", "n": 3201}, {"k": "ME", "n": 20}, {"k": "JH", "n": 2182}]
+
+        class _Conn:
+            def cursor(self): return _Cursor()
+
+        @contextmanager
+        def _fake():
+            yield _Conn()
+
+        with patch("backend.ramicro.connector.get_ramicro_connection", _fake):
+            r = self.client.get("/einstellungen/sachbearbeiter/ramicro-abgleich",
+                                headers=self._header())
+        daten = r.get_json()
+        self.assertTrue(daten["verfuegbar"])
+        self.assertEqual(daten["kuerzel"]["AS"], 3201)
+        self.assertEqual(daten["unbekannt"], [{"kuerzel": "ME", "akten": 20}])
+
+    def test_ignoriertes_kuerzel_gilt_als_bekannt(self):
+        from contextlib import contextmanager
+        from unittest.mock import patch
+        from backend.db.database import get_connection
+
+        with get_connection() as conn:
+            conn.execute("INSERT INTO sachbearbeiter (kuerzel, name, aktiv, ignoriert) "
+                         "VALUES ('ME', 'ME', 0, 1)")
+            conn.commit()
+
+        class _Cursor:
+            def execute(self, *a, **k): pass
+            def fetchall(self): return [{"k": "ME", "n": 20}]
+
+        class _Conn:
+            def cursor(self): return _Cursor()
+
+        @contextmanager
+        def _fake():
+            yield _Conn()
+
+        with patch("backend.ramicro.connector.get_ramicro_connection", _fake):
+            r = self.client.get("/einstellungen/sachbearbeiter/ramicro-abgleich",
+                                headers=self._header())
+        self.assertEqual(r.get_json()["unbekannt"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

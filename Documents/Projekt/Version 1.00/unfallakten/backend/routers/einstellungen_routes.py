@@ -559,3 +559,40 @@ def delete_sachbearbeiter(kuerzel):
         conn.execute("DELETE FROM sachbearbeiter WHERE kuerzel = ?", (kuerzel,))
         conn.commit()
         return jsonify({"ok": True})
+
+
+@einstellungen_bp.route("/sachbearbeiter/ramicro-abgleich", methods=["GET"])
+@login_erforderlich
+def get_sachbearbeiter_ramicro_abgleich():
+    """
+    Zählt Akten je Kürzel in RA-MICRO (read-only) und meldet Kürzel,
+    die dort vorkommen, hier aber weder gepflegt noch ignoriert sind.
+    """
+    from ..ramicro import connector
+
+    try:
+        with connector.get_ramicro_connection() as rc:
+            cur = rc.cursor()
+            cur.execute(
+                "SELECT sAktenSachbearbeiter AS k, COUNT(*) AS n FROM tblAkten "
+                "WHERE sAktenSachbearbeiter IS NOT NULL AND sAktenSachbearbeiter <> '' "
+                "GROUP BY sAktenSachbearbeiter"
+            )
+            zaehler = {
+                (r["k"] or "").strip().upper(): int(r["n"])
+                for r in cur.fetchall()
+                if (r["k"] or "").strip()
+            }
+    except Exception as e:
+        logger.warning("RA-MICRO-Abgleich nicht möglich: %s", e)
+        return jsonify({"verfuegbar": False, "kuerzel": {}, "unbekannt": []})
+
+    with get_connection() as conn:
+        bekannt = {r["kuerzel"] for r in conn.execute(
+            "SELECT kuerzel FROM sachbearbeiter").fetchall()}
+
+    unbekannt = sorted(
+        ({"kuerzel": k, "akten": n} for k, n in zaehler.items() if k not in bekannt),
+        key=lambda e: -e["akten"],
+    )
+    return jsonify({"verfuegbar": True, "kuerzel": zaehler, "unbekannt": unbekannt})
