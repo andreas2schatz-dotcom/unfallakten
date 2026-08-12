@@ -121,3 +121,46 @@ describe("SachbearbeiterTab – anlegen und löschen", () => {
     bestaetigen.mockRestore();
   });
 });
+
+describe("SachbearbeiterTab – RA-MICRO-Abgleich", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    api.sachbearbeiter.mockResolvedValue({ eintraege: EINTRAEGE });
+    api.sachbearbeiterAbgleich.mockResolvedValue({
+      verfuegbar: true,
+      kuerzel: { AS: 3201, JH: 2182 },
+      unbekannt: [{ kuerzel: "ME", akten: 20 }],
+    });
+  });
+
+  it("zeigt die Aktenzahl je Zeile", async () => {
+    render(<SachbearbeiterTab />);
+    expect(await screen.findByText("RA-MICRO: 3.201 Akten")).toBeInTheDocument();
+  });
+
+  it("warnt nur bei Anwälten ohne Akten", async () => {
+    api.sachbearbeiter.mockResolvedValue({ eintraege: [
+      { ...EINTRAEGE[0], kuerzel: "CS", name: "Carina Salvagnin", rolle: "anwalt" },
+      { ...EINTRAEGE[0], kuerzel: "TB", name: "Tanja Brunner",    rolle: "refa" },
+    ] });
+    render(<SachbearbeiterTab />);
+    expect(await screen.findAllByText("keine Akten in RA-MICRO")).toHaveLength(1);
+  });
+
+  it("meldet unbekannte Kürzel und legt sie auf Klick als ignoriert an", async () => {
+    api.sachbearbeiterAnlegen.mockResolvedValue({ ok: true });
+    render(<SachbearbeiterTab />);
+    expect(await screen.findByText(/ME \(20\)/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "ME ignorieren" }));
+    await waitFor(() => expect(api.sachbearbeiterAnlegen).toHaveBeenCalledWith(
+      expect.objectContaining({ kuerzel: "ME", aktiv: false, ignoriert: true })));
+  });
+
+  it("blendet den Abgleich aus, wenn RA-MICRO nicht erreichbar ist", async () => {
+    api.sachbearbeiterAbgleich.mockResolvedValue({ verfuegbar: false, kuerzel: {}, unbekannt: [] });
+    render(<SachbearbeiterTab />);
+    await screen.findByDisplayValue("Andreas Schatz");
+    expect(screen.queryByText(/RA-MICRO:/)).toBeNull();
+    expect(screen.getByText(/RA-MICRO nicht erreichbar/)).toBeInTheDocument();
+  });
+});

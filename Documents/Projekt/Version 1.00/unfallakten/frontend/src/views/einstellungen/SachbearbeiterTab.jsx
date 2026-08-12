@@ -20,6 +20,7 @@ export default function SachbearbeiterTab() {
   const [meldung, setMeldung]     = useState(null);
   const [fehler, setFehler]       = useState(null);
   const [neu, setNeu]             = useState(null);
+  const [abgleich, setAbgleich]   = useState(null);
   const schmutzigeZeilen          = useRef(new Set());
 
   const laden = () => apiEinstellungen.sachbearbeiter()
@@ -33,7 +34,12 @@ export default function SachbearbeiterTab() {
     })
     .catch(e => setFehler(`Laden fehlgeschlagen: ${e.message}`));
 
+  const abgleichLaden = () => apiEinstellungen.sachbearbeiterAbgleich()
+    .then(setAbgleich)
+    .catch(() => setAbgleich({ verfuegbar: false, kuerzel: {}, unbekannt: [] }));
+
   useEffect(() => { laden(); }, []);
+  useEffect(() => { abgleichLaden(); }, []);
 
   const setzeFeld = (kuerzel, feld, wert) => {
     schmutzigeZeilen.current.add(kuerzel);
@@ -94,6 +100,23 @@ export default function SachbearbeiterTab() {
     }
   };
 
+  const ignorieren = async (kuerzel) => {
+    setFehler(null);
+    try {
+      await apiEinstellungen.sachbearbeiterAnlegen({
+        kuerzel, name: kuerzel, rolle: "anwalt", aktiv: false, ignoriert: true,
+      });
+      await Promise.all([laden(), abgleichLaden()]);
+    } catch (err) {
+      setFehler(err.message);
+    }
+  };
+
+  const uebernehmen = (kuerzel) => {
+    setNeu({ ...LEER_NEU, kuerzel });
+    setMeldung(null);
+  };
+
   return (
     <Card>
       <div style={{ fontSize: "0.9rem", color: T.textMuted, marginBottom: 14 }}>
@@ -104,6 +127,30 @@ export default function SachbearbeiterTab() {
 
       {fehler  && <div role="alert" style={{ color: T.redText, marginBottom: 10 }}>{fehler}</div>}
       {meldung && <div style={{ color: T.green, marginBottom: 10 }}>{meldung}</div>}
+
+      {abgleich && !abgleich.verfuegbar && (
+        <div style={{ fontSize: "0.85rem", color: T.textMuted, marginBottom: 10 }}>
+          RA-MICRO nicht erreichbar — der Kürzel-Abgleich steht gerade nicht zur Verfügung.
+        </div>
+      )}
+      {abgleich?.verfuegbar && abgleich.unbekannt.length > 0 && (
+        <div style={{ background: T.amberBg, border: `1px solid ${T.amberMid}`, borderRadius: 7,
+          padding: "10px 12px", marginBottom: 12, fontSize: "0.88rem" }}>
+          <b>In RA-MICRO gibt es Kürzel ohne Eintrag hier:</b>{" "}
+          {abgleich.unbekannt.map(u => (
+            <span key={u.kuerzel} style={{ marginRight: 12, whiteSpace: "nowrap" }}>
+              {u.kuerzel} ({u.akten.toLocaleString("de-DE")})
+              <button type="button" onClick={() => uebernehmen(u.kuerzel)}
+                style={{ marginLeft: 4, background: "none", border: "none", color: T.accent,
+                  cursor: "pointer" }}>anlegen</button>
+              <button type="button" aria-label={`${u.kuerzel} ignorieren`}
+                onClick={() => ignorieren(u.kuerzel)}
+                style={{ marginLeft: 2, background: "none", border: "none", color: T.textMuted,
+                  cursor: "pointer" }}>ignorieren</button>
+            </span>
+          ))}
+        </div>
+      )}
 
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
         <thead>
@@ -129,6 +176,16 @@ export default function SachbearbeiterTab() {
                   {e.kuerzel}
                   {!d.aktiv && <div style={{ fontSize: "0.75rem", color: T.textMuted }}>
                     ausgeschieden</div>}
+                  {abgleich?.verfuegbar && (
+                    abgleich.kuerzel[e.kuerzel]
+                      ? <div style={{ fontSize: "0.75rem", color: T.textMuted }}>
+                          RA-MICRO: {abgleich.kuerzel[e.kuerzel].toLocaleString("de-DE")} Akten
+                        </div>
+                      : (d.rolle === "anwalt" &&
+                          <div style={{ fontSize: "0.75rem", color: T.amberText }}>
+                            keine Akten in RA-MICRO
+                          </div>)
+                  )}
                 </td>
                 <td style={{ padding: "6px 8px" }}>
                   <input aria-label={`Name ${e.kuerzel}`} style={feldStil} value={d.name || ""}
