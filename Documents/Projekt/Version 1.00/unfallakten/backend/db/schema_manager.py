@@ -322,6 +322,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     65: "-- migration_65_standardtext_override",  # Handled by _run_migration_65
     66: "-- migration_66_aktenanlage",  # Handled by _run_migration_66
     67: "-- migration_67_abschluss_status",  # Handled by _run_migration_67
+    68: "-- migration_68_sachbearbeiter",  # Handled by _run_migration_68
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -1276,6 +1277,67 @@ def _run_migration_67(conn: sqlite3.Connection) -> None:
     logger.info("Migration 67 abgeschlossen (abschluss_status).")
 
 
+_SACHBEARBEITER_SEED = [
+    ("AS", "Andreas Schatz",    "Rechtsanwalt",   "herr", "anwalt", 1, 1, "RA.Schatz",         10),
+    ("PK", "Peter Koch",        "Rechtsanwalt",   "herr", "anwalt", 1, 1, "Peter Koch",        20),
+    ("CO", "Claudia Ostarek",   "Rechtsanwältin", "frau", "anwalt", 1, 1, "C. Ostarek",        30),
+    ("MM", "Monika Mieth",      "Rechtsanwältin", "frau", "anwalt", 1, 1, "Monika Mieth",      40),
+    ("AH", "Alexander Herbert", "Rechtsanwalt",   "herr", "anwalt", 1, 1, "Alexander.Herbert", 50),
+    ("CS", "Carina Salvagnin",  "Rechtsanwältin", "frau", "anwalt", 1, 0, None,                60),
+    ("TB", "Tanja Brunner",     "Rechtsanwalts- und Notarfachangestellte",
+                                                  "frau", "refa",   1, 0, None,                70),
+    ("SK", "Sophie Koch",       "Rechtsanwaltsfachangestellte", "frau", "refa", 1, 0, None,     80),
+    ("EI", "Elsa Ihl",          "Rechtsanwaltsfachangestellte", "frau", "refa", 1, 0, None,     90),
+    ("SN", "Susanne Neumann",   "Rechtsanwaltsfachangestellte", "frau", "refa", 1, 0, None,    100),
+    ("JH", "Jochen Hofmann",    "Rechtsanwalt",   "herr", "anwalt", 0, 0, None,                110),
+]
+
+
+def _run_migration_68(conn: sqlite3.Connection) -> None:
+    """
+    Migration 68 - sachbearbeiter: eine Quelle für Kürzel, Name, Titel,
+    Rolle, Kalenderzuordnung und Dashboard-Vorauswahl.
+    Kein executescript, explizite Commits um DDL (Reloader-Falle).
+    """
+    conn.commit()
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS sachbearbeiter ("
+        " kuerzel              TEXT PRIMARY KEY,"
+        " name                 TEXT    NOT NULL,"
+        " titel                TEXT    NOT NULL DEFAULT '',"
+        " anrede               TEXT    NOT NULL DEFAULT '',"
+        " rolle                TEXT    NOT NULL DEFAULT 'anwalt',"
+        " aktiv                INTEGER NOT NULL DEFAULT 1,"
+        " ignoriert            INTEGER NOT NULL DEFAULT 0,"
+        " dashboard_vorauswahl INTEGER NOT NULL DEFAULT 0,"
+        " kalender_name        TEXT,"
+        " sortierung           INTEGER NOT NULL DEFAULT 100,"
+        " erstellt_am          TEXT    NOT NULL DEFAULT (datetime('now')),"
+        " geaendert_am         TEXT)"
+    )
+    conn.commit()
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uidx_sachbearbeiter_kalender "
+        "ON sachbearbeiter(kalender_name) "
+        "WHERE kalender_name IS NOT NULL AND kalender_name <> ''"
+    )
+    conn.commit()
+    for zeile in _SACHBEARBEITER_SEED:
+        conn.execute(
+            "INSERT OR IGNORE INTO sachbearbeiter "
+            "(kuerzel, name, titel, anrede, rolle, aktiv, dashboard_vorauswahl, "
+            " kalender_name, sortierung) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            zeile,
+        )
+    conn.commit()
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
+        (68, "Migration 68 - sachbearbeiter (Kürzel/Name/Kalender als eine Quelle)"),
+    )
+    logger.info("Migration 68 abgeschlossen (sachbearbeiter, %d Startzeilen).",
+                len(_SACHBEARBEITER_SEED))
+
+
 def _run_migration_64(conn: sqlite3.Connection) -> None:
     """
     Migration 64 - Kürzungstaxonomie Phase 1:
@@ -1779,6 +1841,8 @@ def run_migrations() -> None:
                 _run_migration_66(conn)
             elif version == 67:
                 _run_migration_67(conn)
+            elif version == 68:
+                _run_migration_68(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
