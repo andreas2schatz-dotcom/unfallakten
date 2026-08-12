@@ -32,14 +32,14 @@ _FALLBACK: dict[str, dict] = {
 }
 
 _SPALTEN = ("kuerzel, name, titel, anrede, rolle, aktiv, ignoriert, "
-            "dashboard_vorauswahl, kalender_name, sortierung")
+            "dashboard_vorauswahl, kalender_name, sortierung, geaendert_am")
 
 
 def _fallback_zeilen() -> list[dict]:
     return [
         {"kuerzel": k, "name": v["name"], "titel": v["titel"], "anrede": "",
          "rolle": "anwalt", "aktiv": 1, "ignoriert": 0, "dashboard_vorauswahl": 0,
-         "kalender_name": None, "sortierung": 100}
+         "kalender_name": None, "sortierung": 100, "geaendert_am": None}
         for k, v in _FALLBACK.items()
     ]
 

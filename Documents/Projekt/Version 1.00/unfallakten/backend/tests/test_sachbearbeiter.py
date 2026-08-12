@@ -100,6 +100,22 @@ class TestSachbearbeiterModul(unittest.TestCase):
         self.assertEqual(hole_sachbearbeiter("AS")["name"], "Andreas Schatz")
         self.assertEqual(hole_sachbearbeiter("as")["titel"], "Rechtsanwalt")
 
+    def test_ausgeschiedener_sachbearbeiter_behaelt_namen_schutzplanke(self):
+        """Schutzplanke gegen ein künftiges 'AND aktiv = 1' in der Abfrage.
+
+        JH (Jochen Hofmann) trägt aktiv=0, ignoriert=0 -- 'ausgeschieden',
+        nicht 'ignoriert'. hole_sachbearbeiter() MUSS trotzdem den Namen und
+        Titel liefern, sonst fallen 2.182 Altakten wieder auf den Platzhalter
+        [JH] zurueck (RA-MICRO-Bestandsaufnahme 2026-08-12). Ein naheliegendes
+        Aufraeumen der Abfrage in _zeilen() ('AND aktiv = 1' statt nur
+        'ignoriert = 0') wuerde diesen Test rot machen, ohne dass die Vollsuite
+        sonst etwas merkt.
+        """
+        from backend.ramicro.sachbearbeiter import hole_sachbearbeiter
+        ergebnis = hole_sachbearbeiter("JH")
+        self.assertEqual(ergebnis["name"], "Jochen Hofmann")
+        self.assertEqual(ergebnis["titel"], "Rechtsanwalt")
+
     def test_aenderung_wirkt_sofort(self):
         from backend.db.database import get_connection
         from backend.ramicro.sachbearbeiter import hole_sachbearbeiter
@@ -279,6 +295,24 @@ class TestSachbearbeiterEndpunkte(unittest.TestCase):
     def test_ohne_token_401(self):
         self.assertEqual(self.client.get("/einstellungen/sachbearbeiter").status_code, 401)
 
+    def test_liste_faellt_auf_eingebaute_liste_zurueck_wenn_tabelle_fehlt(self):
+        """GET muss über alle_sachbearbeiter() laufen, nicht über eine eigene Abfrage.
+
+        Bestands-Datenbanken ohne Migration 68 haben die Tabelle 'sachbearbeiter'
+        noch nicht -- der Reiter UND die Chips der Tagesübersicht sollen dann die
+        eingebaute Fallback-Liste zeigen statt eines Serverfehlers.
+        """
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            conn.execute("DROP TABLE sachbearbeiter")
+            conn.commit()
+        r = self.client.get("/einstellungen/sachbearbeiter", headers=self._header())
+        self.assertEqual(r.status_code, 200)
+        eintraege = r.get_json()["eintraege"]
+        self.assertGreater(len(eintraege), 0)
+        self.assertIn("AS", [e["kuerzel"] for e in eintraege])
+        self.assertIn("geaendert_am", eintraege[0])
+
     def test_anlegen_und_wieder_lesen(self):
         r = self.client.post("/einstellungen/sachbearbeiter", headers=self._header(), json={
             "kuerzel": "XX", "name": "Neue Kollegin", "titel": "Rechtsanwältin",
@@ -401,6 +435,31 @@ class TestSachbearbeiterEndpunkte(unittest.TestCase):
         from backend.ramicro.sachbearbeiter import hole_sachbearbeiter
         ergebnis = hole_sachbearbeiter("ME")
         self.assertEqual(ergebnis["name"], "[ME]")
+
+    def test_aktiv_setzen_hebt_ignoriert_wieder_auf(self):
+        """PUT auf aktiv=true muss eine ignorierte Zeile wieder verwendbar machen.
+
+        Sonst sieht die Zeile im Reiter vollwertig aus (aktiv, mit Namen),
+        bleibt aber ueberall wirkungslos: hole_sachbearbeiter() liefert
+        weiter [ME], weil ignoriert=1 stehen bleibt -- eine Sackgasse ohne
+        direkten Datenbankeingriff.
+        """
+        self.client.post("/einstellungen/sachbearbeiter", headers=self._header(), json={
+            "kuerzel": "ME", "name": "ME", "aktiv": False, "ignoriert": True})
+
+        r = self.client.put("/einstellungen/sachbearbeiter/ME", headers=self._header(), json={
+            "name": "Maria Ehlert", "aktiv": True})
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.get_json()["eintrag"]["ignoriert"])
+
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT ignoriert FROM sachbearbeiter WHERE kuerzel = 'ME'").fetchone()
+        self.assertEqual(row["ignoriert"], 0)
+
+        from backend.ramicro.sachbearbeiter import hole_sachbearbeiter
+        self.assertEqual(hole_sachbearbeiter("ME")["name"], "Maria Ehlert")
 
 
 class TestRamicroAbgleich(unittest.TestCase):

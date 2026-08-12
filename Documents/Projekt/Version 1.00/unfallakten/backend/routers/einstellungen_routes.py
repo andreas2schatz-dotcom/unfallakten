@@ -9,6 +9,7 @@ GET    /einstellungen/sachbearbeiter          → alle Sachbearbeiter
 POST   /einstellungen/sachbearbeiter          → Sachbearbeiter anlegen
 PUT    /einstellungen/sachbearbeiter/<kuerzel> → Sachbearbeiter ändern
 DELETE /einstellungen/sachbearbeiter/<kuerzel> → Sachbearbeiter löschen
+GET    /einstellungen/sachbearbeiter/ramicro-abgleich → Kürzel-Abgleich mit RA-MICRO
 """
 
 import logging
@@ -434,12 +435,6 @@ def _sb_zeile(conn, kuerzel):
     return dict(row) if row else None
 
 
-def _sb_liste(conn):
-    return [dict(r) for r in conn.execute(
-        f"SELECT {_SB_SPALTEN} FROM sachbearbeiter ORDER BY sortierung, kuerzel"
-    ).fetchall()]
-
-
 def _sb_text(wert):
     """JSON-null wird zu Leerstring statt zur Zeichenkette 'None'."""
     return "" if wert is None else str(wert).strip()
@@ -469,6 +464,8 @@ def _sb_pruefe_felder(conn, body, kuerzel):
     for feld in ("aktiv", "ignoriert", "dashboard_vorauswahl"):
         if feld in body:
             werte[feld] = 1 if body[feld] else 0
+    if werte.get("aktiv") == 1 and "ignoriert" not in body:
+        werte["ignoriert"] = 0
     if "sortierung" in body:
         try:
             werte["sortierung"] = int(body["sortierung"])
@@ -492,9 +489,14 @@ def _sb_pruefe_felder(conn, body, kuerzel):
 @einstellungen_bp.route("/sachbearbeiter", methods=["GET"])
 @login_erforderlich
 def get_sachbearbeiter():
-    """Alle Sachbearbeiter inklusive ausgeschiedener und ignorierter."""
-    with get_connection() as conn:
-        return jsonify({"eintraege": _sb_liste(conn)})
+    """Alle Sachbearbeiter inklusive ausgeschiedener und ignorierter.
+
+    Liest über alle_sachbearbeiter() (Modul-SSOT), damit eine fehlende
+    Tabelle (Bestands-DB ohne Migration 68) die eingebaute Fallback-Liste
+    liefert statt eines 500ers.
+    """
+    from ..ramicro.sachbearbeiter import alle_sachbearbeiter
+    return jsonify({"eintraege": alle_sachbearbeiter()})
 
 
 @einstellungen_bp.route("/sachbearbeiter", methods=["POST"])
