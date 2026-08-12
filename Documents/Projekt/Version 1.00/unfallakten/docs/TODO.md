@@ -1,52 +1,24 @@
 # TODO – Unfallakten-Verwaltungssystem
 
-> Schlanke Arbeitsliste — nur Zukunftsgerichtetes. Zuletzt gestrafft: 2026-07-20.
+> Schlanke Arbeitsliste — nur Zukunftsgerichtetes. Zuletzt gestrafft: 2026-08-12 (nach dem großen Merge).
 > Erledigtes mit Protokoll → `docs/CHANGELOG.md` · Entscheidungen mit Begründung → `docs/DECISIONS.md` · Deploy/Betrieb → `docs/STATE.md`.
 
 ---
 
 ## 🔄 In Arbeit
 
-### Übersicht-Redesign A+B — ✅ implementiert (SDD, 2026-08-10), **in `main` gemergt+gepusht 2026-08-11**
-Mockups A+B umgesetzt (11 Tasks): Summen-SSOT aus dem Ereignismodell (löst Befund B3), FinanzBand/RegulierungsTabelle/Forderungshistorie raus aus der Übersicht durch 3 Akkordeons ersetzt bzw. in den Regulierung-Tab verlagert, OnboardingHub → Fächer im PhasenStrip, Check-Pills mit Aktions-Popover, `mandant-checks` nur noch 1 Request statt 3, `dringlichkeit()`-Logik dedupliziert. Mockups: `handover/2026-08-10-uebersicht-redesign-mockups.md`. Protokoll → `docs/CHANGELOG.md`, Summen-SSOT-Entscheidung → `docs/DECISIONS.md`. Frontend-Vollsuite 491/491.
-**Browser-Abnahme ✅ per Playwright durchgeführt (2026-08-10, Auftrag RA Schatz):** 19 fachliche Checks an echten Akten — 828/24 (Ereignismodell: Header-KPI == PositionsDashboard, 69.520,32 €), 285/26 (Bestandsakten-Fallback, Wert = `abrechnungsberechnung.gesamt_brutto` verifiziert), 1280/25 (Fächer-Chip 2/6 öffnet/schließt, Pill-Popover „Vollmacht fehlt" sichtbar mit echtem mailto-Empfänger, Escape + Klick-daneben schließen), Schnellwechsel ohne Stale-Summen, Tab-Leiste mit Badges/💰. Screenshots im Session-Scratchpad.
-**Offen:** Sichtkontrolle RA Schatz im Produktivbetrieb (Entscheidung 2026-08-11: Abnahmen erfolgen produktiv, Randfälle zeigen sich nur dort) — bewusste Eigenheiten: kurzes KPI-Umspringen beim Öffnen (Alt-Zahlen → Ereignismodell); HQ=0-Semantik (Header 0 € gefordert, Backend-DOCX rechnet bei HQ=0 mit 100 % — bekannte Inkonsistenz).
-**Folgebefund (vorbestehend, nicht Redesign):** React-Warnung „two children with the same key" im ActionBoard (`views/action_board/boardUi.jsx` `ZeilenListe`, Keys wie `35/26AS2026-07-27` doppelt bei gleichem AZ+SB+Datum) — bei Dashboard-Hell-Nacharbeit mitfixen (Eintrag dort ergänzt).
+### Produktiv-Nachtests nach dem großen Merge (seit 2026-08-11, RA Schatz)
+Alles ist in `main` gemergt+gepusht (`cf7dd74d`); Entscheidung RA Schatz: Abnahmen erfolgen im laufenden Betrieb („die Randfälle kriege ich nur so mit"). Beim Arbeiten gezielt sichten, Auffälligkeiten melden:
+- **Abschluss-/Sachstandsbericht:** DOCX in beiden Modi generieren und gegenlesen.
+- **Entfernungsprüfung:** „📍 Entfernung prüfen"-Popup an 1280/25; dabei Positions-Tabelle im Review-Detail von Dok 517 sichten.
+- **Intake-Pending-Badge:** Import in Testakte → „Review ausstehend" in der Dokumentenkachel → Link öffnet Dok in der ReviewQueue → Zeile verschwindet nach Freigabe.
+- **SSOT-Klassen-Dropdown** in der ReviewQueue (22 Klassen) kurz sichten.
+- **Übersicht-Redesign:** Sichtkontrolle; bewusste Eigenheiten: kurzes KPI-Umspringen beim Öffnen (Alt-Zahlen → Ereignismodell), HQ=0-Semantik (Header 0 € gefordert, Backend-DOCX rechnet bei HQ=0 mit 100 % — bekannte Inkonsistenz).
+Zurückgestellte Minors je Modul: `bugfixes.md` + CHANGELOG-Einträge 2026-08-07/-11 (opportunistisch bei nächster Anfassung).
 
-### Forderungsschreiben-Modul — Review-Fixes ✅ (2026-08-11, Branch `abschlussbericht`, `520e75af..1b8d2402`)
-Code-Review + Bugfix-Runde komplett (C-1 Historie=Brief-SSOT, I-1–I-9, Aufräumen). Befunde: `handover/2026-08-10-forderungsschreiben-review-befunde.md` · Arbeitsliste/Protokoll: `bugfixes.md` · CHANGELOG 2026-08-11.
-**Offen:**
-- **I-10 Haftungsquote (Entscheidung RA Schatz):** Brief behauptet bei erfasster Teilhaftung weiterhin Alleinschuld und fordert ungekürzt; FE-Banner quotiert daneben. Braucht juristische Formulierung für den Teilhaftungs-Baustein (+ HQ=0-Konvention, vgl. bekannte Inkonsistenz Übersicht/DOCX).
-- Minors opportunistisch bei nächster Anfassung (Liste in `bugfixes.md`).
-- ~~`test_modul6`/`test_modul7`: 95 vorbestehende Failures~~ — **✅ saniert 2026-08-11** (Mounts in Dev-Compose + Portierung auf heutige API, 74/74 + 56/56 grün; Protokoll → CHANGELOG). Hinweis: braucht einmalig `docker compose up -d --force-recreate backend`.
-
-### Sachstandsanfrage — Review ✅ + Sofort-Fixes ✅ (2026-08-11, Branch `abschlussbericht`)
-Code-Review des STA-Features (Befund-Katalog: `handover/2026-08-11-sachstandsanfrage-review-befunde.md`). Sofort-Fixes per TDD umgesetzt: M-1 (StaDialog/AbschlussberichtDialog bekamen je nach Öffnungsweg die volle RA-MICRO-AZ → jetzt Basis-AZ), M-2 (Genus/Kasus im Brieftext: neuer Platzhalter `{SchreibenDativ}`, „womit" statt „mit dem", genus-korrekte Referenz), G-1 (PII-Debug-Log in wiedervorlage_routes entfernt), G-2 (Fristanzeige im StaDialog aus konfigurierten `frist_tage` statt Hardcode), G-3 (totes textareaRef), G-7 (Stufenlogik erstmals getestet: 19 neue BE-Tests `test_sta_service.py`, 4 neue FE-Tests).
-**Offen (Kernbefunde, größerer Umbau):** K-1 Eskalation ignoriert eingegangene Antworten (Ereignis-Modell wird nicht konsultiert), K-2 RA-MICRO-Vorlagen-Weg für die Stufenlogik unsichtbar, K-3 keine Rundenlogik, M-3–M-6, G-4–G-6 — gehört zur PRD-25d-Neuplanung auf dem Ereignis-Modell (Backlog „Später", eigenes Brainstorming; Empfehlung in Befund-Katalog Abschnitt 6).
-
-### Abschluss-/Sachstandsbericht — implementiert, Abnahme offen (Branch `abschlussbericht`)
-Neuer Typ `abschlussbericht` (Migration 67 `abschluss_status`, Service
-`abschluss_uebersicht.py`, DOCX via styling.py, GET/PUT-Routen, Kurationsdialog
-in WordSection). Alte Auto-Summary (`abschluss_summary.py`) ersatzlos entfernt.
-Spec: `docs/superpowers/specs/2026-08-05-abschlussbericht-design.md` · Plan:
-`docs/superpowers/plans/2026-08-05-abschlussbericht.md`.
-**✅ in `main` gemergt+gepusht 2026-08-11.**
-**Offen:** DOCX-Sichtprüfung RA Schatz im Produktivbetrieb (beide Modi);
-Portal-Auslieferung via portal_sync-Payload = Stakeholder-Portal-Teilprojekt;
-Empfänger-Override je Position (Spec §8) bei Bedarf nachrüsten;
-Google-Bewertungs-URL/QR als Kanzlei-Einstellung (Spec §15).
-**Folgefund Gebührenassistent: ✅ gefixt (2026-08-06, Freigabe RA Schatz).** Toter `COALESCE(rep_rechnung_brutto, rep_gutachten_netto, 0)` im Streitwert-Fallback von `gebuehren_routes.py` + `gebuehren_word.py` (Kostennote) durch `>0`-Vorrang-CASE ersetzt (analog `23ea6792`); griff nur ohne Forderungsschreiben bei fiktiver Abrechnung. 3 Regressionstests: `test_gebuehren_streitwert_fallback.py` (Route fiktiv, Rechnung-Vorrang, Kostennote-DOCX-Gegenstandswert).
-
-### Intake-Review-Sichtbarkeit — ✅ implementiert + review-clean (SDD, 2026-08-04), **in `main` gemergt+gepusht 2026-08-11**
-Ausstehende Intake-Dokumente einer Akte werden in der Dokumentenkachel sichtbar (Badges „Wird verarbeitet"(`neu`/`laeuft`) / „Review ausstehend"(`bereit_zur_review`) / „Fehler – prüfen"(`pipeline_fehler`)) + Link „Zur Review →", der die ReviewQueue auf genau das Dokument öffnet. BE: `GET /akten/<az>/intake-pending` (`akten_routes.py`, read-only, **Union-AZ-Ableitung über alle Zustellungen**, Filter `queue_status != 'freigegeben' AND verworfen_am IS NULL`); FE: `IntakePendingListe` in `DokumenteSection`, Nav `pendingReviewIntakeId`→`initialIntakeId`→`setAktivId`. 5 Commits (`a68098ab`..`a60c7bc0`), alle Task-Reviews + Whole-Branch-Final-Review ✅ (Ready to merge). Spec/Plan: `docs/superpowers/{specs,plans}/2026-08-04-intake-review-sichtbarkeit*`. Memory `project_unfallakten_intake_review_sichtbarkeit`.
-**Merge ✅ erledigt 2026-08-11:** Gesamter Stapel (`intake-review-sichtbarkeit` + `abschlussbericht` inkl. SSOT-Dokumentenklassen, E-Mail-Hotfixes, aller Feature-Runden) per FF nach `main` gemergt + gepusht (`cf7dd74d`). Entscheidung RA Schatz: Abnahmen erfolgen im Produktivbetrieb. Weiterhin gilt: `SCHEDULER_LEASE_DISABLED` NICHT in Prod (Gunicorn braucht den Lease).
-**Offen:** Produktiv-Nachtest: Import in Testakte → Zeile „Review ausstehend" in der Kachel → Link öffnet Dok in ReviewQueue → Zeile verschwindet nach Freigabe.
-
-### Referenzwerkstatt + Entfernungsprüfung ReviewQueue — ✅ implementiert + review-clean (SDD, 2026-08-07), **in `main` gemergt+gepusht 2026-08-11**
-VHV-Blockformat-Extraktion (`felder.referenzwerkstatt` deterministisch via `extrahiere_verweisbetrieb`), Button „📍 Entfernung prüfen" + Popup in der ReviewQueue (nur `pruefbericht`, nur manuell — ORS-Datenschutz-Entscheidung RA Schatz), Ergebnis-Persistierung (`km_echt`/`bewertung`/`textbaustein` bei unzumutbar), Restbefunde a (Marker-Wortgrenzen) + c (Datums-Scheinkonflikt). 17 Commits `19e9467e..b5656fd9` (inkl. RA-MICRO-Fallback, Abrechnungs-Positionen-Fix + Docs), 46 BE- + 13 FE-Tests neu, Frontend-Vollsuite 459/459. Protokoll → `docs/CHANGELOG.md` 2026-08-07. Pläne: `docs/superpowers/plans/2026-08-07-*.md`.
-**Nachtrag 2026-08-07:** RA-MICRO-read-only-Fallback für die Mandanten-Adresse eingebaut (Freigabe RA Schatz) — der Button funktioniert jetzt auch auf 1280/25 (Adresse kommt aus RA-MICRO), 7 Unit-Tests.
-**Nachtrag 2 (2026-08-07):** Abrechnungs-Befund 1280/25 gefixt — fehlender Hauptbetrag 5.448,62 („Abrechnung nach Prüfbericht"-Pattern + deterministisches Positions-Sicherungsnetz in `extraktion.py`) und `positionen`/`zahlungen` im Review jetzt als editierbare Tabelle statt JSON. 8 BE- + 8 FE-Tests, live am Dok 517 verifiziert. Protokoll → CHANGELOG 2026-08-07.
-**Offen:** Produktiv-Abnahme Popup RA Schatz (direkt an 1280/25 möglich); dabei auch Positions-Tabelle im Review-Detail von Dok 517 sichten. Zurückgestellte Minors (Reparse-Hinweis bei geprüftem Ergebnis, Clipboard-Feedback, Dialog-A11y, 600-Zeichen-Fallback-Test, `VHV_TELEFON_MUSTER`-IGNORECASE) → bei nächster Anfassung der Dateien.
+### Offene Entscheidungen RA Schatz
+- **I-10 Haftungsquote (Forderungsschreiben):** Brief behauptet bei erfasster Teilhaftung weiterhin Alleinschuld und fordert ungekürzt; FE-Banner quotiert daneben. Braucht juristische Formulierung für den Teilhaftungs-Baustein (+ HQ=0-Konvention, vgl. Inkonsistenz Übersicht/DOCX).
+- **Fehlablage (Kürzungstaxonomie Phase 0):** Dok 41478 + 43429 aus Akten 971/25 / 980/25 löschen? (FEHLABLAGE-Vermerk gesetzt; 852/25 nur in RA-MICRO, 418/28 existiert nirgends.)
 
 ### Aktenanlage aus der ReviewQueue (PRD-NEW) — ✅ gemergt + gepusht (2026-08-03, `main`=`81e33206`), Nachlauf offen
 Feature live abgenommen: Prefill Mandant, OMA-XML **strukturgleich** zum echten RA-MICRO-Export, **Dateiname muss mit `Oma_` beginnen** (Watcher-Filter, case-sensitiv), Import wird erkannt. Behoben: stale-auftraggeber-Prefill + Anrede-Normalisierung, Migration-66-Reloader-Falle, OMA-Pfad (`Z:\RA\M-Plattform`) + Dateiname + XML-Struktur (keine leere `<Gegnerliste>`, `<tvm/>`). Prod-Compose nachgezogen. Detail → Memory `project_unfallakten_aktenanlage`.
@@ -59,12 +31,11 @@ Feature live abgenommen: Prefill Mandant, OMA-XML **strukturgleich** zum echten 
 ### Dashboard-Hell — ✅ gemergt (2026-08-03), Nacharbeit offen
 Feinschliff separat: Sidebar-Emoji-Icons App.jsx, SB-Klarnamen-Tooltips (Kürzel-Liste von RA Schatz nötig); totes `pendingEmailId`-Gerüst + ungenutzter `nachrichtenNeu`-Endpoint entfernen; A11y (aria-pressed SB-Chips, role=alert Fehlerblock, aria-hidden Skeleton); `type=button` + Retry-Disable + Badge-Logik-Konsolidierung in `boardUi`; **NEU (Befund Playwright-Abnahme 2026-08-10):** doppelte React-Keys in `boardUi.jsx` `ZeilenListe` (Key = AZ+SB+Datum kollidiert bei mehreren Einträgen derselben Akte am selben Tag — eindeutigen Key ergänzen).
 
-### Kürzungstaxonomie — Phase 0 ✅ · Phase 1 ✅ · **in `main` gemergt + gepusht (2026-07-24, `febe6f06`)**
-Alle 12 Tasks + Genus-Platzhalter-Nachtrag (Weg 2). Abnahme: Bausteine von RA Schatz gegengelesen ✅; Katalog-Editor, Wizard-Zitat, Genus-Formen, Speichern-Sperre per Playwright-E2E bestanden ✅ (2026-07-24). Protokoll → `docs/CHANGELOG.md`.
+### Kürzungstaxonomie — Phase 0 ✅ · Phase 1 ✅ · in `main` (2026-07-24)
 **Offen:**
 - **Messung Zielwerte (~2026-08-20, nach ~4 Wochen Betrieb):** `docker exec unfallakten-backend-dev python /app/tools/kuerzungsmatching_report.py` — Zielwerte: Abdeckung ≥ 90 %, Trefferquote ≥ 75 %, Positionszuordnung ≥ 90 % (DECISIONS 2026-07-23). Baseline siehe CHANGELOG.
-- **Fehlablage-Entscheidung RA Schatz (aus Phase 0):** Dok 41478 + 43429 aus Akten 971/25 / 980/25 löschen? (FEHLABLAGE-Vermerk gesetzt; 852/25 nur in RA-MICRO, 418/28 existiert nirgends.)
 - **Runden-Kachel im echten Betrieb** sichten, sobald die erste Akte 2 Abrechnungsrunden hat (Test-Abdeckung vorhanden, echter Fall noch nicht).
+- Fehlablage-Entscheidung → oben bei „Offene Entscheidungen RA Schatz".
 Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, Vorgangsautomat — Konzept `handover/KONZEPT-Kuerzungstaxonomie-Vorgangsautomat.md` Abschnitt 12.
 
 ---
@@ -87,7 +58,7 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 - **PRD-21 Phase 3b/3c** – Batch-Klassifikation + Filter nach Dokumentenklasse (E-Akte).
 - **PRD-04c – TF-IDF Classifier** (Ergänzung zum Regex-Dispatcher).
 - **PRD-24b – Vollständiger 5-Step-Wizard** (Unfallhergang + Haftungsbegründung als eigene Steps).
-- **PRD-25d – Intelligente Sachstandsanfrage.** Alter Plan (`handover/PRD-25d_Intelligente_Sachstandsanfrage.md`) basiert auf `aktenchronik_service.py` (Neubau) — veraltet, seit Pipeline-v7 gibt es das Ereignis-Modell (`ereignis_service.py`, Tabelle `ereignisse`/`ereignis_positionen`) als SSOT für den Aktenverlauf. Aktenchronik-Konzept wird nicht mehr verwendet. Vor Umsetzung: Plan auf Ereignis-Modell umstellen (eigenes Brainstorming).
+- **PRD-25d – Intelligente Sachstandsanfrage.** Alter Plan (`handover/PRD-25d_Intelligente_Sachstandsanfrage.md`) basiert auf `aktenchronik_service.py` (Neubau) — veraltet, seit Pipeline-v7 gibt es das Ereignis-Modell (`ereignis_service.py`, Tabelle `ereignisse`/`ereignis_positionen`) als SSOT für den Aktenverlauf. Aktenchronik-Konzept wird nicht mehr verwendet. Vor Umsetzung: Plan auf Ereignis-Modell umstellen (eigenes Brainstorming). **Dazu gehören die offenen STA-Review-Kernbefunde 2026-08-11** (K-1 Eskalation ignoriert eingegangene Antworten, K-2 RA-MICRO-Vorlagen-Weg für die Stufenlogik unsichtbar, K-3 keine Rundenlogik, M-3–M-6, G-4–G-6) — Befund-Katalog + Empfehlung: `handover/2026-08-11-sachstandsanfrage-review-befunde.md` Abschnitt 6.
 - **Stakeholder-Portal (separates Projekt):** PORTAL-A1/B1/B2/B3 — je Plan in `handover/PORTAL-*.md`.
 
 ### UserStories (externes Review, offen)
@@ -132,6 +103,11 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 |---|---|
 | 2026-08-11 | **Großer Merge nach `main` + Push** (`40c9143e..cf7dd74d`, FF): kompletter Stapel `intake-review-sichtbarkeit` + `abschlussbericht` — SSOT-Dokumentenklassen (22), Intake-Review-Sichtbarkeit, Abschluss-/Sachstandsbericht, Referenzwerkstatt+Entfernungsprüfung, Übersicht-Redesign A+B, Forderungsschreiben-Fixes (C-1, I-1–I-9), STA-Sofort-Fixes, E-Mail-Hotfixes, Testsanierungen (modul6/7 + Vollsuite). Entscheidung RA Schatz: Abnahmen produktiv statt vorab |
 | 2026-08-11 | **Backend-Vollsuite-Testsanierung: 123 → 0 Failures** (1735/1735 grün): modul1–4 + Nachbarn auf heutige API portiert; 3 echte Befunde gefixt (Frisch-DB-FK `unfallakte(id)`→`az` in Migration 3, `todos` ON DELETE CASCADE, „Rechnung (Auffang)" raus aus der Dokumentbezeichnung via `bezeichnung_label`); 2 Isolationsprobleme (sv_portal-Fixture ohne eigenes DB_PATH, akten_matching gegen echtes RA-MICRO). Protokoll → CHANGELOG |
+| 2026-08-11 | **Sachstandsanfrage: Review + Sofort-Fixes** (M-1 AZ-Format Dialog-Einstiege, M-2 Genus/Kasus `{SchreibenDativ}`, G-1 PII-Log, G-2 Fristanzeige, G-3, G-7 Stufenlogik-Tests) — Befund-Katalog `handover/2026-08-11-sachstandsanfrage-review-befunde.md`; Kernbefunde K-1–K-3 → Backlog PRD-25d |
+| 2026-08-11 | **Forderungsschreiben: Review-Fixes** C-1 (berechne_positionen = SSOT Brief+Historie, Restwert negativ) + I-1–I-9 + Aufräumen — `bugfixes.md`; offen nur I-10 (Entscheidung RA Schatz) |
+| 2026-08-10 | **Übersicht-Redesign A+B** (Summen-SSOT aus Ereignismodell, 3 Akkordeons, Onboarding-Fächer, Aktions-Pills) + Playwright-Abnahme 19/19 an echten Akten |
+| 2026-08-07 | **Abschluss-/Sachstandsbericht** (Migration 67, `abschluss_uebersicht.py`, DOCX, Kurationsdialog; Gebühren-Streitwert-Folgefund gefixt) — DOCX-Sichtprüfung → Produktiv-Nachtests |
+| 2026-08-04 | **Intake-Review-Sichtbarkeit** (`GET /akten/<az>/intake-pending`, `IntakePendingListe`, ReviewQueue-Direktsprung) + **Dokumentenklassen-SSOT** (22 Klassen, Registry-YAML + `tools/gen_dokumentenklassen.py`) + Scheduler-Fix Dev |
 | 2026-08-10 | **Übersicht-Review-Fixes** (`f6fd2f3d`, Branch `abschlussbericht`): 7 Befunde behoben — Crash RegulierungsTabelle (effRep/ist130), OnboardingHub-Phantomfelder + Auto-Ausblenden bei vollständiger Checkliste, „+ Todo"-Formular im Header, Chronik-Sortierung (ISO-sortKey), §3a-Fristtyp-Pill, RSV-Doppelanzeige, ~10,5 kB toter Code raus; TDD 11 neue Tests, Vollsuite 476/476. Befund-Katalog: `handover/2026-08-10-uebersicht-review-befunde.md` · offen: B3/Redesign → Backlog „Mittel" |
 | 2026-08-07 | **Firmen-Beteiligte-Fix** (`6801be75`): RA-MICRO-Name immer aus `sNachname`, `sErsteAdresszeile` nur Anredeform — „Firma"-Geistereintrag statt „RCR GmbH" in 1280/25 behoben, 7 Fundstellen + Anrede-Code 4, 5 Tests, live verifiziert |
 | 2026-08-07 | **Referenzwerkstatt-Extraktion (VHV-Blockformat) + Entfernungsprüfung ReviewQueue (Button+Popup+Persistierung) + Intake-Restbefunde a/c** (Marker-Wortgrenzen, Datums-Scheinkonflikt) + **RA-MICRO-read-only-Fallback Mandanten-Adresse** — Branch `abschlussbericht`, an Dok 516/517 + Akte 1280/25 E2E-verifiziert; Browser-Abnahme offen, siehe „In Arbeit" |

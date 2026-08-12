@@ -1,17 +1,16 @@
 # Projektstatus – Momentaufnahme
 
-**Generiert:** 2026-05-02 · **Zuletzt aktualisiert:** 2026-08-10  
+**Generiert:** 2026-05-02 · **Zuletzt aktualisiert:** 2026-08-12  
 **Schema-Version:** 67 (Migrationen laufend, siehe Deploy-Warnungen)
 
 > ⚠️ **Abschnitte 1–3 unten sind Stand 2026-06-12 (Schema 42) und veraltet** — nur als grobe Modul-Übersicht lesen. Aktuelle Arbeit: `docs/TODO.md` · Umsetzungs-Historie: `docs/CHANGELOG.md` · Entscheidungen: `docs/DECISIONS.md`.
 
 ---
 
-## 0. Betrieb & Deploy-Warnungen (aktuell, 2026-08-10)
+## 0. Betrieb & Deploy-Warnungen (aktuell, 2026-08-12)
 
-### ⚠️ Dev läuft auf Branch `abschlussbericht` (stapelt auf `intake-review-sichtbarkeit`), enthält kritische Hotfixes (2026-08-06)
-Die Dev-Container binden dieses Arbeitsverzeichnis; aktueller Branch `abschlussbericht`. Der Branch trägt neben dem Abschlussbericht-Feature jetzt auch die **E-Mail-Import-Hotfixes** (`34342daa` Endlos-Poll-Loop/FK-Guard, `8e9b50ea` Prüfbericht-Schema + Validierungsregeln). **Diese Fixes MÜSSEN vor bzw. mit jedem Prod-/Main-Deploy des E-Mail-Imports ankommen** — ohne sie füllt der Poll-Loop bei der ersten Mail zu einer lokal fehlenden Akte erneut Platte und DB mit Dubletten (Detail: CHANGELOG 2026-08-06). Bei Klärung der Merge-Reihenfolge (TODO „Intake-Review-Sichtbarkeit") ggf. Cherry-Pick der beiden Commits nach `main` vorziehen. Branch nicht wechseln, solange die Container laufen.
-**Stand 2026-08-10:** Obendrauf liegen jetzt auch die **Übersicht-Bugfixes** (`f6fd2f3d`, u. a. Crash der Regulierungsdetails-Karte bei fehlender Abrechnungsart + WBW > 0 — betrifft die standardmäßig offene Karte im Übersicht-Tab). Bei Cherry-Pick-Überlegungen Richtung `main` mitzählen; Details CHANGELOG 2026-08-10.
+### ✅ Großer Merge 2026-08-11: Dev läuft wieder auf `main` (== `origin/main`)
+Der komplette Stapel `intake-review-sichtbarkeit` + `abschlussbericht` wurde per Fast-Forward nach `main` gemergt und gepusht (`cf7dd74d`, Docs `5f778cc3`) — inkl. der E-Mail-Import-Hotfixes (`34342daa`/`8e9b50ea`), Übersicht-Bugfixes, SSOT-Dokumentenklassen und beider Testsanierungen. Merge-Gates: Backend 1735/1735, Frontend 502/502. Die früheren Cherry-Pick-Überlegungen sind damit gegenstandslos. Arbeitsverzeichnis/Container laufen unverändert weiter (FF = identischer Dateibaum); neue Feature-Branches ab jetzt von `main` ziehen. Die alten, vollständig gemergten Feature-Branches (`abschlussbericht`, `intake-review-sichtbarkeit`, `dokumentenklassen-ssot` …) wurden nicht gelöscht (Repo-Konvention). Abnahmen erfolgen im Produktivbetrieb (Entscheidung RA Schatz, siehe TODO „Produktiv-Nachtests").
 
 ### Dubletten-Bereinigung 2026-08-06 — Backup-Aufbewahrung
 Nach dem Poll-Loop wurden `dokumente` (53.216→789 Zeilen) und `/app/uploads` (−106.266 Dateien, ~222 GB) bereinigt (Freigabe RA Schatz). Vollständiges DB-Backup liegt auf dem `dev-data`-Volume: `/app/data/unfallakten.db.bak_pre_dubletten_cleanup_20260806_155109` (50 MB). Nach einer Kontrollfrist (Vorschlag: ~4 Wochen, sobald keine fehlenden Dokumente auffallen) kann es gelöscht werden. Registry-YAML-Änderungen brauchen einen Backend-Restart (Reloader überwacht nur .py).
@@ -23,8 +22,8 @@ Nach dem Poll-Loop wurden `dokumente` (53.216→789 Zeilen) und `/app/uploads` (
 - Migration 66 (`aktenanlage_vorgaenge`) folgt der bestehenden Regel „Migration vor App-Code" (s. u.); läuft auf Bestands-DBs automatisch beim Start.
 - Erkennung neuer Akten nutzt `tblAkten.dtAnlage` (read-only) — Existenz der Spalte wird beim ersten echten Import verifiziert; bei Fehlern degradiert die Erkennung still auf „manuell zuordnen".
 
-### Backend-Vollsuite: vorbestehender Alt-Cluster (230 Failures, Stand 2026-07-30)
-`pytest backend/tests/` zeigt 230 Failures — **identisch auf `main` und `aktenanlage`** (Gegenlauf 2026-07-30), also nicht durch neue Arbeit verursacht. Ursachen u. a. Auth-Bootstrap-Kollision bei Gesamtlauf, `test_modul6`-Config-Checks im Container, `test_intake_akten_matching` Score-Drift. Deckt sich in Teilen mit den dokumentierten P-01–P-03 (Abschnitt 3). Sanierung = eigenes Vorhaben; bis dahin gilt: fokussierte Suiten je Feature sind maßgeblich.
+### ✅ Backend-Vollsuite saniert (2026-08-11): 0 Failures — Vollsuite ist wieder maßgeblich
+Beide Sanierungsrunden abgeschlossen (modul6/7 + Vollsuite, Protokolle CHANGELOG 2026-08-11): `docker exec unfallakten-backend-dev python -m pytest backend/tests -q` → **1735 passed, 20 skipped, 0 failed** (~7 min). Damit gilt wieder: Vollsuite vor jedem Merge, nicht nur fokussierte Suiten. Die alten Sammelbefunde P-01–P-03 (Abschnitt 3) sind damit erledigt. Regeln, damit es so bleibt: Tests mit RA-MICRO-Pfaden müssen mocken (`_RAMICRO_VERFUEGBAR=False` bzw. `_suche_in_ramicro`) — der Dev-Container erreicht die echte RA-MICRO-DB; App-Tests loggen mit dem conftest-Admin `admin@test.de`/`Admin123!` ein (kein `register/erster`); Fixtures setzen ihr eigenes `DB_PATH`.
 
 ### ⚠️ E-Akte-Mount nach jedem Docker-/PC-Neustart erneuern (2026-07-23 diagnostiziert)
 Der CIFS-Mount des E-Akte-Shares überlebt keinen Neustart und muss in der **Docker-Desktop-VM** gesetzt werden (`wsl -d docker-desktop`, NICHT die Standard-WSL-Distro — der Container bindet `/mnt/eakte` aus der VM). Exakter Befehl + Hinweise (Benutzername mit Leerzeichen → Quotes; danach `docker restart unfallakten-backend-dev`): Header von `docker-compose.yml`. Zugangsdaten: `EAKTE_SMB_USER`/`EAKTE_SMB_PASSWORD` in `.env` (unversioniert). Die früher dokumentierten Zugangsdaten `admin/passwort` waren ein Platzhalter und werden vom Server abgelehnt.
@@ -42,10 +41,10 @@ Additive Migrationen (56, 57, 59, 60 …) **müssen auf dem Prod-Volume (`/app/d
 Der Flask-Reloader stempelt neue Migrationen mitten im inkrementellen Edit über den `else`-Kommentar-Fallback (Version gesetzt, Spalte fehlt). Aktive Dev-DB = Docker-Volume `dev-data` (`/app/data`), NICHT `backend/data/`. Migration atomar in EINEM Edit schreiben. Betroffen waren u. a. Mig 54/55/58/60.
 
 ### Prod-Rollout intake-stufe1 — bewusst vertagt
-Git-Teil erledigt (2026-07-15): `intake-stufe1` → `main` per FF gemergt + gepusht, Backup-Tag `pre-rollout-main-20260715`. Deployment vertagt (kein Prod-Host, Go-Live später). Maßgebliches Runbook: `docs/ROLLOUT-intake-stufe1-prod.md` — Migration 49→61 einmal vorab, Prod-Backup zuerst, Schema-Verifikation auf v61 vor App-Start. Beim Cutover `EREIGNISMODELL_EINGEFUEHRT_AM` auf das echte Datum setzen.
+Git-Teil erledigt (2026-07-15): `intake-stufe1` → `main` per FF gemergt + gepusht, Backup-Tag `pre-rollout-main-20260715`. Deployment vertagt (kein Prod-Host, Go-Live später). Maßgebliches Runbook: `docs/ROLLOUT-intake-stufe1-prod.md` — Prod-Backup zuerst, Migrationen einmal vorab (Runbook nennt 49→61; Stand heute geht es bis **Schema 67** — Verifikation entsprechend auf v67), dann erst App-Start. Beim Cutover `EREIGNISMODELL_EINGEFUEHRT_AM` auf das echte Datum setzen. `SCHEDULER_LEASE_DISABLED` NICHT in Prod setzen (Gunicorn braucht den Lease).
 
-### Git-Push-Stand (2026-07-30)
-`main` ist lokal **25 Commits vor `origin/main`** (u. a. V11-Nachbefunde, Review-Queue-Sortier-Toggle, UI-Kleinkram-Runde 2026-07-29, Aktenanlage-Spec/Plan) — beim nächsten Anlass pushen. Der Feature-Branch `aktenanlage` existiert nur lokal (26 Commits, Merge nach Abnahme). **Achtung:** Git-Wurzel liegt im Home-Verzeichnis (`C:\Users\HAL9000`) — NIE `git add -A` aus Home; Guardrail-`.gitignore` beachten.
+### Git-Push-Stand (2026-08-12)
+`main` == `origin/main` (`5f778cc3`), alles gepusht. Alte Feature-Branches sind vollständig gemergt, existieren aber weiter (Repo-Konvention, nicht gelöscht). **Achtung (dauerhaft):** Git-Wurzel liegt im Home-Verzeichnis (`C:\Users\HAL9000`) — NIE `git add -A` aus Home; Guardrail-`.gitignore` beachten.
 
 ### Backup
 `scripts/backup.sh` (SQLite `.backup`, nicht `cp`), stündlich + täglich via Cron in `docker-compose.prod.yml`. `/data`-Mount muss **read-write** sein (WAL braucht `-shm`-Schreibzugriff, sonst „unable to open database file"). Guard-Test `test_modul6.py::TestBackupInfra`.
@@ -136,19 +135,19 @@ Tabelle `eakte_klassifikation` wurde in Migration 26 bereits angelegt. Kein Code
 
 ## 3. Bekannte Probleme
 
-### P-01: Test-Suite — 259 Failures wegen fehlendem Env-Setup
+### ~~P-01: Test-Suite — 259 Failures wegen fehlendem Env-Setup~~ ✅ erledigt (Vollsuite-Sanierung 2026-08-11: conftest.py setzt FLASK_SECRET_KEY/JWT_SECRET_KEY/ADMIN_*; 0 Failures)
 **Ursache:** `backend/app.py:114` wirft `RuntimeError` wenn `FLASK_SECRET_KEY` nicht gesetzt ist. Alle Tests die `erstelle_app()` aufrufen (`test_modul2` bis `test_modul8`, `test_dashboard_uebersicht`, `test_prd27`) scheitern mit diesem Fehler, wenn kein `.env` gesetzt ist.
 
 **Betroffene Tests:** ~230 Tests (alle die den Flask-App-Context benötigen)  
 **Keine Code-Bugs** — Produktiv-Code ist korrekt. Tests brauchen `.env.test` oder monkeypatching.
 
-### P-02: Test-Suite — `test_modul1` Schema-Lücken
+### ~~P-02: Test-Suite — `test_modul1` Schema-Lücken~~ ✅ erledigt (2026-08-11: `_ns` läuft jetzt create_schema + run_migrations; Duplikat-AZ/HQ-Tests auf heutige Semantik portiert)
 `test_modul1.py` erstellt ein In-Memory-Schema nur bis Migrations-Stand ~10. Fehlende Tabellen:
 - `kuerzungsarten` (Migration 7) → `test_alle_tabellen` schlägt fehl
 - `abrechnungsschreiben` (Migration 9) → `test_status_view` schlägt fehl
 - `test_doppeltes_aktenzeichen` erwartet `ValueError`, bekommt `IntegrityError` (da `az` PK ist)
 
-### P-03: Test-Suite — `test_portal_sync` Schema-Lücken
+### ~~P-03: Test-Suite — `test_portal_sync` Schema-Lücken~~ ✅ nicht mehr reproduzierbar (Vollsuite 2026-08-11 komplett grün)
 `portal_sync.py:110` fragt `gutachten_nr` Spalte in `beteiligte` ab. Das In-Memory-Setup in `test_portal_sync.py` erstellt `beteiligte` ohne diese Spalte. 3 Tests schlagen fehl.
 
 ### P-04: v_schadensummen — Veraltetes Feld
@@ -176,11 +175,9 @@ Nicht verwendet. Installiert pydantic, starlette, uvicorn mit. Erhöht Image-Gr�
 
 **~~F-01: Uncommitted Dateien committen?~~** → Erledigt (Commit 5f0a5ec, 2026-05-03)
 
-**F-02: `test_doppeltes_aktenzeichen` — Fehlertyp klären**  
-Der Test erwartet `ValueError` bei doppeltem AZ, bekommt aber `sqlite3.IntegrityError` (weil `az` PK ist). Soll `erstelle_akte()` auf `IntegrityError` prüfen und `ValueError` re-raisen? Oder soll der Test angepasst werden?
+**~~F-02: `test_doppeltes_aktenzeichen` — Fehlertyp klären~~** → Erledigt (2026-08-11): Test an heutige Semantik angepasst — Duplikat liefert die bestehende Akte (on-demand), ungültige Haftungsquote wirft `IntegrityError` (DB-CHECK-Constraint).
 
-**F-03: `test_portal_sync` — `gutachten_nr` in Beteiligte**  
-Welche Migration fügt `gutachten_nr` zu `beteiligte` hinzu? Das Test-Setup muss aktualisiert werden. Alternativ: Spalte aus `_build_payload()` entfernen wenn sie nicht existiert.
+**~~F-03: `test_portal_sync` — `gutachten_nr` in Beteiligte~~** → Erledigt/überholt (Vollsuite 2026-08-11 grün).
 
 **F-04: Statistiken-View — Roadmap**  
 `StatistikenView.jsx` hat vollständige Chart-Infrastruktur mit Dummy-Daten. Wann wird ein `/statistiken/`-Endpunkt gebaut? Was soll gemessen werden (Akten/Monat, Regulierungssummen, Durchlaufzeiten)?
