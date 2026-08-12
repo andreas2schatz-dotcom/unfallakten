@@ -982,6 +982,17 @@ export const apiEinstellungen = {
   glmOcrTest:        ()           => request('/einstellungen/glm-ocr-test', {
     method: 'POST',
   }),
+  sachbearbeiter:          ()        => request('/einstellungen/sachbearbeiter'),
+  sachbearbeiterAnlegen:   (daten)   => request('/einstellungen/sachbearbeiter', {
+    method: 'POST', body: JSON.stringify(daten),
+  }),
+  sachbearbeiterSpeichern: (k, d)    => request(`/einstellungen/sachbearbeiter/${k}`, {
+    method: 'PUT', body: JSON.stringify(d),
+  }),
+  sachbearbeiterLoeschen:  (k)       => request(`/einstellungen/sachbearbeiter/${k}`, {
+    method: 'DELETE',
+  }),
+  sachbearbeiterAbgleich:  ()        => request('/einstellungen/sachbearbeiter/ramicro-abgleich'),
 };
 
 // ── PRD-25d: Intelligente Sachstandsanfrage ───────────────────────────────────

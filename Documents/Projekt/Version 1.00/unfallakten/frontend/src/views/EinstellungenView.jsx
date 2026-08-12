@@ -11,6 +11,7 @@ import {
 } from "../api.js";
 import { getThemePrefs, setThemePrefs } from "../theme/themePrefs.js";
 import StandardtexteTab from "./StandardtexteTab.jsx";
+import SachbearbeiterTab from "./einstellungen/SachbearbeiterTab.jsx";
 
 function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
   const [tab, setTab]           = useState(initialTab || "email_identifier");
@@ -304,6 +305,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
             ["ki",            "✦ KI-Assistent"],
             ["zustaendigkeit","⚖ Zuständigkeit"],
             ["standardtexte", "📄 Standardtexte"],
+            ["sachbearbeiter", "👤 Sachbearbeiter"],
             ["system_status",  "⚙ System-Status"],
           ].map(([id, label]) => (
             <button key={id} onClick={() => { setTab(id); setSuche(""); }}
@@ -313,7 +315,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                 borderBottom: tab===id ? `2px solid ${T.accent}` : "2px solid transparent",
                 marginBottom:-1 }}>
               {label}
-              {id !== "imap" && id !== "fristen" && id !== "ki" && id !== "zustaendigkeit" && id !== "sv_portal" && id !== "system_status" && id !== "standardtexte" && (
+              {id !== "imap" && id !== "fristen" && id !== "ki" && id !== "zustaendigkeit" && id !== "sv_portal" && id !== "system_status" && id !== "standardtexte" && id !== "sachbearbeiter" && (
                 <span style={{ marginLeft:6, background:T.surface, color:T.textMuted,
                   borderRadius:10, padding:"1px 7px", fontSize:"0.8rem", fontWeight:400 }}>
                   {id === "email_identifier" ? vorlagen.filter(v => v.kategorie==="versicherung" || v.kategorie==="gutachter").length
@@ -1306,6 +1308,8 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
         )}
 
         {tab === "standardtexte" && <StandardtexteTab />}
+
+        {tab === "sachbearbeiter" && <SachbearbeiterTab />}
 
         {tab === "system_status" && (
           <div style={{ maxWidth: 680 }}>
