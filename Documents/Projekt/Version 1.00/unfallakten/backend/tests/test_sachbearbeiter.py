@@ -148,5 +148,24 @@ class TestSachbearbeiterModul(unittest.TestCase):
         self.assertEqual(hole_sachbearbeiter("AS")["name"], "Andreas Schatz")
 
 
+class TestKalenderMapping(unittest.TestCase):
+
+    def setUp(self):
+        self.client = _setup(self._testMethodName)
+
+    def test_dashboard_hat_keine_hartcodierte_kalenderliste_mehr(self):
+        import backend.routers.dashboard_routes as dash
+        self.assertFalse(hasattr(dash, "_KALENDER_ZU_SB"))
+
+    def test_termine_nutzen_das_mapping_aus_der_tabelle(self):
+        from backend.db.database import get_connection
+        from backend.ramicro.sachbearbeiter import kalender_zu_kuerzel
+        with get_connection() as conn:
+            conn.execute("UPDATE sachbearbeiter SET kalender_name = 'S. Koch' "
+                         "WHERE kuerzel = 'SK'")
+            conn.commit()
+        self.assertEqual(kalender_zu_kuerzel().get("S. Koch"), "SK")
+
+
 if __name__ == "__main__":
     unittest.main()

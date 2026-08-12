@@ -22,6 +22,7 @@ from ..db.database import get_connection
 from ..ramicro.connector import (
     get_ramicro_connection, RaMicroNichtAktiv, RaMicroVerbindungsFehler
 )
+from ..ramicro.sachbearbeiter import kalender_zu_kuerzel
 
 logger = logging.getLogger(__name__)
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
@@ -452,15 +453,6 @@ _TERMIN_LABELS = {
     60: "Anhörungstermin",
 }
 
-# raKalender.dbo.Calendars → Sachbearbeiter-Kürzel
-_KALENDER_ZU_SB = {
-    "Peter Koch":        "PK",
-    "Monika Mieth":      "MM",
-    "RA.Schatz":         "AS",
-    "C. Ostarek":        "CO",
-    "Alexander.Herbert": "AH",
-}
-
 _FRIST_LABELS = {
     21: "Klage",
     22: "Urteil",
@@ -507,6 +499,8 @@ def _lade_termine_heute():
     seen_keys = set()  # Dedup: (az, datum_iso)
 
     try:
+        kalender_map = kalender_zu_kuerzel()
+
         with get_ramicro_connection() as conn:
             cur = conn.cursor()
 
@@ -539,7 +533,7 @@ def _lade_termine_heute():
                     uhrzeit = datum_raw.strftime("%H:%M")
 
                 cal_name = (r.get("CalendarName") or "").strip()
-                sb = _KALENDER_ZU_SB.get(cal_name)
+                sb = kalender_map.get(cal_name)
 
                 ak_nr = (r.get("Aktennummer") or "").strip()
                 az = (ak_nr + sb) if (ak_nr and sb) else ak_nr
