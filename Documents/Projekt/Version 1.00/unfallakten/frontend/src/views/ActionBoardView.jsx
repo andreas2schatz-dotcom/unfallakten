@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { apiDashboard } from "../api";
+import { apiDashboard, apiEinstellungen } from "../api";
 import T from "../config/theme";
 import TermineKachel        from "./action_board/TermineKachel";
 import FristenKachel        from "./action_board/FristenKachel";
@@ -10,21 +10,27 @@ function baseAz(azVoll) {
   return (azVoll || "").replace(/[A-Z]{2,3}$/i, "").trim();
 }
 
-const ALLE_SB    = ["AS", "PK", "CO", "MM", "AH", "TB", "SK", "EI"];
-const DEFAULT_SB = ["AS", "PK", "CO", "MM", "AH"];
-const SB_KEY     = "dashboard.aktiveSB";
+const SB_KEY = "dashboard.aktiveSB";
 
 function sbAusAz(az) {
   const m = (az || "").match(/([A-Z]{2,3})$/);
   return m ? m[1] : null;
 }
 
-function gespeicherteSB() {
+function gespeicherteAuswahl() {
   try {
     const arr = JSON.parse(localStorage.getItem(SB_KEY));
-    if (Array.isArray(arr)) return new Set(arr.filter((sb) => ALLE_SB.includes(sb)));
-  } catch { /* defekter Eintrag → Default */ }
-  return new Set(DEFAULT_SB);
+    return Array.isArray(arr) ? arr : null;
+  } catch {
+    return null;
+  }
+}
+
+function initialeAuswahl(liste) {
+  const gueltig    = new Set(liste.map((e) => e.kuerzel));
+  const gespeichert = gespeicherteAuswahl();
+  if (gespeichert) return new Set(gespeichert.filter((k) => gueltig.has(k)));
+  return new Set(liste.filter((e) => e.dashboard_vorauswahl).map((e) => e.kuerzel));
 }
 
 const START = {
@@ -37,12 +43,13 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
   const [daten,       setDaten]       = useState(START);
   const [ladeZeit,    setLadeZeit]    = useState(null);
   const [laedtGerade, setLaedtGerade] = useState(false);
-  const [aktiveSB,    setAktiveSB]    = useState(gespeicherteSB);
+  const [sbListe,     setSbListe]     = useState([]);
+  const [aktiveSB,    setAktiveSB]    = useState(null);
 
-  function toggleSB(sb) {
+  function toggleSB(kuerzel) {
     setAktiveSB((prev) => {
-      const next = new Set(prev);
-      next.has(sb) ? next.delete(sb) : next.add(sb);
+      const next = new Set(prev || []);
+      next.has(kuerzel) ? next.delete(kuerzel) : next.add(kuerzel);
       localStorage.setItem(SB_KEY, JSON.stringify([...next]));
       return next;
     });
@@ -62,6 +69,13 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
     }));
     setLadeZeit(new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }));
     setLaedtGerade(false);
+
+    const [r4] = await Promise.allSettled([apiEinstellungen.sachbearbeiter()]);
+    if (r4.status === "fulfilled") {
+      const aktive = (r4.value?.eintraege ?? []).filter((e) => e.aktiv && !e.ignoriert);
+      setSbListe(aktive);
+      setAktiveSB((prev) => prev ?? initialeAuswahl(aktive));
+    }
   }
 
   useEffect(() => { laden(); }, []);
@@ -74,9 +88,11 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
 
+  const bekannteSB = new Set(sbListe.map((e) => e.kuerzel));
   const sbFilter = (e) => {
+    if (!aktiveSB) return true;
     const sb = sbAusAz(e.az);
-    return !sb || !ALLE_SB.includes(sb) || aktiveSB.has(sb);
+    return !sb || !bekannteSB.has(sb) || aktiveSB.has(sb);
   };
   const fristen = daten.fristen.eintraege.filter(sbFilter);
   const termine = daten.termine.eintraege.filter(sbFilter);
@@ -93,22 +109,24 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
         <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <span style={{ fontSize: "0.6875rem", fontWeight: 600, letterSpacing: "0.05em", color: T.textMuted, marginRight: 3 }}>SB</span>
-            {ALLE_SB.map((sb) => {
-              const aktiv = aktiveSB.has(sb);
+            {sbListe.map((sb) => {
+              const aktiv = !!aktiveSB?.has(sb.kuerzel);
               return (
                 <button
-                  key={sb}
+                  key={sb.kuerzel}
                   type="button"
+                  title={sb.titel ? `${sb.name} · ${sb.titel}` : sb.name}
                   aria-pressed={aktiv}
-                  onClick={() => toggleSB(sb)}
+                  onClick={() => toggleSB(sb.kuerzel)}
                   style={{
-                    fontSize: "0.6875rem", fontWeight: 600, padding: "3px 9px", borderRadius: 999, cursor: "pointer",
+                    fontSize: "0.6875rem", fontWeight: 600, padding: "3px 9px", borderRadius: 999,
+                    cursor: "pointer",
                     background: aktiv ? T.navy : "transparent",
                     color: aktiv ? "#FFFFFF" : T.textMuted,
                     border: `1px solid ${aktiv ? T.navy : T.borderSoft || T.border}`,
                   }}
                 >
-                  {sb}
+                  {sb.kuerzel}
                 </button>
               );
             })}
@@ -125,7 +143,7 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
         </div>
       </div>
 
-      {aktiveSB.size === 0 ? (
+      {sbListe.length > 0 && aktiveSB && aktiveSB.size === 0 ? (
         <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 16px", textAlign: "center", color: T.textMuted, fontSize: T.textSm }}>
           Kein Sachbearbeiter ausgewählt
         </div>

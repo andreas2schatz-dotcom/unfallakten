@@ -6,16 +6,27 @@ const api = vi.hoisted(() => ({
   fristen:        vi.fn(),
   wiedervorlagen: vi.fn(),
 }));
-vi.mock("../api", () => ({ apiDashboard: api }));
+const einst = vi.hoisted(() => ({ sachbearbeiter: vi.fn() }));
+vi.mock("../api", () => ({ apiDashboard: api, apiEinstellungen: einst }));
 
 import ActionBoardView from "./ActionBoardView.jsx";
 
 const FRIST = { az: "312/26 AS", frist_art: "Stellungnahme", frist_datum: "2026-07-27", tage_bis: -3, kurzbezeichnung: "Müller ./. HUK" };
 
+const SB_LISTE = [
+  { kuerzel: "AS", name: "Andreas Schatz", titel: "Rechtsanwalt", aktiv: 1, ignoriert: 0,
+    dashboard_vorauswahl: 1, sortierung: 10 },
+  { kuerzel: "TB", name: "Tanja Brunner", titel: "Rechtsanwalts- und Notarfachangestellte",
+    aktiv: 1, ignoriert: 0, dashboard_vorauswahl: 0, sortierung: 70 },
+  { kuerzel: "JH", name: "Jochen Hofmann", titel: "Rechtsanwalt", aktiv: 0, ignoriert: 0,
+    dashboard_vorauswahl: 0, sortierung: 110 },
+];
+
 function mockOk({ fristen = [], termine = [], wv = [], ohne_wv = [] } = {}) {
   api.termineHeute.mockResolvedValue({ eintraege: termine });
   api.fristen.mockResolvedValue({ eintraege: fristen });
   api.wiedervorlagen.mockResolvedValue({ wv, ohne_wv });
+  einst.sachbearbeiter.mockResolvedValue({ eintraege: SB_LISTE });
 }
 
 describe("ActionBoardView", () => {
@@ -77,9 +88,7 @@ describe("ActionBoardView", () => {
     mockOk();
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
     await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
-    for (const sb of ["AS", "PK", "CO", "MM", "AH"]) {
-      fireEvent.click(screen.getByRole("button", { name: sb }));
-    }
+    fireEvent.click(screen.getByRole("button", { name: "AS" }));
     expect(screen.getByText("Kein Sachbearbeiter ausgewählt")).toBeInTheDocument();
     expect(screen.queryByText(/Keine Fristen in den nächsten/)).toBeNull();
   });
@@ -112,5 +121,31 @@ describe("ActionBoardView", () => {
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
     expect(await screen.findByRole("button", { name: /999\/26/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /888\/26 XY/ })).toBeInTheDocument();
+  });
+
+  it("baut die SB-Chips aus der Einstellungs-Liste, mit Klarnamen als Tooltip", async () => {
+    mockOk();
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    const as = await screen.findByRole("button", { name: "AS" });
+    expect(as).toHaveAttribute("title", "Andreas Schatz · Rechtsanwalt");
+    expect(as).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "TB" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByRole("button", { name: "JH" })).toBeNull();
+  });
+
+  it("stellt die gespeicherte Auswahl wieder her und verwirft unbekannte Kürzel", async () => {
+    localStorage.setItem("dashboard.aktiveSB", JSON.stringify(["TB", "ZZ"]));
+    mockOk();
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    expect(await screen.findByRole("button", { name: "TB" }))
+      .toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "AS" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("filtert nicht, solange die Sachbearbeiter-Liste nicht geladen ist", async () => {
+    mockOk({ fristen: [FRIST] });
+    einst.sachbearbeiter.mockReturnValue(new Promise(() => {}));
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    expect(await screen.findAllByRole("button", { name: /312\/26 AS/ })).not.toHaveLength(0);
   });
 });
