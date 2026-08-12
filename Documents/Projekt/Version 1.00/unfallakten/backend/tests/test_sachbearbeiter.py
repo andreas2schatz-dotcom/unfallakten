@@ -59,20 +59,21 @@ class TestMigration68(unittest.TestCase):
 
     def test_zweiter_lauf_aendert_nichts(self):
         from backend.db.database import get_connection
-        from backend.db.schema_manager import run_migrations
+        from backend.db.schema_manager import _run_migration_68
         with get_connection() as conn:
             conn.execute("UPDATE sachbearbeiter SET name = 'Geändert' WHERE kuerzel = 'AS'")
             conn.commit()
-
-        run_migrations()
-
-        with get_connection() as conn:
+            _run_migration_68(conn)
             name = conn.execute(
                 "SELECT name FROM sachbearbeiter WHERE kuerzel = 'AS'"
             ).fetchone()["name"]
             anzahl = conn.execute("SELECT COUNT(*) AS n FROM sachbearbeiter").fetchone()["n"]
+            versionen = conn.execute(
+                "SELECT COUNT(*) AS n FROM schema_version WHERE version = 68"
+            ).fetchone()["n"]
         self.assertEqual(name, "Geändert")
         self.assertEqual(anzahl, 11)
+        self.assertEqual(versionen, 1)
 
     def test_kalender_name_ist_eindeutig(self):
         import sqlite3
