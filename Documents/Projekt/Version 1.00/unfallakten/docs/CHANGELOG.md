@@ -42,7 +42,7 @@ Spalten: Kürzel, Name, Titel, Anrede, Rolle, aktiv, ignoriert, dashboard_voraus
 - JSON `null` wurde beim Kalendernamen als Text „None" gespeichert — die Zuordnung ließ sich danach nicht mehr entfernen (Geisterkonflikt beim erneuten Speichern). Fix: `null` wird vor dem SQL-Insert/Update in echtes SQL-`NULL` übersetzt.
 - Das Speichern einer Zeile im Einstellungen-Reiter hat bislang alle ungespeicherten Eingaben in Nachbarzeilen verworfen (`laden()` ersetzte den kompletten Entwurf). Fix: `laden()` merged jetzt in den bestehenden Entwurf, statt ihn zu ersetzen — trägt auch für die späteren Auslöser Anlegen/Löschen/Abgleich.
 
-**Commits:** `ed6293d3`..`a09c6221` (14 Commits, Branch `sachbearbeiter-verwaltung`, SDD-Workflow mit Review je Task).
+**Commits:** `b3321cde`..`3dcfa48a` (15 Commits ab dem Plan-Commit, Branch `sachbearbeiter-verwaltung`, SDD-Workflow mit Review je Task).
 
 **Offen:** Browser-Sichtprüfung im Produktivbetrieb (Reiter „Sachbearbeiter" + Tagesübersicht-Chips) steht noch aus — siehe `docs/TODO.md` unter Produktiv-Nachtests.
 

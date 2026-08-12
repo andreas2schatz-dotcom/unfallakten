@@ -1,4 +1,4 @@
-# Bugfixes Forderungsschreiben-Modul
+# Bugfixes
 
 Quelle: Code-Review 2026-08-10, Vollbericht → `handover/2026-08-10-forderungsschreiben-review-befunde.md`.
 Branch: `abschlussbericht`. Vorgehen: TDD (Test zuerst, rot sehen, dann fixen).
@@ -61,3 +61,17 @@ Besonderheiten / bewusste Entscheidungen:
 - **Aggregat-Semantik:** `gesamt_gefordert`/`offen`/`klagepotential`/Streitwert-Fallback = Stand des jeweils letzten Schreibens je `position_key` (vollregulierte Positionen behalten ihren letzten Stand automatisch).
 - ~~`test_modul6`/`test_modul7` haben 95 vorbestehende Failures~~ — ✅ saniert 2026-08-11 (74/74 + 56/56 grün, Protokoll → `docs/CHANGELOG.md`).
 - I-10 (Haftungsquote/Alleinschuld-Baustein) bewusst offen: juristische Formulierung gehört RA Schatz vorgelegt.
+
+---
+
+## Sachbearbeiter-Verwaltung (2026-08-12) — zurückgestellte Kleinigkeiten
+
+Quelle: Abschließende Gesamtprüfung des Branches `sachbearbeiter-verwaltung` (Spec `docs/superpowers/specs/2026-08-12-sachbearbeiter-verwaltung-design.md`, Plan `docs/superpowers/plans/2026-08-12-sachbearbeiter-verwaltung.md`). Die vier wichtigen Befunde (W-1 bis W-4) sind gefixt; die folgenden Kleinigkeiten wurden bewusst zurückgestellt.
+
+- **Reiter-Feinschliff:** inaktive/ignorierte Zeilen stehen nicht am Ende der Liste (die Reihenfolge kommt allein aus `sortierung`, für die es im Reiter kein Eingabefeld gibt); kein „ungespeichert"-Marker bei bearbeiteten Zeilen; Erfolgs- und Fehlermeldung können nebeneinander stehen bleiben statt sich gegenseitig zu ersetzen; der „anlegen"-Knopf im RA-MICRO-Abgleich hat kein kürzelspezifisches `aria-label` (anders als „ignorieren").
+- **Fehlende Rückfrage** beim Speichern eines Anwalt-Kürzels ohne RA-MICRO-Akten (in der Spec vorgesehen, im Umsetzungsplan nicht übernommen).
+- **Fehlender Ende-zu-Ende-Test** „geänderter Titel erscheint im erzeugten DOCX" (Spec 7.6, im Plan nicht übernommen).
+- **Sackgasse bei nicht-zweistelligen Kürzeln in RA-MICRO:** solche ließen sich über den Reiter weder anlegen noch ignorieren (`_KUERZEL_RE` verlangt genau zwei Großbuchstaben) — heute kein realer Fall.
+- **Zählungs-Kollision im RA-MICRO-Abgleich:** bei Normalisierungskollision (z. B. `as`/`AS`) überschreibt die spätere Zählung die frühere, statt die Aktenzahlen zu summieren.
+- **`docs/DATAMODEL.md`** kennt die Tabelle `sachbearbeiter` (Migration 68) noch nicht.
+- **`laedtGerade`** in der Tagesübersicht deckt den Sachbearbeiter-Nachladeteil (`apiEinstellungen.sachbearbeiter()`) nicht ab — ein schneller Doppelklick auf „Aktualisieren" kann eine zusätzliche, unnötige Abfrage auslösen.

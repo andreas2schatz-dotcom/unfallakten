@@ -5,6 +5,20 @@ Format: Entscheidung → Grund → Alternative → Konsequenz.
 
 ---
 
+## Sachbearbeiter-Verwaltung (Review 2026-08-12)
+
+### `kalender_zu_kuerzel()` filtert bewusst nicht nach `aktiv`/`ignoriert`
+
+**Entscheidung:** Die Kalendername-zu-Kürzel-Zuordnung (`backend/ramicro/sachbearbeiter.py`) liest alle Zeilen der Tabelle `sachbearbeiter` ohne Einschränkung auf `aktiv=1` oder `ignoriert=0`.
+
+**Grund:** Termine aus dem RA-MICRO-Kalender eines mittlerweile ausgeschiedenen Kollegen (`aktiv=0`) sollen weiterhin der richtigen Akte zugeordnet werden — genau wie `hole_sachbearbeiter()` für Namen in Altschreiben bewusst nicht nach `aktiv` filtert. Ignorierte Zeilen (`ignoriert=1`) tragen über den Anlageweg (Reiter „ignorieren") ohnehin keinen Kalendernamen, ein zusätzlicher Filter wäre dort wirkungslos.
+
+**Alternative:** `WHERE aktiv = 1 AND ignoriert = 0` in die Abfrage aufnehmen — würde Kalendertermine ausgeschiedener Kollegen unzuordenbar machen.
+
+**Konsequenz:** Dieser Eintrag existiert, damit das fehlende Filter-Kriterium niemand später als Versehen „repariert". Schutzplanke im Code: `backend/tests/test_sachbearbeiter.py::TestSachbearbeiterModul::test_ausgeschiedener_sachbearbeiter_behaelt_namen_schutzplanke`. (2026-08-12)
+
+---
+
 ## Übersicht-Tab / AkteDetailView (Review 2026-08-10)
 
 ### OnboardingHub-Sichtbarkeit an die eigene Checkliste gekoppelt (statt lokalem IBAN-Feld)
