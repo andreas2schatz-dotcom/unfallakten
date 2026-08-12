@@ -98,11 +98,30 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
     const [r4] = await Promise.allSettled([apiEinstellungen.sachbearbeiter()]);
     if (r4.status === "fulfilled") {
       const aktive = (r4.value?.eintraege ?? []).filter((e) => e.aktiv && !e.ignoriert);
+      const aktiveKuerzel = aktive.map((e) => e.kuerzel);
       setSbListe(aktive);
+
       const bekanntVorher = gespeicherterBekanntBestand();
       const initial = initialeAuswahl(aktive, bekanntVorher);
-      setAktiveSB((prev) => prev ?? initial);
-      localStorage.setItem(BEKANNT_KEY, JSON.stringify(aktive.map((e) => e.kuerzel)));
+      const neueKuerzel = bekanntVorher === null
+        ? []
+        : aktiveKuerzel.filter((k) => !bekanntVorher.includes(k));
+
+      // prev === null: erster erfolgreicher Ladevorgang -> initiale Auswahl.
+      // Sonst: neue Kürzel, die während der laufenden Sitzung dazukommen,
+      // sofort in die bestehende Auswahl mergen (nicht erst nach Neuladen
+      // der Seite sichtbar machen) -- ohne bereits abgewählte Kürzel
+      // anzurühren.
+      setAktiveSB((prev) => {
+        if (prev === null) return initial;
+        if (neueKuerzel.length === 0) return prev;
+        const next = new Set(prev);
+        neueKuerzel.forEach((k) => next.add(k));
+        localStorage.setItem(SB_KEY, JSON.stringify([...next]));
+        return next;
+      });
+
+      localStorage.setItem(BEKANNT_KEY, JSON.stringify(aktiveKuerzel));
     }
   }
 

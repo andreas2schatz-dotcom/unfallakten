@@ -181,4 +181,26 @@ describe("ActionBoardView", () => {
     expect(screen.getByRole("button", { name: "AS" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "TB" })).toHaveAttribute("aria-pressed", "false");
   });
+
+  it("übernimmt ein während der Sitzung neu hinzugekommenes Kürzel schon beim Aktualisieren-Klick, ohne ein abgewähltes wieder zu aktivieren", async () => {
+    localStorage.setItem("dashboard.aktiveSB", JSON.stringify(["AS"]));
+    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "TB"]));
+    mockOk();
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
+    expect(screen.getByRole("button", { name: "AS" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "TB" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByRole("button", { name: "CS" })).toBeNull();
+
+    einst.sachbearbeiter.mockResolvedValue({ eintraege: [
+      ...SB_LISTE,
+      { kuerzel: "CS", name: "Carina Salvagnin", titel: "Rechtsanwältin", aktiv: 1,
+        ignoriert: 0, dashboard_vorauswahl: 0, sortierung: 60 },
+    ] });
+    fireEvent.click(screen.getByRole("button", { name: /Aktualisieren/ }));
+
+    expect(await screen.findByRole("button", { name: "CS" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "AS" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "TB" })).toHaveAttribute("aria-pressed", "false");
+  });
 });
