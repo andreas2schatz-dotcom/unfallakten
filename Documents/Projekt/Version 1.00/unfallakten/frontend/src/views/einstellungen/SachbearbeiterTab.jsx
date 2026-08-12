@@ -149,6 +149,10 @@ export default function SachbearbeiterTab() {
                   cursor: "pointer" }}>ignorieren</button>
             </span>
           ))}
+          <div style={{ marginTop: 6, color: T.textMuted, fontSize: "0.8rem" }}>
+            Ignorieren heißt: Das Kürzel wird nicht mehr gemeldet und liefert weiterhin
+            keinen Namen in Schreiben.
+          </div>
         </div>
       )}
 
@@ -175,7 +179,7 @@ export default function SachbearbeiterTab() {
                 <td style={{ padding: "6px 8px", fontWeight: 600 }}>
                   {e.kuerzel}
                   {!d.aktiv && <div style={{ fontSize: "0.75rem", color: T.textMuted }}>
-                    ausgeschieden</div>}
+                    {e.ignoriert ? "ignoriert (nicht gepflegt)" : "ausgeschieden"}</div>}
                   {abgleich?.verfuegbar && (
                     abgleich.kuerzel[e.kuerzel]
                       ? <div style={{ fontSize: "0.75rem", color: T.textMuted }}>

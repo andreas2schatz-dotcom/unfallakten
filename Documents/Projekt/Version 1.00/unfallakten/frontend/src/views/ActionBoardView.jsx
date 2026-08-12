@@ -10,27 +10,52 @@ function baseAz(azVoll) {
   return (azVoll || "").replace(/[A-Z]{2,3}$/i, "").trim();
 }
 
-const SB_KEY = "dashboard.aktiveSB";
+const SB_KEY      = "dashboard.aktiveSB";
+const BEKANNT_KEY = "dashboard.bekannteSB";
 
 function sbAusAz(az) {
   const m = (az || "").match(/([A-Z]{2,3})$/);
   return m ? m[1] : null;
 }
 
-function gespeicherteAuswahl() {
+function gespeicherteListe(key) {
   try {
-    const arr = JSON.parse(localStorage.getItem(SB_KEY));
+    const arr = JSON.parse(localStorage.getItem(key));
     return Array.isArray(arr) ? arr : null;
   } catch {
     return null;
   }
 }
 
-function initialeAuswahl(liste) {
-  const gueltig    = new Set(liste.map((e) => e.kuerzel));
+function gespeicherteAuswahl() {
+  return gespeicherteListe(SB_KEY);
+}
+
+function gespeicherterBekanntBestand() {
+  return gespeicherteListe(BEKANNT_KEY);
+}
+
+// gespeichert === null: noch nie eine Auswahl getroffen (auch nicht bewusst
+// geleert) → bisheriges Verhalten, nur die Vorauswahl ist aktiv.
+// bekanntVorher === null: es gibt zwar eine gespeicherte Auswahl, aber noch
+// keinen "bereits gesehen"-Bestand (Altzustand vor diesem Feature) → keine
+// Kürzel gelten als neu, die gespeicherte Auswahl bleibt unangetastet.
+// Sonst: gespeicherte Auswahl PLUS alle aktuellen Kürzel, die im Bestand
+// noch nicht vorkamen (neu gepflegte Kürzel dürfen nie stillschweigend
+// verschwinden, das trifft auch Fristen).
+function initialeAuswahl(liste, bekanntVorher) {
+  const gueltig     = new Set(liste.map((e) => e.kuerzel));
   const gespeichert = gespeicherteAuswahl();
-  if (gespeichert) return new Set(gespeichert.filter((k) => gueltig.has(k)));
-  return new Set(liste.filter((e) => e.dashboard_vorauswahl).map((e) => e.kuerzel));
+  if (gespeichert === null) {
+    return new Set(liste.filter((e) => e.dashboard_vorauswahl).map((e) => e.kuerzel));
+  }
+  const auswahl = new Set(gespeichert.filter((k) => gueltig.has(k)));
+  if (bekanntVorher === null) return auswahl;
+  const bekanntSet = new Set(bekanntVorher);
+  for (const k of gueltig) {
+    if (!bekanntSet.has(k)) auswahl.add(k);
+  }
+  return auswahl;
 }
 
 const START = {
@@ -74,7 +99,10 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
     if (r4.status === "fulfilled") {
       const aktive = (r4.value?.eintraege ?? []).filter((e) => e.aktiv && !e.ignoriert);
       setSbListe(aktive);
-      setAktiveSB((prev) => prev ?? initialeAuswahl(aktive));
+      const bekanntVorher = gespeicherterBekanntBestand();
+      const initial = initialeAuswahl(aktive, bekanntVorher);
+      setAktiveSB((prev) => prev ?? initial);
+      localStorage.setItem(BEKANNT_KEY, JSON.stringify(aktive.map((e) => e.kuerzel)));
     }
   }
 

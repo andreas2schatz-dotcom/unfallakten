@@ -35,6 +35,18 @@ describe("SachbearbeiterTab", () => {
     expect(screen.getByText("ausgeschieden")).toBeInTheDocument();
   });
 
+  it("kennzeichnet ignorierte Zeilen anders als ausgeschiedene", async () => {
+    api.sachbearbeiter.mockResolvedValue({ eintraege: [
+      ...EINTRAEGE,
+      { kuerzel: "ME", name: "ME", titel: "", anrede: "", rolle: "anwalt",
+        aktiv: 0, ignoriert: 1, dashboard_vorauswahl: 0, kalender_name: null, sortierung: 200 },
+    ] });
+    render(<SachbearbeiterTab />);
+    await screen.findByDisplayValue("Andreas Schatz");
+    expect(screen.getByText("ausgeschieden")).toBeInTheDocument();
+    expect(screen.getByText("ignoriert (nicht gepflegt)")).toBeInTheDocument();
+  });
+
   it("speichert eine geänderte Zeile", async () => {
     api.sachbearbeiterSpeichern.mockResolvedValue({ ok: true });
     render(<SachbearbeiterTab />);
@@ -145,6 +157,13 @@ describe("SachbearbeiterTab – RA-MICRO-Abgleich", () => {
     ] });
     render(<SachbearbeiterTab />);
     expect(await screen.findAllByText("keine Akten in RA-MICRO")).toHaveLength(1);
+  });
+
+  it("erklärt kurz, was 'ignorieren' bedeutet", async () => {
+    render(<SachbearbeiterTab />);
+    expect(await screen.findByText(/ME \(20\)/)).toBeInTheDocument();
+    expect(screen.getByText(/wird nicht mehr gemeldet/)).toBeInTheDocument();
+    expect(screen.getByText(/liefert weiterhin keinen Namen in Schreiben/)).toBeInTheDocument();
   });
 
   it("meldet unbekannte Kürzel und legt sie auf Klick als ignoriert an", async () => {

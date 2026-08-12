@@ -148,4 +148,37 @@ describe("ActionBoardView", () => {
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
     expect(await screen.findAllByRole("button", { name: /312\/26 AS/ })).not.toHaveLength(0);
   });
+
+  it("aktiviert ein neu hinzugekommenes Kürzel automatisch, auch wenn die gespeicherte Auswahl es nicht enthält", async () => {
+    localStorage.setItem("dashboard.aktiveSB", JSON.stringify(["AS"]));
+    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "TB"]));
+    mockOk();
+    einst.sachbearbeiter.mockResolvedValue({ eintraege: [
+      ...SB_LISTE,
+      { kuerzel: "CS", name: "Carina Salvagnin", titel: "Rechtsanwältin", aktiv: 1,
+        ignoriert: 0, dashboard_vorauswahl: 0, sortierung: 60 },
+    ] });
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    expect(await screen.findByRole("button", { name: "CS" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "AS" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "TB" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("lässt ein bewusst abgewähltes Kürzel abgewählt, solange kein neues Kürzel hinzukommt", async () => {
+    localStorage.setItem("dashboard.aktiveSB", JSON.stringify([]));
+    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "TB"]));
+    mockOk();
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    await screen.findByText("Kein Sachbearbeiter ausgewählt");
+    expect(screen.getByRole("button", { name: "AS" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "TB" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("wählt beim allerersten Öffnen ohne gespeicherten Stand nur die Vorauswahl, nicht alle", async () => {
+    mockOk();
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
+    expect(screen.getByRole("button", { name: "AS" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "TB" })).toHaveAttribute("aria-pressed", "false");
+  });
 });
