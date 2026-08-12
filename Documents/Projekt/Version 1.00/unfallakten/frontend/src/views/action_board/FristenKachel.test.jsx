@@ -42,3 +42,19 @@ describe("FristenKachel", () => {
     expect(screen.getByText(/1 heute · 1 demnächst/)).toBeInTheDocument();
   });
 });
+
+describe("FristenKachel – eindeutige Keys", () => {
+  it("warnt nicht bei zwei Fristen derselben Akte am selben Tag", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const doppelt = [
+      { az: "312/26 AS", frist_art: "Stellungnahme",   frist_datum: "2026-07-27", tage_bis: -3, kurzbezeichnung: "Müller ./. HUK" },
+      { az: "312/26 AS", frist_art: "Klageerwiderung", frist_datum: "2026-07-27", tage_bis: -3, kurzbezeichnung: "Müller ./. HUK" },
+      { az: "312/26 AS", frist_art: "Nachfrist",       frist_datum: "2026-08-05", tage_bis:  5, kurzbezeichnung: "Müller ./. HUK" },
+      { az: "312/26 AS", frist_art: "Belegvorlage",    frist_datum: "2026-08-05", tage_bis:  5, kurzbezeichnung: "Müller ./. HUK" },
+    ];
+    render(<FristenKachel status="ok" eintraege={doppelt} onOpenAkte={() => {}} onRetry={() => {}} />);
+    const keyWarnungen = spy.mock.calls.filter((c) => String(c[0]).includes("same key"));
+    spy.mockRestore();
+    expect(keyWarnungen).toEqual([]);
+  });
+});

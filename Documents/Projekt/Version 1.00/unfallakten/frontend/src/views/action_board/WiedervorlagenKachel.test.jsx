@@ -37,3 +37,19 @@ describe("WiedervorlagenKachel", () => {
     expect(screen.getByText("Alle Wiedervorlagen erledigt")).toBeInTheDocument();
   });
 });
+
+describe("WiedervorlagenKachel – eindeutige Keys", () => {
+  it("warnt nicht bei zwei Wiedervorlagen derselben Akte am selben Tag", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const wv = [
+      { az: "312/26 AS", datum: "2026-07-27", tage_bis: -2, grund: "Sachstand",   kurzbezeichnung: "Müller" },
+      { az: "312/26 AS", datum: "2026-07-27", tage_bis: -2, grund: "Zahlung",     kurzbezeichnung: "Müller" },
+      { az: "218/26 PK", datum: "2026-07-30", tage_bis:  0, grund: "Rückruf",     kurzbezeichnung: "Weber" },
+      { az: "218/26 PK", datum: "2026-07-30", tage_bis:  0, grund: "Unterlagen",  kurzbezeichnung: "Weber" },
+    ];
+    render(<WiedervorlagenKachel status="ok" wv={wv} ohne_wv={[]} onOpenAkte={() => {}} onRetry={() => {}} onAlleOeffnen={() => {}} />);
+    const keyWarnungen = spy.mock.calls.filter((c) => String(c[0]).includes("same key"));
+    spy.mockRestore();
+    expect(keyWarnungen).toEqual([]);
+  });
+});

@@ -46,7 +46,7 @@ function gruppiereNachZeit(emails) {
 //  Wird in EmailImportView.jsx als Tab gerendert.
 // ══════════════════════════════════════════════════════════════
 
-function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet }) {
+function UnfallEmailView({ onOpenAkte, dispatch }) {
   const [log, setLog]               = useState([]);
   const [importing, setImporting]   = useState(false);
   const [importStep, setStep]       = useState(-1);
@@ -63,7 +63,6 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
   const [ansichtsModus,  setAnsichtsModus]  = useState("stream");
   const [laedt,          setLaedt]          = useState(true);
   const [geoeffneteEmail, setGeoeffneteEmail] = useState(null);
-  const letzteInitialId = useRef(null);
 
   const onInAkteImportiert = useCallback((logId, res) => {
     setLog(prev => prev.map(e => e.id === logId
@@ -100,17 +99,6 @@ function UnfallEmailView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
       .then(d => { if (d?.eintraege) setFragebogenListe(d.eintraege); })
       .catch(() => {});
   }, []);
-
-  useEffect(() => {
-    if (!initialEmailId || initialEmailId === letzteInitialId.current) return;
-    if (log.length === 0) return;
-    const entry = log.find(e => e.id === initialEmailId);
-    if (entry) {
-      setGeoeffneteEmail(entry);
-      letzteInitialId.current = initialEmailId;
-      if (onEmailGeoffnet) onEmailGeoffnet();
-    }
-  }, [initialEmailId, log]);
 
   const angezeigteKfg = imapCfg ?? IMAP_CONFIG;
   const verbunden     = cfgStatus?.verbindung_ok ?? false;

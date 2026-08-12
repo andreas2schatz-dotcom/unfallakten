@@ -2,14 +2,9 @@ import React from "react";
 import T from "../../config/theme";
 import Ic from "../../config/icons";
 import { fmtDatumDe } from "../../config/utils";
-import { Kachel, KachelInhalt, Zeile, ZeileText, StufenBadge, AbschnittLabel, ZeilenListe } from "./boardUi";
+import { Kachel, KachelInhalt, Zeile, ZeileText, StufenBadge, AbschnittLabel, ZeilenListe, tageBadgeText } from "./boardUi";
 
-function badgeText(tage) {
-  if (tage === 0) return "heute";
-  return tage < 0 ? `−${-tage} T` : `+${tage} T`;
-}
-
-export default function FristenKachel({ status, eintraege, onOpenAkte, onRetry }) {
+export default function FristenKachel({ status, eintraege, onOpenAkte, onRetry, retryLaeuft }) {
   const dringend    = eintraege.filter((e) => e.tage_bis <= 0);
   const demnaechst  = eintraege.filter((e) => e.tage_bis > 0);
   const ueberfaellig = dringend.filter((e) => e.tage_bis < 0).length;
@@ -28,6 +23,7 @@ export default function FristenKachel({ status, eintraege, onOpenAkte, onRetry }
         status={status}
         fehlerText="Fristen konnten nicht geladen werden"
         onRetry={onRetry}
+        retryLaeuft={retryLaeuft}
         leer={eintraege.length === 0}
         leerText="Keine Fristen in den nächsten 14 Tagen"
       >
@@ -35,11 +31,11 @@ export default function FristenKachel({ status, eintraege, onOpenAkte, onRetry }
           <>
             <AbschnittLabel>Handlungsbedarf</AbschnittLabel>
             <ZeilenListe>
-              {dringend.map((e) => {
+              {dringend.map((e, i) => {
                 const stufe = e.tage_bis < 0 ? "rot" : "gelb";
                 return (
                   <Zeile
-                    key={e.az + e.frist_datum}
+                    key={`${e.az}|${e.frist_datum}|${e.frist_art}|${i}`}
                     stufe={stufe}
                     onClick={() => onOpenAkte(e.az)}
                     links={
@@ -49,7 +45,7 @@ export default function FristenKachel({ status, eintraege, onOpenAkte, onRetry }
                         metaFarbe={stufe === "rot" ? T.redText : T.amberText}
                       />
                     }
-                    rechts={<StufenBadge stufe={stufe}>{badgeText(e.tage_bis)}</StufenBadge>}
+                    rechts={<StufenBadge stufe={stufe}>{tageBadgeText(e.tage_bis)}</StufenBadge>}
                   />
                 );
               })}
@@ -60,9 +56,9 @@ export default function FristenKachel({ status, eintraege, onOpenAkte, onRetry }
           <>
             <AbschnittLabel abstandOben={dringend.length > 0}>Demnächst</AbschnittLabel>
             <ZeilenListe>
-              {demnaechst.map((e) => (
+              {demnaechst.map((e, i) => (
                 <Zeile
-                  key={e.az + e.frist_datum}
+                  key={`${e.az}|${e.frist_datum}|${e.frist_art}|${i}`}
                   onClick={() => onOpenAkte(e.az)}
                   links={
                     <ZeileText

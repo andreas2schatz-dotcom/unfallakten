@@ -52,3 +52,17 @@ describe("JetztDranLeiste", () => {
     expect(screen.getByText("Keine überfälligen Vorgänge")).toBeInTheDocument();
   });
 });
+
+describe("JetztDranLeiste – eindeutige Keys", () => {
+  it("warnt nicht bei zwei gleich dringenden Fristen derselben Akte", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const fristen = [
+      { az: "312/26 AS", frist_art: "Stellungnahme",   tage_bis: -3, kurzbezeichnung: "Müller" },
+      { az: "312/26 AS", frist_art: "Klageerwiderung", tage_bis: -3, kurzbezeichnung: "Müller" },
+    ];
+    render(<JetztDranLeiste fristenStatus="ok" wvStatus="ok" fristen={fristen} wv={[]} onOpenAkte={() => {}} />);
+    const keyWarnungen = spy.mock.calls.filter((c) => String(c[0]).includes("same key"));
+    spy.mockRestore();
+    expect(keyWarnungen).toEqual([]);
+  });
+});

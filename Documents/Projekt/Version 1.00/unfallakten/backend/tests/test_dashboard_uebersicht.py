@@ -3,7 +3,6 @@ Test-Suite für Dashboard-Übersicht-Endpoints
 ============================================
 Tests für die neuen Action-Board Endpoints:
   GET /dashboard/onboarding-offen
-  GET /dashboard/nachrichten-neu
 """
 
 import os
@@ -47,7 +46,7 @@ def _setup(test_id: str):
 
 
 class TestDashboardUebersicht(unittest.TestCase):
-    """Tests für /dashboard/onboarding-offen und /dashboard/nachrichten-neu"""
+    """Tests für die Dashboard-/Action-Board-Endpoints"""
 
     def setUp(self):
         self.client, self.jwt = _setup(f"dbu_{self._testMethodName}")
@@ -78,19 +77,15 @@ class TestDashboardUebersicht(unittest.TestCase):
         resp = self.client.get("/dashboard/onboarding-offen")
         self.assertEqual(resp.status_code, 401)
 
-    def test_nachrichten_neu_gibt_liste_zurueck(self):
-        """Endpoint /dashboard/nachrichten-neu liefert eine Liste."""
+    def test_nachrichten_neu_entfernt(self):
+        """Der Endpoint /dashboard/nachrichten-neu wurde entfernt (ungenutzt).
+
+        405 statt 404, weil der CORS-Preflight-Catch-all (/<path:path>, nur
+        OPTIONS) in app.py jeden Pfad matcht.
+        """
         headers = self._auth_header()
         resp = self.client.get("/dashboard/nachrichten-neu", headers=headers)
-        self.assertEqual(resp.status_code, 200)
-        data = resp.get_json()
-        self.assertIn("eintraege", data)
-        self.assertIsInstance(data["eintraege"], list)
-
-    def test_nachrichten_neu_ohne_token_401(self):
-        """Ohne Token sollte 401 zurückgegeben werden."""
-        resp = self.client.get("/dashboard/nachrichten-neu")
-        self.assertEqual(resp.status_code, 401)
+        self.assertIn(resp.status_code, (404, 405))
 
     def test_ramicro_fristen_gibt_liste_zurueck(self):
         """Endpoint /dashboard/ramicro-fristen liefert eintraege-Liste (leer wenn RA-MICRO nicht verbunden)."""
@@ -105,35 +100,6 @@ class TestDashboardUebersicht(unittest.TestCase):
         """Ohne Token sollte 401 zurückgegeben werden."""
         resp = self.client.get("/dashboard/ramicro-fristen")
         self.assertEqual(resp.status_code, 401)
-
-    def test_nachrichten_neu_entries_haben_log_id(self):
-        """Jeder Eintrag in nachrichten-neu muss ein log_id-Feld haben."""
-        from backend.db.database import get_connection
-        # Testdaten anlegen: Akte + email_import_log-Eintrag
-        with get_connection() as conn:
-            conn.execute(
-                "INSERT INTO unfallakte (az, status) VALUES (?, ?)",
-                ("99/99", "offen")
-            )
-            # email_import_log braucht message_id UNIQUE
-            conn.execute(
-                """INSERT INTO email_import_log
-                   (message_id, betreff, absender, empfangen_am, akte_id, status, email_typ)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                ("test-msg-id-123", "Testbetreff", "test@rv.de", "2026-06-12 10:00:00", "99/99", "zugeordnet", "sonstiges")
-            )
-            conn.commit()
-
-        headers = self._auth_header()
-        resp = self.client.get("/dashboard/nachrichten-neu", headers=headers)
-        self.assertEqual(resp.status_code, 200)
-        data = resp.get_json()
-        eintraege = data["eintraege"]
-        self.assertTrue(len(eintraege) > 0, "Mindestens ein Eintrag erwartet")
-        for e in eintraege:
-            self.assertIn("log_id", e, f"log_id fehlt in Eintrag: {e}")
-            self.assertIsNotNone(e["log_id"])
-
 
     def test_termine_heute_gibt_liste_zurueck(self):
         """GET /dashboard/termine-heute liefert eintraege-Liste (leer wenn RA-MICRO nicht verbunden)."""

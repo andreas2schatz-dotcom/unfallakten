@@ -24,6 +24,8 @@ const Ic = {
   clock:    <svg viewBox="0 0 24 24" fill="currentColor" style={{width:15,height:15}}><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>,
   scale:    <svg viewBox="0 0 24 24" fill="currentColor" style={{width:15,height:15}}><path d="M17 3H7c-.55 0-1 .45-1 1v1H5c-.55 0-1 .45-1 1v1c0 .55.45 1 1 1h.09l1.38 8.28C6.2 17.47 6.93 18 7.77 18h8.46c.84 0 1.57-.53 1.3-1.72L18.91 8H19c.55 0 1-.45 1-1V6c0-.55-.45-1-1-1h-1V4c0-.55-.45-1-1-1zm1 4H6V6h12v1zm-2.23 9H8.23l-1.2-7.2h10.94l-1.2 7.2zM12 21c-1.1 0-2-.9-2-2h4c0 1.1-.9 2-2 2z"/></svg>,
   folder:   <svg viewBox="0 0 24 24" fill="currentColor" style={{width:15,height:15}}><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>,
+  inbox:    <svg viewBox="0 0 24 24" fill="currentColor" style={{width:15,height:15}}><path d="M19 3H4.99c-1.11 0-1.98.89-1.98 2L3 19c0 1.1.88 2 1.99 2H19c1.1 0 2-.9 2-2V5c0-1.11-.9-2-2-2zm0 12h-4c0 1.66-1.35 3-3 3s-3-1.34-3-3H4.99V5H19v10z"/></svg>,
+  liste:    <svg viewBox="0 0 24 24" fill="currentColor" style={{width:15,height:15}}><path d="M3 5h2v2H3V5zm0 6h2v2H3v-2zm0 6h2v2H3v-2zM7 5h14v2H7V5zm0 6h14v2H7v-2zm0 6h14v2H7v-2z"/></svg>,
   mail:     <svg viewBox="0 0 24 24" fill="currentColor" style={{width:15,height:15}}><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>,
 };
 

@@ -335,45 +335,12 @@ def _lade_onboarding_offen(conn):
     return [dict(r) for r in rows]
 
 
-def _lade_nachrichten_neu(conn):
-    """
-    Letzte 20 E-Mails aus email_import_log, neueste zuerst.
-    Nur Mails mit bekannter Akte.
-    """
-    rows = conn.execute("""
-        SELECT
-            e.id          AS log_id,
-            a.az          AS az,
-            e.absender,
-            e.betreff,
-            e.empfangen_am AS datum,
-            e.konto        AS konto,
-            'email'        AS kanal
-        FROM email_import_log e
-        JOIN unfallakte a ON a.az = e.akte_id
-        ORDER BY e.empfangen_am DESC
-        LIMIT 20
-    """).fetchall()
-    return [
-        {**dict(r), "konto": r["konto"] or "unfall"}
-        for r in rows
-    ]
-
-
 @dashboard_bp.route("/onboarding-offen", methods=["GET"])
 @login_erforderlich
 def onboarding_offen():
     """Akten ohne Mandant oder IBAN — für Action Board Onboarding-Spalte."""
     with get_connection() as conn:
         return _j({"eintraege": _lade_onboarding_offen(conn)})
-
-
-@dashboard_bp.route("/nachrichten-neu", methods=["GET"])
-@login_erforderlich
-def nachrichten_neu():
-    """Neueste E-Mails kanzleiweit — für Action Board Nachrichten-Spalte."""
-    with get_connection() as conn:
-        return _j({"eintraege": _lade_nachrichten_neu(conn)})
 
 
 # ══════════════════════════════════════════════════════════════

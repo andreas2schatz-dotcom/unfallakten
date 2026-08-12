@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 
 const api = vi.hoisted(() => ({
   termineHeute:   vi.fn(),
   fristen:        vi.fn(),
   wiedervorlagen: vi.fn(),
-  nachrichtenNeu: vi.fn(),
 }));
 vi.mock("../api", () => ({ apiDashboard: api }));
 
@@ -46,11 +45,10 @@ describe("ActionBoardView", () => {
     expect(api.fristen).toHaveBeenCalledTimes(2);
   });
 
-  it("ruft nachrichtenNeu nicht mehr auf und zeigt keinen Posteingang", async () => {
+  it("zeigt keinen Posteingang mehr", async () => {
     mockOk();
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
     await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
-    expect(api.nachrichtenNeu).not.toHaveBeenCalled();
     expect(screen.queryByText(/Posteingang/i)).toBeNull();
   });
 
@@ -84,6 +82,26 @@ describe("ActionBoardView", () => {
     }
     expect(screen.getByText("Kein Sachbearbeiter ausgewählt")).toBeInTheDocument();
     expect(screen.queryByText(/Keine Fristen in den nächsten/)).toBeNull();
+  });
+
+  it("markiert aktive SB-Chips per aria-pressed", async () => {
+    mockOk();
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
+    expect(screen.getByRole("button", { name: "AS" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "TB" })).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(screen.getByRole("button", { name: "TB" }));
+    expect(screen.getByRole("button", { name: "TB" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("sperrt den Retry-Knopf, solange die Kacheln neu laden", async () => {
+    mockOk();
+    api.fristen.mockRejectedValue(new Error("kaputt"));
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    await screen.findByText("Fristen konnten nicht geladen werden");
+    api.fristen.mockReturnValue(new Promise(() => {}));
+    fireEvent.click(screen.getByRole("button", { name: "Erneut laden" }));
+    await waitFor(() => expect(within(screen.getByRole("alert")).getByRole("button")).toBeDisabled());
   });
 
   it("versteckt Fristen ohne oder mit unbekanntem SB-Kürzel nie", async () => {

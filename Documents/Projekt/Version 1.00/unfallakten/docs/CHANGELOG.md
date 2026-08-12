@@ -7,6 +7,21 @@
 
 ---
 
+## 2026-08-12 — Feinschliff Dashboard-Hell (Nacharbeit, `main`)
+
+Die in `docs/TODO.md` gesammelte Nacharbeit zum Dashboard-Hell-Umbau, alle Punkte TDD mit RED-Nachweis. Backend-Vollsuite **1733 passed / 20 skipped / 0 failed**, Frontend **516/516**.
+
+- **Doppelte React-Keys (Befund Playwright-Abnahme 2026-08-10):** Keys kollidierten bei mehreren Einträgen derselben Akte am selben Tag — `FristenKachel` (`az+frist_datum`), `TermineKachel` (`az+datum+uhrzeit`), `WiedervorlagenKachel` (`az+datum`), `JetztDranLeiste` (`prio+az+tage`). Jetzt zusätzlich Frist-Art/Termin-Art/Grund **plus Listenindex**. Vier Tests fangen die React-Warnung „same key" per `console.error`-Spy ab.
+- **A11y:** SB-Filter-Chips mit `aria-pressed`, Fehlerblock der Kacheln als `role="alert"`, Lade-Platzhalter (Shimmer) `aria-hidden`.
+- **Button-Semantik `boardUi`:** alle Knöpfe (`Zeile`, `MehrKnopf`, Retry) mit `type="button"`; Retry ist während des Nachladens deaktiviert und zeigt „Lädt …" (neue Prop `retryLaeuft`, von `ActionBoardView` aus `laedtGerade` durchgereicht).
+- **Badge-Logik konsolidiert:** `tageBadgeText()` liegt jetzt einmal in `boardUi.jsx`; Fristen- und Wiedervorlagen-Kachel nutzen sie gemeinsam (`JetztDranLeiste` behält ihre eigene Wortform „N Tage überfällig").
+- **Toter Code entfernt:** `pendingEmailId` wurde nie gesetzt, nur genullt — die ganze Kette raus (`App.jsx` → `EmailImportView` → `UnfallEmailView` inkl. `letzteInitialId`-Ref und Auto-Öffnen-Effekt). Dazu `api.nachrichtenNeu` und der Backend-Endpoint `GET /dashboard/nachrichten-neu` samt Helfer `_lade_nachrichten_neu` (nirgends aufgerufen). Guard-Tests: `api.dashboard.test.js` (Frontend), `test_nachrichten_neu_entfernt` (Backend).
+  **Notiz:** Eine entfernte GET-Route liefert in dieser App **405, nicht 404** — der CORS-Preflight-Catch-all (`/<path:path>`, nur OPTIONS, `app.py:326`) matcht jeden Pfad. Im Test vermerkt.
+- **Sidebar-Icons vereinheitlicht:** die vier Emoji (🔍 📋 📥 ⚖️) durch SVG-Icons ersetzt — `Ic.search`, neu `Ic.liste`, neu `Ic.inbox`, `Ic.scale`. Guard-Test `App.navIcons.test.js` verbietet künftige Emoji in `navItems`.
+- **Offen geblieben:** SB-Klarnamen-Tooltips — daraus wurde ein eigenes Vorhaben (Spec `docs/superpowers/specs/2026-08-12-sachbearbeiter-verwaltung-design.md`), weil die Kürzel an vier Stellen hartcodiert sind. Nebenbefund: `apiDashboard.onboardingOffen` + `GET /dashboard/onboarding-offen` sind ebenfalls ungenutzt (nicht angefasst).
+
+---
+
 ## 2026-08-11 — Testsanierung Backend-Vollsuite: 123 vorbestehende Failures → 0 (Branch `abschlussbericht`)
 
 Auftrag: `handover/naechste_session_testsanierung_vollsuite_prompt.md` (Fortsetzung der modul6/7-Sanierung). Vorher 123 failed / 1610 passed, nachher **0 failed / 1735 passed / 20 skipped**. Kategorisierung: überwiegend Test-Verrottung (die ältesten Suiten modul1–4 + Nachbarn), 2 Isolationsprobleme, **3 echte Produkt-Befunde** (separat ausgewiesen, alle TDD mit RED-Nachweis).

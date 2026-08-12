@@ -1,11 +1,11 @@
 import React from "react";
 import T from "../../config/theme";
 import Ic from "../../config/icons";
-import { Kachel, KachelInhalt, Zeile, ZeileText, StufenBadge, AbschnittLabel, MehrKnopf, ZeilenListe } from "./boardUi";
+import { Kachel, KachelInhalt, Zeile, ZeileText, StufenBadge, AbschnittLabel, MehrKnopf, ZeilenListe, tageBadgeText } from "./boardUi";
 
 const OHNE_WV_LIMIT = 5;
 
-export default function WiedervorlagenKachel({ status, wv, ohne_wv, onOpenAkte, onRetry, onAlleOeffnen }) {
+export default function WiedervorlagenKachel({ status, wv, ohne_wv, onOpenAkte, onRetry, onAlleOeffnen, retryLaeuft }) {
   const ueberfaellig = (wv || []).filter((e) => e.tage_bis < 0);
   const heute        = (wv || []).filter((e) => e.tage_bis === 0);
   const alleOhneWv   = ohne_wv || [];
@@ -20,11 +20,11 @@ export default function WiedervorlagenKachel({ status, wv, ohne_wv, onOpenAkte, 
     </>
   ) : null;
 
-  function wvZeile(e) {
+  function wvZeile(e, i) {
     const stufe = e.tage_bis < 0 ? "rot" : "gelb";
     return (
       <Zeile
-        key={e.az + e.datum}
+        key={`${e.az}|${e.datum}|${e.grund || ""}|${i}`}
         stufe={stufe}
         onClick={() => onOpenAkte(e.az)}
         links={
@@ -34,7 +34,7 @@ export default function WiedervorlagenKachel({ status, wv, ohne_wv, onOpenAkte, 
             metaFarbe={stufe === "rot" ? T.redText : T.amberText}
           />
         }
-        rechts={<StufenBadge stufe={stufe}>{e.tage_bis < 0 ? `−${Math.abs(e.tage_bis)} T` : "heute"}</StufenBadge>}
+        rechts={<StufenBadge stufe={stufe}>{tageBadgeText(e.tage_bis)}</StufenBadge>}
       />
     );
   }
@@ -45,6 +45,7 @@ export default function WiedervorlagenKachel({ status, wv, ohne_wv, onOpenAkte, 
         status={status}
         fehlerText="Wiedervorlagen konnten nicht geladen werden"
         onRetry={onRetry}
+        retryLaeuft={retryLaeuft}
         leer={!hatInhalt}
         leerText="Alle Wiedervorlagen erledigt"
       >
@@ -64,9 +65,9 @@ export default function WiedervorlagenKachel({ status, wv, ohne_wv, onOpenAkte, 
           <>
             <AbschnittLabel abstandOben={ueberfaellig.length > 0 || heute.length > 0}>Keine Wiedervorlage gesetzt</AbschnittLabel>
             <ZeilenListe>
-              {ohneWvSicht.map((e) => (
+              {ohneWvSicht.map((e, i) => (
                 <Zeile
-                  key={e.az}
+                  key={`${e.az}|${i}`}
                   onClick={() => onOpenAkte(e.az)}
                   links={<ZeileText titel={<><b className="tabular-nums">{e.az}</b> · {e.kurzbezeichnung || e.mandant || ""}</>} meta="keine WV gesetzt" />}
                 />

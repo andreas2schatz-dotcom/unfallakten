@@ -3,7 +3,7 @@ import T from "../../config/theme";
 import Ic from "../../config/icons";
 import { Kachel, KachelInhalt, Zeile, ZeileText, AbschnittLabel, ZeilenListe } from "./boardUi";
 
-export default function TermineKachel({ status, eintraege, onOpenAkte, onRetry }) {
+export default function TermineKachel({ status, eintraege, onOpenAkte, onRetry, retryLaeuft }) {
   const heute  = eintraege.filter((e) => e.tage_bis === 0);
   const morgen = eintraege.filter((e) => e.tage_bis === 1);
 
@@ -11,10 +11,10 @@ export default function TermineKachel({ status, eintraege, onOpenAkte, onRetry }
     ? `${heute.length} heute · ${morgen.length} morgen`
     : null;
 
-  function terminZeile(e) {
+  function terminZeile(e, i) {
     return (
       <Zeile
-        key={e.az + e.termin_datum + (e.uhrzeit || "")}
+        key={`${e.az}|${e.termin_datum}|${e.uhrzeit || ""}|${e.termin_art || ""}|${i}`}
         onClick={() => onOpenAkte(e.az)}
         links={
           <ZeileText
@@ -33,6 +33,7 @@ export default function TermineKachel({ status, eintraege, onOpenAkte, onRetry }
         status={status}
         fehlerText="Termine konnten nicht geladen werden"
         onRetry={onRetry}
+        retryLaeuft={retryLaeuft}
         leer={eintraege.length === 0}
         leerText="Heute keine Termine"
       >

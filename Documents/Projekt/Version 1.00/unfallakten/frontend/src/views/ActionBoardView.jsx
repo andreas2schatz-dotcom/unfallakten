@@ -98,6 +98,8 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
               return (
                 <button
                   key={sb}
+                  type="button"
+                  aria-pressed={aktiv}
                   onClick={() => toggleSB(sb)}
                   style={{
                     fontSize: "0.6875rem", fontWeight: 600, padding: "3px 9px", borderRadius: 999, cursor: "pointer",
@@ -112,6 +114,7 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
             })}
           </div>
           <button
+            type="button"
             onClick={laden}
             disabled={laedtGerade}
             style={{ display: "flex", alignItems: "center", gap: 6, fontSize: T.textXs, color: T.textMuted, padding: "5px 10px", border: `1px solid ${T.border}`, borderRadius: 7, background: T.cardBg, cursor: "pointer", opacity: laedtGerade ? 0.5 : 1 }}
@@ -137,10 +140,10 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
           />
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0,3fr) minmax(0,2fr)", gap: 16, alignItems: "start" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-              <FristenKachel status={daten.fristen.status} eintraege={fristen} onOpenAkte={oeffneAkte} onRetry={laden} />
-              <WiedervorlagenKachel status={daten.wv.status} wv={wv} ohne_wv={ohneWv} onOpenAkte={oeffneAkte} onRetry={laden} onAlleOeffnen={onOpenWiedervorlage} />
+              <FristenKachel status={daten.fristen.status} eintraege={fristen} onOpenAkte={oeffneAkte} onRetry={laden} retryLaeuft={laedtGerade} />
+              <WiedervorlagenKachel status={daten.wv.status} wv={wv} ohne_wv={ohneWv} onOpenAkte={oeffneAkte} onRetry={laden} onAlleOeffnen={onOpenWiedervorlage} retryLaeuft={laedtGerade} />
             </div>
-            <TermineKachel status={daten.termine.status} eintraege={termine} onOpenAkte={oeffneAkte} onRetry={laden} />
+            <TermineKachel status={daten.termine.status} eintraege={termine} onOpenAkte={oeffneAkte} onRetry={laden} retryLaeuft={laedtGerade} />
           </div>
         </div>
       )}

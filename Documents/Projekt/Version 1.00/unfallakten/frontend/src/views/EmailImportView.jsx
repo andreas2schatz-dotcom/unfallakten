@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import T from "../config/theme.js";
 import UnfallEmailView  from "./email_import/UnfallEmailView.jsx";
 import TerminEmailView  from "./email_import/TerminEmailView.jsx";
@@ -10,12 +10,8 @@ const TABS = [
   { id: "bussgeld", label: "bussgeld@" },
 ];
 
-function EmailImportView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet }) {
+function EmailImportView({ onOpenAkte, dispatch }) {
   const [tab, setTab] = useState("unfall");
-
-  useEffect(() => {
-    if (initialEmailId) setTab("unfall");
-  }, [initialEmailId]);
 
   return (
     <div style={{ flex:1, overflowY:"auto", background:T.offWhite }}>
@@ -62,7 +58,7 @@ function EmailImportView({ onOpenAkte, dispatch, initialEmailId, onEmailGeoffnet
         </div>
 
         {/* Tab-Inhalt */}
-        {tab === "unfall"   && <UnfallEmailView  onOpenAkte={onOpenAkte} dispatch={dispatch} initialEmailId={initialEmailId} onEmailGeoffnet={onEmailGeoffnet} />}
+        {tab === "unfall"   && <UnfallEmailView  onOpenAkte={onOpenAkte} dispatch={dispatch} />}
         {tab === "termin"   && <TerminEmailView   onOpenAkte={onOpenAkte} />}
         {tab === "bussgeld" && <BussgeldEmailView onOpenAkte={onOpenAkte} />}
 

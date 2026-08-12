@@ -35,11 +35,11 @@ export default function JetztDranLeiste({ fristenStatus, wvStatus, fristen, wv, 
     <Kachel icon={punkt} titel="Jetzt dran" zusammenfassung={zusammenfassung}>
       <KachelInhalt status="ok" leer={eintraege.length === 0} leerText="Keine überfälligen Vorgänge">
         <ZeilenListe>
-          {eintraege.map((e) => {
+          {eintraege.map((e, i) => {
             const stufe = e.tage < 0 ? "rot" : "gelb";
             return (
               <Zeile
-                key={e.prio + e.az + e.tage}
+                key={`${e.prio}|${e.az}|${e.tage}|${i}`}
                 stufe={stufe}
                 onClick={() => onOpenAkte(e.az)}
                 links={

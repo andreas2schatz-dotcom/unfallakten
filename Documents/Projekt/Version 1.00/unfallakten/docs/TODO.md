@@ -28,8 +28,12 @@ Feature live abgenommen: Prefill Mandant, OMA-XML **strukturgleich** zum echten 
 - `beispieloma.xml` als **bereinigte** Test-Fixture committen (sonst skippt der Struktur-Guard-Test in CI); NICHT die echte Kundendatei (PII).
 - Prod-Rollout: `oma-share`-Volume steht in `docker-compose.prod.yml`; bei non-root Gunicorn ggf. `uid`/`gid` anpassen.
 
-### Dashboard-Hell — ✅ gemergt (2026-08-03), Nacharbeit offen
-Feinschliff separat: Sidebar-Emoji-Icons App.jsx, SB-Klarnamen-Tooltips (Kürzel-Liste von RA Schatz nötig); totes `pendingEmailId`-Gerüst + ungenutzter `nachrichtenNeu`-Endpoint entfernen; A11y (aria-pressed SB-Chips, role=alert Fehlerblock, aria-hidden Skeleton); `type=button` + Retry-Disable + Badge-Logik-Konsolidierung in `boardUi`; **NEU (Befund Playwright-Abnahme 2026-08-10):** doppelte React-Keys in `boardUi.jsx` `ZeilenListe` (Key = AZ+SB+Datum kollidiert bei mehreren Einträgen derselben Akte am selben Tag — eindeutigen Key ergänzen).
+### Sachbearbeiter-Verwaltung in den Einstellungen (neu, 2026-08-12)
+Spec freigegeben: `docs/superpowers/specs/2026-08-12-sachbearbeiter-verwaltung-design.md`. Eine Tabelle `sachbearbeiter` (Migration 68) ersetzt vier hartcodierte Listen (Frontend `ALLE_SB`/`DEFAULT_SB`, Backend `SACHBEARBEITER`-Dict, `_KALENDER_ZU_SB`, Vorauswahl); Pflege im neuen Einstellungen-Reiter inkl. RA-MICRO-Abgleich (read-only, nicht blockierend). Erledigt damit auch den offenen Feinschliff-Punkt „SB-Klarnamen-Tooltips". Nächster Schritt: Umsetzungsplan.
+Belegter Nebenbefund: **JH (Jochen Hofmann, Partner bis 2011)** führt 2.182 RA-MICRO-Altakten, ist im System unbekannt → wird als inaktiv angelegt. **ME/EM/EY** (20/5/2 Akten) = Fehlanlagen/privat, werden ignoriert.
+
+### Dashboard-Hell — ✅ gemergt (2026-08-03), Feinschliff ✅ (2026-08-12)
+Nacharbeit abgeschlossen: doppelte React-Keys, A11y (`aria-pressed`/`role=alert`/`aria-hidden`), `type=button` + Retry-Disable + `tageBadgeText`-Konsolidierung, toter `pendingEmailId`/`nachrichtenNeu`-Code raus, Sidebar-Emoji → SVG-Icons. Protokoll → CHANGELOG 2026-08-12. **Offen war nur:** SB-Klarnamen-Tooltips → jetzt Teil der Sachbearbeiter-Verwaltung (oben).
 
 ### Kürzungstaxonomie — Phase 0 ✅ · Phase 1 ✅ · in `main` (2026-07-24)
 **Offen:**

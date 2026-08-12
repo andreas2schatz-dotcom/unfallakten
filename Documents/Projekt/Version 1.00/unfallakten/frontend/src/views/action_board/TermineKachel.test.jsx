@@ -29,3 +29,19 @@ describe("TermineKachel", () => {
     expect(screen.getByText("Heute keine Termine")).toBeInTheDocument();
   });
 });
+
+describe("TermineKachel – eindeutige Keys", () => {
+  it("warnt nicht bei zwei Terminen derselben Akte zur selben Zeit", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const doppelt = [
+      { az: "312/26 AS", termin_art: "Gerichtstermin", termin_datum: "2026-07-30", uhrzeit: "09:00", tage_bis: 0, kurzbezeichnung: "Müller" },
+      { az: "312/26 AS", termin_art: "Besprechung",    termin_datum: "2026-07-30", uhrzeit: "09:00", tage_bis: 0, kurzbezeichnung: "Müller" },
+      { az: "218/26 PK", termin_art: "Ortstermin",     termin_datum: "2026-07-31", uhrzeit: "",      tage_bis: 1, kurzbezeichnung: "Weber" },
+      { az: "218/26 PK", termin_art: "Rückruf",        termin_datum: "2026-07-31", uhrzeit: "",      tage_bis: 1, kurzbezeichnung: "Weber" },
+    ];
+    render(<TermineKachel status="ok" eintraege={doppelt} onOpenAkte={() => {}} onRetry={() => {}} />);
+    const keyWarnungen = spy.mock.calls.filter((c) => String(c[0]).includes("same key"));
+    spy.mockRestore();
+    expect(keyWarnungen).toEqual([]);
+  });
+});

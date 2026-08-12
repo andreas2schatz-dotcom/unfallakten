@@ -96,7 +96,6 @@ function AppShell({ user, onLogout }) {
   const [tabs, setTabs]          = useState([]);
   const [active, setActive]      = useState("dashboard");   // "dashboard" | "email-import" | "wiedervorlage" | "akte-N"
   const [aktenState, dispatch]   = useReducer(reducer, INITIAL_STATE);
-  const [pendingEmailId, setPendingEmailId] = useState(null);
   const [pendingReviewIntakeId, setPendingReviewIntakeId] = useState(null);
   const { online }               = useBackend();
 
@@ -146,10 +145,6 @@ function AppShell({ user, onLogout }) {
     }
   }, [aktenState]);
 
-  const onEmailGeoffnet = useCallback(() => {
-    setPendingEmailId(null);
-  }, []);
-
   const closeTab = useCallback((tabId) => {
     setTabs(prev => {
       const filtered = prev.filter(t => t.id!==tabId);
@@ -171,13 +166,13 @@ function AppShell({ user, onLogout }) {
 
   // Linke Menü-Einträge
   const navItems = [
-    { id:"dashboard",       icon:Ic.dash,  label:"Dashboard"       },
-    { id:"aktensuche",      icon:"🔍",     label:"Aktensuche"       },
-    { id:"email-import",    icon:Ic.email, label:"E-Mail-Import"    },
-    { id:"wiedervorlage",   icon:"📋",     label:"Wiedervorlage"    },
-    { id:"review-queue",    icon:"📥",     label:"Review-Queue"     },
-    { id:"kuerzungskatalog",icon:"⚖️",    label:"Kürzungskatalog"  },
-    { id:"einstellungen",   icon:Ic.settings, label:"Einstellungen"  },
+    { id:"dashboard",        icon:Ic.dash,     label:"Dashboard"       },
+    { id:"aktensuche",       icon:Ic.search,   label:"Aktensuche"      },
+    { id:"email-import",     icon:Ic.email,    label:"E-Mail-Import"   },
+    { id:"wiedervorlage",    icon:Ic.liste,    label:"Wiedervorlage"   },
+    { id:"review-queue",     icon:Ic.inbox,    label:"Review-Queue"    },
+    { id:"kuerzungskatalog", icon:Ic.scale,    label:"Kürzungskatalog" },
+    { id:"einstellungen",    icon:Ic.settings, label:"Einstellungen"   },
   ];
 
   return (
@@ -289,7 +284,7 @@ function AppShell({ user, onLogout }) {
             {active==="dashboard"        ? <ActionBoardView onOpenAkte={openAkte} onOpenWiedervorlage={() => setActive("wiedervorlage")} />
             : active==="statistiken"     ? <StatistikenView />
             : active==="aktensuche"      ? <AktensucheView onOpenAkte={openAkte} />
-            : active==="email-import"    ? <EmailImportView onOpenAkte={openAkte} dispatch={dispatch} initialEmailId={pendingEmailId} onEmailGeoffnet={onEmailGeoffnet} />
+            : active==="email-import"    ? <EmailImportView onOpenAkte={openAkte} dispatch={dispatch} />
             : active==="wiedervorlage"   ? <WiedervorlageView onOpenAkte={openAkte} />
             : active==="review-queue"    ? <ReviewQueueView onOpenAkte={openAkte} initialIntakeId={pendingReviewIntakeId} onDokumentGeoffnet={() => setPendingReviewIntakeId(null)} />
             : active==="kuerzungskatalog"? <KuerzungskatalogSection />
