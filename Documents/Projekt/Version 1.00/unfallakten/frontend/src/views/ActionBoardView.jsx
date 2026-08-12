@@ -111,40 +111,46 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
       const aktiveKuerzel = aktive.map((e) => e.kuerzel);
       setSbListe(aktive);
 
-      const gespeichert   = gespeicherteAuswahl();
-      const bekanntVorher = gespeicherterBekanntBestand();
-      const initial       = initialeAuswahl(aktive, bekanntVorher);
-      const neueKuerzel   = bekanntVorher === null
-        ? []
-        : aktiveKuerzel.filter((k) => !bekanntVorher.includes(k));
-
-      // prev === null: erster erfolgreicher Ladevorgang -> initiale Auswahl;
-      // weicht sie von der gespeicherten Auswahl ab (z. B. weil neue Kürzel
-      // gemergt wurden), wird das sofort persistiert -- sonst geht das neue
-      // Kürzel beim nächsten Seitenaufruf wieder verloren (bekannteSB kennt
-      // es dann schon, aktiveSB nie).
-      // Sonst: neue Kürzel, die während der laufenden Sitzung dazukommen,
-      // sofort in die bestehende Auswahl mergen (nicht erst nach Neuladen
-      // der Seite sichtbar machen) -- ohne bereits abgewählte Kürzel
-      // anzurühren.
-      setAktiveSB((prev) => {
-        if (prev === null) {
-          if (auswahlWeichtAb(initial, gespeichert)) {
-            localStorage.setItem(SB_KEY, JSON.stringify([...initial]));
-          }
-          return initial;
-        }
-        if (neueKuerzel.length === 0) return prev;
-        const next = new Set(prev);
-        neueKuerzel.forEach((k) => next.add(k));
-        localStorage.setItem(SB_KEY, JSON.stringify([...next]));
-        return next;
-      });
-
-      // Eine leere Antwort darf den Bestand nicht überschreiben -- sonst
-      // gelten beim nächsten Laden alle Kürzel als neu und bewusst
-      // abgewählte werden ungewollt wieder aktiviert.
+      // Eine leere Kürzelliste (HTTP 204, leere Tabelle, alle Zeilen
+      // inaktiv/ignoriert) darf weder die Auswahl noch den Bestand
+      // anfassen -- sonst verwirft initialeAuswahl() eine gespeicherte
+      // Auswahl als "ungültig" (gueltig ist leer) und überschreibt sie
+      // mit einer leeren Menge, die wegen der bewusst klebrigen leeren
+      // Auswahl (Randbedingung "abgewählt bleibt abgewählt") nie mehr
+      // zurückkommt. Die Ansicht filtert in dieser Situation ohnehin
+      // nicht: sbListe ist dann leer, also ist auch das lokale
+      // bekannteSB in sbFilter leer.
       if (aktiveKuerzel.length > 0) {
+        const gespeichert   = gespeicherteAuswahl();
+        const bekanntVorher = gespeicherterBekanntBestand();
+        const initial       = initialeAuswahl(aktive, bekanntVorher);
+        const neueKuerzel   = bekanntVorher === null
+          ? []
+          : aktiveKuerzel.filter((k) => !bekanntVorher.includes(k));
+
+        // prev === null: erster erfolgreicher Ladevorgang -> initiale
+        // Auswahl; weicht sie von der gespeicherten Auswahl ab (z. B.
+        // weil neue Kürzel gemergt wurden), wird das sofort persistiert
+        // -- sonst geht das neue Kürzel beim nächsten Seitenaufruf
+        // wieder verloren (bekannteSB kennt es dann schon, aktiveSB nie).
+        // Sonst: neue Kürzel, die während der laufenden Sitzung
+        // dazukommen, sofort in die bestehende Auswahl mergen (nicht
+        // erst nach Neuladen der Seite sichtbar machen) -- ohne bereits
+        // abgewählte Kürzel anzurühren.
+        setAktiveSB((prev) => {
+          if (prev === null) {
+            if (auswahlWeichtAb(initial, gespeichert)) {
+              localStorage.setItem(SB_KEY, JSON.stringify([...initial]));
+            }
+            return initial;
+          }
+          if (neueKuerzel.length === 0) return prev;
+          const next = new Set(prev);
+          neueKuerzel.forEach((k) => next.add(k));
+          localStorage.setItem(SB_KEY, JSON.stringify([...next]));
+          return next;
+        });
+
         localStorage.setItem(BEKANNT_KEY, JSON.stringify(aktiveKuerzel));
       }
     }

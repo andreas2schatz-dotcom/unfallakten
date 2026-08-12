@@ -217,7 +217,7 @@ describe("ActionBoardView", () => {
     const { unmount } = render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
     expect(await screen.findByRole("button", { name: "CS" })).toHaveAttribute("aria-pressed", "true");
     const gespeichert = JSON.parse(localStorage.getItem("dashboard.aktiveSB"));
-    expect(gespeichert).toEqual(expect.arrayContaining(["AS", "CS"]));
+    expect(gespeichert).toEqual(["AS", "CS"]);
 
     unmount();
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
@@ -234,5 +234,25 @@ describe("ActionBoardView", () => {
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
     await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
     expect(JSON.parse(localStorage.getItem("dashboard.bekannteSB"))).toEqual(["AS", "TB"]);
+  });
+
+  it("fasst weder Auswahl noch Bestand an, wenn die Antwort keine Kürzel enthält (leere Liste, Tabelle leer o. ä.)", async () => {
+    localStorage.setItem("dashboard.aktiveSB", JSON.stringify(["AS"]));
+    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "TB"]));
+    api.termineHeute.mockResolvedValue({ eintraege: [] });
+    api.fristen.mockResolvedValue({ eintraege: [] });
+    api.wiedervorlagen.mockResolvedValue({ wv: [], ohne_wv: [] });
+    einst.sachbearbeiter.mockResolvedValue({ eintraege: [] });
+
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
+    expect(JSON.parse(localStorage.getItem("dashboard.aktiveSB"))).toEqual(["AS"]);
+    expect(JSON.parse(localStorage.getItem("dashboard.bekannteSB"))).toEqual(["AS", "TB"]);
+
+    einst.sachbearbeiter.mockResolvedValue({ eintraege: SB_LISTE });
+    fireEvent.click(screen.getByRole("button", { name: /Aktualisieren/ }));
+
+    expect(await screen.findByRole("button", { name: "AS" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "TB" })).toHaveAttribute("aria-pressed", "false");
   });
 });
