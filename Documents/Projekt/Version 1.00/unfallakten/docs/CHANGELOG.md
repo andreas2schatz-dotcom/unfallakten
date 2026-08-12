@@ -46,6 +46,15 @@ Spalten: Kürzel, Name, Titel, Anrede, Rolle, aktiv, ignoriert, dashboard_voraus
 
 **Offen:** Browser-Sichtprüfung im Produktivbetrieb (Reiter „Sachbearbeiter" + Tagesübersicht-Chips) steht noch aus — siehe `docs/TODO.md` unter Produktiv-Nachtests.
 
+**Nacharbeit — Abschlussprüfung, vier Befunde behoben (2026-08-12):**
+- **W-1:** `PUT .../sachbearbeiter/<kuerzel>` mit `aktiv: true` setzt `ignoriert` jetzt auf 0 zurück — sonst blieb eine „reaktivierte" ignorierte Zeile trotz vollständig gepflegtem Namen wirkungslos (Sackgasse ohne Datenbankeingriff). Reiter unterscheidet „ignoriert (nicht gepflegt)" von „ausgeschieden"; RA-MICRO-Abgleich erklärt in einem Satz, was „ignorieren" bedeutet.
+- **W-2:** Schutzplanken-Test ergänzt, der `hole_sachbearbeiter("JH")` mit `aktiv=0` gegen ein künftiges `AND aktiv = 1` in der Abfrage verriegelt (würde sonst 2.182 Altakten auf `[JH]` zurückwerfen, unbemerkt von der Vollsuite).
+- **W-3:** `GET /einstellungen/sachbearbeiter` liest jetzt über `alle_sachbearbeiter()` (Modul-SSOT) statt über eine eigene Abfrage — bei fehlender Tabelle (Bestands-DB ohne Migration 68) liefert der Endpunkt die eingebaute Fallback-Liste statt eines 500ers.
+- **W-4:** Ein neu gepflegtes Kürzel verschwand aus der Tagesübersicht, weil die gespeicherte SB-Auswahl (`localStorage`) Vorrang vor der Vorauswahl hatte und ein neues Kürzel darin nie enthalten war — träfe **Fristen** ebenso wie Termine. Fix in zwei Schritten: zuerst ein neuer „bereits gesehen"-Bestand (`dashboard.bekannteSB`), der neue Kürzel beim Neuladen der Seite automatisch zur Auswahl hinzufügt; eine Nachprüfung deckte auf, dass der Aktualisieren-Knopf und Kachel-Retries ein neues Kürzel innerhalb derselben Sitzung trotzdem verschluckten (der Bestand wurde bei jedem Laden fortgeschrieben, die Auswahl aber nur beim allerersten Laden abgeleitet) — zweiter Fix merged neue Kürzel jetzt auch in eine bereits bestehende Auswahl, sichtbar sofort nach „Aktualisieren", nicht erst nach Neuladen der Seite.
+- Dazu: Schutzplanken-Test für `kalender_zu_kuerzel()` mit ausgeschiedenem Sachbearbeiter (die bewusste Nicht-Filterung war bisher nur für `hole_sachbearbeiter()` verriegelt, nicht für die Kalender-Zuordnung selbst — `docs/DECISIONS.md` korrigiert).
+
+**Commits:** `a209c74f` (Backend W-1/W-2/W-3), `585b38c4` (Frontend W-1/W-4), `274fc824` (Doku), `3336b50c` (W-4-Nachbesserung Aktualisieren-Pfad), `514a3ae8` (Schutzplanke `kalender_zu_kuerzel()` + DECISIONS-Korrektur), plus der zugehörige Doku-Commit dieses Abschnitts. Backend-Vollsuite **1773 passed / 20 skipped / 0 failed** (445.80 s), Frontend **536/536** (87 Testdateien).
+
 ---
 
 ## 2026-08-12 — Feinschliff Dashboard-Hell (Nacharbeit, `main`)

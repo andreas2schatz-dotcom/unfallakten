@@ -1,9 +1,9 @@
 # Bugfixes
 
+## Reihenfolge & Status
+
 Quelle: Code-Review 2026-08-10, Vollbericht → `handover/2026-08-10-forderungsschreiben-review-befunde.md`.
 Branch: `abschlussbericht`. Vorgehen: TDD (Test zuerst, rot sehen, dann fixen).
-
-## Reihenfolge & Status
 
 ### Phase 0 — Aufräumarbeiten (Verbesserungsvorschläge) ✅ (2026-08-11, `a4cf92ca`)
 - [x] **V-1** Toter Alt-Generator `backend/word/forderungsschreiben.py` gelöscht; Tests auf `_wv` portiert
