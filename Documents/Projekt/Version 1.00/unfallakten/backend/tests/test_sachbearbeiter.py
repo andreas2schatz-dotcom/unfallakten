@@ -159,6 +159,23 @@ class TestSachbearbeiterModul(unittest.TestCase):
             conn.commit()
         self.assertEqual(kalender_zu_kuerzel()["T. Brunner"], "TB")
 
+    def test_kalender_mapping_ausgeschiedener_sachbearbeiter_bleibt_erhalten(self):
+        """Schutzplanke für die DECISIONS.md-Entscheidung zu kalender_zu_kuerzel().
+
+        Termine aus dem RA-MICRO-Kalender eines ausgeschiedenen Kollegen
+        (aktiv=0, ignoriert=0) sollen weiterhin der richtigen Akte zugeordnet
+        werden -- kalender_zu_kuerzel() darf also NICHT nach aktiv filtern.
+        JH (Jochen Hofmann) ist im Seed aktiv=0; hier bekommt er testweise
+        einen Kalendernamen, den die Zuordnung trotzdem liefern muss.
+        """
+        from backend.db.database import get_connection
+        from backend.ramicro.sachbearbeiter import kalender_zu_kuerzel
+        with get_connection() as conn:
+            conn.execute("UPDATE sachbearbeiter SET kalender_name = 'J. Hofmann' "
+                         "WHERE kuerzel = 'JH'")
+            conn.commit()
+        self.assertEqual(kalender_zu_kuerzel()["J. Hofmann"], "JH")
+
     def test_fallback_wenn_tabelle_fehlt(self):
         from backend.db.database import get_connection
         from backend.ramicro.sachbearbeiter import hole_sachbearbeiter

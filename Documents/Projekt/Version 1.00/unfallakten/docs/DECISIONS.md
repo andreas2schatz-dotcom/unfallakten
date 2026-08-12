@@ -15,7 +15,7 @@ Format: Entscheidung → Grund → Alternative → Konsequenz.
 
 **Alternative:** `WHERE aktiv = 1 AND ignoriert = 0` in die Abfrage aufnehmen — würde Kalendertermine ausgeschiedener Kollegen unzuordenbar machen.
 
-**Konsequenz:** Dieser Eintrag existiert, damit das fehlende Filter-Kriterium niemand später als Versehen „repariert". Schutzplanke im Code: `backend/tests/test_sachbearbeiter.py::TestSachbearbeiterModul::test_ausgeschiedener_sachbearbeiter_behaelt_namen_schutzplanke`. (2026-08-12)
+**Konsequenz:** Dieser Eintrag existiert, damit das fehlende Filter-Kriterium niemand später als Versehen „repariert". Schutzplanke im Code: `backend/tests/test_sachbearbeiter.py::TestSachbearbeiterModul::test_kalender_mapping_ausgeschiedener_sachbearbeiter_bleibt_erhalten` (für `kalender_zu_kuerzel()`) und `::test_ausgeschiedener_sachbearbeiter_behaelt_namen_schutzplanke` (für `hole_sachbearbeiter()`, dieselbe Grundregel „nicht nach `aktiv` filtern", andere Funktion). (2026-08-12)
 
 ---
 
