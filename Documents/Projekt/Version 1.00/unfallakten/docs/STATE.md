@@ -9,6 +9,9 @@
 
 ## 0. Betrieb & Deploy-Warnungen (aktuell, 2026-08-12)
 
+### ⚠️ Migration 68 (`sachbearbeiter`) vor App-Code anwenden
+Die Tabelle existiert nur per Migration. Startet der neue Code auf einer Bestands-DB ohne Migration 68, fällt das Lesen auf die eingebaute Liste zurück (Namen stimmen, aber CS/JH fehlen), und der Einstellungen-Reiter meldet beim Speichern einen Fehler. Bei Gunicorn wie immer einmal vorab migrieren.
+
 ### ✅ Großer Merge 2026-08-11: Dev läuft wieder auf `main` (== `origin/main`)
 Der komplette Stapel `intake-review-sichtbarkeit` + `abschlussbericht` wurde per Fast-Forward nach `main` gemergt und gepusht (`cf7dd74d`, Docs `5f778cc3`) — inkl. der E-Mail-Import-Hotfixes (`34342daa`/`8e9b50ea`), Übersicht-Bugfixes, SSOT-Dokumentenklassen und beider Testsanierungen. Merge-Gates: Backend 1735/1735, Frontend 502/502. Die früheren Cherry-Pick-Überlegungen sind damit gegenstandslos. Arbeitsverzeichnis/Container laufen unverändert weiter (FF = identischer Dateibaum); neue Feature-Branches ab jetzt von `main` ziehen. Die alten, vollständig gemergten Feature-Branches (`abschlussbericht`, `intake-review-sichtbarkeit`, `dokumentenklassen-ssot` …) wurden nicht gelöscht (Repo-Konvention). Abnahmen erfolgen im Produktivbetrieb (Entscheidung RA Schatz, siehe TODO „Produktiv-Nachtests").
 

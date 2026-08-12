@@ -7,6 +7,47 @@
 
 ---
 
+## 2026-08-12 — Sachbearbeiter-Verwaltung in den Einstellungen (Branch `sachbearbeiter-verwaltung`)
+
+Spec: `docs/superpowers/specs/2026-08-12-sachbearbeiter-verwaltung-design.md`, Plan: `docs/superpowers/plans/2026-08-12-sachbearbeiter-verwaltung.md`. Vier hartcodierte Sachbearbeiter-Listen (Frontend `ALLE_SB`/`DEFAULT_SB`, Backend-Dict `SACHBEARBEITER`, `_KALENDER_ZU_SB`, Vorauswahl) durch eine einzige Tabelle ersetzt. Backend-Vollsuite **1769 passed / 20 skipped / 0 failed** (455.82 s), Frontend **530/530** (87 Testdateien).
+
+**Migration 68 — Tabelle `sachbearbeiter`, elf Startzeilen:**
+
+| Kürzel | Name | Rolle | Status |
+|---|---|---|---|
+| AS | Andreas Schatz | Anwalt | aktiv |
+| PK | Peter Koch | Anwalt | aktiv |
+| CO | Claudia Ostarek | Anwalt | aktiv |
+| MM | Monika Mieth | Anwalt | aktiv |
+| AH | Alexander Herbert | Anwalt | aktiv |
+| CS | Carina Salvagnin | Anwalt | aktiv |
+| TB | Tanja Brunner | ReFa | aktiv |
+| SK | Sophie Koch | ReFa | aktiv |
+| EI | Elsa Ihl | ReFa | aktiv |
+| SN | Susanne Neumann | ReFa | aktiv |
+| JH | Jochen Hofmann | Anwalt | inaktiv (Partner bis 2011) |
+
+Spalten: Kürzel, Name, Titel, Anrede, Rolle, aktiv, ignoriert, dashboard_vorauswahl, kalender_name (mit partiellem Unique-Index), sortierung.
+
+**RA-MICRO-Bestandsaufnahme (2026-08-12, `tblAkten`):** PK 7608 · AH 4255 · AS 3201 · MM 3120 · **JH 2182** · CO 205 · ME 20 · EM 5 · EY 2 · EI 1. JH war dem System bisher unbekannt (Altakten zeigten nur `[JH]` statt Klarname) und wurde deshalb als inaktiv angelegt statt gelöscht — Altschreiben behalten so ihren Namen. ME/EM/EY (20/5/2 Akten) sind Fehlanlagen und wurden ignoriert.
+
+- **Backend liest aus der Tabelle statt aus dem Dict** (`backend/ramicro/sachbearbeiter.py`): `hole_sachbearbeiter()` behält seine bisherige Signatur, damit die fünf DOCX-Generatoren unangetastet bleiben. Fällt nur dann auf das eingebaute Dict zurück, wenn die Tabelle fehlt (z. B. Migration noch nicht gelaufen). Bewusst kein Cache.
+- **Kalender-Zuordnung:** `_KALENDER_ZU_SB` in `dashboard_routes.py` durch `kalender_zu_kuerzel()` ersetzt, das die Tabelle abfragt.
+- **CRUD-Endpunkte** `/einstellungen/sachbearbeiter` (GET/POST/PUT/DELETE) mit Validierung: Kürzel exakt zwei Großbuchstaben, Kalendername eindeutig, Rolle/Anrede aus fester Menge; Fehler als 400/404/409.
+- **RA-MICRO-Abgleich** `GET /einstellungen/sachbearbeiter/ramicro-abgleich` — read-only, blockiert nie: Verbindungsfehler landen als WARNING im Log, unerwartete Fehler als ERROR inklusive Stacktrace (unterscheidbar von reinem RA-MICRO-Ausfall).
+- **Neuer Einstellungen-Reiter „Sachbearbeiter":** Liste anzeigen/ändern, Anlegen, Löschen mit Rückfrage, RA-MICRO-Abgleich mit „anlegen"/„ignorieren" je Fund.
+- **Tagesübersicht:** Chips, Vorauswahl und Klarnamen-Tooltips kommen jetzt aus der Tabelle; die beiden bestehenden Sicherheitsverhalten bleiben erhalten (unbekannte Kürzel werden nie versteckt, vor dem Laden der Sachbearbeiter-Liste wird nicht gefiltert).
+
+**Zwei echte Befunde aus den Reviews behoben:**
+- JSON `null` wurde beim Kalendernamen als Text „None" gespeichert — die Zuordnung ließ sich danach nicht mehr entfernen (Geisterkonflikt beim erneuten Speichern). Fix: `null` wird vor dem SQL-Insert/Update in echtes SQL-`NULL` übersetzt.
+- Das Speichern einer Zeile im Einstellungen-Reiter hat bislang alle ungespeicherten Eingaben in Nachbarzeilen verworfen (`laden()` ersetzte den kompletten Entwurf). Fix: `laden()` merged jetzt in den bestehenden Entwurf, statt ihn zu ersetzen — trägt auch für die späteren Auslöser Anlegen/Löschen/Abgleich.
+
+**Commits:** `ed6293d3`..`a09c6221` (14 Commits, Branch `sachbearbeiter-verwaltung`, SDD-Workflow mit Review je Task).
+
+**Offen:** Browser-Sichtprüfung im Produktivbetrieb (Reiter „Sachbearbeiter" + Tagesübersicht-Chips) steht noch aus — siehe `docs/TODO.md` unter Produktiv-Nachtests.
+
+---
+
 ## 2026-08-12 — Feinschliff Dashboard-Hell (Nacharbeit, `main`)
 
 Die in `docs/TODO.md` gesammelte Nacharbeit zum Dashboard-Hell-Umbau, alle Punkte TDD mit RED-Nachweis. Backend-Vollsuite **1733 passed / 20 skipped / 0 failed**, Frontend **516/516**.

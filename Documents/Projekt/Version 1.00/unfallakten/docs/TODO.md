@@ -13,6 +13,7 @@ Alles ist in `main` gemergt+gepusht (`cf7dd74d`); Entscheidung RA Schatz: Abnahm
 - **Entfernungsprüfung:** „📍 Entfernung prüfen"-Popup an 1280/25; dabei Positions-Tabelle im Review-Detail von Dok 517 sichten.
 - **Intake-Pending-Badge:** Import in Testakte → „Review ausstehend" in der Dokumentenkachel → Link öffnet Dok in der ReviewQueue → Zeile verschwindet nach Freigabe.
 - **SSOT-Klassen-Dropdown** in der ReviewQueue (22 Klassen) kurz sichten.
+- **Sachbearbeiter-Verwaltung:** Reiter „Sachbearbeiter" öffnen (elf Zeilen, JH grau als „ausgeschieden", Aktenzahlen aus RA-MICRO, Hinweis auf ME/EM/EY); danach Tagesübersicht öffnen (Chips zeigen beim Überfahren die Klarnamen, CS ist neu dabei, JH nicht).
 - **Übersicht-Redesign:** Sichtkontrolle; bewusste Eigenheiten: kurzes KPI-Umspringen beim Öffnen (Alt-Zahlen → Ereignismodell), HQ=0-Semantik (Header 0 € gefordert, Backend-DOCX rechnet bei HQ=0 mit 100 % — bekannte Inkonsistenz).
 Zurückgestellte Minors je Modul: `bugfixes.md` + CHANGELOG-Einträge 2026-08-07/-11 (opportunistisch bei nächster Anfassung).
 
@@ -27,10 +28,6 @@ Feature live abgenommen: Prefill Mandant, OMA-XML **strukturgleich** zum echten 
 - Beteiligten-Dublettencheck (DEKRA/Versicherung) — erst am echten Import verifizieren, ob RA-MICROs eigene OMA-Dublettenprüfung reicht.
 - `beispieloma.xml` als **bereinigte** Test-Fixture committen (sonst skippt der Struktur-Guard-Test in CI); NICHT die echte Kundendatei (PII).
 - Prod-Rollout: `oma-share`-Volume steht in `docker-compose.prod.yml`; bei non-root Gunicorn ggf. `uid`/`gid` anpassen.
-
-### Sachbearbeiter-Verwaltung in den Einstellungen (neu, 2026-08-12)
-Spec freigegeben: `docs/superpowers/specs/2026-08-12-sachbearbeiter-verwaltung-design.md`. Eine Tabelle `sachbearbeiter` (Migration 68) ersetzt vier hartcodierte Listen (Frontend `ALLE_SB`/`DEFAULT_SB`, Backend `SACHBEARBEITER`-Dict, `_KALENDER_ZU_SB`, Vorauswahl); Pflege im neuen Einstellungen-Reiter inkl. RA-MICRO-Abgleich (read-only, nicht blockierend). Erledigt damit auch den offenen Feinschliff-Punkt „SB-Klarnamen-Tooltips". Nächster Schritt: Umsetzungsplan.
-Belegter Nebenbefund: **JH (Jochen Hofmann, Partner bis 2011)** führt 2.182 RA-MICRO-Altakten, ist im System unbekannt → wird als inaktiv angelegt. **ME/EM/EY** (20/5/2 Akten) = Fehlanlagen/privat, werden ignoriert.
 
 ### Dashboard-Hell — ✅ gemergt (2026-08-03), Feinschliff ✅ (2026-08-12)
 Nacharbeit abgeschlossen: doppelte React-Keys, A11y (`aria-pressed`/`role=alert`/`aria-hidden`), `type=button` + Retry-Disable + `tageBadgeText`-Konsolidierung, toter `pendingEmailId`/`nachrichtenNeu`-Code raus, Sidebar-Emoji → SVG-Icons. Protokoll → CHANGELOG 2026-08-12. **Offen war nur:** SB-Klarnamen-Tooltips → jetzt Teil der Sachbearbeiter-Verwaltung (oben).
@@ -105,6 +102,7 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 
 | Datum | Feature |
 |---|---|
+| 2026-08-12 | **Sachbearbeiter-Verwaltung in den Einstellungen** (Migration 68, Tabelle `sachbearbeiter` mit 11 Startzeilen ersetzt vier hartcodierte Listen; CRUD-Reiter + RA-MICRO-Abgleich; Tagesübersicht-Chips mit Klarnamen-Tooltips) — Spec `docs/superpowers/specs/2026-08-12-sachbearbeiter-verwaltung-design.md`, Plan `docs/superpowers/plans/2026-08-12-sachbearbeiter-verwaltung.md`, Protokoll → CHANGELOG. Browser-Sichtprüfung offen, siehe „In Arbeit" |
 | 2026-08-11 | **Großer Merge nach `main` + Push** (`40c9143e..cf7dd74d`, FF): kompletter Stapel `intake-review-sichtbarkeit` + `abschlussbericht` — SSOT-Dokumentenklassen (22), Intake-Review-Sichtbarkeit, Abschluss-/Sachstandsbericht, Referenzwerkstatt+Entfernungsprüfung, Übersicht-Redesign A+B, Forderungsschreiben-Fixes (C-1, I-1–I-9), STA-Sofort-Fixes, E-Mail-Hotfixes, Testsanierungen (modul6/7 + Vollsuite). Entscheidung RA Schatz: Abnahmen produktiv statt vorab |
 | 2026-08-11 | **Backend-Vollsuite-Testsanierung: 123 → 0 Failures** (1735/1735 grün): modul1–4 + Nachbarn auf heutige API portiert; 3 echte Befunde gefixt (Frisch-DB-FK `unfallakte(id)`→`az` in Migration 3, `todos` ON DELETE CASCADE, „Rechnung (Auffang)" raus aus der Dokumentbezeichnung via `bezeichnung_label`); 2 Isolationsprobleme (sv_portal-Fixture ohne eigenes DB_PATH, akten_matching gegen echtes RA-MICRO). Protokoll → CHANGELOG |
 | 2026-08-11 | **Sachstandsanfrage: Review + Sofort-Fixes** (M-1 AZ-Format Dialog-Einstiege, M-2 Genus/Kasus `{SchreibenDativ}`, G-1 PII-Log, G-2 Fristanzeige, G-3, G-7 Stufenlogik-Tests) — Befund-Katalog `handover/2026-08-11-sachstandsanfrage-review-befunde.md`; Kernbefunde K-1–K-3 → Backlog PRD-25d |
