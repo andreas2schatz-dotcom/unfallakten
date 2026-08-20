@@ -1468,6 +1468,12 @@ def _migration_69_fk_reparatur(conn: sqlite3.Connection) -> None:
 
         conn.commit()
         conn.execute("PRAGMA foreign_keys=OFF")
+        # legacy_alter_table=ON: verhindert, dass SQLite beim RENAME alle
+        # Views der Datenbank neu validiert. Zwischen DROP und RENAME ist
+        # die Tabelle kurzzeitig weg, und eine abhaengige View (z.B.
+        # v_regulierungsstatus) waere sonst voruebergehend ungueltig, was
+        # den RENAME mit "error in view ...: no such table" scheitern liesse.
+        conn.execute("PRAGMA legacy_alter_table=ON")
         conn.execute(neues_ddl)
         conn.execute(
             "INSERT INTO {t}_neu69 ({s}) SELECT {s} FROM {t}".format(
@@ -1476,6 +1482,7 @@ def _migration_69_fk_reparatur(conn: sqlite3.Connection) -> None:
         )
         conn.execute("DROP TABLE {}".format(tabelle))
         conn.execute("ALTER TABLE {t}_neu69 RENAME TO {t}".format(t=tabelle))
+        conn.execute("PRAGMA legacy_alter_table=OFF")
         conn.execute("PRAGMA foreign_keys=ON")
         conn.commit()
         logger.info("Migration 69: Fremdschluessel von %s auf dokumente korrigiert.", tabelle)

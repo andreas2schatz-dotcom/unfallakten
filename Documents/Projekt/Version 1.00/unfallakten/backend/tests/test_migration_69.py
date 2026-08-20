@@ -128,6 +128,20 @@ def test_bestandsdaten_bleiben_erhalten(conn):
     assert row["versicherung"] == "HUK"
 
 
+def test_fk_reparatur_mit_abhaengiger_view(conn):
+    conn.execute("""
+        CREATE VIEW v_regulierungsstatus AS
+        SELECT ab.akte_id, ab.versicherung
+        FROM abrechnungsschreiben ab
+    """)
+    _run_migration_69(conn)
+    ziele = {r["table"] for r in conn.execute(
+        'PRAGMA foreign_key_list("abrechnungsschreiben")'
+    ).fetchall()}
+    assert "dokumente" in ziele
+    assert conn.execute("SELECT * FROM v_regulierungsstatus").fetchall() == []
+
+
 def test_ist_wiederholbar(conn):
     _run_migration_69(conn)
     _run_migration_69(conn)
