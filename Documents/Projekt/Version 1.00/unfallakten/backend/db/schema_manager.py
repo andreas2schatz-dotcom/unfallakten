@@ -323,6 +323,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     66: "-- migration_66_aktenanlage",  # Handled by _run_migration_66
     67: "-- migration_67_abschluss_status",  # Handled by _run_migration_67
     68: "-- migration_68_sachbearbeiter",  # Handled by _run_migration_68
+    69: "-- migration_69_sv_portal_ablage",  # Handled by _run_migration_69
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -1338,6 +1339,148 @@ def _run_migration_68(conn: sqlite3.Connection) -> None:
                 len(_SACHBEARBEITER_SEED))
 
 
+def _run_migration_69(conn: sqlite3.Connection) -> None:
+    """
+    Migration 69 - SV-Portal: Ablage-Status und Ausnahme-Sperre.
+
+    Holt zugleich nach, was die als ausgefuehrt gestempelten Migrationen
+    38, 39, 45 und 46 in Bestands-Datenbanken nie angelegt haben, und
+    repariert den Fremdschluessel auf die entfallene Tabelle dokumente_alt.
+    Kein executescript, explizite Commits um DDL (Reloader-Falle).
+    """
+    conn.commit()
+
+    neue_spalten = [
+        ("unfallakte",    "ramicro_abgelegt",     "INTEGER NOT NULL DEFAULT 0"),
+        ("unfallakte",    "ramicro_ablage_datum", "TEXT"),
+        ("unfallakte",    "status_vor_ablage",    "TEXT"),
+        ("unfallakte",    "portal_gesperrt",      "INTEGER NOT NULL DEFAULT 0"),
+        ("unfallakte",    "regulierung_status",   "TEXT NOT NULL DEFAULT 'offen'"),
+        ("beteiligte",    "gutachten_nr",         "TEXT"),
+        ("dokumente",     "portal_sichtbar",      "INTEGER NOT NULL DEFAULT 0"),
+        ("unfalldetails", "erstellt_am",          "TEXT"),
+    ]
+    for tabelle, spalte, typ in neue_spalten:
+        vorhanden = {r[1] for r in conn.execute(
+            "PRAGMA table_info({})".format(tabelle)
+        ).fetchall()}
+        if not vorhanden:
+            continue
+        if spalte not in vorhanden:
+            conn.commit()
+            conn.execute("ALTER TABLE {} ADD COLUMN {} {}".format(tabelle, spalte, typ))
+            conn.commit()
+            logger.info("Migration 69: %s.%s hinzugefuegt.", tabelle, spalte)
+
+    # unfalldetails.erstellt_am traegt in der Frisch-DB datetime('now','localtime')
+    # als Vorgabe. ALTER TABLE erlaubt keine nicht-konstante Vorgabe, deshalb
+    # wird der Bestand hier einmalig gefuellt.
+    conn.execute(
+        "UPDATE unfalldetails SET erstellt_am = datetime('now','localtime') "
+        "WHERE erstellt_am IS NULL"
+    )
+    conn.commit()
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS portal_sync_queue (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            akte_id      TEXT    NOT NULL,
+            sync_version INTEGER NOT NULL,
+            status       TEXT    DEFAULT 'pending'
+                         CHECK(status IN ('pending','sending','confirmed','failed')),
+            created_at   TEXT    DEFAULT (datetime('now','localtime')),
+            sent_at      TEXT,
+            retry_count  INTEGER DEFAULT 0,
+            last_error   TEXT
+        )
+    """)
+    conn.commit()
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS portal_einladungen (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            akte_id        TEXT    NOT NULL REFERENCES unfallakte(az) ON DELETE CASCADE,
+            beteiligter_id INTEGER NOT NULL REFERENCES beteiligte(id) ON DELETE CASCADE,
+            email          TEXT    NOT NULL,
+            rolle          TEXT    NOT NULL
+                           CHECK(rolle IN ('sachverstaendiger','privatmandant')),
+            status         TEXT    DEFAULT 'ausstehend'
+                           CHECK(status IN ('ausstehend','gesendet','angenommen')),
+            eingeladen_am  TEXT    DEFAULT (datetime('now','localtime')),
+            eingeladen_von INTEGER
+        )
+    """)
+    conn.commit()
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS fragebogen_erstkontakt (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            empfangen_am    TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+            absender_email  TEXT,
+            absender_name   TEXT,
+            message_id      TEXT UNIQUE,
+            json_roh        TEXT NOT NULL,
+            mandant_name    TEXT,
+            mandant_email   TEXT,
+            kfz_kennzeichen TEXT,
+            schadentag      TEXT,
+            status          TEXT NOT NULL DEFAULT 'neu',
+            akte_az         TEXT
+        )
+    """)
+    conn.commit()
+
+    _migration_69_fk_reparatur(conn)
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
+        (69, "Migration 69 - SV-Portal Ablage/Sperre + Schema-Reparatur 38/39/45"),
+    )
+    conn.commit()
+    logger.info("Migration 69 abgeschlossen.")
+
+
+def _migration_69_fk_reparatur(conn: sqlite3.Connection) -> None:
+    """
+    Baut forderung_positionen und abrechnungsschreiben neu auf, wenn ihr
+    dokument_id-Fremdschluessel noch auf die entfallene Tabelle dokumente_alt
+    zeigt. Solange er das tut, scheitert jedes DELETE auf unfallakte bei
+    eingeschalteter Fremdschluesselpruefung.
+    """
+    for tabelle in ("forderung_positionen", "abrechnungsschreiben"):
+        vorhanden = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name = ?",
+            (tabelle,),
+        ).fetchone()
+        if not vorhanden or "dokumente_alt" not in (vorhanden[0] or ""):
+            continue
+
+        neues_ddl = vorhanden[0].replace("dokumente_alt", "dokumente")
+        neues_ddl = neues_ddl.replace(
+            'CREATE TABLE "{}"'.format(tabelle), 'CREATE TABLE "{}_neu69"'.format(tabelle)
+        ).replace(
+            "CREATE TABLE {}".format(tabelle), "CREATE TABLE {}_neu69".format(tabelle)
+        )
+        spalten = [r[1] for r in conn.execute(
+            "PRAGMA table_info({})".format(tabelle)
+        ).fetchall()]
+        spaltenliste = ", ".join('"{}"'.format(s) for s in spalten)
+
+        conn.commit()
+        conn.execute("PRAGMA foreign_keys=OFF")
+        conn.execute(neues_ddl)
+        conn.execute(
+            "INSERT INTO {t}_neu69 ({s}) SELECT {s} FROM {t}".format(
+                t=tabelle, s=spaltenliste
+            )
+        )
+        conn.execute("DROP TABLE {}".format(tabelle))
+        conn.execute("ALTER TABLE {t}_neu69 RENAME TO {t}".format(t=tabelle))
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.commit()
+        logger.info("Migration 69: Fremdschluessel von %s auf dokumente korrigiert.", tabelle)
+
+
 def _run_migration_64(conn: sqlite3.Connection) -> None:
     """
     Migration 64 - Kürzungstaxonomie Phase 1:
@@ -1843,6 +1986,8 @@ def run_migrations() -> None:
                 _run_migration_67(conn)
             elif version == 68:
                 _run_migration_68(conn)
+            elif version == 69:
+                _run_migration_69(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
