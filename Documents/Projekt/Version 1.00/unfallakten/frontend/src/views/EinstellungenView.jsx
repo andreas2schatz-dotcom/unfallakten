@@ -1306,7 +1306,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                                 await apiSvPortal.togglePortalGesperrt(akte.az, neuerWert);
                                 setSvAkten(prev => prev.map(a =>
                                   a.az === akte.az
-                                    ? {...a, portal_gesperrt: neuerWert ? 1 : 0, portal_aktiv: neuerWert ? 0 : 1, im_system: true}
+                                    ? {...a, portal_gesperrt: neuerWert ? 1 : 0, im_system: true}
                                     : a
                                 ));
                               } catch(e) { setToast(e?.message || "Fehler."); }
