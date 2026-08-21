@@ -227,3 +227,75 @@ def test_sv_portal_toggle_portal_gesperrt_legt_akte_on_demand_an(app_client):
             "SELECT portal_gesperrt, portal_aktiv FROM unfallakte WHERE az = '999/99'"
         ).fetchone()
     assert row is not None and row["portal_gesperrt"] == 1 and row["portal_aktiv"] == 0
+
+
+def test_sv_portal_toggle_portal_gesperrt_entsperren_setzt_sync_pending(app_client):
+    from backend.db.database import get_connection
+    with get_connection() as conn:
+        conn.execute(
+            "INSERT INTO unfallakte (az, portal_gesperrt, portal_aktiv) "
+            "VALUES ('5/25', 1, 0)"
+        )
+        conn.commit()
+
+    rv = app_client.patch(
+        "/einstellungen/sv-portal/akten/5%2F25/portal_gesperrt",
+        json={"portal_gesperrt": 0},
+        content_type="application/json",
+    )
+    assert rv.status_code == 200
+    assert rv.get_json() == {"az": "5/25", "portal_gesperrt": 0}
+
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT portal_aktiv, portal_sync_pending FROM unfallakte WHERE az = '5/25'"
+        ).fetchone()
+    assert row["portal_aktiv"] == 1
+    assert row["portal_sync_pending"] == 1
+
+
+def test_sv_portal_liste_zaehlt_auch_lokal_unbekannte_akten_als_laufend(app_client):
+    with patch("backend.routers.sv_portal_routes.hole_adresse_by_nr") as mock_lookup:
+        mock_lookup.return_value = {
+            "adressnr": 500, "name": "Y", "vorname": "", "email": "y@test.de"
+        }
+        app_client.post("/einstellungen/sv-portal",
+                        json={"adressnr": 500}, content_type="application/json")
+
+    from backend.db.database import get_connection
+    with get_connection() as conn:
+        conn.execute(
+            "INSERT INTO unfallakte (az, ramicro_abgelegt) VALUES ('1/25', 1)"
+        )
+        conn.commit()
+
+    with patch("backend.routers.sv_portal_routes.hole_akten_fuer_sv") as mock_akten:
+        mock_akten.return_value = [
+            {"az": "1/25", "ra_bezeichnung": ""},
+            {"az": "2/25", "ra_bezeichnung": ""},
+        ]
+        rv = app_client.get("/einstellungen/sv-portal")
+
+    assert rv.status_code == 200
+    eintrag = next(e for e in rv.get_json() if e["adressnr"] == 500)
+    assert eintrag["akten_anzahl"] == 2
+    assert eintrag["akten_laufend"] == 1
+    assert eintrag["ra_micro_erreichbar"] is True
+
+
+def test_sv_portal_liste_meldet_ramicro_stoerung_statt_null_akten(app_client):
+    with patch("backend.routers.sv_portal_routes.hole_adresse_by_nr") as mock_lookup:
+        mock_lookup.return_value = {
+            "adressnr": 501, "name": "Z", "vorname": "", "email": "z@test.de"
+        }
+        app_client.post("/einstellungen/sv-portal",
+                        json={"adressnr": 501}, content_type="application/json")
+
+    with patch("backend.routers.sv_portal_routes.hole_akten_fuer_sv", return_value=None):
+        rv = app_client.get("/einstellungen/sv-portal")
+
+    assert rv.status_code == 200
+    eintrag = next(e for e in rv.get_json() if e["adressnr"] == 501)
+    assert eintrag["ra_micro_erreichbar"] is False
+    assert eintrag["akten_anzahl"] is None
+    assert eintrag["akten_laufend"] is None

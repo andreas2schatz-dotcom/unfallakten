@@ -4,7 +4,8 @@ Meldet dem Portal, welcher SV-Zugang welche Akten sehen darf.
 Berechtigung und Akteninhalt sind getrennt: Diese Sendung transportiert nur
 die Zuordnung. Die Akte selbst kommt ueber den Aktensync. Im Portal verweist
 akte_zugriff.az per Fremdschluessel auf akten(az) - deshalb wird die
-Warteschlange hier vorher geleert.
+Warteschlange sowohl vor dem Abgleich geleert als auch danach erneut, damit
+frisch freigeschaltete Akten den Portal-Push VOR der Zugriffsliste erreichen.
 """
 import hashlib
 import hmac as _hmac
@@ -21,14 +22,17 @@ from ..ramicro.connector import (
     RaMicroVerbindungsFehler,
 )
 from .ablage_abgleich import abgleichen
-from .portal_sync import process_queue
+from .portal_sync import process_queue, queue_sync
 
 logger = logging.getLogger(__name__)
 
 
 def hole_akten_fuer_sv(adressnr):
-    # type: (int) -> list
-    """Alle Akten, in denen adressnr in RA-MICRO als SV eingetragen ist."""
+    # type: (int) -> list | None
+    """
+    Alle Akten, in denen adressnr in RA-MICRO als SV eingetragen ist.
+    None bedeutet: RA-MICRO nicht erreichbar. [] bedeutet: keine Akten gefunden.
+    """
     try:
         with get_ramicro_connection() as conn:
             cur = conn.cursor()
@@ -46,11 +50,12 @@ def hole_akten_fuer_sv(adressnr):
             )
             return [{"az": r["az"], "ra_bezeichnung": r["ra_bezeichnung"] or ""}
                     for r in cur.fetchall() if r["az"]]
-    except (RaMicroNichtAktiv, RaMicroVerbindungsFehler):
-        return []
+    except (RaMicroNichtAktiv, RaMicroVerbindungsFehler) as e:
+        logger.warning("SV-Akten-Lookup: RA-MICRO nicht erreichbar (adressnr=%s): %s", adressnr, e)
+        return None
     except Exception as e:
         logger.warning("SV-Akten-Lookup fehlgeschlagen (adressnr=%s): %s", adressnr, e)
-        return []
+        return None
 
 
 def _sende_zugriffe(payload):
@@ -91,9 +96,13 @@ def zugriffe_abgleichen(conn, adressnr):
         (adressnr,),
     ).fetchone()
 
-    ra_akten = [a["az"] for a in hole_akten_fuer_sv(adressnr)]
+    # RA-MICRO nicht erreichbar wird hier wie "keine Akten" behandelt - die
+    # feinere Unterscheidung (analog liste()) ist fuer diesen Rueckgabewert
+    # bewusst zurueckgestellt, siehe task-7-report.md.
+    ra_akten_roh = hole_akten_fuer_sv(adressnr)
+    ra_akten = [a["az"] for a in (ra_akten_roh or [])]
     bericht = {"gesamt": len(ra_akten), "gesperrt": 0, "uebertragen": 0,
-               "gesendet": False, "antwort": None}
+               "gesendet": False, "antwort": None, "unbekannt": []}
 
     if not sv or not ra_akten:
         return bericht
@@ -110,12 +119,18 @@ def zugriffe_abgleichen(conn, adressnr):
 
     for az in frei:
         conn.execute("UPDATE unfallakte SET portal_aktiv = 1 WHERE az = ?", (az,))
+        queue_sync(conn, az)
     for az in gesperrt:
         conn.execute("UPDATE unfallakte SET portal_aktiv = 0 WHERE az = ?", (az,))
     conn.commit()
 
     bericht["gesperrt"] = len(gesperrt)
     bericht["uebertragen"] = len(frei)
+
+    # Neu freigeschaltete Akten muessen im Portal ankommen, BEVOR die
+    # Zugriffsliste gesendet wird - sonst schlaegt dort der Fremdschluessel
+    # akte_zugriff.az -> akten.az fehl.
+    process_queue(conn, max_batch=1000)
 
     antwort = _sende_zugriffe({
         "adressnr": sv["adressnr"],
@@ -126,4 +141,5 @@ def zugriffe_abgleichen(conn, adressnr):
     })
     bericht["gesendet"] = antwort is not None
     bericht["antwort"] = antwort
+    bericht["unbekannt"] = antwort.get("unbekannt", []) if antwort else []
     return bericht

@@ -3,7 +3,7 @@ from ..auth.middleware import login_erforderlich
 from ..db.database import get_connection
 from ..ramicro.adress_service import hole_adresse_by_nr, suche_adressen
 from ..services.sv_zugriff_sync import hole_akten_fuer_sv, zugriffe_abgleichen
-from ..services.portal_sync import process_queue
+from ..services.portal_sync import process_queue, queue_sync
 
 sv_portal_bp = Blueprint("sv_portal", __name__, url_prefix="/einstellungen/sv-portal")
 
@@ -33,15 +33,29 @@ def liste():
         ergebnis = []
         for r in rows:
             eintrag = dict(r)
-            az_liste = [a["az"] for a in hole_akten_fuer_sv(r["adressnr"])]
+            ra_akten = hole_akten_fuer_sv(r["adressnr"])
+            if ra_akten is None:
+                eintrag["ra_micro_erreichbar"] = False
+                eintrag["akten_anzahl"] = None
+                eintrag["akten_laufend"] = None
+                ergebnis.append(eintrag)
+                continue
+            eintrag["ra_micro_erreichbar"] = True
+            az_liste = [a["az"] for a in ra_akten]
             eintrag["akten_anzahl"] = len(az_liste)
             if az_liste:
+                # Nicht ueber unfallakte.ramicro_abgelegt=0 zaehlen: RA-MICRO-
+                # Akten ohne lokale Zeile waeren sonst nicht "laufend", weil
+                # sie in der IN-Klausel gar nicht vorkommen. Stattdessen alle
+                # bekannten Akten nehmen und nur die tatsaechlich abgelegten
+                # abziehen.
                 platzhalter = ",".join("?" * len(az_liste))
-                eintrag["akten_laufend"] = conn.execute(
+                abgelegt = conn.execute(
                     "SELECT COUNT(*) AS n FROM unfallakte "
-                    "WHERE ramicro_abgelegt = 0 AND az IN ({})".format(platzhalter),
+                    "WHERE ramicro_abgelegt = 1 AND az IN ({})".format(platzhalter),
                     az_liste,
                 ).fetchone()["n"]
+                eintrag["akten_laufend"] = len(az_liste) - abgelegt
             else:
                 eintrag["akten_laufend"] = 0
             ergebnis.append(eintrag)
@@ -170,6 +184,8 @@ def akten(adressnr: int):
             return _err("SV-Account nicht gefunden.", 404)
 
         ra_akten = hole_akten_fuer_sv(adressnr)
+        if ra_akten is None:
+            return _err("RA-MICRO nicht erreichbar - Aktenliste kann nicht geladen werden.", 503)
         if not ra_akten:
             return _j([])
 
@@ -216,6 +232,8 @@ def toggle_portal_gesperrt(akte_az: str):
             "UPDATE unfallakte SET portal_gesperrt = ?, portal_aktiv = ? WHERE az = ?",
             (wert, 0 if wert else 1, akte_az),
         )
+        if not wert:
+            queue_sync(conn, akte_az)
         conn.commit()
     return _j({"az": akte_az, "portal_gesperrt": wert})
 

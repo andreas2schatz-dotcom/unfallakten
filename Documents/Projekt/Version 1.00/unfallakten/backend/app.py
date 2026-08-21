@@ -363,6 +363,9 @@ def erstelle_app(test_config: dict = None) -> Flask:
             bericht["uebertragen"], bericht["gesendet"]))
         if bericht["antwort"]:
             print("Portal-Antwort: {}".format(bericht["antwort"]))
+        if bericht.get("unbekannt"):
+            print("ACHTUNG - dem Portal unbekannte Aktenzeichen (kein Zugriff vergeben): {}".format(
+                bericht["unbekannt"]))
 
     # ── CORS-Header (für React-Frontend) ──────────────────────────────────────
     @app.after_request
