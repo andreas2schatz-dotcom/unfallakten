@@ -1374,12 +1374,15 @@ def _run_migration_69(conn: sqlite3.Connection) -> None:
 
     # unfalldetails.erstellt_am traegt in der Frisch-DB datetime('now','localtime')
     # als Vorgabe. ALTER TABLE erlaubt keine nicht-konstante Vorgabe, deshalb
-    # wird der Bestand hier einmalig gefuellt.
-    conn.execute(
-        "UPDATE unfalldetails SET erstellt_am = datetime('now','localtime') "
-        "WHERE erstellt_am IS NULL"
-    )
-    conn.commit()
+    # wird der Bestand hier einmalig gefuellt. Existenzpruefung wie bei der
+    # Spalten-Schleife oben: fehlt die Tabelle, wird sauber uebersprungen
+    # statt mit "no such table" abzubrechen.
+    if conn.execute("PRAGMA table_info(unfalldetails)").fetchall():
+        conn.execute(
+            "UPDATE unfalldetails SET erstellt_am = datetime('now','localtime') "
+            "WHERE erstellt_am IS NULL"
+        )
+        conn.commit()
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS portal_sync_queue (
@@ -1431,6 +1434,7 @@ def _run_migration_69(conn: sqlite3.Connection) -> None:
     conn.commit()
 
     _migration_69_fk_reparatur(conn)
+    _migration_69_beteiligte_id_reparatur(conn)
 
     conn.execute(
         "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
@@ -1467,6 +1471,15 @@ def _migration_69_fk_reparatur(conn: sqlite3.Connection) -> None:
         spaltenliste = ", ".join('"{}"'.format(s) for s in spalten)
 
         conn.commit()
+        # DROP TABLE IF EXISTS ..._neu69: schuetzt vor einem abgebrochenen
+        # Vorlauf. Stirbt der Prozess (Absturz, OOM-Kill, Container-Neustart)
+        # zwischen dem CREATE TABLE unten und dem finalen RENAME, bleibt
+        # {tabelle}_neu69 als Karteileiche stehen, waehrend {tabelle} selbst
+        # unveraendert weiterexistiert (Python sqlite3 committet DDL-
+        # Anweisungen einzeln, nicht erst am Ende der Funktion). Ohne diese
+        # Absicherung scheitert der naechste Lauf an "table already exists".
+        conn.execute("DROP TABLE IF EXISTS {}_neu69".format(tabelle))
+        conn.commit()
         conn.execute("PRAGMA foreign_keys=OFF")
         # legacy_alter_table=ON: verhindert, dass SQLite beim RENAME alle
         # Views der Datenbank neu validiert. Zwischen DROP und RENAME ist
@@ -1486,6 +1499,85 @@ def _migration_69_fk_reparatur(conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA foreign_keys=ON")
         conn.commit()
         logger.info("Migration 69: Fremdschluessel von %s auf dokumente korrigiert.", tabelle)
+
+
+def _migration_69_beteiligte_id_reparatur(conn: sqlite3.Connection) -> None:
+    """
+    beteiligte.id ist in Bestands-Datenbanken oft ein reines INT ohne
+    PRIMARY KEY/AUTOINCREMENT. SQLite vergibt dann keine Nummern mehr,
+    sobald id nicht explizit gesetzt wird - mehrere Zeilen landen mit
+    id IS NULL. Baut die Tabelle mit id INTEGER PRIMARY KEY AUTOINCREMENT
+    neu auf, wie in einer frisch erzeugten Datenbank, und vergibt fehlende
+    Nummern nach, ohne bestehende zu veraendern.
+
+    Zwei-Phasen-Insert (erst Zeilen mit vorhandener id, danach die mit
+    NULL): SQLite verfolgt den bisher hoechsten je vergebenen Wert und
+    haengt bei AUTOINCREMENT nur an. Wuerden NULL-Zeilen zwischen Zeilen
+    mit hohen bestehenden ids eingefuegt, koennte eine automatisch
+    vergebene Nummer spaeter mit einer bestehenden kollidieren.
+    """
+    info = conn.execute("PRAGMA table_info(beteiligte)").fetchall()
+    if not info:
+        return
+    id_spalte = next((r for r in info if r[1] == "id"), None)
+    if id_spalte is not None and id_spalte[5] == 1:
+        return
+
+    conn.commit()
+    # Gleiche Abbruchsicherheit wie _migration_69_fk_reparatur: ein vorher
+    # abgebrochener Lauf darf hoechstens eine liegengebliebene
+    # beteiligte_neu69 hinterlassen, die hier zuerst weggeraeumt wird.
+    conn.execute("DROP TABLE IF EXISTS beteiligte_neu69")
+    conn.commit()
+
+    andere_spalten = [r[1] for r in info if r[1] != "id"]
+
+    def _spaltendef(row):
+        _, name, typ, notnull, dflt, _pk = row
+        teil = '"{}"'.format(name)
+        if typ:
+            teil += " " + typ
+        if notnull:
+            teil += " NOT NULL"
+        if dflt is not None:
+            teil += " DEFAULT {}".format(dflt)
+        return teil
+
+    spalten_ddl = ",\n            ".join(
+        _spaltendef(r) for r in info if r[1] != "id"
+    )
+    neue_ddl = (
+        "CREATE TABLE beteiligte_neu69 (\n"
+        "            id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
+        "            {}\n"
+        "        )"
+    ).format(spalten_ddl)
+    andere_liste = ", ".join('"{}"'.format(s) for s in andere_spalten)
+
+    conn.execute("PRAGMA foreign_keys=OFF")
+    conn.execute("PRAGMA legacy_alter_table=ON")
+    conn.execute(neue_ddl)
+    conn.execute(
+        "INSERT INTO beteiligte_neu69 (id, {s}) "
+        "SELECT id, {s} FROM beteiligte WHERE id IS NOT NULL ORDER BY id".format(
+            s=andere_liste
+        )
+    )
+    conn.execute(
+        "INSERT INTO beteiligte_neu69 ({s}) "
+        "SELECT {s} FROM beteiligte WHERE id IS NULL".format(s=andere_liste)
+    )
+    conn.execute("DROP TABLE beteiligte")
+    conn.execute("ALTER TABLE beteiligte_neu69 RENAME TO beteiligte")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_beteiligte_akte_id ON beteiligte(akte_id)"
+    )
+    conn.execute("PRAGMA legacy_alter_table=OFF")
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.commit()
+    logger.info(
+        "Migration 69: beteiligte.id auf INTEGER PRIMARY KEY AUTOINCREMENT repariert."
+    )
 
 
 def _run_migration_64(conn: sqlite3.Connection) -> None:
