@@ -35,7 +35,9 @@ def conn():
             id INTEGER PRIMARY KEY,
             akte_id TEXT REFERENCES unfallakte(az) ON DELETE CASCADE,
             dokument_id INTEGER REFERENCES dokumente_alt(id) ON DELETE SET NULL,
-            position_key TEXT
+            position_key TEXT,
+            status TEXT,
+            fuer_klage INTEGER
         );
         CREATE TABLE abrechnungsschreiben (
             id INTEGER PRIMARY KEY,
@@ -83,7 +85,9 @@ def conn_beteiligte_ohne_pk():
             id INTEGER PRIMARY KEY,
             akte_id TEXT REFERENCES unfallakte(az) ON DELETE CASCADE,
             dokument_id INTEGER REFERENCES dokumente_alt(id) ON DELETE SET NULL,
-            position_key TEXT
+            position_key TEXT,
+            status TEXT,
+            fuer_klage INTEGER
         );
         CREATE TABLE abrechnungsschreiben (
             id INTEGER PRIMARY KEY,
@@ -310,6 +314,42 @@ def test_portal_einladungen_beschreibbar_nach_beteiligte_reparatur(
     )
     row = c.execute("SELECT COUNT(*) AS n FROM portal_einladungen").fetchone()
     assert row["n"] == 1
+
+
+def _indizes(c, tabelle):
+    return {r[0] for r in c.execute(
+        "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name = ?",
+        (tabelle,),
+    ).fetchall()}
+
+
+def test_fk_reparatur_erhaelt_bestehende_indizes(conn):
+    conn.execute(
+        "CREATE INDEX idx_fordpos_akte_id ON forderung_positionen(akte_id)"
+    )
+    conn.execute(
+        "CREATE INDEX idx_fordpos_status ON forderung_positionen(status)"
+    )
+    conn.execute(
+        "CREATE INDEX idx_fordpos_klage ON forderung_positionen(fuer_klage)"
+    )
+    conn.execute(
+        "CREATE INDEX idx_fordpos_dokument ON forderung_positionen(dokument_id)"
+    )
+    conn.execute(
+        "CREATE INDEX idx_abrechnung_akte_id ON abrechnungsschreiben(akte_id)"
+    )
+    _run_migration_69(conn)
+    assert _indizes(conn, "forderung_positionen") == {
+        "idx_fordpos_akte_id", "idx_fordpos_status",
+        "idx_fordpos_klage", "idx_fordpos_dokument",
+    }
+    assert _indizes(conn, "abrechnungsschreiben") == {"idx_abrechnung_akte_id"}
+    # Index muss auch inhaltlich stimmen, nicht nur dem Namen nach existieren
+    spalte = conn.execute(
+        "PRAGMA index_info(idx_fordpos_akte_id)"
+    ).fetchone()
+    assert spalte["name"] == "akte_id"
 
 
 def test_ist_wiederholbar(conn):

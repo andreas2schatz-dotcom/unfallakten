@@ -1470,14 +1470,29 @@ def _migration_69_fk_reparatur(conn: sqlite3.Connection) -> None:
         ).fetchall()]
         spaltenliste = ", ".join('"{}"'.format(s) for s in spalten)
 
+        # Indizes VOR dem DROP TABLE sichern: DROP TABLE reisst sie mit,
+        # und ihre urspruenglichen CREATE INDEX-Anweisungen stehen in
+        # laengst gestempelten Migrationen und laufen nie wieder. sql IS
+        # NOT NULL filtert die impliziten Auto-Indizes von UNIQUE-
+        # Constraints heraus, die das neue CREATE TABLE bereits mitbringt.
+        index_ddls = [
+            r[0] for r in conn.execute(
+                "SELECT sql FROM sqlite_master "
+                "WHERE type='index' AND tbl_name = ? AND sql IS NOT NULL",
+                (tabelle,),
+            ).fetchall()
+        ]
+
         conn.commit()
         # DROP TABLE IF EXISTS ..._neu69: schuetzt vor einem abgebrochenen
-        # Vorlauf. Stirbt der Prozess (Absturz, OOM-Kill, Container-Neustart)
-        # zwischen dem CREATE TABLE unten und dem finalen RENAME, bleibt
-        # {tabelle}_neu69 als Karteileiche stehen, waehrend {tabelle} selbst
-        # unveraendert weiterexistiert (Python sqlite3 committet DDL-
-        # Anweisungen einzeln, nicht erst am Ende der Funktion). Ohne diese
-        # Absicherung scheitert der naechste Lauf an "table already exists".
+        # Vorlauf. CREATE TABLE, INSERT, DROP und RENAME liegen unten in
+        # derselben Transaktion und committen gemeinsam erst am Ende der
+        # Funktion — seit Python 3.6 committet sqlite3 DDL-Anweisungen NICHT
+        # mehr einzeln. Wird die Funktion trotzdem vor dem finalen
+        # conn.commit() abgebrochen (Exception, Prozessabbruch) und die
+        # Verbindung dabei nicht sauber zurueckgerollt, bliebe
+        # {tabelle}_neu69 als Karteileiche stehen. Ohne diese Absicherung
+        # scheitert der naechste Lauf an "table already exists".
         conn.execute("DROP TABLE IF EXISTS {}_neu69".format(tabelle))
         conn.commit()
         conn.execute("PRAGMA foreign_keys=OFF")
@@ -1495,7 +1510,10 @@ def _migration_69_fk_reparatur(conn: sqlite3.Connection) -> None:
         )
         conn.execute("DROP TABLE {}".format(tabelle))
         conn.execute("ALTER TABLE {t}_neu69 RENAME TO {t}".format(t=tabelle))
+        for index_ddl in index_ddls:
+            conn.execute(index_ddl)
         conn.execute("PRAGMA legacy_alter_table=OFF")
+        conn.commit()
         conn.execute("PRAGMA foreign_keys=ON")
         conn.commit()
         logger.info("Migration 69: Fremdschluessel von %s auf dokumente korrigiert.", tabelle)
@@ -1573,6 +1591,7 @@ def _migration_69_beteiligte_id_reparatur(conn: sqlite3.Connection) -> None:
         "CREATE INDEX IF NOT EXISTS idx_beteiligte_akte_id ON beteiligte(akte_id)"
     )
     conn.execute("PRAGMA legacy_alter_table=OFF")
+    conn.commit()
     conn.execute("PRAGMA foreign_keys=ON")
     conn.commit()
     logger.info(
