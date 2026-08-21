@@ -83,6 +83,22 @@ def test_abgelegte_klageakte_behaelt_klage_kennzeichnung(conn):
     conn.execute(
         "INSERT INTO unfallakte (az, status, ramicro_abgelegt) VALUES ('5/25', 'klage', 1)"
     )
+    conn.execute("""
+        INSERT INTO schadenpositionen
+            (akte_id, reparaturkosten, wiederbeschaffung, restwert, wertminderung,
+             nutzungsausfall, mietwagenkosten, sv_kosten, abschleppkosten,
+             standkosten, anabmeldekosten, schmerzensgeld, sonstiges)
+        VALUES ('5/25', 1000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    """)
+    cur = conn.execute(
+        "INSERT INTO abrechnungsschreiben (akte_id, datum, versicherung) "
+        "VALUES ('5/25', '2026-01-01', 'Test-Versicherung')"
+    )
+    conn.execute(
+        "INSERT INTO regulierung_positionen (abrechnungsschreiben_id, position_key, betrag_reguliert) "
+        "VALUES (?, 'reparaturkosten', 1000)",
+        (cur.lastrowid,),
+    )
     ampel = portal_sync._berechne_ampel(conn, "5/25")
     assert ampel["status"] == "klage_eingereicht"
     assert ampel["farbe"] == "rot"
