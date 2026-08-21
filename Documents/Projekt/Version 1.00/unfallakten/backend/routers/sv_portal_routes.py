@@ -1,11 +1,9 @@
-import logging
 from flask import Blueprint, request, jsonify
 from ..auth.middleware import login_erforderlich
 from ..db.database import get_connection
 from ..ramicro.adress_service import hole_adresse_by_nr, suche_adressen
-from ..ramicro.connector import get_ramicro_connection, RaMicroNichtAktiv, RaMicroVerbindungsFehler
-
-logger = logging.getLogger(__name__)
+from ..services.sv_zugriff_sync import hole_akten_fuer_sv, zugriffe_abgleichen
+from ..services.portal_sync import process_queue
 
 sv_portal_bp = Blueprint("sv_portal", __name__, url_prefix="/einstellungen/sv-portal")
 
@@ -27,17 +25,27 @@ def _body():
 def liste():
     with get_connection() as conn:
         rows = conn.execute("""
-            SELECT s.adressnr, s.name, s.vorname, s.email,
-                   s.portal_aktiv, s.einladung_gesendet_am, s.angelegt_am,
-                   COUNT(DISTINCT b.akte_id) AS akten_anzahl
-            FROM sv_portal_accounts s
-            LEFT JOIN beteiligte b
-                ON LOWER(b.email) = LOWER(s.email)
-               AND b.rolle = 'sachverstaendiger'
-            GROUP BY s.adressnr
-            ORDER BY s.name
+            SELECT adressnr, name, vorname, email,
+                   portal_aktiv, einladung_gesendet_am, angelegt_am
+            FROM sv_portal_accounts
+            ORDER BY name
         """).fetchall()
-    return _j([dict(r) for r in rows])
+        ergebnis = []
+        for r in rows:
+            eintrag = dict(r)
+            az_liste = [a["az"] for a in hole_akten_fuer_sv(r["adressnr"])]
+            eintrag["akten_anzahl"] = len(az_liste)
+            if az_liste:
+                platzhalter = ",".join("?" * len(az_liste))
+                eintrag["akten_laufend"] = conn.execute(
+                    "SELECT COUNT(*) AS n FROM unfallakte "
+                    "WHERE ramicro_abgelegt = 0 AND az IN ({})".format(platzhalter),
+                    az_liste,
+                ).fetchone()["n"]
+            else:
+                eintrag["akten_laufend"] = 0
+            ergebnis.append(eintrag)
+    return _j(ergebnis)
 
 
 @sv_portal_bp.route("/suche", methods=["GET"])
@@ -151,31 +159,6 @@ def einladung_senden(adressnr: int):
     return _j(dict(row))
 
 
-def _hole_akten_fuer_sv(adressnr: int) -> list[dict]:
-    """Fragt RA-MICRO nach allen Akten, in denen adressnr als SV eingetragen ist."""
-    try:
-        with get_ramicro_connection() as conn:
-            cur = conn.cursor()
-            cur.execute(
-                """
-                SELECT DISTINCT a.sAktenNummer AS az, a.sAktenKurzBezeichnung AS ra_bezeichnung
-                FROM tblAktenBeteiligte b
-                INNER JOIN tblAkten a ON a.GUIDAkte = b.GUIDAkte
-                WHERE b.iAdressnummer = %s
-                  AND b.sBeteiligtenKennzeichen LIKE 'SV%%'
-                  AND b.bDeaktiviert = 0
-                """,
-                (adressnr,),
-            )
-            return [{"az": r["az"], "ra_bezeichnung": r["ra_bezeichnung"] or ""}
-                    for r in cur.fetchall() if r["az"]]
-    except (RaMicroNichtAktiv, RaMicroVerbindungsFehler):
-        return []
-    except Exception as e:
-        logger.warning("SV-Akten-Lookup fehlgeschlagen (adressnr=%s): %s", adressnr, e)
-        return []
-
-
 @sv_portal_bp.route("/<int:adressnr>/akten", methods=["GET"])
 @login_erforderlich
 def akten(adressnr: int):
@@ -186,7 +169,7 @@ def akten(adressnr: int):
         if not sv:
             return _err("SV-Account nicht gefunden.", 404)
 
-        ra_akten = _hole_akten_fuer_sv(adressnr)
+        ra_akten = hole_akten_fuer_sv(adressnr)
         if not ra_akten:
             return _j([])
 
@@ -195,7 +178,8 @@ def akten(adressnr: int):
 
         placeholders = ",".join("?" * len(ra_az_liste))
         sqlite_rows = conn.execute(
-            f"SELECT az, kurzbezeichnung, unfalldatum, portal_aktiv FROM unfallakte WHERE az IN ({placeholders})",
+            f"SELECT az, kurzbezeichnung, unfalldatum, portal_aktiv, portal_gesperrt, "
+            f"ramicro_abgelegt FROM unfallakte WHERE az IN ({placeholders})",
             ra_az_liste,
         ).fetchall()
         sqlite_map = {r["az"]: dict(r) for r in sqlite_rows}
@@ -212,44 +196,38 @@ def akten(adressnr: int):
             })
         else:
             result.append({"az": az, "kurzbezeichnung": ra_bezeichnung,
-                           "unfalldatum": None, "portal_aktiv": 0, "im_system": False})
+                           "unfalldatum": None, "portal_aktiv": 0,
+                           "portal_gesperrt": 0, "ramicro_abgelegt": 0,
+                           "im_system": False})
     return _j(result)
 
 
-@sv_portal_bp.route("/<int:adressnr>/akten/alle", methods=["PATCH"])
+@sv_portal_bp.route("/akten/<path:akte_az>/portal_gesperrt", methods=["PATCH"])
 @login_erforderlich
-def akten_alle_toggle(adressnr: int):
+def toggle_portal_gesperrt(akte_az: str):
     body = _body()
-    aktiv = body.get("portal_aktiv")
-    if aktiv not in (0, 1, True, False):
-        return _err("portal_aktiv muss 0 oder 1 sein.", 400)
-    aktiv_int = 1 if aktiv else 0
+    gesperrt = body.get("portal_gesperrt")
+    if gesperrt not in (0, 1, True, False):
+        return _err("portal_gesperrt muss 0 oder 1 sein.", 400)
+    wert = 1 if gesperrt else 0
+    with get_connection() as conn:
+        conn.execute("INSERT OR IGNORE INTO unfallakte (az) VALUES (?)", (akte_az,))
+        conn.execute(
+            "UPDATE unfallakte SET portal_gesperrt = ?, portal_aktiv = ? WHERE az = ?",
+            (wert, 0 if wert else 1, akte_az),
+        )
+        conn.commit()
+    return _j({"az": akte_az, "portal_gesperrt": wert})
+
+
+@sv_portal_bp.route("/<int:adressnr>/zugriffe-abgleichen", methods=["POST"])
+@login_erforderlich
+def zugriffe_abgleichen_route(adressnr: int):
     with get_connection() as conn:
         if not conn.execute(
             "SELECT 1 FROM sv_portal_accounts WHERE adressnr = ?", (adressnr,)
         ).fetchone():
             return _err("SV-Account nicht gefunden.", 404)
-        ra_akten = _hole_akten_fuer_sv(adressnr)
-        for a in ra_akten:
-            conn.execute("INSERT OR IGNORE INTO unfallakte (az) VALUES (?)", (a["az"],))
-            conn.execute("UPDATE unfallakte SET portal_aktiv = ? WHERE az = ?", (aktiv_int, a["az"]))
-        conn.commit()
-    return _j({"aktualisiert": len(ra_akten), "portal_aktiv": aktiv_int})
-
-
-@sv_portal_bp.route("/akten/<path:akte_az>/portal_aktiv", methods=["PATCH"])
-@login_erforderlich
-def toggle_portal_aktiv(akte_az: str):
-    body = _body()
-    aktiv = body.get("portal_aktiv")
-    if aktiv not in (0, 1, True, False):
-        return _err("portal_aktiv muss 0 oder 1 sein.", 400)
-    aktiv_int = 1 if aktiv else 0
-    with get_connection() as conn:
-        conn.execute("INSERT OR IGNORE INTO unfallakte (az) VALUES (?)", (akte_az,))
-        conn.execute(
-            "UPDATE unfallakte SET portal_aktiv = ? WHERE az = ?",
-            (aktiv_int, akte_az),
-        )
-        conn.commit()
-    return _j({"az": akte_az, "portal_aktiv": aktiv_int})
+        process_queue(conn, max_batch=1000)
+        bericht = zugriffe_abgleichen(conn, adressnr)
+    return _j(bericht)

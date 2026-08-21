@@ -347,6 +347,23 @@ def erstelle_app(test_config: dict = None) -> Flask:
         print("  neu angelegt:  {}".format(bericht["angelegt"]))
         print("  Bezeichnungen: {}".format(bericht["bezeichnung_aktualisiert"]))
 
+    @app.cli.command("sync-sv-zugriffe")
+    @click.argument("adressnr", type=int)
+    def sync_sv_zugriffe_cmd(adressnr):
+        """Gleicht die Portal-Zugriffe eines Sachverstaendigen ab."""
+        from .db.database import get_connection
+        from .services.portal_sync import process_queue
+        from .services.sv_zugriff_sync import zugriffe_abgleichen
+        with get_connection() as conn:
+            print("Aktensync: {} Akte(n) uebertragen.".format(
+                process_queue(conn, max_batch=1000)))
+            bericht = zugriffe_abgleichen(conn, adressnr)
+        print("Akten gesamt: {}, gesperrt: {}, uebertragen: {}, gesendet: {}".format(
+            bericht["gesamt"], bericht["gesperrt"],
+            bericht["uebertragen"], bericht["gesendet"]))
+        if bericht["antwort"]:
+            print("Portal-Antwort: {}".format(bericht["antwort"]))
+
     # ── CORS-Header (für React-Frontend) ──────────────────────────────────────
     @app.after_request
     def cors_header(response):

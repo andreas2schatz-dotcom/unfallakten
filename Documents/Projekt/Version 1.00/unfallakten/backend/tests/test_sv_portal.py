@@ -210,19 +210,20 @@ def test_sv_portal_einladung_setzt_zeitstempel(app_client):
     assert data["einladung_gesendet_am"] is not None
 
 
-def test_sv_portal_toggle_portal_aktiv_legt_akte_on_demand_an(app_client):
+def test_sv_portal_toggle_portal_gesperrt_legt_akte_on_demand_an(app_client):
     # Heutige Semantik: Akten kommen aus RA-MICRO (SSOT); die lokale Zeile
     # wird beim Toggle on demand angelegt (INSERT OR IGNORE) statt 404.
+    # portal_aktiv wird umgekehrt gesetzt: gesperrt = 1 -> portal_aktiv = 0.
     rv = app_client.patch(
-        "/einstellungen/sv-portal/akten/999%2F99/portal_aktiv",
-        json={"portal_aktiv": 1},
+        "/einstellungen/sv-portal/akten/999%2F99/portal_gesperrt",
+        json={"portal_gesperrt": 1},
         content_type="application/json",
     )
     assert rv.status_code == 200
-    assert rv.get_json() == {"az": "999/99", "portal_aktiv": 1}
+    assert rv.get_json() == {"az": "999/99", "portal_gesperrt": 1}
     from backend.db.database import get_connection
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT portal_aktiv FROM unfallakte WHERE az = '999/99'"
+            "SELECT portal_gesperrt, portal_aktiv FROM unfallakte WHERE az = '999/99'"
         ).fetchone()
-    assert row is not None and row["portal_aktiv"] == 1
+    assert row is not None and row["portal_gesperrt"] == 1 and row["portal_aktiv"] == 0
