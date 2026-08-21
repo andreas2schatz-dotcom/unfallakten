@@ -13,7 +13,6 @@ vi.mock("../api.js", () => ({
   apiTodos: { liste: vi.fn(() => Promise.resolve({ todos: [] })), erstelle: vi.fn(), update: vi.fn(), loesche: vi.fn() },
   ramicroWdm: { schaden: vi.fn(() => Promise.resolve({})) },
   belege: { kandidaten: vi.fn(() => Promise.resolve({ kandidaten: [] })) },
-  portalAkteAktivieren: vi.fn(() => Promise.resolve({})),
   forderungen: { nachSchreiben: vi.fn(() => Promise.resolve({ schreiben: [] })), klageFlagSetzen: vi.fn(), aktualisieren: vi.fn() },
   ramicroAkte: { laden: vi.fn(() => Promise.resolve(null)) },
   apiSta: { kontext: vi.fn(), generieren: vi.fn() },

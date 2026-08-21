@@ -15,7 +15,6 @@ import os
 
 import requests
 
-from ..ramicro.ablage_service import hole_ablage_status  # noqa: F401  (Testbarkeit)
 from ..ramicro.connector import (
     get_ramicro_connection,
     RaMicroNichtAktiv,
@@ -89,23 +88,55 @@ def _sende_zugriffe(payload):
         return None
 
 
+def _sende_leere_liste(sv, bericht):
+    # type: (object, dict) -> dict
+    """Entzieht dem SV im Portal jeden Zugriff (leere akten-Liste)."""
+    antwort = _sende_zugriffe({
+        "adressnr": sv["adressnr"],
+        "name": sv["name"],
+        "vorname": sv["vorname"],
+        "email": sv["email"],
+        "akten": [],
+    })
+    bericht["gesendet"] = antwort is not None
+    bericht["antwort"] = antwort
+    bericht["unbekannt"] = antwort.get("unbekannt", []) if antwort else []
+    return bericht
+
+
 def zugriffe_abgleichen(conn, adressnr):
     # type: (object, int) -> dict
     sv = conn.execute(
-        "SELECT adressnr, name, vorname, email FROM sv_portal_accounts WHERE adressnr = ?",
+        "SELECT adressnr, name, vorname, email, portal_aktiv "
+        "FROM sv_portal_accounts WHERE adressnr = ?",
         (adressnr,),
     ).fetchone()
-
-    # RA-MICRO nicht erreichbar wird hier wie "keine Akten" behandelt - die
-    # feinere Unterscheidung (analog liste()) ist fuer diesen Rueckgabewert
-    # bewusst zurueckgestellt, siehe task-7-report.md.
-    ra_akten_roh = hole_akten_fuer_sv(adressnr)
-    ra_akten = [a["az"] for a in (ra_akten_roh or [])]
-    bericht = {"gesamt": len(ra_akten), "gesperrt": 0, "uebertragen": 0,
-               "gesendet": False, "antwort": None, "unbekannt": []}
-
-    if not sv or not ra_akten:
+    bericht = {"gesamt": 0, "gesperrt": 0, "uebertragen": 0,
+               "gesendet": False, "antwort": None, "unbekannt": [],
+               "ramicro_erreichbar": True}
+    if not sv:
         return bericht
+
+    # PATCH /einstellungen/sv-portal/<adressnr> deaktiviert den Zugang komplett
+    # (sv_portal_accounts.portal_aktiv). Ohne diese Pruefung wuerde der naechste
+    # Abgleich dem deaktivierten Zugang wieder volle Zugriffe zuschreiben.
+    if not sv["portal_aktiv"]:
+        return _sende_leere_liste(sv, bericht)
+
+    ra_akten_roh = hole_akten_fuer_sv(adressnr)
+    if ra_akten_roh is None:
+        # RA-MICRO gestoert: nichts senden, nichts aendern - unterscheidbar
+        # von "hat wirklich keine Akten mehr" (leere Liste unten).
+        bericht["ramicro_erreichbar"] = False
+        return bericht
+
+    ra_akten = [a["az"] for a in ra_akten_roh]
+    bericht["gesamt"] = len(ra_akten)
+
+    if not ra_akten:
+        # Echte Leere (SV in RA-MICRO keiner Akte mehr zugeordnet): leere
+        # Liste senden, damit der Entzug im Portal auch wirklich ankommt.
+        return _sende_leere_liste(sv, bericht)
 
     abgleichen(conn, az_liste=ra_akten)
 

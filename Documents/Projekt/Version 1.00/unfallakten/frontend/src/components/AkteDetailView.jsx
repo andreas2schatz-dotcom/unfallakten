@@ -9,7 +9,6 @@ import {
   request,
   ramicroWdm,
   belege as apiBelege,
-  portalAkteAktivieren,
 } from "../api.js";
 
 // Immer synchron: Default-Tab + kleine Hilfskomponenten
@@ -53,23 +52,6 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted, onOpenRe
   // RA-MICRO Bezeichnungen für Header-Zeile
   const [raInfo, setRaInfo] = useState(null);
   const azRoh = akte.az_roh || akte.az || "";
-
-  // Portal-aktiv Toggle (lokaler State, da kein SET_AKTE im Reducer)
-  const [portalAktiv, setPortalAktiv] = useState(false);
-  React.useEffect(() => {
-    if (akte?.portal_aktiv !== undefined) setPortalAktiv(!!akte.portal_aktiv);
-  }, [akte?.portal_aktiv]);
-
-  const handlePortalToggle = async (aktiv) => {
-    try {
-      await portalAkteAktivieren(akte.az, aktiv);
-      setPortalAktiv(aktiv);
-      setToast(aktiv ? "Portal aktiviert" : "Portal deaktiviert");
-    } catch (err) {
-      console.error("Portal-Toggle fehlgeschlagen:", err);
-      setToast("Portal-Toggle fehlgeschlagen: " + (err?.message || String(err)));
-    }
-  };
 
   // RA-MICRO Kurz-/Langbezeichnung + Checks für Header
   React.useEffect(() => {
@@ -363,19 +345,6 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted, onOpenRe
               }}>{label}</button>
             );
           })}
-          {/* Portal-aktiv Toggle */}
-          <label style={{ display:"flex", alignItems:"center", gap:5, cursor:"pointer", marginLeft:8 }}>
-            <input
-              type="checkbox"
-              checked={portalAktiv}
-              onChange={(e) => handlePortalToggle(e.target.checked)}
-              style={{ width:14, height:14, accentColor:T.accent, cursor:"pointer" }}
-            />
-            <span style={{ fontFamily:T.fontBody, fontSize:"0.72rem",
-              color:"rgba(255,255,255,0.45)", letterSpacing:"0.04em" }}>
-              Portal{akte?.portal_last_sync ? ` ↑${new Date(akte.portal_last_sync).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}` : ""}
-            </span>
-          </label>
         </div>
 
         {zeigeTodoForm && (

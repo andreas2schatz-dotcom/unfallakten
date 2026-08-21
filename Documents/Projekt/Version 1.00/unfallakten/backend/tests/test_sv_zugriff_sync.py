@@ -203,3 +203,68 @@ def test_ramicro_nicht_erreichbar_liefert_leeren_bericht_ohne_absturz(monkeypatc
     assert bericht["gesamt"] == 0
     assert bericht["gesendet"] is False
     assert bericht["unbekannt"] == []
+
+
+def test_ramicro_stoerung_sendet_nichts_und_ist_im_bericht_erkennbar(monkeypatch, conn):
+    """
+    B-4/1: 'RA-MICRO gestoert' und 'hat keine Akten mehr' waren bisher
+    ununterscheidbar. hole_akten_fuer_sv liefert None bei Stoerung.
+    """
+    monkeypatch.setattr(sv_zugriff_sync, "hole_akten_fuer_sv", lambda adressnr: None)
+    _kein_abgleich(monkeypatch)
+    _kein_sync(monkeypatch)
+    gesendet = []
+    _sendung_auffangen(monkeypatch, gesendet)
+
+    bericht = sv_zugriff_sync.zugriffe_abgleichen(conn, 25982)
+
+    assert bericht["ramicro_erreichbar"] is False
+    assert bericht["gesendet"] is False
+    assert gesendet == []
+
+
+def test_echte_leere_liste_wird_gesendet_und_entzieht_zugriff(monkeypatch, conn):
+    """
+    B-4/1: Ein SV ohne verbliebene RA-MICRO-Akten muss eine leere
+    Zugriffsliste bekommen, damit der Entzug im Portal tatsaechlich wirkt.
+    """
+    _ra_micro(monkeypatch, [])
+    _kein_abgleich(monkeypatch)
+    _kein_sync(monkeypatch)
+    gesendet = []
+    _sendung_auffangen(monkeypatch, gesendet)
+
+    bericht = sv_zugriff_sync.zugriffe_abgleichen(conn, 25982)
+
+    assert bericht["ramicro_erreichbar"] is True
+    assert bericht["gesendet"] is True
+    assert gesendet[0]["akten"] == []
+    assert gesendet[0]["adressnr"] == 25982
+
+
+def test_deaktivierter_zugang_bekommt_leere_zugriffsliste(monkeypatch, conn):
+    """
+    B-4/2: PATCH /einstellungen/sv-portal/<adressnr> deaktiviert den Zugang
+    ueber sv_portal_accounts.portal_aktiv. zugriffe_abgleichen() muss das
+    auswerten - sonst schreibt der naechste Abgleich wieder volle Zugriffe.
+    """
+    conn.execute(
+        "UPDATE sv_portal_accounts SET portal_aktiv = 0 WHERE adressnr = 25982"
+    )
+    conn.execute("INSERT INTO unfallakte (az) VALUES ('1/25')")
+    ra_micro_aufgerufen = []
+    monkeypatch.setattr(
+        sv_zugriff_sync, "hole_akten_fuer_sv",
+        lambda adressnr: ra_micro_aufgerufen.append(adressnr) or [{"az": "1/25", "ra_bezeichnung": ""}],
+    )
+    _kein_abgleich(monkeypatch)
+    _kein_sync(monkeypatch)
+    gesendet = []
+    _sendung_auffangen(monkeypatch, gesendet)
+
+    bericht = sv_zugriff_sync.zugriffe_abgleichen(conn, 25982)
+
+    assert gesendet[0]["akten"] == []
+    assert bericht["gesendet"] is True
+    # deaktivierter Zugang muss gar nicht erst RA-MICRO befragen
+    assert ra_micro_aufgerufen == []
