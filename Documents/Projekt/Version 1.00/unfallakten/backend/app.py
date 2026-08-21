@@ -293,12 +293,30 @@ def erstelle_app(test_config: dict = None) -> Flask:
             max_instances=1,
             coalesce=True,
         )
+        def _ablage_abgleich_job():
+            from .db.database import get_connection
+            from .services.ablage_abgleich import abgleichen
+            try:
+                with get_connection() as conn:
+                    abgleichen(conn)
+            except Exception:
+                logger.exception("Ablage-Abgleich fehlgeschlagen.")
+
+        scheduler.add_job(
+            func=_ablage_abgleich_job,
+            trigger="cron",
+            hour=3,
+            minute=30,
+            id="ablage_abgleich",
+            replace_existing=True,
+        )
         scheduler.start()
         import threading as _threading
         _threading.Thread(target=_check_ramicro, daemon=True).start()
         logger.info("APScheduler gestartet: RA-Micro Health-Check + "
                     "IMAP-Polling (60s) + Intake-Worker (10s) + "
-                    "Fristablauf (taeglich 03:15)")
+                    "Fristablauf (taeglich 03:15) + "
+                    "Ablage-Abgleich (taeglich 03:30)")
 
     @app.cli.command("sync-portal")
     def sync_portal_cmd():
