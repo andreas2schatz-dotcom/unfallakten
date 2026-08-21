@@ -296,11 +296,19 @@ def erstelle_app(test_config: dict = None) -> Flask:
         def _ablage_abgleich_job():
             from .db.database import get_connection
             from .services.ablage_abgleich import abgleichen
+            from .services.portal_sync import process_queue as _portal_process_queue
             try:
                 with get_connection() as conn:
                     abgleichen(conn)
             except Exception:
                 logger.exception("Ablage-Abgleich fehlgeschlagen.")
+            # eigener try/except: ein Fehler beim Versand darf den Abgleich
+            # oben nicht rückwirkend als gescheitert erscheinen lassen
+            try:
+                with get_connection() as conn:
+                    _portal_process_queue(conn)
+            except Exception:
+                logger.exception("Portal-Sync nach Ablage-Abgleich fehlgeschlagen.")
 
         scheduler.add_job(
             func=_ablage_abgleich_job,
