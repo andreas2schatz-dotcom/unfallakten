@@ -77,9 +77,12 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
   // SV-Portal
   const [svListe,         setSvListe]         = useState([]);
   const [svLaedt,         setSvLaedt]         = useState(false);
+  const [svFehler,        setSvFehler]        = useState("");
   const [svAusgewaehlt,   setSvAusgewaehlt]   = useState(null); // adressnr
   const [svAkten,         setSvAkten]         = useState([]);
   const [svAktenLaedt,    setSvAktenLaedt]    = useState(false);
+  const [svAktenFehler,   setSvAktenFehler]   = useState("");
+  const [svAbgleicht,     setSvAbgleicht]     = useState(false);
   const [svForm,          setSvForm]          = useState({ adressnr: "", vorschau: null, fehler: "" });
   const [svFormLaedt,     setSvFormLaedt]     = useState(false);
   const [svFormSpeichert, setSvFormSpeichert] = useState(false);
@@ -110,16 +113,36 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
 
   const ladeSvListe = async () => {
     setSvLaedt(true);
-    try { setSvListe(await apiSvPortal.liste()); }
-    catch { setSvListe([]); }
-    finally { setSvLaedt(false); }
+    setSvFehler("");
+    try {
+      setSvListe(await apiSvPortal.liste());
+    } catch (e) {
+      setSvListe([]);
+      setSvFehler(
+        e?.status === 401
+          ? "Sitzung abgelaufen — bitte neu anmelden."
+          : e?.message || "SV-Liste konnte nicht geladen werden."
+      );
+    } finally {
+      setSvLaedt(false);
+    }
   };
 
   const ladeSvAkten = async (adressnr) => {
     setSvAktenLaedt(true);
-    try { setSvAkten(await apiSvPortal.akten(adressnr)); }
-    catch { setSvAkten([]); }
-    finally { setSvAktenLaedt(false); }
+    setSvAktenFehler("");
+    try {
+      setSvAkten(await apiSvPortal.akten(adressnr));
+    } catch (e) {
+      setSvAkten([]);
+      setSvAktenFehler(
+        e?.status === 401
+          ? "Sitzung abgelaufen — bitte neu anmelden."
+          : e?.message || "Aktenliste konnte nicht geladen werden."
+      );
+    } finally {
+      setSvAktenLaedt(false);
+    }
   };
 
   useEffect(() => {
@@ -1037,12 +1060,18 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                 )}
               </div>
 
+              {svFehler && (
+                <p role="alert" style={{ color: "var(--rot, #b91c1c)", fontSize: 13 }}>
+                  {svFehler}
+                </p>
+              )}
+
               {/* SV-Liste */}
               <div style={{ flex:1, overflowY:"auto" }}>
                 {svLaedt ? (
                   <div style={{ padding:"1.5rem", textAlign:"center", color:T.textFaint,
                     fontFamily:T.fontBody, fontSize:"0.875rem" }}>Lade …</div>
-                ) : svListe.length === 0 ? (
+                ) : svListe.length === 0 && !svFehler ? (
                   <div style={{ padding:"1.5rem", textAlign:"center", color:T.textFaint,
                     fontFamily:T.fontBody, fontSize:"0.875rem" }}>
                     Noch keine SV-Accounts.<br/>Adressnummer eingeben um zu beginnen.
@@ -1075,6 +1104,15 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                         <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.72rem",
                           color:T.textMuted, whiteSpace:"nowrap", overflow:"hidden",
                           textOverflow:"ellipsis" }}>{sv.email}</div>
+                        {sv.ra_micro_erreichbar === false ? (
+                          <span style={{ fontSize: 11, color: "#b91c1c" }}>
+                            RA-MICRO nicht erreichbar
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: 11, color: "#6b7280" }}>
+                            {sv.akten_laufend ?? 0} laufend · {sv.akten_anzahl ?? 0} gesamt
+                          </span>
+                        )}
                       </div>
                       <div style={{ width:8, height:8, borderRadius:"50%",
                         background:dotFarbe, flexShrink:0 }} />
@@ -1100,7 +1138,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                   : sv.einladung_gesendet_am ? "#22c55e" : "#f59e0b";
                 const statusText = !sv.portal_aktiv ? "Deaktiviert"
                   : sv.einladung_gesendet_am ? "Aktiv im Portal" : "Einladung ausstehend";
-                const sichtbar = svAkten.filter(a => a.portal_aktiv).length;
+                const sichtbar = svAkten.filter(a => !a.portal_gesperrt).length;
                 return (
                   <>
                     {/* SV-Header */}
@@ -1202,42 +1240,38 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                           </span>
                         </div>
                         <div style={{ flex:1 }} />
-                        {(() => {
-                          const alleAn = svAkten.length > 0 && svAkten.every(a => a.portal_aktiv);
-                          return (
-                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                              <span style={{ fontFamily:T.fontBody, fontSize:"0.78rem",
-                                color: alleAn ? "#22c55e" : T.textMuted, fontWeight:600 }}>
-                                {alleAn ? "Alle freigegeben" : "Alle sperren / freigeben"}
-                              </span>
-                              <div
-                                onClick={async () => {
-                                  const neuerWert = alleAn ? 0 : 1;
-                                  try {
-                                    await apiSvPortal.alleToggle(sv.adressnr, neuerWert);
-                                    setSvAkten(prev => prev.map(a => ({...a, portal_aktiv: neuerWert, im_system: true})));
-                                    setToast(neuerWert ? "Alle Akten freigegeben." : "Alle Akten gesperrt.");
-                                  } catch(e) { setToast(e?.message || "Fehler."); }
-                                }}
-                                style={{ width:44, height:24, borderRadius:12,
-                                  background: alleAn ? "#22c55e" : T.border,
-                                  position:"relative", cursor:"pointer",
-                                  transition:"background 0.2s", flexShrink:0 }}>
-                                <div style={{ position:"absolute", top:3,
-                                  left: alleAn ? 22 : 3,
-                                  width:18, height:18, borderRadius:9,
-                                  background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,.25)",
-                                  transition:"left 0.2s" }} />
-                              </div>
-                            </div>
-                          );
-                        })()}
+                        <Btn
+                          disabled={svAbgleicht}
+                          style={{ fontSize:"0.78rem", padding:"6px 11px",
+                            background:"transparent", color:T.textMuted,
+                            border:`1px solid ${T.border}` }}
+                          onClick={async () => {
+                            setSvAbgleicht(true);
+                            try {
+                              const bericht = await apiSvPortal.zugriffeAbgleichen(sv.adressnr);
+                              await ladeSvAkten(sv.adressnr);
+                              const unbekannt = bericht?.unbekannt?.length || 0;
+                              setToast(
+                                `${bericht.gesamt} Akten, ${bericht.gesperrt} gesperrt, ${bericht.uebertragen} übertragen.` +
+                                (unbekannt > 0 ? ` ${unbekannt} Akte(n) im Portal unbekannt geblieben.` : "")
+                              );
+                            } catch(e) { setToast(e?.message || "Fehler."); }
+                            finally { setSvAbgleicht(false); }
+                          }}>
+                          {svAbgleicht ? "…" : "⇄ Zugriffe abgleichen"}
+                        </Btn>
                       </div>
+
+                      {svAktenFehler && (
+                        <p role="alert" style={{ color: "var(--rot, #b91c1c)", fontSize: 13 }}>
+                          {svAktenFehler}
+                        </p>
+                      )}
 
                       {svAktenLaedt ? (
                         <div style={{ color:T.textFaint, fontFamily:T.fontBody,
                           fontSize:"0.875rem" }}>Lade …</div>
-                      ) : svAkten.length === 0 ? (
+                      ) : svAkten.length === 0 && !svAktenFehler ? (
                         <div style={{ color:T.textFaint, fontFamily:T.fontBody,
                           fontSize:"0.875rem" }}>
                           Keine Akten in RA-MICRO gefunden.
@@ -1247,7 +1281,7 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                           border:`1px solid ${T.border}`, borderRadius:8,
                           padding:"9px 12px", marginBottom:6,
                           display:"flex", alignItems:"center", gap:10,
-                          opacity: akte.portal_aktiv ? 1 : 0.65 }}>
+                          opacity: akte.portal_gesperrt ? 0.65 : 1 }}>
                           <div style={{ fontFamily:"ui-monospace,monospace",
                             fontSize:"0.8rem", fontWeight:700, color:T.navy, minWidth:75 }}>
                             {akte.az}
@@ -1261,30 +1295,36 @@ function EinstellungenView({ initialTab = null, onTabMounted } = {}) {
                             color:T.textFaint, flexShrink:0 }}>
                             {akte.unfalldatum || ""}
                           </div>
+                          <div style={{ fontFamily:T.fontBody, fontSize:"0.72rem",
+                            color:T.textFaint, minWidth:78, flexShrink:0 }}>
+                            {akte.ramicro_abgelegt ? "abgeschlossen" : "laufend"}
+                          </div>
                           <div
                             onClick={async () => {
-                              const neuerWert = akte.portal_aktiv ? 0 : 1;
+                              const neuerWert = !akte.portal_gesperrt;
                               try {
-                                await apiSvPortal.togglePortalAktiv(akte.az, neuerWert);
+                                await apiSvPortal.togglePortalGesperrt(akte.az, neuerWert);
                                 setSvAkten(prev => prev.map(a =>
-                                  a.az === akte.az ? {...a, portal_aktiv: neuerWert, im_system: true} : a
+                                  a.az === akte.az
+                                    ? {...a, portal_gesperrt: neuerWert ? 1 : 0, portal_aktiv: neuerWert ? 0 : 1, im_system: true}
+                                    : a
                                 ));
                               } catch(e) { setToast(e?.message || "Fehler."); }
                             }}
                             style={{ width:36, height:20, borderRadius:10,
-                              background: akte.portal_aktiv ? "#22c55e" : T.border,
+                              background: akte.portal_gesperrt ? T.border : "#22c55e",
                               position:"relative", cursor:"pointer",
                               transition:"background 0.2s", flexShrink:0 }}>
                             <div style={{ position:"absolute", top:2,
-                              left: akte.portal_aktiv ? 18 : 2,
+                              left: akte.portal_gesperrt ? 2 : 18,
                               width:16, height:16, borderRadius:8,
                               background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,.2)",
                               transition:"left 0.2s" }} />
                           </div>
                           <div style={{ fontFamily:T.fontBody, fontSize:"0.72rem",
-                            fontWeight:600, minWidth:45, flexShrink:0,
-                            color: akte.portal_aktiv ? "#22c55e" : T.textFaint }}>
-                            {akte.portal_aktiv ? "Sichtbar" : "Gesperrt"}
+                            fontWeight:600, minWidth:70, flexShrink:0,
+                            color: akte.portal_gesperrt ? T.textFaint : "#22c55e" }}>
+                            {akte.portal_gesperrt ? "gesperrt" : "freigegeben"}
                           </div>
                         </div>
                       ))}

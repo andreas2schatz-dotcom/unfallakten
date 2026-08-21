@@ -1095,17 +1095,13 @@ export const apiSvPortal = {
   akten: (adressnr) =>
     request(`/einstellungen/sv-portal/${adressnr}/akten`),
 
-  alleToggle: (adressnr, aktiv) =>
-    request(`/einstellungen/sv-portal/${adressnr}/akten/alle`, {
+  togglePortalGesperrt: (akte_az, gesperrt) =>
+    request(`/einstellungen/sv-portal/akten/${encodeURIComponent(akte_az)}/portal_gesperrt`, {
       method: 'PATCH',
-      body: JSON.stringify({ portal_aktiv: aktiv ? 1 : 0 }),
+      body: JSON.stringify({ portal_gesperrt: gesperrt ? 1 : 0 }),
     }),
-
-  togglePortalAktiv: (akte_az, aktiv) =>
-    request(
-      `/einstellungen/sv-portal/akten/${encodeURIComponent(akte_az)}/portal_aktiv`,
-      { method: 'PATCH', body: JSON.stringify({ portal_aktiv: aktiv ? 1 : 0 }) }
-    ),
+  zugriffeAbgleichen: (adressnr) =>
+    request(`/einstellungen/sv-portal/${adressnr}/zugriffe-abgleichen`, { method: 'POST' }),
 };
 
 // ─────────────────────────────────────────────────────────────
