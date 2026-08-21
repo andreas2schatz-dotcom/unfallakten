@@ -15,7 +15,8 @@ def db():
             az TEXT PRIMARY KEY, status TEXT DEFAULT 'offen',
             portal_aktiv INTEGER DEFAULT 0, portal_sync_pending INTEGER DEFAULT 0,
             portal_last_sync TEXT, unfalldatum TEXT DEFAULT '',
-            haftungsquote REAL DEFAULT 100.0, sachbearbeiter TEXT, erstellt_am TEXT
+            haftungsquote REAL DEFAULT 100.0, sachbearbeiter TEXT, erstellt_am TEXT,
+            kurzbezeichnung TEXT, ramicro_abgelegt INTEGER NOT NULL DEFAULT 0
         );
         CREATE TABLE beteiligte (
             id INTEGER PRIMARY KEY, akte_id TEXT, rolle TEXT, name TEXT,

@@ -24,10 +24,12 @@ def _berechne_ampel(conn, akte_id):
     # type: (sqlite3.Connection, str) -> dict
     """Gibt {'status': str, 'farbe': str} zurueck."""
     akte = conn.execute(
-        "SELECT status FROM unfallakte WHERE az = ?", (akte_id,)
+        "SELECT status, ramicro_abgelegt FROM unfallakte WHERE az = ?", (akte_id,)
     ).fetchone()
     if not akte:
         return {"status": "akte_eroeffnet", "farbe": "grau"}
+
+    abgeschlossen = akte["status"] == "abgeschlossen" or bool(akte["ramicro_abgelegt"])
 
     if akte["status"] == "klage":
         return {"status": "klage_eingereicht", "farbe": "rot"}
@@ -50,7 +52,7 @@ def _berechne_ampel(conn, akte_id):
     """, (akte_id,)).fetchone()
     reguliert = float(reg["reguliert"]) if reg else 0.0
 
-    if akte["status"] == "abgeschlossen" and gefordert > 0 and reguliert >= gefordert * 0.95:
+    if abgeschlossen and gefordert > 0 and reguliert >= gefordert * 0.95:
         return {"status": "vollreguliert", "farbe": "gruen"}
 
     if reguliert > 0 and gefordert > 0:
@@ -93,7 +95,8 @@ def _build_payload(conn, akte_id):
     # type: (sqlite3.Connection, str) -> dict
     """Baut vollstaendigen JSON-Snapshot einer Akte. Kein IBAN, keine internen Notizen."""
     akte = conn.execute("""
-        SELECT az, status, unfalldatum, haftungsquote, sachbearbeiter
+        SELECT az, status, unfalldatum, haftungsquote, sachbearbeiter,
+               kurzbezeichnung, ramicro_abgelegt
         FROM unfallakte WHERE az = ?
     """, (akte_id,)).fetchone()
     if not akte:
@@ -139,10 +142,11 @@ def _build_payload(conn, akte_id):
         "sync_version": sync_version,
         "akte": {
             "az": akte["az"],
-            "status": akte["status"],
+            "status": "abgeschlossen" if akte["ramicro_abgelegt"] else akte["status"],
             "unfalldatum": akte["unfalldatum"],
             "haftungsquote": akte["haftungsquote"],
             "sachbearbeiter": akte["sachbearbeiter"],
+            "kurzbezeichnung": akte["kurzbezeichnung"],
         },
         "beteiligte": [
             {"id": b["id"], "rolle": b["rolle"], "name": b["name"],
