@@ -17,6 +17,14 @@ Alles ist in `main` gemergt+gepusht (`cf7dd74d`); Entscheidung RA Schatz: Abnahm
 - **Übersicht-Redesign:** Sichtkontrolle; bewusste Eigenheiten: kurzes KPI-Umspringen beim Öffnen (Alt-Zahlen → Ereignismodell), HQ=0-Semantik (Header 0 € gefordert, Backend-DOCX rechnet bei HQ=0 mit 100 % — bekannte Inkonsistenz).
 Zurückgestellte Minors je Modul: `bugfixes.md` + CHANGELOG-Einträge 2026-08-07/-11 (opportunistisch bei nächster Anfassung).
 
+### SV-Portal Ninnivaggi — ✅ umgesetzt (Branch `sv-portal-laufende-akten`, 2026-08-21), Abnahme offen
+Spec + Plan unter `docs/superpowers/`, Protokoll → CHANGELOG. Endstand deckungsgleich mit RA-MICRO: 578 Akten, 109 laufend, 469 abgeschlossen. **Offen:**
+- **Sichtprüfung im Browser** (datenseitig bereits geprüft, aber nicht am Bildschirm): Portal auf `localhost:3002` starten, im Admin auf Ninnivaggi impersonieren — Startseite meldet „Meine Akten — 578 Fälle", die Liste zeigt beim Öffnen 109, der Chip „Abgeschlossen" klappt 469 auf.
+- **Zwei Szenarien am lebenden Objekt:** eine Akte in RA-MICRO reaktivieren (muss nach dem Nachtlauf zurück zu „Laufend", mit wiederhergestelltem Aktenstand); eine Akte in den Einstellungen sperren (muss aus seiner Liste verschwinden).
+- **Veröffentlichung des Portals** — eigenes Vorhaben: Domain (`portal.anwalt-offenbach.de` löst derzeit nicht auf), SSL, E-Mail-Versand der Zugangslinks, Auftragsverarbeitung und Datenschutzerklärung für den SV-Zugang. Erst danach kann Ninnivaggi überhaupt zugreifen.
+- **Zweiter Sachverständiger (Cassese):** Der Mechanismus trägt ihn; Freischaltung war nicht Teil dieser Abnahme.
+- Nacharbeitsliste (geringe Befunde aus den Prüfungen) → `bugfixes.md`.
+
 ### Offene Entscheidungen RA Schatz
 - **I-10 Haftungsquote (Forderungsschreiben):** Brief behauptet bei erfasster Teilhaftung weiterhin Alleinschuld und fordert ungekürzt; FE-Banner quotiert daneben. Braucht juristische Formulierung für den Teilhaftungs-Baustein (+ HQ=0-Konvention, vgl. Inkonsistenz Übersicht/DOCX).
 - **Fehlablage (Kürzungstaxonomie Phase 0):** Dok 41478 + 43429 aus Akten 971/25 / 980/25 löschen? (FEHLABLAGE-Vermerk gesetzt; 852/25 nur in RA-MICRO, 418/28 existiert nirgends.)

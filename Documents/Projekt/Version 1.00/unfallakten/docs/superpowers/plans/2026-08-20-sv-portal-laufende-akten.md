@@ -990,10 +990,10 @@ Prüfen, ob `import click` in `backend/app.py` bereits vorhanden ist; falls nich
 - [ ] **Step 6: Vorschaulauf gegen die Live-Datenbank**
 
 ```bash
-docker exec -w /app -e FLASK_APP=backend.app:create_app unfallakten-backend-dev flask ablage-abgleich --vorschau
+docker exec -w /app -e FLASK_APP="backend.app:erstelle_app()" unfallakten-backend-dev flask ablage-abgleich --vorschau
 ```
 
-Erwartet: eine Zeile „neu abgelegt" mit einer Zahl in der Größenordnung von 250–300 (die Live-Datenbank enthält nach der Bereinigung 325 Akten). **Nicht schreiben** — der schreibende Lauf ist Teil von Task 10, nach Rücksprache mit RA Schatz.
+Erwartet: rund 330 geprüfte Akten, davon etwa 40 „neu abgelegt". Am 2026-08-20 gegen RA-MICRO nachgerechnet: von 332 Akten im System sind 40 abgelegt, 286 laufend, 6 in RA-MICRO nicht auffindbar (abweichende Aktenzeichen aus dem E-Mail-Import). **Nicht schreiben** — der schreibende Lauf ist Teil von Task 10, nach Rücksprache mit RA Schatz.
 
 - [ ] **Step 7: Commit**
 
@@ -2234,7 +2234,7 @@ git commit -m "feat(einstellungen): Sperre statt Freigabe, Zugriffs-Abgleich, Si
 Kein neuer Code — die Kette wird verbunden und geprüft.
 
 **Files:**
-- Modify: `docker-compose.yml` (Umgebungsvariablen des Backend-Dienstes)
+- Modify: `.env` (Zugangsdaten des Portals — nicht versioniert)
 - Modify: `docs/TODO.md`, `docs/CHANGELOG.md`
 
 - [ ] **Step 1: Zugangsdaten des Portals holen**
@@ -2247,13 +2247,15 @@ Fehlen sie, im Portal setzen und dort eintragen.
 
 - [ ] **Step 2: Backend auf das lokale Portal zeigen lassen**
 
-In `docker-compose.yml` beim Backend-Dienst ergänzen:
+**Nicht** in `docker-compose.yml` — diese Datei ist versioniert, dort eingetragene Schlüssel landeten in der Git-Historie. Der Backend-Dienst liest bereits `env_file: .env`, und `.env` ist von der Versionierung ausgenommen (`.gitignore:14`). Also dort ergänzen:
 
-```yaml
-      PORTAL_API_URL: "http://host.docker.internal:3002"
-      PORTAL_API_KEY: "<SYNC_API_KEY aus .env.local>"
-      PORTAL_HMAC_SECRET: "<SYNC_HMAC_SECRET aus .env.local>"
 ```
+PORTAL_API_URL=http://host.docker.internal:3002
+PORTAL_API_KEY=<SYNC_API_KEY aus .env.local des Portals>
+PORTAL_HMAC_SECRET=<SYNC_HMAC_SECRET aus .env.local des Portals>
+```
+
+`docker-compose.yml` bleibt unverändert.
 
 Danach zwingend neu erzeugen — ein Neustart übernimmt geänderte Umgebungsvariablen nicht:
 
@@ -2274,7 +2276,7 @@ Erwartet: `200`
 - [ ] **Step 4: Vorschaulauf und Rücksprache**
 
 ```bash
-docker exec -w /app -e FLASK_APP=backend.app:create_app unfallakten-backend-dev flask ablage-abgleich --vorschau
+docker exec -w /app -e FLASK_APP="backend.app:erstelle_app()" unfallakten-backend-dev flask ablage-abgleich --vorschau
 ```
 
 Die Zahlen RA Schatz vorlegen. **Ohne seine Bestätigung nicht weiter.**
@@ -2283,13 +2285,13 @@ Die Zahlen RA Schatz vorlegen. **Ohne seine Bestätigung nicht weiter.**
 
 ```bash
 docker exec unfallakten-backend-dev python -c "import sqlite3; s=sqlite3.connect('/app/data/unfallakten.db'); d=sqlite3.connect('/app/data/unfallakten.db.bak_vor_ablage_abgleich'); s.backup(d); d.close(); s.close(); print('Backup erstellt.')"
-docker exec -w /app -e FLASK_APP=backend.app:create_app unfallakten-backend-dev flask ablage-abgleich
+docker exec -w /app -e FLASK_APP="backend.app:erstelle_app()" unfallakten-backend-dev flask ablage-abgleich
 ```
 
 - [ ] **Step 6: Akten und Zugriffe übertragen**
 
 ```bash
-docker exec -w /app -e FLASK_APP=backend.app:create_app unfallakten-backend-dev flask sync-sv-zugriffe 25982
+docker exec -w /app -e FLASK_APP="backend.app:erstelle_app()" unfallakten-backend-dev flask sync-sv-zugriffe 25982
 ```
 
 Erwartet: „Akten gesamt: 578, gesperrt: 0, übertragen: 578, gesendet: True"
@@ -2324,9 +2326,11 @@ Erwartet: keine Fehlschläge. Die Backend-Vollsuite stand zuletzt bei 1774 grün
 - [ ] **Step 10: Commit**
 
 ```bash
-git add docker-compose.yml docs/CHANGELOG.md docs/TODO.md
-git commit -m "chore(portal): Portal-Adresse konfiguriert, Abnahme dokumentiert"
+git add docs/CHANGELOG.md docs/TODO.md
+git commit -m "docs(portal): Abnahme dokumentiert"
 ```
+
+`.env` wird bewusst **nicht** committet — sie enthält Zugangsschlüssel und ist von der Versionierung ausgenommen.
 
 ---
 

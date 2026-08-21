@@ -303,7 +303,7 @@ RA-MICRO (read-only)
 
 | Risiko | Umgang |
 |---|---|
-| E-2 verändert Ansichten außerhalb des Portals: Akten mit Status `abgeschlossen` fallen aus der Tagesübersicht (`dashboard_routes.py:329`) | Vorschaulauf vor dem Schreiben; Backup vor dem ersten schreibenden Lauf. Die Zahl der betroffenen Akten liegt bei rund 850 |
+| E-2 verändert Ansichten außerhalb des Portals: Akten mit Status `abgeschlossen` fallen aus der Tagesübersicht (`dashboard_routes.py:329`) | Vorschaulauf vor dem Schreiben; Backup vor dem ersten schreibenden Lauf. Am 2026-08-20 nachgerechnet: von 332 Akten im System sind nur 40 in RA-MICRO abgelegt — die Wirkung auf die Tagesübersicht ist also deutlich kleiner als zunächst angenommen |
 | Zwei Sync-Wege nebeneinander: `backend/services/portal_sync.py` (in der Anwendung) und `stakeholder-portal/scripts/sync_connector.py` (Skript). Die Payloads unterscheiden sich | In diesem Vorhaben gilt der Weg in der Anwendung. Der Skript-Weg wird nur um D-2 bereinigt, damit er nicht mit veraltetem Aufbau danebenläuft |
 | Die 578 Akten sind bei uns inhaltlich dünn (von 111 laufenden haben 26 eine Kurzbezeichnung bei uns, keine ein Unfalldatum, 22 Dokumente) | Baustein 2 füllt die Kurzbezeichnung aus RA-MICRO. Mehr Inhalt entsteht erst im laufenden Betrieb; die Karten bleiben zunächst schlicht. Bewusst in Kauf genommen |
 | Migration 69 könnte der Reloader-Falle zum Opfer fallen | In einem Schreibvorgang schreiben, danach `schema_version` und Spalten in der Live-Datenbank prüfen |

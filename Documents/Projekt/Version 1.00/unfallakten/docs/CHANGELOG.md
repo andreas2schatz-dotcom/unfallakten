@@ -7,6 +7,20 @@
 
 ---
 
+## 2026-08-21 — SV-Portal für Sachverständige nutzbar gemacht (Branch `sv-portal-laufende-akten`)
+
+Spec: `docs/superpowers/specs/2026-08-20-sv-portal-laufende-akten-design.md`, Plan: `docs/superpowers/plans/2026-08-20-sv-portal-laufende-akten.md`. Anlass: erster echter SV-Zugang (Ninnivaggi, RA-MICRO-Adressnr. 25982, 578 Akten). Der Laufend/Abgeschlossen-Filter im Portal existierte bereits, griff aber ins Leere — der Ablage-Status aus RA-MICRO wurde nirgends übernommen, und die Zuordnung SV↔Akte existiert ausschließlich in RA-MICRO (`beteiligte` enthielt genau einen SV-Eintrag).
+
+**Gebaut:** `ramicro/ablage_service.py` (Ablage-Status lesen — maßgeblich ist `iAblageNummer`, **nicht** `dtAblage`: RA-MICRO trägt dort für nicht abgelegte Akten den Nullwert `1899-12-30` ein), `services/ablage_abgleich.py` (beidseitig; eine Reaktivierung stellt den in `status_vor_ablage` gesicherten Aktenstand wieder her, ein selbst gesetzter Abschluss bleibt unangetastet), nächtlicher Lauf 03:30, `services/sv_zugriff_sync.py` + Portal-Endpunkt `POST /api/sync/sv-zugriffe` (Berechtigung getrennt vom Akteninhalt), Kurzbezeichnung im Payload, Freigabe zur **Ausnahme-Sperre** umgestellt (`portal_gesperrt`; der Knopf „alle aktivieren" entfällt — er hatte 545 leere Akten-Hüllen erzeugt).
+
+**Migration 69** — neben den neuen Spalten eine Schema-Reparatur der Bestands-DB: Es fehlten `portal_sync_queue`, `portal_einladungen`, `fragebogen_erstkontakt` sowie `beteiligte.gutachten_nr`, `dokumente.portal_sichtbar`, `unfallakte.regulierung_status`, `unfalldetails.erstellt_am` — sämtlich aus als erledigt gestempelten Migrationen (38/39/45/46), die nie ausgeführt wurden. Zusätzlich: Fremdschlüssel von `forderung_positionen`/`abrechnungsschreiben` zeigten auf die entfallene Tabelle `dokumente_alt`, wodurch bei eingeschalteter Fremdschlüsselprüfung **jedes** Löschen einer Akte scheiterte; und `beteiligte.id` hatte seinen Primärschlüssel verloren (9 von 17 Zeilen ohne Nummer) — beides repariert.
+
+**Behobene Anzeigefehler:** „bezahlt ✓" bei Akten ohne erfasste Forderung (Karte **und** Rechnungsblock zeigen jetzt einen Strich); abgelaufene Sitzung führte in den Einstellungen zu einer leeren SV-Liste statt einer Meldung.
+
+**Abnahme 2026-08-21:** Ablage-Abgleich zweistufig (Vorschau → Freigabe RA Schatz → Schreiben): 329 geprüft, 40 auf `abgeschlossen`, 21 Bezeichnungen. Endstand deckungsgleich mit RA-MICRO: 578 Akten / 109 laufend / 469 abgeschlossen, alle mit Kurzbezeichnung. Testsuiten: Backend **1827 passed / 20 skipped / 0 failed**, Portal **230/230**, Frontend **548/548**. Offen: Sichtprüfung im Browser (Cockpit-Startseite, Aufklappen des Chips, Reaktivierungs- und Sperr-Szenario) sowie die Veröffentlichung des Portals — es läuft bisher nur lokal.
+
+---
+
 ## 2026-08-12 — Sachbearbeiter-Verwaltung in den Einstellungen (Branch `sachbearbeiter-verwaltung`)
 
 Spec: `docs/superpowers/specs/2026-08-12-sachbearbeiter-verwaltung-design.md`, Plan: `docs/superpowers/plans/2026-08-12-sachbearbeiter-verwaltung.md`. Vier hartcodierte Sachbearbeiter-Listen (Frontend `ALLE_SB`/`DEFAULT_SB`, Backend-Dict `SACHBEARBEITER`, `_KALENDER_ZU_SB`, Vorauswahl) durch eine einzige Tabelle ersetzt. Backend-Vollsuite **1769 passed / 20 skipped / 0 failed** (455.82 s), Frontend **530/530** (87 Testdateien).
