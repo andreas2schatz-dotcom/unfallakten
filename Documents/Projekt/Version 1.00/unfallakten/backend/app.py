@@ -14,6 +14,7 @@ Verwendung:
 
 import os
 import logging
+import click
 from flask import Flask, jsonify
 from flask_apscheduler import APScheduler
 from .db.schema_manager import init_db
@@ -307,6 +308,26 @@ def erstelle_app(test_config: dict = None) -> Flask:
         with get_connection() as conn:
             n = _portal_process_queue(conn)
             print("Portal-Sync: {} Akte(n) synchronisiert.".format(n))
+
+    @app.cli.command("ablage-abgleich")
+    @click.option("--vorschau", is_flag=True, help="Nur berichten, nichts schreiben.")
+    def ablage_abgleich_cmd(vorschau):
+        """Gleicht den Ablage-Status aus RA-MICRO ab."""
+        from .db.database import get_connection
+        from .services.ablage_abgleich import abgleichen
+        with get_connection() as conn:
+            bericht = abgleichen(conn, vorschau=vorschau)
+        if not bericht["ramicro_erreichbar"]:
+            print("RA-MICRO nicht erreichbar - nichts geaendert.")
+            return
+        print("{}{} Akten geprueft".format(
+            "VORSCHAU: " if vorschau else "", bericht["geprueft"]))
+        print("  neu abgelegt:  {} {}".format(
+            bericht["abgelegt_neu"], bericht["beispiele"]["abgelegt_neu"]))
+        print("  reaktiviert:   {} {}".format(
+            bericht["reaktiviert"], bericht["beispiele"]["reaktiviert"]))
+        print("  neu angelegt:  {}".format(bericht["angelegt"]))
+        print("  Bezeichnungen: {}".format(bericht["bezeichnung_aktualisiert"]))
 
     # ── CORS-Header (für React-Frontend) ──────────────────────────────────────
     @app.after_request
