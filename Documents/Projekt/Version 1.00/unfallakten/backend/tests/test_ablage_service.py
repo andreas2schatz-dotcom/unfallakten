@@ -63,6 +63,18 @@ def test_nullwert_1899_gilt_nicht_als_ablage(monkeypatch):
     assert ergebnis["101/24"]["ablage_datum"] is None
 
 
+def test_ablagenummer_positiv_aber_1899_datum(monkeypatch):
+    _mit_zeilen(monkeypatch, [{
+        "az": "103/24", "iAblageNummer": 4711,
+        "dtAblage": datetime.datetime(1899, 12, 30),
+        "kurz": "Meyer/Schmidt",
+    }])
+    ergebnis = ablage_service.hole_ablage_status(["103/24"])
+    assert ergebnis["103/24"]["abgelegt"] is True
+    assert ergebnis["103/24"]["ablage_datum"] is None
+    assert ergebnis["103/24"]["kurzbezeichnung"] == "Meyer/Schmidt"
+
+
 def test_ablagenummer_null_gilt_nicht_als_ablage(monkeypatch):
     _mit_zeilen(monkeypatch, [{
         "az": "102/24", "iAblageNummer": None,
@@ -88,9 +100,54 @@ def test_leere_eingabe_fragt_ra_micro_nicht(monkeypatch):
     assert ablage_service.hole_ablage_status([]) == {}
 
 
+def test_verbindung_ok_aber_keine_akten_gefunden(monkeypatch):
+    _mit_zeilen(monkeypatch, [])
+    ergebnis = ablage_service.hole_ablage_status(["999/99"])
+    assert ergebnis == {}
+
+
 def test_fragt_in_bloecken_an(monkeypatch):
-    zeilen = [{"az": f"{i}/24", "iAblageNummer": 0, "dtAblage": None, "kurz": ""}
-              for i in range(1, 5)]
-    conn = _mit_zeilen(monkeypatch, zeilen)
-    ablage_service.hole_ablage_status([f"{i}/24" for i in range(1, 5)])
-    assert conn.cursor().params is not None
+    az_liste = [f"{i:03d}/24" for i in range(1, 502)]
+
+    class _MultiBlockCursor:
+        def __init__(self):
+            self.aufrufe = []
+
+        def execute(self, sql, params=None):
+            self.aufrufe.append((sql, params))
+
+        def fetchall(self):
+            aufruf_nr = len(self.aufrufe) - 1
+            if aufruf_nr == 0:
+                return [{"az": f"{i:03d}/24", "iAblageNummer": i,
+                         "dtAblage": datetime.datetime(2025, 1, 1), "kurz": f"Fall{i}"}
+                        for i in range(1, 501)]
+            elif aufruf_nr == 1:
+                return [{"az": "501/24", "iAblageNummer": 501,
+                         "dtAblage": datetime.datetime(2025, 1, 2), "kurz": "Fall501"}]
+            return []
+
+    class _MultiBlockConn:
+        def __init__(self):
+            self._cursor = _MultiBlockCursor()
+
+        def cursor(self):
+            return self._cursor
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    conn = _MultiBlockConn()
+    monkeypatch.setattr(ablage_service, "get_ramicro_connection", lambda: conn)
+
+    ergebnis = ablage_service.hole_ablage_status(az_liste)
+
+    assert len(conn._cursor.aufrufe) == 2
+    assert len(conn._cursor.aufrufe[0][1]) == 500
+    assert len(conn._cursor.aufrufe[1][1]) == 1
+    assert len(ergebnis) == 501
+    assert ergebnis["001/24"]["abgelegt"] is True
+    assert ergebnis["501/24"]["abgelegt"] is True
