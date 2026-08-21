@@ -77,3 +77,12 @@ def test_payload_baut_ohne_fehler_bei_leerer_akte(conn):
     assert payload["akte"]["az"] == "4/25"
     assert payload["beteiligte"] == []
     assert payload["dokumente"] == []
+
+
+def test_abgelegte_klageakte_behaelt_klage_kennzeichnung(conn):
+    conn.execute(
+        "INSERT INTO unfallakte (az, status, ramicro_abgelegt) VALUES ('5/25', 'klage', 1)"
+    )
+    ampel = portal_sync._berechne_ampel(conn, "5/25")
+    assert ampel["status"] == "klage_eingereicht"
+    assert ampel["farbe"] == "rot"
