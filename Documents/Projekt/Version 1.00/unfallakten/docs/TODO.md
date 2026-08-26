@@ -7,6 +7,14 @@
 
 ## 🔄 In Arbeit
 
+### Geld-SSOT + Abrechnungs-Vorschlag (2026-08-26, Branch `geld-ssot-abrechnungsvorschlag`)
+Grundsatzentscheidung RA Schatz in `docs/DECISIONS.md` („Geld-SSOT", hebt den Beschluss vom 2026-08-10 auf). Protokoll → CHANGELOG. **Offen:**
+- **Browser-Abnahme an 589/26:** Beleg-Dropdown zeigt Bezeichnungen statt Hashes; Hinweisleiste „ausgelesene Abrechnungsschreiben" in der Regulierung + Übernahme-Dialog; Kopfzahl der Übersicht = 6.256,57 € und deckungsgleich mit dem Abschlussbericht; neue Zeile „Kosten der Nachbesichtigung (brutto)" im Schaden-Tab.
+- **Regulierungs-Tabelle + Forderungshistorie auf `/akten/<az>/positionen/status` umstellen** — letzter Rest Doppelberechnung (gleiche Zahlen, eigener Frontend-Code).
+- **Haftungsquote in der Kopfzahl:** wird nicht mehr aufmultipliziert (Gleichstand mit dem Abschlussbericht). Falls quotiert gewünscht, muss der Bericht mitziehen — Entscheidung RA Schatz.
+- **Auffangklasse `rechnung`:** Freigabe bucht keine Position; ein späteres Reparse verfeinert die Klasse, zieht das Ereignis aber nicht nach (589/26: beide SV-Rechnungen). Eigenes Vorhaben.
+- Toter Code in `RegulierungSection.jsx`: `AbrechnungFormular` + `ManuelleAbrechnungFormular` (~340 Zeilen) werden nirgends gerendert.
+
 ### Produktiv-Nachtests nach dem großen Merge (seit 2026-08-11, RA Schatz)
 Alles ist in `main` gemergt+gepusht (`cf7dd74d`); Entscheidung RA Schatz: Abnahmen erfolgen im laufenden Betrieb („die Randfälle kriege ich nur so mit"). Beim Arbeiten gezielt sichten, Auffälligkeiten melden:
 - **Abschluss-/Sachstandsbericht:** DOCX in beiden Modi generieren und gegenlesen.

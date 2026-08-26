@@ -7,6 +7,121 @@
 
 ---
 
+## 2026-08-26 — Nachbesichtigungskosten als eigene Schadenposition (Migration 70)
+
+Gemeldet von RA Schatz: „Wir haben in der Schadentabelle keine Position für die Kosten der Nachbesichtigung. Diese Position kommt immer wieder." Er hatte den Betrag in 589/26 deshalb als *Sonstiges* eingebucht.
+
+**Befund:** Die Spalte `kostennb` existiert seit Migration 8 und wird von Forderungsschreiben, Klage-Wizard, Abrechnungsübersicht und der Registry längst geführt — es fehlte nur das Eingabefeld. Entsprechend nutzte sie **keine einzige Akte**.
+
+Dabei fiel eine Inkonsistenz auf: `kostennb` war die einzige Nebenposition ohne `_netto`-Geschwister. Das Hauptfeld galt als NETTO und `kostennb_ust` wurde separat aufaddiert, während `sv_kosten`, `mietwagenkosten` & Co. den Bruttobetrag im Hauptfeld führen (`X_netto` / `X_ust` / `X`). Wer den Rechnungsbetrag eingetippt hätte, wäre in `_netto_oder_brutto()` auf die 19-%-Hochrechnung gelaufen: aus 29,75 € wären 35,40 € geworden.
+
+**Migration 70** ergänzt `schadenpositionen.kostennb_netto` und zieht die Position auf die Hausregel: `kostennb` = brutto, `kostennb_netto` + `kostennb_ust` = Aufteilung. Kein Datenumzug nötig (0 betroffene Akten). Nachgezogen in `models/schaden.py` (Spaltenliste, Dataclass, `gesamt_brutto`, `berechne_abrechnungsart`), `schaden_routes.py`, `word_service.py`, `abrechnungsuebersicht_service.py`, `forderungsschreiben_wv.py`, `klage_routes.py` (jetzt über `_netto_oder_brutto()` wie die Geschwister), `klage_service.py`. Registry-Label `kostennb` von „Kostennebenschaden" auf „Nachbesichtigungskosten" korrigiert — die vier anderen Fundstellen hießen schon so.
+
+**Frontend:** neue Zeile im Schaden-Tab, „Kosten der Nachbesichtigung (brutto)", direkt über der Unkostenpauschale; `calcBrutto()` zählt den Bruttobetrag nur noch einmal.
+
+**Akte 589/26 bereinigt:** 29,75 € von `sonstiges` auf `kostennb` umgebucht (netto 25,00 + USt 4,75 laut Rechnung B26/089602 vom 23.07.2026), `sonstiges_beschr` geleert. Die Zahlung lag bereits auf `kostennb` — Forderung und Zahlung treffen sich jetzt auf derselben Zeile:
+
+```
+kostennb               gefordert=   29.75 anerkannt=   29.75 offen=0.00  anerkannt
+nutzungsausfall        gefordert=  172.00 anerkannt=  172.00 offen=0.00  anerkannt
+rep_gutachten_netto    gefordert= 4882.48 anerkannt= 4882.48 offen=0.00  anerkannt
+sv_kosten              gefordert=  992.34 anerkannt=  992.34 offen=0.00  anerkannt
+unkostenpauschale      gefordert=   30.00 anerkannt=   30.00 offen=0.00  anerkannt
+wertminderung          gefordert=  150.00 anerkannt=  150.00 offen=0.00  anerkannt
+
+UEBERSICHT  gefordert=6256.57  reguliert=6256.57  offen=0.00
+BERICHT     gefordert=6256.57  gezahlt=6256.57  differenz=0.00
+```
+
+Backup vor der Bereinigung: `/app/data/unfallakten.db.bak_pre_kostennb_20260826`.
+
+TDD: `backend/tests/test_kostennb_position.py` (8), vorher rot — inklusive Schutzplanke gegen die 19-%-Hochrechnung. Vollsuiten: Backend **1879 passed / 20 skipped / 0 failed**, Frontend **568/568**.
+
+---
+
+## 2026-08-26 — Eine Geld-Wahrheit: Kopfzahl liest die Schadenpositionen
+
+Grundsatzentscheidung RA Schatz, festgehalten in `docs/DECISIONS.md` („Die erfassten Schadenpositionen und die Abrechnungsart sind aktenwahr — immer und überall"). Sie hebt den Beschluss vom 2026-08-10 auf, das Ereignismodell zur Geld-SSOT auszubauen.
+
+**Umgesetzt:** `leite_positionsstatus_ab()` (`positionsstatus_service.py`) bildet die Beträge nicht mehr selbst aus Ereignissen, sondern liest sie aus der aktenwahren Quelle — `gefordert` über `_schadenpositionen_rows()` (Schadenpositionen + Abrechnungsart), `anerkannt` über `_baue_pos_map()` (Regulierung). Aus den Ereignissen kommen weiterhin `gekuerzt`, `abgelehnt`, `zustand`, `stand`, `checkliste`, `eskalationsstufe`, `has_unbestaetigt`. Weil Kopfzahl, `PositionsDashboard` und Phasenberechnung schon seit dem Redesign an derselben Response hängen, rechnen sie damit automatisch wie Abschlussbericht und Word-Abrechnungsübersicht.
+
+Die parallele Alt-Formel im Frontend (`liveBrutto × HQ` bzw. `Σ gesamt_reguliert`) ist ersatzlos entfernt, ebenso die Markierung `quelle: "alt"` / `"ereignismodell"`.
+
+**Ein Schlüsselraum:** Ereignis-Keys laufen jetzt ebenfalls durch `_normalise_key(key, fahrzeug_zielkey)` — Kürzung, Ablehnung und Checkliste landen damit zwingend auf derselben Zeile wie Forderung und Zahlung. Der Fahrzeugschaden erscheint überall unter dem Key, den die Abrechnungsart bestimmt (bei 589/26: `rep_gutachten_netto`).
+
+**Zusatzbefund beim Nachrechnen:** Eine Zahlung auf eine Position ohne Forderung fiel aus der Berichtssumme (589/26: die Reparaturbestätigung ist unter `sonstiges` gefordert, RA Schatz hat sie auf `kostennb` gebucht — 29,75 € fehlten). `_schadenpositionen_rows()` legt für solche Zahlungen jetzt eine eigene Zeile mit Forderung 0 an, statt sie zu verschlucken.
+
+**Stand 589/26 danach** — Übersicht und Bericht identisch:
+
+```
+UEBERSICHT  gefordert=6256.57  reguliert=6256.57
+BERICHT     gefordert=6256.57  gezahlt=6256.57
+```
+
+TDD: `test_positionsstatus_ssot.py` (8) + zwei neue Fälle in `test_abschluss_fahrzeugkey.py`, vorher rot. Neun Bestandstests trugen das alte Ereignismodell-als-Geldquelle fest; sie seeden jetzt die aktenwahre Quelle mit und prüfen weiter dieselben Zustandsübergänge (`test_positionsstatus_service.py`, `test_p15a_regulierung.py`, `test_p15c_gutachten.py`, `test_p15_vorbereitung.py`, `test_positionen_routes.py`). Vollsuiten: Backend **1871 passed / 20 skipped / 0 failed**, Frontend **568/568**.
+
+**Noch nicht nachgezogen:** Die Regulierungs-Tabelle und die Forderungshistorie bauen ihre Zeilen weiterhin im Frontend selbst zusammen — gleiche Zahlen, eigener Code. Umstellung auf `/akten/<az>/positionen/status` steht aus (in DECISIONS vermerkt).
+
+**Datenhinweis 589/26:** Die Zahlung von 29,75 € liegt auf `kostennb`, die zugehörige Forderung auf `sonstiges`. Beträge stimmen in der Summe, die Position bleibt aber „offen" — beim nächsten Anfassen der Akte auf `sonstiges` umbuchen.
+
+---
+
+## 2026-08-26 — Übersicht rechnete Reparaturkosten + Wiederbeschaffungswert zusammen; Zahlungen erreichten den Abschlussbericht nicht
+
+Zwei Befunde RA Schatz an Akte 589/26, beide dieselbe Wurzel: derselbe Sachverhalt wird an mehreren Stellen unterschiedlich normalisiert.
+
+### Befund 1 — Übersicht zeigte 18.532,48 € statt 6.256,57 €
+
+`_gutachten_positionen()` schrieb jedes Feld, das der Gutachten-Parser fand, als `wirkung='gefordert'` — also Reparaturkosten (4.882,48) **und** Wiederbeschaffungswert (13.500) nebeneinander, dazu den Restwert positiv. Die beiden stehen im Alternativverhältnis; bei fiktiver Reparatur ist der WBW nur Vergleichsgröße. `summenAusPositionsstatus()` und das PositionsDashboard summieren alle Schlüssel stumpf, die Aggregationszeile las wörtlich „reparaturkosten + wertminderung + wiederbeschaffung + rep_gutachten_netto".
+
+**Behoben:** neuer Helfer `waehle_fahrzeugschaden()` in `eingehende_ereignisse.py` liefert genau **eine** Fahrzeugschaden-Position und fragt dafür `berechne_abrechnungsart()` (`models/schaden.py`) — dieselbe Quelle, aus der Schaden-Tab, Regulierung und Klage rechnen. fiktiv → `reparaturkosten`, totalschaden → `wiederbeschaffung` (WBW abzüglich Restwert), konkret → nichts (den Betrag trägt das Ereignis der Reparaturrechnung). Der Restwert wird nie mehr als eigene Forderung geschrieben. Eine manuell gesetzte Abrechnungsart der Akte hat Vorrang. Verdrahtet in beiden Schreibwegen: Review-Freigabe (`erzeuge_aus_freigabe`) und KI-Dialog-Korrektur (`erzeuge_aus_gutachten`).
+
+**Datenkorrektur:** DB-weit war genau ein Datensatz betroffen (Akte 589/26, Ereignis 17). `ereignis_positionen`-Zeile 40 (wiederbeschaffung 13.500) entfernt, `rebuild_cache('589/26')`. Backup vorher: `/app/data/unfallakten.db.bak_pre_fahrzeugschaden_20260826`. Kopfzahl danach 5.032,48 € (Gutachten-Positionen).
+
+### Befund 2 — manuell geänderte Zahlung fehlte im Abschlussbericht
+
+`_normalise_key()` in `abrechnungsuebersicht_service.py` ließ `fahrzeugschaden` bewusst roh stehen (Kommentar: „Ziel-Key hängt von der Abrechnungsart ab und kann hier ohne Kontext nicht aufgelöst werden") und kannte `reparaturkosten` überhaupt nicht. `_schadenpositionen_rows()` baut die Fahrzeugzeile aber unter `rep_gutachten_netto` / `rep_rechnung_netto` / `wiederbeschaffung` — der Nachschlag ging ins Leere und die Zahlung verschwand **lautlos** (Position blieb „offen"). Die Regulierungs-Tabelle führt dagegen alle Fahrzeug-Keys auf eine Zeile zusammen und zeigte die Zahlung, der Bericht nicht.
+
+**Behoben:** `_fahrzeug_zielkey(schaden, vorsteuer)` liefert den Key, den der Bericht tatsächlich druckt (aus `berechne_abrechnungsart().fahrzeugschaden_key`); `_normalise_key(raw, fahrzeug_zielkey)` bildet alle Fahrzeug-Schreibweisen (`fahrzeugschaden`, `reparaturkosten`, `reparatur_netto`, `wbw`, `wba`, …) darauf ab. Der Restwert bleibt eigene Abzugszeile. Gilt für Abschlussbericht **und** Word-Abrechnungsübersicht.
+
+Der Befund traf auch das tags zuvor gebaute Abrechnungs-Vorschlagsfeature: „fiktive Abrechnung" bucht auf `fahrzeugschaden` — genau den Key, den der Bericht nicht auflöste.
+
+TDD: `test_gutachten_fahrzeugschaden_alternative.py` (10) + `test_abschluss_fahrzeugkey.py` (7), vorher rot. Zwei Bestandstests trugen das alte Verhalten fest und wurden mit Begründung nachgezogen (`test_p15c_gutachten.py`, `test_intake_routes.py`). Vollsuiten: Backend **1862 passed / 20 skipped / 0 failed**, Frontend **568/568**.
+
+**Offen (Design, keine Entscheidung getroffen):** Die Kopfzahl der Übersicht kommt aus dem Ereignismodell und kennt nur belegte Positionen — Nutzungsausfall, Unkostenpauschale und die als Auffangklasse `rechnung` freigegebenen SV-Rechnungen fehlen dort (589/26: 5.032,48 € statt 6.256,57 €). Ob der Kopf stattdessen aus `berechne_abrechnungsart().gesamt_brutto` speisen soll, ist zu entscheiden — siehe TODO „Zwei getrennte Positions-Modelle abgleichen".
+
+---
+
+## 2026-08-26 — Abrechnungsschreiben schlagen ihre Beträge zur Übernahme vor
+
+Gemeldet von RA Schatz an Akte 589/26: zwei freigegebene AXA-Abrechnungsschreiben, aber in der Regulierungs-Tabelle bleibt die Spalte „Gezahlt" leer.
+
+**Ursache:** `erzeuge_aus_freigabe()` schreibt Positionen nur für `gutachten_eingegangen` und `rechnung_eingegangen`; für `abrechnung_eingegangen` entsteht bewusst ein Fakt-Ereignis ohne Positionen (`backend/services/eingehende_ereignisse.py:512-548`). Die geparsten Beträge stehen als Freitextzeilen im `intake_dokumente.parse_json` und wurden nirgends abgeholt. Die Übersetzung Freitext→position_key existierte bereits (`positions_synonyme.yaml` + `normalisiere_positionslabel()` aus Kürzungstaxonomie Phase 1), hatte aber **keinen einzigen produktiven Aufrufer** — nur Tests.
+
+**Entscheidungen RA Schatz:** „fiktive Abrechnung" läuft auf `fahrzeugschaden` (nicht `reparaturkosten`), und die Beträge werden als **Vorschlag** angeboten statt direkt gebucht — OCR-Fehler (im Juli-Schreiben `201,758 €` statt 201,76 €) sollen nicht ungeprüft in die Akte laufen.
+
+**Gebaut:** `backend/services/abrechnung_vorschlag.py` (`baue_vorschlaege(akte_az)`) sammelt freigegebene Abrechnungsschreiben ohne zugehörigen `abrechnungsschreiben`-Eintrag, holt die Felder aus `dokumente.parse_json` oder über `freigaben` → `intake_dokumente.parse_json` und mappt die Zeilen; unbekannte Labels bleiben bewusst ohne Key. Neuer Endpunkt `GET /akten/<az>/abrechnungen/vorschlaege`. Im Frontend `components/AbrechnungVorschlagDialog.jsx` (Zuordnung je Zeile korrigierbar, Beträge editierbar, Parser-Warnungen sichtbar) plus Hinweisleiste in der RegulierungSection; „Übernehmen" geht durch den bestehenden `POST /abrechnungen`, damit Kürzungen, Klage-Vormerkung und Abrechnungsrunden greifen. `positions_synonyme.yaml`: `fiktive abrechnung` + `konkrete abrechnung` → `fahrzeugschaden`.
+
+Zwei Eigenheiten des LLM-Parsers sind mitabgedeckt: das Positions-Label heißt je Dokument `text` oder `beschreibung`, und der Regex-Parser liefert stattdessen `art`.
+
+TDD: `backend/tests/test_abrechnung_vorschlag.py` (8) + `frontend/src/components/AbrechnungVorschlagDialog.test.jsx` (12), vorher rot. Vollsuiten: Backend **1845 passed / 20 skipped / 0 failed**, Frontend **568/568**, `vite build` grün. Offen: Browser-Abnahme an 589/26.
+
+**Nebenbefund (nicht angefasst):** `AbrechnungFormular` und `ManuelleAbrechnungFormular` in `RegulierungSection.jsx` (~340 Zeilen) sind toter Code — sie werden nirgends gerendert.
+
+---
+
+## 2026-08-26 — Beleg-Zuordnung zeigt die Dokumentbezeichnung statt des Hash-Dateinamens
+
+Gemeldet von RA Schatz: In der SchadenSection listet „+ Beleg" die Dokumente mit ihrem Dateinamen — bei allen Dokumenten aus der Intake-Pipeline ist das der SHA-256-Hash (`6ac609ea…cfad58ac.pdf`), also unbrauchbar für die Auswahl.
+
+**Ursache:** Die Pipeline schreibt zwar eine sprechende `bezeichnung` in `dokumente` („Rechnung SV-HO vom 18.06.2026 (992,34 €)"), aber die Beleg-Oberfläche rendert ausschließlich `dateiname` — und `GET /akten/<az>/belege` sowie `…/belege/kandidaten` lieferten das Feld überhaupt nicht mit.
+
+**Behoben:** Beide Beleg-Endpunkte geben `bezeichnung` jetzt mit aus (E-Akte-Kandidaten `null`, deren `dateiname` ist bereits die Bemerkung). Neuer Helfer `dokumentAnzeige()` in `frontend/src/config/utils.js` als einheitliche Anzeigelogik: `bezeichnung` → nicht-Hash-Dateiname → Klassen-Label aus der Registry + Dokumentnummer. Verdrahtet in SchadenSection (Auswahl-Dropdown, zugeordneter Beleg, Referenz-Dokumente, Kandidat-Split-View) und DokumenteSection (Beleg-Zeile, Kandidatenzeile, Vorschau-Kopf, Diagnose-Dialog); der Hash bleibt als Tooltip erhalten. Die Bezeichnung ist in der Dokumentenkachel weiterhin editierbar, Korrekturen schlagen also direkt in der Beleg-Auswahl durch.
+
+TDD: `backend/tests/test_belege_bezeichnung.py` (4) + `frontend/src/config/utils.dokumentAnzeige.test.js` (8), vorher rot. Vollsuiten: Backend **1837 passed / 20 skipped / 0 failed**, Frontend **556/556**.
+
+---
+
 ## 2026-08-21 — SV-Portal für Sachverständige nutzbar gemacht (Branch `sv-portal-laufende-akten`)
 
 Spec: `docs/superpowers/specs/2026-08-20-sv-portal-laufende-akten-design.md`, Plan: `docs/superpowers/plans/2026-08-20-sv-portal-laufende-akten.md`. Anlass: erster echter SV-Zugang (Ninnivaggi, RA-MICRO-Adressnr. 25982, 578 Akten). Der Laufend/Abgeschlossen-Filter im Portal existierte bereits, griff aber ins Leere — der Ablage-Status aus RA-MICRO wurde nirgends übernommen, und die Zuordnung SV↔Akte existiert ausschließlich in RA-MICRO (`beteiligte` enthielt genau einen SV-Eintrag).
