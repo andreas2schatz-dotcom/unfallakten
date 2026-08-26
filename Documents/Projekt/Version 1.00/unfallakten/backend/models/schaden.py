@@ -152,7 +152,7 @@ SCHADEN_FELDER = [
     "verdienstausfall", "haushalt",
     "rep_gutachten_netto", "rep_gutachten_mwst",
     "unkostenpauschale", "wdm_extras_json", "wdm_info_json",
-    "kostennb", "kostennb_ust",
+    "kostennb", "kostennb_netto", "kostennb_ust",
     "rep_rechnung_netto", "rep_rechnung_brutto",
     "abrechnungsart",
     "sv_kosten_netto",       "sv_kosten_ust",
@@ -190,7 +190,8 @@ class Schadenposition:
     unkostenpauschale: float = 0.0
     wdm_extras_json: Optional[str] = None
     wdm_info_json: Optional[str] = None
-    kostennb: float = 0.0
+    kostennb: float = 0.0          # Bruttobetrag (Migration 70)
+    kostennb_netto: float = 0.0
     kostennb_ust: float = 0.0
     rep_rechnung_netto: float = 0.0
     rep_rechnung_brutto: float = 0.0
@@ -250,7 +251,6 @@ class Schadenposition:
             + (self.haushalt         or 0.0)
             + (self.unkostenpauschale or 0.0)
             + (self.kostennb         or 0.0)
-            + (self.kostennb_ust     or 0.0)
         )
 
     @property
@@ -586,7 +586,7 @@ def berechne_abrechnungsart(s, vorsteuer: bool = False) -> dict:
         + g("sv_kosten")        + g("abschleppkosten")  + g("standkosten")
         + g("anabmeldekosten")  + g("schmerzensgeld")   + g("sonstiges")
         + g("verdienstausfall") + g("haushalt")         + (g("unkostenpauschale") or 0)
-        + g("kostennb")         + g("kostennb_ust")
+        + g("kostennb")
         + extras_summe
     )
 

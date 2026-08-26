@@ -111,6 +111,7 @@ const SCHADEN_F = [
   {k:"schmerzensgeld",       l:"Schmerzensgeldvorschuss"},
   {k:"verdienstausfall",     l:"Verdienstausfall"},
   {k:"haushalt",             l:"Haushaltsführungsschaden"},
+  {k:"kostennb",             l:"Kosten der Nachbesichtigung (brutto)"},
   {k:"unkostenpauschale",    l:"Unkostenpauschale (30 €)"},
   {k:"sonstiges",            l:"Sonstiges"},
 ];

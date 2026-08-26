@@ -377,6 +377,7 @@ def _lade_akte_daten(akte_id: int, akte, dok_typ: str = "", variante: str = "aut
             "wdm_extras_json":     getattr(s, "wdm_extras_json",    None),
             "wdm_info_json":       getattr(s, "wdm_info_json",     None),
             "kostennb":            getattr(s, "kostennb",            0.0),
+            "kostennb_netto":      getattr(s, "kostennb_netto",      0.0),
             "kostennb_ust":        getattr(s, "kostennb_ust",        0.0),
             "rep_rechnung_netto":  getattr(s, "rep_rechnung_netto",  0.0),
             "rep_rechnung_brutto": getattr(s, "rep_rechnung_brutto", 0.0),

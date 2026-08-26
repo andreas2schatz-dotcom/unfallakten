@@ -836,7 +836,7 @@ def berechne_positionen(schaden: dict, vorsteuer: bool = False) -> list[dict]:
         ("sv_kosten", "Sachverständigenkosten" + suf,
          _nb("sv_kosten_netto", "sv_kosten_ust", "sv_kosten"), ""),
         ("kostennb", "Nachbesichtigungskosten" + suf,
-         _nb("kostennb", "kostennb_ust", "kostennb"), ""),
+         _nb("kostennb_netto", "kostennb_ust", "kostennb"), ""),
         ("abschleppkosten", "Abschleppkosten" + suf,
          _nb("abschleppkosten_netto", "abschleppkosten_ust", "abschleppkosten"), ""),
         ("standkosten", "Standkosten" + suf,

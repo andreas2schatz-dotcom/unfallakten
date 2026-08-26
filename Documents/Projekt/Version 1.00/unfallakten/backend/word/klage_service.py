@@ -1465,7 +1465,7 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
     _NEBENKOSTEN_GRUPPEN = {
         "mietwagenkosten": ("mietwagenkosten", "mietwagenkosten_netto", "mietwagenkosten_ust"),
         "sv_kosten":       ("sv_kosten", "sv_kosten_netto", "sv_kosten_ust"),
-        "kostennb":        ("kostennb", "kostennb_ust"),
+        "kostennb":        ("kostennb", "kostennb_netto", "kostennb_ust"),
         "abschleppkosten": ("abschleppkosten", "abschleppkosten_netto", "abschleppkosten_ust"),
         "standkosten":     ("standkosten", "standkosten_netto", "standkosten_ust"),
         "anabmeldekosten": ("anabmeldekosten", "anabmeldekosten_netto", "anabmeldekosten_ust"),

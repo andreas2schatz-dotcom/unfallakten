@@ -140,7 +140,7 @@ positionsarten:
     aggregation: nebenkosten
     checkliste:  []
   kostennb:
-    label:       "Kostennebenschaden"
+    label:       "Nachbesichtigungskosten"
     kategorie:   nebenkosten
     aggregation: nebenkosten
     checkliste:  []

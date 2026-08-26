@@ -863,6 +863,8 @@ def hole_klage_daten(akte_id: str):
         schaden_dict, "standkosten_netto", "standkosten_ust", "standkosten", _vorsteuer)
     _anabmeldekosten_betrag = _netto_oder_brutto(
         schaden_dict, "anabmeldekosten_netto", "anabmeldekosten_ust", "anabmeldekosten", _vorsteuer)
+    _kostennb_betrag = _netto_oder_brutto(
+        schaden_dict, "kostennb_netto", "kostennb_ust", "kostennb", _vorsteuer)
 
     # Alle möglichen Positionen
     pos_definitionen = [
@@ -892,8 +894,7 @@ def hole_klage_daten(akte_id: str):
         {"key": "schmerzensgeld",   "label": "Schmerzensgeld",
          "betrag": s("schmerzensgeld"), "vorschlag": s("schmerzensgeld") > 0},
         {"key": "kostennb",         "label": "Nachbesichtigungskosten",
-         "betrag": s("kostennb") + s("kostennb_ust") if not _vorsteuer else s("kostennb"),
-         "vorschlag": s("kostennb") > 0},
+         "betrag": _kostennb_betrag, "vorschlag": _kostennb_betrag > 0},
     ]
 
     # Sonstiges (Freitext-Position aus Schaden-Reiter)
@@ -1287,6 +1288,7 @@ def _baue_klage_akte_daten(akte, body: dict) -> dict:
         "anabmeldekosten_ust": s("anabmeldekosten_ust"),
         "standkosten_ust":     s("standkosten_ust"),
         "kostennb":            s("kostennb"),
+        "kostennb_netto":      s("kostennb_netto"),
         "kostennb_ust":        s("kostennb_ust"),
         "schmerzensgeld":      s("schmerzensgeld"),
         "verdienstausfall":    s("verdienstausfall"),

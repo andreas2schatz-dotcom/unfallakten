@@ -324,6 +324,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     67: "-- migration_67_abschluss_status",  # Handled by _run_migration_67
     68: "-- migration_68_sachbearbeiter",  # Handled by _run_migration_68
     69: "-- migration_69_sv_portal_ablage",  # Handled by _run_migration_69
+    70: "-- migration_70_kostennb_netto",  # Handled by _run_migration_70
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -1444,6 +1445,41 @@ def _run_migration_69(conn: sqlite3.Connection) -> None:
     logger.info("Migration 69 abgeschlossen.")
 
 
+def _run_migration_70(conn: sqlite3.Connection) -> None:
+    """
+    Migration 70: Nachbesichtigungskosten auf die Hausregel bringen.
+
+    ``kostennb`` war die einzige Nebenposition ohne ``_netto``-Geschwister:
+    das Hauptfeld galt als NETTO und ``kostennb_ust`` wurde separat
+    aufaddiert, waehrend sv_kosten, mietwagenkosten & Co. den BRUTTO-Betrag
+    im Hauptfeld fuehren. Wer den Rechnungsbetrag eintippt, haette so eine
+    19-%-Hochrechnung ausgeloest.
+
+    schadenpositionen:
+      kostennb_netto REAL DEFAULT 0.0 - Nettoanteil der Nachbesichtigung
+
+    Ab hier gilt: kostennb = brutto, kostennb_netto + kostennb_ust =
+    Aufteilung. Ein Datenumzug ist nicht noetig -- zum Zeitpunkt der
+    Migration nutzt keine Akte das Feld (Eingabemaske fehlte bisher).
+    """
+    conn.commit()
+    try:
+        conn.execute(
+            "ALTER TABLE schadenpositionen "
+            "ADD COLUMN kostennb_netto REAL NOT NULL DEFAULT 0.0"
+        )
+        logger.info("Migration 70: schadenpositionen.kostennb_netto ergaenzt.")
+    except Exception:
+        pass  # Spalte existiert bereits
+    conn.commit()
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (70, 'Nachbesichtigungskosten: kostennb_netto ergaenzt, "
+        "kostennb ist der Bruttobetrag')"
+    )
+    conn.commit()
+
+
 def _migration_69_fk_reparatur(conn: sqlite3.Connection) -> None:
     """
     Baut forderung_positionen und abrechnungsschreiben neu auf, wenn ihr
@@ -2106,6 +2142,8 @@ def run_migrations() -> None:
                 _run_migration_68(conn)
             elif version == 69:
                 _run_migration_69(conn)
+            elif version == 70:
+                _run_migration_70(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(
@@ -2400,7 +2438,8 @@ def _run_migration_8(conn: sqlite3.Connection) -> None:
       vorsteuer TEXT DEFAULT 'N' – Vorsteuerabzugsberechtigung (J/N)
 
     schadenpositionen:
-      kostennb     REAL DEFAULT 0.0 – Nachbesichtigungskosten (netto)
+      kostennb     REAL DEFAULT 0.0 – Nachbesichtigungskosten
+                   (seit Migration 70 der BRUTTO-Betrag)
       kostennb_ust REAL DEFAULT 0.0 – MwSt auf Nachbesichtigung
     """
     neue_beteiligte = [
