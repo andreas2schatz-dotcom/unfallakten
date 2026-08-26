@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
 import { DOK_TYPEN, SCHADEN_F, KLASSE_TO_POS } from "../config/constants.js";
-import { fmtSize, fmtEuro } from "../config/utils.js";
+import { fmtSize, fmtEuro, dokumentAnzeige } from "../config/utils.js";
 import { Card, CardHead, Btn, FieldSelect, Toast } from "../components/common.jsx";
 import DokumentAktionsmenue from "../components/DokumentAktionsmenue.jsx";
 import IntakePendingListe from "./IntakePendingListe.jsx";
@@ -1281,7 +1281,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                         <span style={{ color:T.red, fontSize:"0.9rem", flexShrink:0 }}>📄</span>
                         <span style={{ fontFamily:T.fontBody, fontSize:"0.82rem", color:T.blue,
                           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                          {beleg.dateiname}
+                          {dokumentAnzeige(beleg)}
                         </span>
                       </button>
                       {beleg.betrag_aus_beleg > 0 && (
@@ -1296,7 +1296,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                       </span>
                       <button
                         onClick={async () => {
-                          if (!confirm(`Zuordnung von "${beleg.dateiname}" entfernen?`)) return;
+                          if (!confirm(`Zuordnung von "${dokumentAnzeige(beleg)}" entfernen?`)) return;
                           try {
                             await apiBelege.entfernen(akteId, beleg.id);
                             const bRes = await apiBelege.liste(akteId);
@@ -1323,7 +1323,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                       <span style={{ fontFamily:T.fontBody, fontSize:"0.8rem", color:T.textMid,
                         overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1, minWidth:0 }}
                         title={kand.dateiname}>
-                        {kand.dateiname || kand.lieferant || "Dokument"}
+                        {kand.bezeichnung || kand.dateiname || kand.lieferant || "Dokument"}
                       </span>
                       {/* Mit Betrag: Wert + Annehmen-Button */}
                       {kand.betrag_vorschlag != null ? (
@@ -1431,7 +1431,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                 padding:"12px 20px", borderBottom:`1px solid ${T.border}`, background:T.surface }}>
                 <span style={{ fontFamily:T.fontBody, fontSize:"0.9rem", fontWeight:600, color:T.navy,
                   overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"70vw" }}>
-                  📄 {dokumente.find(d => d.id === belegVorschau)?.dateiname || "Vorschau"}
+                  📄 {dokumentAnzeige(dokumente.find(d => d.id === belegVorschau))}
                 </span>
                 <button onClick={() => setBelegVorschau(null)}
                   style={{ background:"none", border:"none", cursor:"pointer", fontSize:"1.2rem", color:T.textFaint, lineHeight:1 }}>✕</button>
@@ -1767,7 +1767,7 @@ function KandidatenDebugDialog({ kandidaten, uebersprungen = {}, onClose }) {
                       }}>
                         <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}
                           title={k.dateiname}>
-                          {isWinner ? "★ " : ""}{k.dateiname || "—"}
+                          {isWinner ? "★ " : ""}{k.bezeichnung || k.dateiname || "—"}
                         </span>
                         <span style={{ fontSize:"0.72rem", color: isEakte ? T.blue : T.textMuted,
                           fontWeight:600, textAlign:"center" }}>

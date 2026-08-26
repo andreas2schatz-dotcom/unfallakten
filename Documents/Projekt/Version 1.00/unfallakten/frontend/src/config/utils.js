@@ -1,3 +1,5 @@
+import { DOK_TYPEN } from "./dokumentenklassen.generated.js";
+
 function fmtEuro(v) {
   if (v==null) return "–";
   return new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(v);
@@ -51,6 +53,23 @@ function summenAusPositionsstatus(positionen) {
   }), { gefordert: 0, reguliert: 0, offen: 0 });
 }
 
+const HASH_DATEINAME = /^[0-9a-f]{16,}(\.[a-z0-9]+)?$/i;
+
+function dokumentAnzeige(dok) {
+  if (!dok) return "Dokument";
+  const bez = String(dok.bezeichnung || "").trim();
+  if (bez) return bez;
+  const name = String(dok.dateiname || "").trim();
+  if (name && !HASH_DATEINAME.test(name)) return name;
+  const nr = dok.id ?? dok.dokument_id ?? dok.dok_id ?? null;
+  const klasse = dok.dokumentenklasse || dok.typ || "";
+  const treffer = klasse && klasse !== "sonstiges"
+    ? DOK_TYPEN.find(t => t.value === klasse) : null;
+  if (treffer) return nr != null ? `${treffer.label} (Nr. ${nr})` : treffer.label;
+  if (nr != null) return `Dokument Nr. ${nr}`;
+  return name || "Dokument";
+}
+
 export function todoDringlichkeit(todo, heute = new Date()) {
   const h = new Date(heute); h.setHours(0, 0, 0, 0);
   if (todo.faellig_am) {
@@ -69,4 +88,4 @@ export function todoDringlichkeit(todo, heute = new Date()) {
   return "grau";
 }
 
-export { fmtEuro, fmtSize, fmtDatumDe, verzugEintrittDefault, summenAusPositionsstatus };
+export { fmtEuro, fmtSize, fmtDatumDe, verzugEintrittDefault, summenAusPositionsstatus, dokumentAnzeige };

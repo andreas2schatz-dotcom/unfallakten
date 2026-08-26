@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
 import { ROLLEN_LABEL, ROLLEN_ICON, SCHADEN_F, ermittleAbrechnungsart, apiPS } from "../config/constants.js";
-import { fmtEuro } from "../config/utils.js";
+import { fmtEuro, dokumentAnzeige } from "../config/utils.js";
 import { Card, CardHead, Btn, Toast } from "../components/common.jsx";
 import {
   akten as apiAkten,
@@ -216,7 +216,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
       + g("sv_kosten") + g("abschleppkosten") + g("standkosten")
       + g("anabmeldekosten") + g("schmerzensgeld") + g("sonstiges")
       + g("verdienstausfall") + g("haushalt") + g("unkostenpauschale")
-      + g("kostennb") + g("kostennb_ust")
+      + g("kostennb")
       + (ex || []).reduce((s, e) => s + (parseFloat(e.betrag) || 0), 0);
   };
 
@@ -686,10 +686,10 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                     <div style={{ fontSize:"0.9rem", color:T.text }}>{aktiverKandidat.lieferant}</div>
                   </div>
                 )}
-                {aktiverKandidat.dateiname && (
+                {(aktiverKandidat.bezeichnung || aktiverKandidat.dateiname) && (
                   <div>
-                    <div style={{ fontSize:"0.72rem", fontWeight:600, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Datei</div>
-                    <div style={{ fontSize:"0.82rem", color:T.textFaint, wordBreak:"break-word" }}>{aktiverKandidat.dateiname}</div>
+                    <div style={{ fontSize:"0.72rem", fontWeight:600, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Dokument</div>
+                    <div style={{ fontSize:"0.82rem", color:T.textFaint, wordBreak:"break-word" }}>{dokumentAnzeige(aktiverKandidat)}</div>
                   </div>
                 )}
                 <div style={{ marginTop:"auto", display:"flex", flexDirection:"column", gap:8 }}>
@@ -1120,7 +1120,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                           <span style={{ fontSize:"0.9rem", flexShrink:0 }}>📄</span>
                           <span style={{ fontFamily:T.fontBody, fontSize:"0.75rem", color:T.blue,
                             overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                            {beleg.dateiname || "Beleg"}
+                            {dokumentAnzeige(beleg)}
                           </span>
                         </button>
                         <button onClick={() => handleBelegEntfernen(f.k)}
@@ -1159,7 +1159,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                                   onMouseEnter={e => e.currentTarget.style.background = T.surface}
                                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                                   <span style={{ color:T.red, flexShrink:0 }}>📄</span>
-                                  <span style={{ flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{d.dateiname}</span>
+                                  <span title={d.dateiname} style={{ flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{dokumentAnzeige(d)}</span>
                                   <span style={{ fontSize:"0.72rem", color:T.textFaint, flexShrink:0 }}>{d.quelle === "eakte" ? "E-Akte" : ""}</span>
                                 </button>
                               )) : (
@@ -1195,7 +1195,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
                   return (
                     <div key={i} style={{ display:"flex", alignItems:"center", gap:8, padding:"3px 0", borderTop: i>0 ? `1px solid ${T.borderSoft}` : "none" }}>
                       <span style={{ fontFamily:T.fontBody, fontSize:"0.82rem", color:T.text, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                        {k.dateiname || "Dokument"}
+                        {dokumentAnzeige(k)}
                       </span>
                       <span style={{ fontSize:"0.72rem", color:chipColor, fontWeight:600, flexShrink:0 }}>
                         {Math.round((k.konfidenz||0)*100)} %

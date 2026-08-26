@@ -366,7 +366,8 @@ def liste(akte_id):
             rows = conn.execute("""
                 SELECT b.id, b.akte_az, b.position_key, b.dokument_id,
                        b.betrag_aus_beleg, b.notiz, b.erstellt_am,
-                       d.dateiname, d.dokumentenklasse, d.quelle, d.dateipfad
+                       d.dateiname, d.bezeichnung, d.dokumentenklasse,
+                       d.quelle, d.dateipfad
                 FROM schadenposition_belege b
                 LEFT JOIN dokumente d ON d.id = b.dokument_id
                 WHERE b.akte_az = ?
@@ -383,6 +384,7 @@ def liste(akte_id):
                 "notiz": r["notiz"],
                 "erstellt_am": r["erstellt_am"],
                 "dateiname": r["dateiname"],
+                "bezeichnung": r["bezeichnung"],
                 "dokumentenklasse": r["dokumentenklasse"],
                 "quelle": r["quelle"],
                 "dateipfad": r["dateipfad"],
@@ -520,7 +522,8 @@ def kandidaten(akte_id):
 
             # Stufe 0: Lokale Dokumente mit bekannter Beleg-Klasse
             lokale_rows = conn.execute(
-                "SELECT id, dateiname, dokumentenklasse, parse_json, parse_status, parse_konfidenz "
+                "SELECT id, dateiname, bezeichnung, dokumentenklasse, "
+                "parse_json, parse_status, parse_konfidenz "
                 "FROM dokumente "
                 "WHERE akte_id = ? AND ("
                 "  dokumentenklasse LIKE 'rechnung%'"
@@ -564,6 +567,7 @@ def kandidaten(akte_id):
         klasse = dok["dokumentenklasse"] or ""
         dok_id = dok["id"]
         dateiname = dok["dateiname"] or ""
+        bezeichnung = dok["bezeichnung"] or None
 
         # ── Abrechnungsschreiben: Gesamt-Referenzdokument, keine Einzelposition ─
         if klasse == "abrechnungsschreiben":
@@ -575,6 +579,7 @@ def kandidaten(akte_id):
                 "dok_id":          dok_id,
                 "eakte_nr":        None,
                 "dateiname":       dateiname,
+                "bezeichnung":     bezeichnung,
                 "betrag_vorschlag": None,
                 "betrag_ist_netto": True,
                 "lieferant":       None,
@@ -610,6 +615,7 @@ def kandidaten(akte_id):
                     "dok_id":          dok_id,
                     "eakte_nr":        None,
                     "dateiname":       dateiname,
+                "bezeichnung":     bezeichnung,
                     "betrag_vorschlag": gut_betraege.get(pos_key),
                     "betrag_ist_netto": True,
                     "lieferant":       None,
@@ -660,6 +666,7 @@ def kandidaten(akte_id):
             "dok_id": dok_id,
             "eakte_nr": None,
             "dateiname": dateiname,
+            "bezeichnung": bezeichnung,
             "betrag_vorschlag": betrag,
             "betrag_ist_netto": ist_netto,
             "lieferant": None,
@@ -903,6 +910,7 @@ def kandidaten(akte_id):
                     "dok_id":          auto_dok_id,
                     "eakte_nr":        nr,
                     "dateiname":       dok.get("bemerkung") or dok.get("orgdatei") or dok.get("anzeigename") or "",
+                    "bezeichnung":     None,
                     "betrag_vorschlag": betrag_vorschlag,
                     "betrag_ist_netto": betrag_ist_netto,
                     "lieferant":       treffer.get("lieferant"),
