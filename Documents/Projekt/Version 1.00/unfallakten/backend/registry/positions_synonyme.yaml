@@ -14,6 +14,11 @@
 
 positions_synonyme:
   "differenzbetrag": fahrzeugschaden
+  # AXA/HUK betiteln den regulierten Fahrzeugschaden nach der Abrechnungsart
+  # (Entscheidung RA Schatz 2026-08-26: laeuft auf fahrzeugschaden, nicht
+  # auf reparaturkosten -- die Differenz zur Forderung ist die Kuerzung).
+  "fiktive abrechnung": fahrzeugschaden
+  "konkrete abrechnung": fahrzeugschaden
   "fahrzeugschaden": fahrzeugschaden
   "reparaturkosten gemäß prüfbericht": reparaturkosten
   "kostenpauschale": kostenpauschale

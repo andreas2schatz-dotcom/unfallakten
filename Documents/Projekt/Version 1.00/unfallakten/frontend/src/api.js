@@ -656,6 +656,7 @@ export const abrechnungen = {
   typVorschlaege: (akteId, abid) =>
     request(`/akten/${akteId}/abrechnungen/${abid}/typ-vorschlaege`),
   runden: (akteId) => request(`/akten/${akteId}/abrechnungen/runden`),
+  vorschlaege: (akteId) => request(`/akten/${akteId}/abrechnungen/vorschlaege`),
 };
 
 /** Prüfberichte */

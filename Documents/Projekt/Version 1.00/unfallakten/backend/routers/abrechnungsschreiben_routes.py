@@ -59,6 +59,22 @@ def liste_abrechnungen(akte_id: str):
     return _j({"abrechnungen": [a.as_dict() for a in abrechnungen], "anzahl": len(abrechnungen)})
 
 
+@abrechnung_bp.route("/vorschlaege", methods=["GET"])
+@login_erforderlich
+def liste_vorschlaege(akte_id: str):
+    """Geparste, aber noch nicht erfasste Abrechnungsschreiben der Akte."""
+    if not _pruefe_akte(akte_id):
+        return _err(f"Akte {akte_id} nicht gefunden.", 404)
+    from ..services.abrechnung_vorschlag import baue_vorschlaege
+    try:
+        vorschlaege = baue_vorschlaege(akte_id)
+    except Exception as exc:
+        logger.error("Abrechnungs-Vorschlaege (%s) fehlgeschlagen: %s",
+                     akte_id, exc)
+        return _err("Vorschlaege konnten nicht ermittelt werden.", 500)
+    return _j({"vorschlaege": vorschlaege, "anzahl": len(vorschlaege)})
+
+
 @abrechnung_bp.route("/<int:abid>", methods=["GET"])
 @login_erforderlich
 def hole_abrechnung(akte_id: str, abid: int):

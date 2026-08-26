@@ -5,6 +5,7 @@ import { POSITION_LABELS_FE, POSITION_IST_ABZUG, ART_LABEL, ABRECHNUNG_ART_LABEL
 import { fmtEuro } from "../config/utils.js";
 import { Card, CardHead, Btn, FieldInput, FieldSelect, Toast, SlidePanel } from "../components/common.jsx";
 import ForderungshistorieKarte from "../components/ForderungshistorieKarte.jsx";
+import AbrechnungVorschlagDialog from "../components/AbrechnungVorschlagDialog.jsx";
 import {
   akten as apiAkten,
   kuerzungsarten as apiKuerzungsarten,
@@ -1911,6 +1912,11 @@ function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, s
 
   // PDF Import + Prüfbericht
   const [showPdf, setShowPdf]     = useState(false);
+
+  // Vorschläge aus freigegebenen Abrechnungsschreiben (Intake)
+  const [vorschlaege, setVorschlaege]   = useState([]);
+  const [vorschlagOffen, setVorschlagOffen] = useState(null); // dokument_id
+  const [vorschlagSaving, setVorschlagSaving] = useState(false);
   const [wdmLaden, setWdmLaden]   = useState(false);
   const [wdmHinweis, setWdmHinweis] = useState(null);
 
@@ -2000,7 +2006,9 @@ function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, s
       request(`/akten/${akteId}/abrechnungen`),
       apiKuerzungsarten.liste(true),
       apiPruefberichte.liste(akteId),
-    ]).then(([abRes, kaRes, pbRes]) => {
+      apiAbrechnungen.vorschlaege(akteId).catch(() => null),
+    ]).then(([abRes, kaRes, pbRes, vsRes]) => {
+      setVorschlaege(vsRes?.vorschlaege || []);
       const list = abRes?.abrechnungen || [];
       setAbrechnungen(list);
       dispatch({ type: "SET_ABRECHNUNGEN", akteId, abrechnungen: list });
@@ -2147,6 +2155,44 @@ function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, s
   }, [posVorlage, abrechnungen]);
 
   const allePos = Object.values(posMap);
+
+  // Zuordenbare Positionen im Vorschlags-Dialog: die Zeilen dieser Tabelle,
+  // ergaenzt um alle uebrigen bekannten Positionen (eine Zahlung kann eine
+  // Position betreffen, die im Schaden-Tab noch gar nicht gefordert ist).
+  // Freitext-Extras ohne WDM-Nummer bleiben aussen vor -- fuer die gibt es
+  // keinen gueltigen Backend-Key.
+  const positionsOptionen = React.useMemo(() => {
+    const istZuordenbar = k => !/^extra_(?!wdm_ss\d)/.test(k);
+    const optionen = allePos
+      .filter(p => istZuordenbar(p.key))
+      .map(p => ({ value: p.key, label: p.label, gefordert: p.gefordert || 0 }));
+    const vorhanden = new Set(optionen.map(o => o.value));
+    Object.entries(POSITION_LABELS_FE).forEach(([key, label]) => {
+      if (!vorhanden.has(key) && istZuordenbar(key))
+        optionen.push({ value: key, label, gefordert: 0 });
+    });
+    return optionen;
+  }, [allePos]);
+
+  const uebernehmeVorschlag = async (payload) => {
+    setVorschlagSaving(true);
+    try {
+      await apiAbrechnungen.erstelle(akteId, {
+        ...payload,
+        datum:         payload.datum || new Date().toISOString().slice(0, 10),
+        haftungsart:   "vollhaftung",
+        haftungsquote: parseFloat(hqVal) || 100,
+        quelle:        "pdf",
+      });
+      setVorschlagOffen(null);
+      ladeAlles();
+      setToast("Abrechnung übernommen.");
+    } catch (e) {
+      setToast("Übernehmen fehlgeschlagen: " + (e?.message || String(e)));
+    } finally {
+      setVorschlagSaving(false);
+    }
+  };
   const getGezahlt = (pos) => pos.zahlungen.length
     ? pos.zahlungen.reduce((s, z) => s + z.betrag, 0)
     : null;
@@ -2616,6 +2662,66 @@ function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, s
                 dokumente={dokumente}
               />
             </div>
+          )}
+
+          {/* Ausgelesene, noch nicht erfasste Abrechnungsschreiben */}
+          {vorschlaege.length > 0 && (
+            <div style={{ margin:"0 1.4rem 0.9rem", padding:"0.7rem 0.9rem",
+              borderRadius:9, background:T.amberBg, border:`1px solid ${T.amber}55` }}>
+              <div style={{ fontFamily:T.fontBody, fontSize:"0.78rem", fontWeight:700,
+                color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.06em",
+                marginBottom:6 }}>
+                {vorschlaege.length === 1
+                  ? "1 ausgelesenes Abrechnungsschreiben noch nicht erfasst"
+                  : `${vorschlaege.length} ausgelesene Abrechnungsschreiben noch nicht erfasst`}
+              </div>
+              {vorschlaege.map((v, i) => {
+                const summe = (v.positionen || [])
+                  .reduce((sum, p) => sum + (p.betrag_reguliert || 0), 0);
+                const offeneZuordnung = (v.positionen || [])
+                  .filter(p => !p.position_key).length;
+                return (
+                  <div key={v.dokument_id}
+                    style={{ display:"flex", alignItems:"center", gap:10, padding:"5px 0",
+                      borderTop: i > 0 ? `1px solid ${T.amber}33` : "none" }}>
+                    <span style={{ fontFamily:T.fontBody, fontSize:"0.85rem", color:T.text,
+                      flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis",
+                      whiteSpace:"nowrap" }}>
+                      {v.bezeichnung}
+                    </span>
+                    {(v.warnungen || []).length > 0 && (
+                      <span title={(v.warnungen || []).join(" ")}
+                        style={{ fontSize:"0.75rem", color:T.amberText, flexShrink:0 }}>
+                        ⚠ Betrag prüfen
+                      </span>
+                    )}
+                    {offeneZuordnung > 0 && (
+                      <span style={{ fontSize:"0.75rem", color:T.textMuted, flexShrink:0 }}>
+                        {offeneZuordnung} ohne Zuordnung
+                      </span>
+                    )}
+                    <span style={{ fontFamily:"ui-monospace,monospace", fontSize:"0.85rem",
+                      fontWeight:600, color:T.navy, flexShrink:0 }}>
+                      {fmtEuro(summe)}
+                    </span>
+                    <Btn size="sm" variant="secondary"
+                      onClick={() => setVorschlagOffen(v.dokument_id)}>
+                      Prüfen &amp; übernehmen
+                    </Btn>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {vorschlagOffen != null && (
+            <AbrechnungVorschlagDialog
+              vorschlag={vorschlaege.find(v => v.dokument_id === vorschlagOffen)}
+              positionsOptionen={positionsOptionen}
+              speichert={vorschlagSaving}
+              onUebernehmen={uebernehmeVorschlag}
+              onAbbrechen={() => setVorschlagOffen(null)}
+            />
           )}
 
           {/* Tabelle */}
