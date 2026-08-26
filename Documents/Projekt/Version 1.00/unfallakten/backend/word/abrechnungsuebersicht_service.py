@@ -136,7 +136,8 @@ def _generiere(akte_daten: dict) -> bytes:
 
     # ── Regulierungsstand aus Abrechnungen aggregieren ────────────────────
     # Option B: Summe aller Zahlungsinkremente je position_key
-    pos_map = _baue_pos_map(abrechnungen)
+    pos_map = _baue_pos_map(
+        abrechnungen, fahrzeug_zielkey=_fahrzeug_zielkey(schaden, vorsteuer))
 
     # ── Letztes Abrechnungsdatum ──────────────────────────────────────────
     letztes_datum = ""
@@ -230,21 +231,44 @@ _KEY_NORMALISE = {
     "reparatur_fiktiv":  "rep_gutachten_netto",
     "kostenpauschale":   "unkostenpauschale",
     "ra_gebuehren":      "sonstiges",
-    # fahrzeugschaden bleibt roh – Ziel-Key (rep_gutachten_netto vs.
-    # rep_rechnung_netto vs. wiederbeschaffung) hängt von Abrechnungsart ab
-    # und kann hier ohne Kontext nicht aufgelöst werden.
 }
 _WDM_RE = re.compile(r"^sonstiges_wdm_(\d+)$")
 
+# Alle Schreibweisen, unter denen eine Zahlung auf den Fahrzeugschaden
+# gebucht sein kann: Abrechnungs-Vorschlag ("fahrzeugschaden"),
+# Gutachten-Ereignis ("reparaturkosten"), PDF-Parser ("reparatur_netto",
+# "wbw"), WDM ("rep_gutachten_netto") ... Welche Zeile der Bericht dafuer
+# druckt, entscheidet die Abrechnungsart -- siehe _fahrzeug_zielkey.
+# Der Restwert gehoert NICHT dazu: er bleibt eine eigene Abzugszeile.
+_FAHRZEUG_ROHKEYS = frozenset({
+    "fahrzeugschaden", "fahrzeugschaden_netto", "reparaturkosten",
+    "reparatur_netto", "reparatur_brutto", "reparatur_fiktiv",
+    "rep_gutachten_netto", "rep_rechnung_netto", "rep_rechnung_brutto",
+    "wbw", "wbw_netto", "wbw_brutto", "wba", "wiederbeschaffung",
+})
 
-def _normalise_key(raw_key: str) -> str:
+
+def _fahrzeug_zielkey(schaden: dict, vorsteuer: bool = False) -> str:
+    """Der Positions-Key, unter dem der Bericht den Fahrzeugschaden zeigt.
+
+    Deckungsgleich mit der Zeile, die _schadenpositionen_rows baut:
+    fiktiv -> rep_gutachten_netto, konkret -> rep_rechnung_netto,
+    totalschaden -> wiederbeschaffung.
+    """
+    return _berechne_abrechnungsart(
+        schaden, vorsteuer=vorsteuer)["fahrzeugschaden_key"]
+
+
+def _normalise_key(raw_key: str, fahrzeug_zielkey: str = None) -> str:
     m = _WDM_RE.match(raw_key)
     if m:
         return f"extra_wdm_ss{m.group(1)}"
+    if fahrzeug_zielkey and raw_key in _FAHRZEUG_ROHKEYS:
+        return fahrzeug_zielkey
     return _KEY_NORMALISE.get(raw_key, raw_key)
 
 
-def _baue_pos_map(abrechnungen: list) -> dict:
+def _baue_pos_map(abrechnungen: list, fahrzeug_zielkey: str = None) -> dict:
     """
     Gibt dict: position_key → { "reguliert": float }
 
@@ -256,7 +280,7 @@ def _baue_pos_map(abrechnungen: list) -> dict:
     for ab in abrechnungen:
         for p in (ab.get("positionen") or []):
             raw = p.get("position_key") or p.get("art") or "sonstiges"
-            key = _normalise_key(raw)
+            key = _normalise_key(raw, fahrzeug_zielkey)
             reg = p.get("betrag_reguliert")
             if reg is not None:
                 reg_f = round(float(reg), 2)
@@ -357,7 +381,7 @@ def _schadenpositionen_rows(schaden: dict, pos_map: dict, vorsteuer: bool) -> li
         ("nutzungsausfall", "Nutzungsausfallschaden",                _f("nutzungsausfall"),                                  False),
         ("mietwagenkosten", "Mietwagenkosten" + suf,                 _nb("mietwagenkosten_netto","mietwagenkosten_ust","mietwagenkosten"), False),
         ("sv_kosten",       "Sachverständigenkosten" + suf,          _nb("sv_kosten_netto","sv_kosten_ust","sv_kosten"),     False),
-        ("kostennb",        "Nachbesichtigungskosten" + suf,         _nb("kostennb","kostennb_ust","kostennb"),              False),
+        ("kostennb",        "Nachbesichtigungskosten" + suf,         _nb("kostennb_netto","kostennb_ust","kostennb"),              False),
         ("abschleppkosten", "Abschleppkosten" + suf,                 _nb("abschleppkosten_netto","abschleppkosten_ust","abschleppkosten"), False),
         ("standkosten",     "Standkosten" + suf,                     _nb("standkosten_netto","standkosten_ust","standkosten"), False),
         ("anabmeldekosten", "An-/Abmeldekosten" + suf,               _nb("anabmeldekosten_netto","anabmeldekosten_ust","anabmeldekosten"), False),
@@ -398,6 +422,25 @@ def _schadenpositionen_rows(schaden: dict, pos_map: dict, vorsteuer: bool) -> li
             "label":     label,
             "forderung": forderung,
             "reguliert": reguliert,   # None = noch kein Eintrag
+            "ist_abzug": ist_abzug,
+        })
+
+    # Eine Zahlung darf nie unterschlagen werden: wurde auf eine Position
+    # gezahlt, die (noch) nicht gefordert ist, bekommt sie eine eigene
+    # Zeile mit Forderung 0. Sonst fehlt der Betrag in der Summe, waehrend
+    # die Uebersicht ihn zeigt (Befund Akte 589/26: Reparaturbestaetigung
+    # unter 'sonstiges' gefordert, aber auf 'kostennb' gezahlt).
+    bekannt = {k: (l, a) for k, l, _v, a in alle}
+    gesehen = {r["key"] for r in result}
+    for key, reg_data in sorted((pos_map or {}).items()):
+        if key in gesehen or not (reg_data or {}).get("reguliert"):
+            continue
+        label, ist_abzug = bekannt.get(key, (key, False))
+        result.append({
+            "key":       key,
+            "label":     label,
+            "forderung": 0.0,
+            "reguliert": reg_data["reguliert"],
             "ist_abzug": ist_abzug,
         })
     return result

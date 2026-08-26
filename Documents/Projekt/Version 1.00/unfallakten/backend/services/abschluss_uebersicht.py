@@ -10,7 +10,7 @@ Spec: docs/superpowers/specs/2026-08-05-abschlussbericht-design.md §6-§11
 from datetime import datetime
 
 from ..word.abrechnungsuebersicht_service import (
-    _normalise_key, _schadenpositionen_rows,
+    _fahrzeug_zielkey, _normalise_key, _schadenpositionen_rows,
 )
 
 
@@ -24,7 +24,8 @@ def _parse_datum(d):
     return datetime.max
 
 
-def _baue_pos_map_mit_verlauf(abrechnungen: list) -> tuple:
+def _baue_pos_map_mit_verlauf(abrechnungen: list,
+                              fahrzeug_zielkey: str = None) -> tuple:
     """
     Wie _baue_pos_map (Option B: Summe der Zahlungs-Inkremente je Key),
     zusätzlich je Position: Einzelzahlungen (das "wann") + Kürzungsgrund.
@@ -47,7 +48,7 @@ def _baue_pos_map_mit_verlauf(abrechnungen: list) -> tuple:
             if raw == "ra_gebuehren":
                 ra_gebuehren = round(ra_gebuehren + reg_f, 2)
                 continue
-            key = _normalise_key(raw)
+            key = _normalise_key(raw, fahrzeug_zielkey)
             eintrag = pos_map.setdefault(
                 key, {"reguliert": 0.0, "zahlungen": [], "kuerzung_grund": None})
             eintrag["reguliert"] = round(eintrag["reguliert"] + reg_f, 2)
@@ -142,7 +143,8 @@ def baue_abschluss_uebersicht(akte_daten: dict) -> dict:
     vorsteuer = str(mandant.get("vorsteuer") or "N").strip().upper() in (
         "Y", "J", "JA", "1", "TRUE")
 
-    pos_map, ra_gebuehren = _baue_pos_map_mit_verlauf(abrechnungen)
+    pos_map, ra_gebuehren = _baue_pos_map_mit_verlauf(
+        abrechnungen, fahrzeug_zielkey=_fahrzeug_zielkey(schaden, vorsteuer))
     rows = _schadenpositionen_rows(schaden, pos_map, vorsteuer)
 
     positionen = []

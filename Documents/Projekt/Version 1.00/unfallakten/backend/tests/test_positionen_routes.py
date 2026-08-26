@@ -84,13 +84,30 @@ class TestPositionenStatus(unittest.TestCase):
         self.assertIn("registry_version", daten)
 
     def test_status_liefert_ableitung(self):
+        # Aktenwahre Quelle (DECISIONS 2026-08-26): Forderung aus dem
+        # Schaden-Tab, Zahlung aus der Regulierung.
+        from backend.db.database import get_connection
+        from backend.models.abrechnungsschreiben import (
+            erstelle_abrechnungsschreiben,
+        )
+        with get_connection() as conn:
+            conn.execute(
+                "INSERT INTO schadenpositionen "
+                "(akte_id, abrechnungsart, reparaturkosten) "
+                "VALUES ('44/22', 'fiktiv', 5000.0)")
+            conn.commit()
+        erstelle_abrechnungsschreiben(
+            akte_id="44/22", datum="2022-05-10", haftungsart="vollhaftung",
+            haftungsquote=100.0, bearbeiter_id=None,
+            positionen=[{"position_key": "reparaturkosten",
+                         "betrag_gefordert": 5000.0,
+                         "betrag_reguliert": 4100.0}],
+        )
         _schr("gutachten_eingegangen", [
             {"position_key": "reparaturkosten",
              "wirkung": "gefordert", "betrag": 5000.0},
         ], datum="2022-04-30")
         _schr("abrechnung_eingegangen", [
-            {"position_key": "reparaturkosten",
-             "wirkung": "anerkannt", "betrag": 4100.0},
             {"position_key": "reparaturkosten",
              "wirkung": "gekuerzt",  "betrag": 900.0,
              "kuerzungsart_id": 1},
@@ -99,9 +116,10 @@ class TestPositionenStatus(unittest.TestCase):
         r = self.client.get("/akten/44%2F22/positionen/status",
                              headers=self.headers)
         self.assertEqual(r.status_code, 200)
-        pos = r.get_json()["positionen"]["reparaturkosten"]
+        pos = r.get_json()["positionen"]["rep_gutachten_netto"]
         self.assertEqual(pos["zustand"], "teilanerkannt")
         self.assertEqual(pos["anerkannt"], 4100.0)
+        self.assertEqual(pos["gefordert"], 5000.0)
         self.assertEqual(pos["stand"], "2022-05-10")
 
     def test_akte_404(self):

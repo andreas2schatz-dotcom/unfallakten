@@ -12,6 +12,13 @@ Abschnitt 4.3:
 
 Beruhigung: die Ableitung liest ausschliesslich aus
 ``position_ereignis_cache`` mit ``status='aktuell'``.
+
+Seit DECISIONS 2026-08-26 kommen die BETRAEGE aus der aktenwahren Quelle
+(Schadenpositionen + Abrechnungsart fuer 'gefordert', Regulierung fuer
+'anerkannt'); die Ereignisse steuern Verlauf, Kuerzung/Ablehnung,
+Checkliste und Wissensstand bei. Die Tests seeden daher beides. Der
+Fahrzeugschaden erscheint unter dem Key, den auch der Abschlussbericht
+druckt -- bei fiktiver Abrechnung ``rep_gutachten_netto``.
 """
 import os
 import sys
@@ -47,6 +54,28 @@ class TestLeitePositionsstatusAb(unittest.TestCase):
         except OSError:
             pass
 
+    def _forderung(self, **felder):
+        """Aktenwahre Forderung setzen (Schaden-Tab)."""
+        from backend.db.database import get_connection
+        spalten = ", ".join(felder)
+        platz = ", ".join("?" for _ in felder)
+        with get_connection() as conn:
+            conn.execute(
+                f"INSERT INTO schadenpositionen (akte_id, {spalten}) "
+                f"VALUES ('44/22', {platz})", tuple(felder.values()))
+            conn.commit()
+
+    def _zahlung(self, position_key, betrag, gefordert=0.0):
+        """Aktenwahre Zahlung setzen (Regulierung)."""
+        from backend.models.abrechnungsschreiben import (
+            erstelle_abrechnungsschreiben)
+        return erstelle_abrechnungsschreiben(
+            akte_id="44/22", datum="2022-05-10", haftungsart="vollhaftung",
+            haftungsquote=100.0, bearbeiter_id=None,
+            positionen=[{"position_key": position_key,
+                         "betrag_gefordert": gefordert,
+                         "betrag_reguliert": betrag}])
+
     def _lade(self):
         from backend.services.positionsstatus_service import leite_positionsstatus_ab
         return leite_positionsstatus_ab("44/22")
@@ -71,48 +100,48 @@ class TestLeitePositionsstatusAb(unittest.TestCase):
                           "Ohne Ereignisse leerer Statusbaum")
 
     def test_zustand_gefordert_nach_gutachten(self):
+        self._forderung(abrechnungsart="fiktiv", reparaturkosten=5000.0)
         self._schr("gutachten_eingegangen", [
             {"position_key": "reparaturkosten",
              "wirkung": "gefordert", "betrag": 5000.0},
         ])
         e = self._lade()
-        self.assertEqual(e["reparaturkosten"]["zustand"], "gefordert")
-        self.assertEqual(e["reparaturkosten"]["gefordert"], 5000.0)
-        self.assertEqual(e["reparaturkosten"]["anerkannt"], 0.0)
-        self.assertEqual(e["reparaturkosten"]["offen"], 5000.0)
+        self.assertEqual(e["rep_gutachten_netto"]["zustand"], "gefordert")
+        self.assertEqual(e["rep_gutachten_netto"]["gefordert"], 5000.0)
+        self.assertEqual(e["rep_gutachten_netto"]["anerkannt"], 0.0)
+        self.assertEqual(e["rep_gutachten_netto"]["offen"], 5000.0)
 
     def test_zustand_anerkannt_bei_voller_deckung(self):
+        self._forderung(abrechnungsart="fiktiv", reparaturkosten=5000.0)
         self._schr("gutachten_eingegangen", [
             {"position_key": "reparaturkosten",
              "wirkung": "gefordert", "betrag": 5000.0},
         ], datum="2022-04-30")
-        self._schr("abrechnung_eingegangen", [
-            {"position_key": "reparaturkosten",
-             "wirkung": "anerkannt", "betrag": 5000.0},
-        ])
+        self._zahlung("reparaturkosten", 5000.0, gefordert=5000.0)
         e = self._lade()
-        self.assertEqual(e["reparaturkosten"]["zustand"], "anerkannt")
-        self.assertEqual(e["reparaturkosten"]["anerkannt"], 5000.0)
-        self.assertEqual(e["reparaturkosten"]["offen"], 0.0)
+        self.assertEqual(e["rep_gutachten_netto"]["zustand"], "anerkannt")
+        self.assertEqual(e["rep_gutachten_netto"]["anerkannt"], 5000.0)
+        self.assertEqual(e["rep_gutachten_netto"]["offen"], 0.0)
 
     def test_zustand_teilanerkannt_bei_teilweiser_deckung(self):
+        self._forderung(abrechnungsart="fiktiv", reparaturkosten=5000.0)
         self._schr("gutachten_eingegangen", [
             {"position_key": "reparaturkosten",
              "wirkung": "gefordert", "betrag": 5000.0},
         ], datum="2022-04-30")
+        self._zahlung("reparaturkosten", 4100.0, gefordert=5000.0)
         self._schr("abrechnung_eingegangen", [
-            {"position_key": "reparaturkosten",
-             "wirkung": "anerkannt", "betrag": 4100.0},
             {"position_key": "reparaturkosten",
              "wirkung": "gekuerzt", "betrag": 900.0,
              "kuerzungsart_id": 1},
         ])
         e = self._lade()
-        self.assertEqual(e["reparaturkosten"]["zustand"], "teilanerkannt")
-        self.assertEqual(e["reparaturkosten"]["anerkannt"], 4100.0)
-        self.assertEqual(e["reparaturkosten"]["offen"], 900.0)
+        self.assertEqual(e["rep_gutachten_netto"]["zustand"], "teilanerkannt")
+        self.assertEqual(e["rep_gutachten_netto"]["anerkannt"], 4100.0)
+        self.assertEqual(e["rep_gutachten_netto"]["offen"], 900.0)
 
     def test_zustand_bestritten_bei_voller_ablehnung(self):
+        self._forderung(abrechnungsart="fiktiv", reparaturkosten=5000.0)
         self._schr("gutachten_eingegangen", [
             {"position_key": "reparaturkosten",
              "wirkung": "gefordert", "betrag": 5000.0},
@@ -123,9 +152,9 @@ class TestLeitePositionsstatusAb(unittest.TestCase):
              "kuerzungsart_id": 1},
         ])
         e = self._lade()
-        self.assertEqual(e["reparaturkosten"]["zustand"], "bestritten")
-        self.assertEqual(e["reparaturkosten"]["anerkannt"], 0.0)
-        self.assertEqual(e["reparaturkosten"]["offen"], 5000.0)
+        self.assertEqual(e["rep_gutachten_netto"]["zustand"], "bestritten")
+        self.assertEqual(e["rep_gutachten_netto"]["anerkannt"], 0.0)
+        self.assertEqual(e["rep_gutachten_netto"]["offen"], 5000.0)
 
     def test_zustand_erledigt_ueberschreibt_andere(self):
         self._schr("gutachten_eingegangen", [
@@ -153,20 +182,23 @@ class TestLeitePositionsstatusAb(unittest.TestCase):
 
     def test_ersetztes_ereignis_fliesst_nicht_ein(self):
         """POSITIONSMODELL 2.2c: ein durch ersetzt_durch abgeloestes
-        Ereignis darf keine Wirkung mehr in der Ableitung entfalten."""
-        alt = self._schr("gutachten_eingegangen", [
+        Ereignis darf keine Wirkung mehr in der Ableitung entfalten --
+        hier sichtbar an der Kuerzung, die mit dem Alt-Ereignis faellt."""
+        self._forderung(abrechnungsart="fiktiv", reparaturkosten=6500.0)
+        alt = self._schr("abrechnung_eingegangen", [
             {"position_key": "reparaturkosten",
-             "wirkung": "gefordert", "betrag": 5000.0},
+             "wirkung": "gekuerzt", "betrag": 900.0},
         ], datum="2022-04-30")
-        # Ergaenzungsgutachten mit hoeherem Wert ersetzt Original
-        self._schr("gutachten_eingegangen", [
+        self._schr("abrechnung_eingegangen", [
             {"position_key": "reparaturkosten",
-             "wirkung": "gefordert", "betrag": 6500.0},
+             "wirkung": "gekuerzt", "betrag": 400.0},
         ], datum="2022-05-15", ersetzt_kopf_id=alt)
 
         e = self._lade()
-        self.assertEqual(e["reparaturkosten"]["gefordert"], 6500.0,
-                          "Erst-Gutachten (5000) darf nicht mehr zaehlen")
+        self.assertEqual(e["rep_gutachten_netto"]["gekuerzt"], 400.0,
+                          "Alt-Kuerzung (900) darf nicht mehr zaehlen")
+        self.assertEqual(e["rep_gutachten_netto"]["gefordert"], 6500.0,
+                          "Forderung kommt aus dem Schaden-Tab")
 
     def test_registry_version_im_ergebnis(self):
         """Wissensgrenze: die Ableitung nennt ihre Registry-Version."""

@@ -72,6 +72,59 @@ def _tage_seit(iso_datum: Optional[str]) -> int:
     return max(0, (date.today() - d).days)
 
 
+def _aktenwahre_betraege(akte_az: str) -> tuple:
+    """Forderung und Zahlung aus der aktenwahren Quelle.
+
+    DECISIONS 2026-08-26 (RA Schatz): Schadenpositionen und Abrechnungsart
+    gelten immer und ueberall. Die Ereignisse dokumentieren den Verlauf --
+    sie bilden keine zweite Forderungssumme.
+
+      * gefordert <- _schadenpositionen_rows() (Schaden-Tab + Abrechnungsart)
+      * anerkannt <- _baue_pos_map()           (Regulierung)
+
+    Dieselben Funktionen speisen Abschlussbericht und Word-Abrechnungs-
+    uebersicht -- die Zahlen sind damit zwingend deckungsgleich.
+
+    Returns: (forderungen, labels, zahlungen, fahrzeug_zielkey).
+    ``fahrzeug_zielkey`` normalisiert auch die Ereignis-Keys, damit
+    Kuerzung, Ablehnung und Checkliste auf derselben Zeile landen wie die
+    Forderung -- ein Schluesselraum, nicht zwei.
+    """
+    from ..models.abrechnungsschreiben import hole_abrechnungsschreiben_by_akte
+    from ..models.schaden import hole_beteiligte_by_akte, hole_schadenpositionen
+    from ..word.abrechnungsuebersicht_service import (
+        _baue_pos_map, _fahrzeug_zielkey, _schadenpositionen_rows,
+    )
+
+    schaden_obj = hole_schadenpositionen(akte_az)
+    if schaden_obj is None:
+        return {}, {}, {}, None
+    import dataclasses
+    schaden = (dataclasses.asdict(schaden_obj)
+               if dataclasses.is_dataclass(schaden_obj)
+               else dict(schaden_obj))
+
+    mandant = next((b for b in hole_beteiligte_by_akte(akte_az)
+                    if getattr(b, "rolle", "") == "mandant"), None)
+    vorsteuer = str(getattr(mandant, "vorsteuer", "N") or "N").strip().upper()         in ("Y", "J", "JA", "1", "TRUE")
+
+    abrechnungen = []
+    for ab in hole_abrechnungsschreiben_by_akte(akte_az):
+        ab_dict = ab.as_dict() if hasattr(ab, "as_dict") else {}
+        abrechnungen.append({"positionen": ab_dict.get("positionen", [])})
+
+    zielkey = _fahrzeug_zielkey(schaden, vorsteuer)
+    pos_map = _baue_pos_map(abrechnungen, fahrzeug_zielkey=zielkey)
+
+    forderungen, labels = {}, {}
+    for zeile in _schadenpositionen_rows(schaden, pos_map, vorsteuer):
+        forderungen[zeile["key"]] = round(float(zeile["forderung"] or 0.0), 2)
+        labels[zeile["key"]] = zeile["label"]
+    zahlungen = {k: round(float(v.get("reguliert") or 0.0), 2)
+                 for k, v in pos_map.items()}
+    return forderungen, labels, zahlungen, zielkey
+
+
 def _zustand(gefordert: float, anerkannt: float, gekuerzt: float,
               abgelehnt: float, hat_erledigt: bool) -> str:
     if hat_erledigt:
@@ -115,9 +168,12 @@ def leite_positionsstatus_ab(
             (akte_az,),
         ).fetchall()
 
+    forderungen, labels, zahlungen, zielkey = _aktenwahre_betraege(akte_az)
+    from ..word.abrechnungsuebersicht_service import _normalise_key
+
     per_key: Dict[str, Dict[str, Any]] = {}
     for r in rows:
-        key = r["position_key"]
+        key = _normalise_key(r["position_key"], zielkey)
         st = per_key.setdefault(key, {
             "gefordert": 0.0, "anerkannt": 0.0,
             "gekuerzt": 0.0,  "abgelehnt": 0.0,
@@ -129,11 +185,10 @@ def leite_positionsstatus_ab(
         })
         betrag = float(r["betrag"] or 0.0)
         w = r["wirkung"]
-        if w == "gefordert":
-            st["gefordert"] += betrag
-        elif w == "anerkannt":
-            st["anerkannt"] += betrag
-        elif w == "gekuerzt":
+        # 'gefordert' und 'anerkannt' kommen aus der aktenwahren Quelle
+        # (siehe _aktenwahre_betraege) -- die Ereignisse liefern hier nur
+        # noch Verlauf, Checkliste und Wissensstand.
+        if w == "gekuerzt":
             st["gekuerzt"] += betrag
         elif w == "abgelehnt":
             st["abgelehnt"] += betrag
@@ -146,6 +201,22 @@ def leite_positionsstatus_ab(
             st["has_unbestaetigt"] = True
         if st["letztes_datum"] is None or r["datum"] > st["letztes_datum"]:
             st["letztes_datum"] = r["datum"]
+
+    # Positionen, die es nur in der aktenwahren Quelle gibt (noch ohne
+    # Ereignis), muessen ebenfalls erscheinen.
+    for key in list(forderungen) + list(zahlungen):
+        per_key.setdefault(key, {
+            "gefordert": 0.0, "anerkannt": 0.0,
+            "gekuerzt": 0.0, "abgelehnt": 0.0,
+            "erledigt_flag": False,
+            "letztes_datum": None,
+            "aktuelle_typen": set(),
+            "aktuelle_typen_mit_dok": set(),
+            "has_unbestaetigt": False,
+        })
+    for key, st in per_key.items():
+        st["gefordert"] = forderungen.get(key, 0.0)
+        st["anerkannt"] = zahlungen.get(key, 0.0)
 
     reg = lade_positionsmodell()
 
@@ -167,7 +238,7 @@ def leite_positionsstatus_ab(
             st["gekuerzt"],  st["abgelehnt"],
             st["erledigt_flag"],
         )
-        offen = max(0.0, st["gefordert"] * quote - st["anerkannt"])
+        offen = max(0.0, abs(st["gefordert"]) * quote - st["anerkannt"])
 
         # Checkliste (POSITIONSMODELL 4.6): benoetigte Typen aus
         # positionsarten.yaml gegen aktuelle Ereignisse mit dokument_id!=NULL.
@@ -194,7 +265,7 @@ def leite_positionsstatus_ab(
             ),
             "checkliste":       checkliste,
             "has_unbestaetigt": st["has_unbestaetigt"],
-            "label":            art.get("label", key),
+            "label":            art.get("label") or labels.get(key) or key,
             "kategorie":        art.get("kategorie"),
             "aggregation":      art.get("aggregation"),
         }

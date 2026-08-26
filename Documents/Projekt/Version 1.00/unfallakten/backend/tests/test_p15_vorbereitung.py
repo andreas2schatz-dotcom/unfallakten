@@ -139,6 +139,15 @@ class TestErsetztPositionsIds(_EreignisTestBasis):
         )
         from backend.db.database import get_connection
 
+        # Forderung aus der aktenwahren Quelle (DECISIONS 2026-08-26);
+        # geprueft wird hier die Ersetzung im Cache.
+        with get_connection() as conn:
+            conn.execute(
+                "INSERT INTO schadenpositionen "
+                "(akte_id, abrechnungsart, reparaturkosten, wertminderung) "
+                "VALUES ('44/22', 'fiktiv', 6500.0, 500.0)")
+            conn.commit()
+
         alt_id = schreibe_ereignis(
             akte_az="44/22", ereignistyp="gutachten_eingegangen",
             quelle="dokument", datum="2022-04-30",
@@ -167,10 +176,22 @@ class TestErsetztPositionsIds(_EreignisTestBasis):
             ersetzt_positions_ids=[alt_rep_id],
         )
 
+        # Ersetzung sichtbar am Cache: Alt-Zeile weg, neue drin, die
+        # nicht ersetzte wertminderung bleibt aktuell.
+        with get_connection() as conn:
+            aktuell = conn.execute(
+                "SELECT position_key, betrag FROM position_ereignis_cache "
+                "WHERE akte_az='44/22' AND status='aktuell' "
+                "ORDER BY position_key"
+            ).fetchall()
+        self.assertEqual(
+            {r["position_key"]: r["betrag"] for r in aktuell},
+            {"reparaturkosten": 6200.0, "wertminderung": 500.0},
+        )
+        # Die Forderung selbst kommt aus dem Schaden-Tab
+        # (DECISIONS 2026-08-26), Fahrzeugzeile = rep_gutachten_netto.
         status = leite_positionsstatus_ab("44/22")
-        # Neue reparaturkosten fliessen ein.
-        self.assertEqual(status["reparaturkosten"]["gefordert"], 6200.0)
-        # Alte wertminderung bleibt aktuell -- muss weiter zu sehen sein.
+        self.assertEqual(status["rep_gutachten_netto"]["gefordert"], 6500.0)
         self.assertEqual(status["wertminderung"]["gefordert"], 500.0)
 
 

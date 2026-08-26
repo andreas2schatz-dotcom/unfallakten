@@ -292,22 +292,41 @@ class TestPositionsstatusAbgleich(_RegulierungTestBasis):
                 "SELECT id FROM dokumente LIMIT 1"
             ).fetchone()["id"]
 
+        positionen = [
+            {"position_key": "reparaturkosten",
+             "betrag_gefordert": 4000.0, "betrag_reguliert": 3500.0,
+             "kuerzungsart_id": 1},
+            {"position_key": "sv_kosten",
+             "betrag_gefordert": 500.0, "betrag_reguliert": 500.0,
+             "kuerzungsart_id": None},
+        ]
+        # Seit DECISIONS 2026-08-26 kommen die Betraege aus der aktenwahren
+        # Quelle: Forderung aus dem Schaden-Tab, Zahlung aus der Alt-Tabelle
+        # regulierung_positionen. Das Ereignis traegt die Kuerzung bei.
+        with get_connection() as conn:
+            conn.execute(
+                "INSERT INTO schadenpositionen "
+                "(akte_id, abrechnungsart, reparaturkosten, sv_kosten) "
+                "VALUES ('44/22', 'fiktiv', 4000.0, 500.0)")
+            conn.commit()
+        from backend.models.abrechnungsschreiben import (
+            erstelle_abrechnungsschreiben,
+        )
+        erstelle_abrechnungsschreiben(
+            akte_id="44/22", datum="2022-05-10", haftungsart="vollhaftung",
+            haftungsquote=100.0, bearbeiter_id=None, positionen=positionen,
+        )
         erzeuge_aus_regulierung(
             akte_az="44/22", dokument_id=dok_id, datum="2022-05-10",
-            positionen=[
-                {"position_key": "reparaturkosten",
-                 "betrag_gefordert": 4000.0, "betrag_reguliert": 3500.0,
-                 "kuerzungsart_id": 1},
-                {"position_key": "sv_kosten",
-                 "betrag_gefordert": 500.0, "betrag_reguliert": 500.0,
-                 "kuerzungsart_id": None},
-            ],
+            positionen=positionen,
         )
 
         status = leite_positionsstatus_ab("44/22")
-        # anerkannt = summe der aktuellen anerkannt-Wirkungen
-        self.assertEqual(status["reparaturkosten"]["anerkannt"], 3500.0)
-        self.assertEqual(status["reparaturkosten"]["gekuerzt"], 500.0)
+        # Fahrzeugschaden erscheint unter dem Key, den auch der
+        # Abschlussbericht druckt (fiktiv -> rep_gutachten_netto).
+        self.assertEqual(status["rep_gutachten_netto"]["anerkannt"], 3500.0)
+        self.assertEqual(status["rep_gutachten_netto"]["gefordert"], 4000.0)
+        self.assertEqual(status["rep_gutachten_netto"]["gekuerzt"], 500.0)
         self.assertEqual(status["sv_kosten"]["anerkannt"], 500.0)
 
 

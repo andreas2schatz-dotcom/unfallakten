@@ -571,10 +571,12 @@ class TestFreigabeGutachtenErzeugtEreignis(unittest.TestCase):
                 "WHERE ereignis_id=?", (ereignisse[0]["id"],)
             ).fetchall()
             keys = {p["position_key"] for p in positionen}
-        self.assertIn("reparaturkosten", keys)
-        self.assertIn("wiederbeschaffung", keys)
-        self.assertIn("restwert", keys)
-        self.assertIn("wertminderung", keys)
+        # Reparatur (3.500) unter WBW-Restwert (12.000-5.000) -> fiktive
+        # Abrechnung. Nur die zutreffende Fahrzeug-Alternative wird gebucht;
+        # wiederbeschaffung/restwert wuerden sich sonst zur Forderung
+        # addieren (Befund Akte 589/26, siehe
+        # test_gutachten_fahrzeugschaden_alternative.py).
+        self.assertEqual(keys, {"reparaturkosten", "wertminderung"})
 
     def test_gutachten_mit_sv_kosten_privat_nutzt_brutto(self):
         """Privatmandant (vorsteuer=False): sv_kosten mit BRUTTO-Betrag."""

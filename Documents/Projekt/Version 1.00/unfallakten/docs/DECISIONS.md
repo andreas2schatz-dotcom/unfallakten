@@ -5,6 +5,39 @@ Format: Entscheidung → Grund → Alternative → Konsequenz.
 
 ---
 
+## Geld-SSOT (Grundsatzentscheidung RA Schatz, 2026-08-26)
+
+### Die erfassten Schadenpositionen und die Abrechnungsart sind aktenwahr — immer und überall
+
+**Entscheidung:** Es gibt genau **eine** Geld-Wahrheit je Akte, und sie besteht aus zwei Quellen:
+
+| Größe | Quelle | Funktion |
+|---|---|---|
+| **gefordert** | Schadenpositionen + Abrechnungsart | `berechne_abrechnungsart()` (`backend/models/schaden.py`) → `_schadenpositionen_rows()` (`backend/word/abrechnungsuebersicht_service.py`) |
+| **anerkannt / gezahlt** | Regulierung (`abrechnungsschreiben` / `regulierung_positionen`) | `_baue_pos_map()` (dieselbe Datei) |
+
+Jede Anzeige, jedes Dokument und jede Auswertung liest diese Funktionen. Eine zweite Berechnungsmethode für dieselbe Größe ist **nicht zulässig** — auch nicht als Fallback, auch nicht „nur fürs Frontend". Wortlaut RA Schatz: *„Die Schadenpositionen und die Abrechnungsart ist aktenwahr. Sie gilt immer und überall. Ich will keine separaten Berechnungen aus unterschiedlichen Berechnungsmethoden. Single Source of Truth ist absolut."*
+
+**Damit ausdrücklich aufgehoben:** die Entscheidung „Summen-SSOT (Befund B3): Ereignismodell statt Doppel-Berechnung" vom 2026-08-10 (weiter unten). Das Ereignismodell (`ereignisse` / `ereignis_positionen` / `position_ereignis_cache`) bleibt bestehen, aber **es rechnet nicht mehr**: es dokumentiert Verlauf, Kürzungen, Ablehnungen, Checkliste, Eskalationsstufe und Wissensstand.
+
+**Grund:** Der Parallelbetrieb hat in Akte 589/26 sichtbar falsche Zahlen produziert. Das Gutachten-Ereignis buchte Reparaturkosten *und* Wiederbeschaffungswert als Forderung, die Übersicht zeigte 18.532,48 € statt 6.256,57 €. Gleichzeitig fiel eine in der Regulierung erfasste Zahlung lautlos aus dem Abschlussbericht, weil die Positions-Schlüssel dort anders normalisiert wurden. Beide Fehler waren keine Ausrutscher, sondern die zwangsläufige Folge davon, dass dieselbe Größe an mehreren Stellen unabhängig berechnet wurde.
+
+**Alternative:** Das Ereignismodell als Geld-SSOT ausbauen (Beschluss 2026-08-10) — verworfen. Es kennt nur Positionen, zu denen ein Dokument vorliegt; Nutzungsausfall, Unkostenpauschale und alles manuell Erfasste fehlen dort strukturell. Eine Forderungssumme daraus ist zwangsläufig unvollständig.
+
+**Konsequenz:**
+
+* `leite_positionsstatus_ab()` (`backend/services/positionsstatus_service.py`) liefert `gefordert` und `anerkannt` aus der aktenwahren Quelle; aus den Ereignissen kommen weiterhin `gekuerzt`, `abgelehnt`, `zustand`, `stand`, `checkliste`, `eskalationsstufe`, `has_unbestaetigt`. Damit lesen Kopfzahl, `PositionsDashboard` und Phasenberechnung automatisch dieselbe Wahrheit wie Abschlussbericht und Word-Abrechnungsübersicht — sie hängen alle an derselben Response.
+* Die Alt-Formel im Frontend (`liveBrutto × HQ` bzw. `Σ gesamt_reguliert`) ist **ersatzlos entfernt**; das Feld `quelle: "alt"` / `"ereignismodell"` entfällt.
+* **Ein Schlüsselraum:** Ereignis-Keys werden über `_normalise_key(key, fahrzeug_zielkey)` auf die Keys der aktenwahren Quelle abgebildet. Der Fahrzeugschaden erscheint überall unter dem Key, den die Abrechnungsart bestimmt (`rep_gutachten_netto` / `rep_rechnung_netto` / `wiederbeschaffung`).
+* **Eine Zahlung darf nie verschwinden:** Wurde auf eine Position gezahlt, die (noch) nicht gefordert ist, bekommt sie eine eigene Zeile mit Forderung 0 statt aus der Summe zu fallen.
+* Die Haftungsquote wird in der Kopfzahl **nicht** mehr aufmultipliziert — der Abschlussbericht tut das auch nicht, und zwei Zahlen waren genau das Problem. Die HQ=0-Semantik (Backend-DOCX rechnet bei HQ=0 mit 100 %) bleibt als offener Punkt bestehen.
+
+**Schutzplanken im Code:** `backend/tests/test_positionsstatus_ssot.py` (Kopfzahl == Schaden-Tab, manuelle Korrektur schlägt durch, Gleichstand mit dem Abschlussbericht), `backend/tests/test_abschluss_fahrzeugkey.py` (ein Schlüsselraum, keine verschluckte Zahlung), `backend/tests/test_gutachten_fahrzeugschaden_alternative.py` (Reparatur und Wiederbeschaffung addieren sich nie).
+
+**Noch nicht nachgezogen:** Die Regulierungs-Tabelle (`RegulierungSection`) und die Forderungshistorie bauen ihre Zeilen weiterhin selbst im Frontend zusammen. Sie zeigen dieselben Zahlen, aber über eigenen Code — sie gehören bei nächster Gelegenheit auf `/akten/<az>/positionen/status` umgestellt. (2026-08-26)
+
+---
+
 ## Sachbearbeiter-Verwaltung (Review 2026-08-12)
 
 ### `kalender_zu_kuerzel()` filtert bewusst nicht nach `aktiv`/`ignoriert`
@@ -46,6 +79,8 @@ Format: Entscheidung → Grund → Alternative → Konsequenz.
 ---
 
 ### Summen-SSOT (Befund B3): Ereignismodell statt Doppel-Berechnung
+
+> **AUFGEHOBEN am 2026-08-26** durch „Die erfassten Schadenpositionen und die Abrechnungsart sind aktenwahr" (ganz oben). Nachfolgend der historische Stand.
 
 **Entscheidung:** Einzige Geld-Wahrheit der Akte ist das Ereignismodell (`/akten/<az>/positionen/status`). Header-KPI, `PositionsDashboard` und Phasenberechnung lesen dieselbe Response — ein Fetch in `AkteDetailView`, an die drei Stellen durchgereicht. Die Alt-Berechnung (`liveBrutto × HQ` bzw. `Σ gesamt_reguliert`) existiert nur noch als Fallback für Bestandsakten ohne Ereignisse und wird über das Feld `quelle: "alt"` markiert.
 

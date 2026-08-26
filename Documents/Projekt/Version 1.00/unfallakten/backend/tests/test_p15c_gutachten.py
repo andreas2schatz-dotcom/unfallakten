@@ -91,11 +91,14 @@ class TestErzeugeAusGutachten(_GutachtenTestBasis):
                 "ORDER BY position_key", (eid,)
             ).fetchall()
         keys = {r["position_key"] for r in rows}
-        # Alle 5 Gutachten-Positions-Keys, nichts Fremdes.
+        # Reparaturkosten (6.200) liegen unter WBW-Restwert (12.000-3.000)
+        # -> fiktive Abrechnung. Es wird nur die zutreffende Alternative
+        # gebucht; wiederbeschaffung und restwert wuerden sich sonst zur
+        # Forderung addieren (Befund Akte 589/26, siehe
+        # test_gutachten_fahrzeugschaden_alternative.py).
         self.assertEqual(
             keys,
-            {"reparaturkosten", "wiederbeschaffung", "restwert",
-             "wertminderung", "sv_kosten"},
+            {"reparaturkosten", "wertminderung", "sv_kosten"},
         )
         for r in rows:
             self.assertEqual(r["wirkung"], "gefordert")
@@ -189,10 +192,20 @@ class TestErzeugeAusGutachten(_GutachtenTestBasis):
         self.assertIsNone(alt_wm_row["ersetzt_durch"])
         self.assertIsNone(alt_kopf_row["ersetzt_durch"])
 
-        # Ableitung: neue reparaturkosten + alte wertminderung.
-        status = leite_positionsstatus_ab("44/22")
-        self.assertEqual(status["reparaturkosten"]["gefordert"], 7500.0)
-        self.assertEqual(status["wertminderung"]["gefordert"], 500.0)
+        # Die Ableitung nimmt die Forderung seit DECISIONS 2026-08-26 aus
+        # dem Schaden-Tab; die positionsscharfe Ersetzung zeigt sich hier
+        # an den aktuellen Cache-Zeilen.
+        with get_connection() as conn:
+            aktuell = conn.execute(
+                "SELECT position_key, betrag FROM position_ereignis_cache "
+                "WHERE akte_az='44/22' AND status='aktuell' "
+                "ORDER BY position_key"
+            ).fetchall()
+        self.assertEqual(
+            {r["position_key"]: r["betrag"] for r in aktuell},
+            {"reparaturkosten": 7500.0, "wertminderung": 500.0},
+        )
+        self.assertIsNotNone(leite_positionsstatus_ab("44/22"))
 
     def test_doppelaufruf_desselben_gutachtens_liefert_alt_id(self):
         from backend.services.eingehende_ereignisse import erzeuge_aus_gutachten

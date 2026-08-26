@@ -178,14 +178,15 @@ function AkteDetailView({ akte, st, dispatch, initialTab, onTabMounted, onOpenRe
     return _b > 0 ? _b : (_sd.gesamt_brutto || akte.brutto || 0);
   }, [st.schaden, akte.brutto]);
 
-  // Header-KPI aus Ereignismodell (Summen aus Positionen) oder Fallback auf Alt-Berechnung
-  const kpiSummen = useMemo(() => {
-    const s = summenAusPositionsstatus(posDaten?.positionen);
-    if (s) return { ...s, quelle: "ereignismodell" };
-    const gefordert = liveBrutto * ((akte.hq ?? 100) / 100);
-    const reguliert = (st.abrechnungen || []).reduce((sum, ab) => sum + (parseFloat(ab.gesamt_reguliert) || 0), 0);
-    return { gefordert, reguliert, offen: Math.max(0, gefordert - reguliert), quelle: "alt" };
-  }, [posDaten, liveBrutto, akte.hq, st.abrechnungen]);
+  // Header-KPI: eine einzige Geld-Wahrheit (DECISIONS 2026-08-26).
+  // /positionen/status leitet gefordert aus den Schadenpositionen + der
+  // Abrechnungsart und anerkannt aus der Regulierung ab -- dieselben
+  // Funktionen, aus denen Abschlussbericht und Abrechnungsuebersicht
+  // rechnen. Keine zweite Formel im Frontend.
+  const kpiSummen = useMemo(
+    () => summenAusPositionsstatus(posDaten?.positionen)
+          || { gefordert: 0, reguliert: 0, offen: 0 },
+    [posDaten]);
 
   // Badge-Logik: localStorage-Timestamps für Neu-Indikatoren
   const azKey    = (akte?.az || "").replace(/\//g, "-");

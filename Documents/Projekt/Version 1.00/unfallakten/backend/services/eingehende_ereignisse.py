@@ -318,6 +318,72 @@ _GUTACHTEN_POSITIONS_KEYS = (
     "wertminderung", "sv_kosten",
 )
 
+# Positionen, die sich NICHT addieren duerfen -- Reparaturkosten und
+# Wiederbeschaffungswert stehen im Alternativverhaeltnis, der Restwert ist
+# im Totalschaden-Betrag bereits abgezogen.
+_FAHRZEUG_ALTERNATIVEN = ("reparaturkosten", "wiederbeschaffung", "restwert")
+
+
+def _akte_schadenbasis(akte_az: Optional[str]) -> Dict[str, Any]:
+    """abrechnungsart + Rechnungswerte der Akte fuer die Alternativwahl."""
+    if not akte_az:
+        return {}
+    from ..db.database import get_connection
+    try:
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT abrechnungsart, rep_rechnung_netto, "
+                "       rep_rechnung_brutto "
+                "FROM schadenpositionen WHERE akte_id=?", (akte_az,),
+            ).fetchone()
+    except Exception as exc:  # pragma: no cover -- Best-Effort
+        logger.warning("Schadenbasis (%s) nicht lesbar: %s", akte_az, exc)
+        return {}
+    return dict(row) if row else {}
+
+
+def waehle_fahrzeugschaden(werte: Dict[str, Any], *,
+                           akte_az: Optional[str] = None,
+                           vorsteuer: bool = False) -> Dict[str, float]:
+    """Liefert genau EINE Fahrzeugschaden-Position ``{key: betrag}``.
+
+    Reparaturkosten und Wiederbeschaffungswert sind Alternativen -- werden
+    beide als ``gefordert`` gebucht, zeigt die Uebersicht ein Vielfaches der
+    tatsaechlichen Forderung (Befund Akte 589/26). Die Wahl trifft
+    ``berechne_abrechnungsart()`` aus ``models/schaden.py`` -- dieselbe
+    Quelle, aus der Schaden-Tab, Regulierung und Klage rechnen.
+
+    * fiktiv        -> ``reparaturkosten``  (Netto lt. Gutachten)
+    * totalschaden  -> ``wiederbeschaffung`` (WBW abzueglich Restwert)
+    * konkret       -> ``{}``: den Betrag traegt das Ereignis der
+                       Reparaturrechnung (``rep_rechnung_netto``).
+    """
+    rep_gut = _feld_zu_zahl(werte.get("reparaturkosten")) or 0.0
+    wbw = _feld_zu_zahl(werte.get("wiederbeschaffung")) or 0.0
+    if not rep_gut and not wbw:
+        return {}
+    restwert = _feld_zu_zahl(werte.get("restwert")) or 0.0
+
+    from ..models.schaden import berechne_abrechnungsart
+    basis = _akte_schadenbasis(akte_az)
+    ergebnis = berechne_abrechnungsart({
+        "rep_gutachten_netto": rep_gut,
+        "wiederbeschaffung":   wbw,
+        "restwert":            restwert,
+        "rep_rechnung_netto":  basis.get("rep_rechnung_netto") or 0.0,
+        "rep_rechnung_brutto": basis.get("rep_rechnung_brutto") or 0.0,
+        "abrechnungsart":      basis.get("abrechnungsart"),
+    }, vorsteuer=vorsteuer)
+
+    art = ergebnis["abrechnungsart"]
+    if art == "konkret":
+        return {}
+    betrag = round(float(ergebnis["fahrzeugschaden"] or 0.0), 2)
+    if not betrag:
+        return {}
+    key = "wiederbeschaffung" if art == "totalschaden" else "reparaturkosten"
+    return {key: betrag}
+
 
 def erzeuge_aus_gutachten(
     *,
@@ -362,8 +428,10 @@ def erzeuge_aus_gutachten(
             return vorhandene_id
 
         eintraege: List[Dict[str, Any]] = []
+        gewaehlt = waehle_fahrzeugschaden(positionen, akte_az=akte_az)
         for key in _GUTACHTEN_POSITIONS_KEYS:
-            wert = positionen.get(key)
+            wert = (gewaehlt.get(key) if key in _FAHRZEUG_ALTERNATIVEN
+                    else positionen.get(key))
             if wert is None:
                 continue
             try:
@@ -472,17 +540,28 @@ def _feld_zu_zahl(wert):
     return parse_betrag(s)
 
 
-def _gutachten_positionen(felder, vorsteuer):
-    """Leitet {position_key: betrag} aus geparsten Gutachten-Feldern ab."""
+def _gutachten_positionen(felder, vorsteuer, akte_az=None):
+    """Leitet {position_key: betrag} aus geparsten Gutachten-Feldern ab.
+
+    Vom Fahrzeugschaden wird nur die zutreffende Alternative uebernommen
+    (siehe waehle_fahrzeugschaden) -- Reparaturkosten und
+    Wiederbeschaffungswert duerfen sich nie addieren.
+    """
     positionen = {}
     if not isinstance(felder, dict):
         return positionen
+    roh = {}
     for pk, aliase in _GUTACHTEN_FELD_ALIASSE.items():
         for name in aliase:
             wert = _feld_zu_zahl(felder.get(name))
             if wert:
-                positionen[pk] = wert
+                roh[pk] = wert
                 break
+    positionen.update(waehle_fahrzeugschaden(
+        roh, akte_az=akte_az, vorsteuer=vorsteuer))
+    for pk, wert in roh.items():
+        if pk not in _FAHRZEUG_ALTERNATIVEN:
+            positionen[pk] = wert
     sv_netto = _feld_zu_zahl(felder.get("sv_kosten_netto"))
     sv_brutto = _feld_zu_zahl(felder.get("sv_kosten_brutto"))
     if sv_netto or sv_brutto:
@@ -533,7 +612,8 @@ def erzeuge_aus_freigabe(
 
         positionen: List[Dict[str, Any]] = []
         if ereignistyp == "gutachten_eingegangen":
-            for pk, betrag in _gutachten_positionen(felder, vorsteuer).items():
+            for pk, betrag in _gutachten_positionen(
+                    felder, vorsteuer, akte_az=akte_az).items():
                 positionen.append({
                     "position_key": pk, "wirkung": "gefordert",
                     "betrag": round(betrag, 2),
