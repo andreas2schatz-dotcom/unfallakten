@@ -497,6 +497,9 @@ def _lade_akte_daten(akte_id: int, akte, dok_typ: str = "", variante: str = "aut
         except Exception as _e2:
             logger.debug("WDM für Abrechnungsübersicht: %s", _e2)
 
+    # Aktenlangbezeichnung (sAktenBezeichnung) steht nur in RA-Micro
+    aktenbezeichnung = _lade_aktenbezeichnung(akte.aktenzeichen)
+
     return {
         "akte": {
             "id":           akte.id,
@@ -508,6 +511,7 @@ def _lade_akte_daten(akte_id: int, akte, dok_typ: str = "", variante: str = "aut
             "notizen":      akte.notizen,
             "sachbearbeiter": getattr(akte, "sachbearbeiter", "") or "",
             "kurzbezeichnung": getattr(akte, "kurzbezeichnung", "") or "",
+            "aktenbezeichnung": aktenbezeichnung,
         },
         "mandant":          mandant_dict,
         "gegner":           gegner_dict,
@@ -798,6 +802,32 @@ def _lade_beteiligte_aus_ramicro(az: str) -> dict:
         logger.debug("_lade_beteiligte_aus_ramicro(%s): %s", az, e)
 
     return result
+
+
+def _lade_aktenbezeichnung(az: str) -> str:
+    """
+    Aktenlangbezeichnung (tblAkten.sAktenBezeichnung) aus RA-Micro.
+    Die SQLite-Tabelle führt nur die Kurzbezeichnung.
+    """
+    try:
+        from ..ramicro.connector import get_ramicro_connection
+    except ImportError:
+        return ""
+    import re as _re
+    az_basis = _re.sub(r"[A-Z]{2,3}$", "", (az or "").strip().upper()).strip()
+    if not az_basis:
+        return ""
+    try:
+        with get_ramicro_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT TOP 1 sAktenBezeichnung AS lang FROM tblAkten "
+                "WHERE sAktenNummer = %(az)s", {"az": az_basis})
+            row = cur.fetchone()
+            return ((row.get("lang") if row else "") or "").strip()
+    except Exception as e:
+        logger.debug("Aktenlangbezeichnung %s: %s", az, e)
+        return ""
 
 
 def _lade_gegner_adresse_aus_ramicro(az: str) -> dict:

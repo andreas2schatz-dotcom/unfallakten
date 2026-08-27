@@ -1734,9 +1734,11 @@ export function StepZusammenfassung({ gericht, beklagte, positionen, mitSG, sgMi
                                antraegeAuto,
                                onVertreterLookup, vertreterLookup,
                                unfallort, unfalldatum,
+                               vorsteuer = false,
                                hq = 100, hqTyp = "gegnerisch" }) {
   const klagebetrag  = berechneKlagebetrag(positionen, hq, hqTyp);
-  const rvgAussGes   = parseBetragOderNull(rvgAussergOv) ?? (rvgAussergData?.gesamt || 0);
+  const rvgAussGes   = parseBetragOderNull(rvgAussergOv)
+    ?? ((vorsteuer ? rvgAussergData?.zwischen_netto : rvgAussergData?.gesamt) || 0);
   const swGerichtlich = klagebetrag + (mitSG && sgMind > 0 ? sgMind : 0);
   const istAmtsgericht = gericht && /amtsgericht/i.test(gericht.name || "");
   const lgWarnung = lgGrenzwert > 0 && swGerichtlich > lgGrenzwert && istAmtsgericht;
@@ -2323,11 +2325,15 @@ export function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
                          beklagte, weiblich,
                          zinsenAb, verzug,
                          antraegeText, onAntraegeText,
-                         gespeichertGb, onGespeichertGb, akteId }) {
+                         gespeichertGb, onGespeichertGb, akteId,
+                         vorsteuer = false }) {
   const g            = beklagtenGrammatik(beklagte);
   const kl_akk       = weiblich ? "die Klägerin" : "den Kläger";
   const zinsDat      = zinsenAb === "verzug" && verzug ? `seit dem ${fmtDatumDe(verzug)}` : "seit Rechtshängigkeit";
-  const rvgGesamt    = parseBetragOderNull(rvgAussergOv) ?? (rvgAussergData?.gesamt || 0);
+  // Vorsteuerabzugsberechtigte Klaeger: die Umsatzsteuer ist kein
+  // erstattungsfaehiger Schaden, gefordert wird nur der Nettobetrag.
+  const rvgSumme     = vorsteuer ? rvgAussergData?.zwischen_netto : rvgAussergData?.gesamt;
+  const rvgGesamt    = parseBetragOderNull(rvgAussergOv) ?? (rvgSumme || 0);
   const bereitsGez   = parseFloat(rvgBereitsGezahlt) || 0;
   const rvgNetto     = Math.max(0, rvgGesamt - bereitsGez);
 
@@ -2511,9 +2517,13 @@ export function StepGebuehren({ swAusserg, rvgAussergData, onRvgAussergData,
             {[
               { l: `Geschäftsgebühr §§ 13, 14 Nr. 2300 VV RVG (${rvgAussergData.faktor})`, v: rvgAussergData.gebuehr_netto },
               { l: "Post u. Telekommunikation Nr. 7002 VV RVG", v: rvgAussergData.post_pauschale },
-              { l: "Zwischensumme netto", v: rvgAussergData.zwischen_netto, faint: true },
-              { l: "19 % Umsatzsteuer", v: rvgAussergData.ust },
-              { l: "Gesamtbetrag", v: rvgAussergData.gesamt, bold: true },
+              ...(vorsteuer ? [] : [
+                { l: "Zwischensumme netto", v: rvgAussergData.zwischen_netto, faint: true },
+                { l: "19 % Umsatzsteuer", v: rvgAussergData.ust },
+              ]),
+              { l: "Gesamtbetrag",
+                v: vorsteuer ? rvgAussergData.zwischen_netto : rvgAussergData.gesamt,
+                bold: true },
             ].map((z, i) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between",
                 fontWeight: z.bold ? 700 : 400, color: z.faint ? T.textFaint : z.bold ? T.navy : T.text,
@@ -2965,6 +2975,7 @@ export default function KlageWizard({
 
             {step === 10 && (
               <StepGebuehren
+                vorsteuer={mandantVorsteuer}
                 swAusserg={swAusserg}
                 rvgAussergData={wizardRvgAussergData} onRvgAussergData={onRvgAussergData}
                 rvgAussergOv={wizardRvgAussergOv}     onRvgAussergOv={onRvgAussergOv}
@@ -2981,6 +2992,7 @@ export default function KlageWizard({
 
             {step === 11 && (
               <StepZusammenfassung
+                vorsteuer={mandantVorsteuer}
                 gericht={gericht}           beklagte={beklagte}
                 positionen={positionen}     mitSG={mitSG}          sgMind={sgMind}
                 rvgAussergData={wizardRvgAussergData} rvgAussergOv={wizardRvgAussergOv}

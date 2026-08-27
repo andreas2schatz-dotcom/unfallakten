@@ -839,6 +839,12 @@ def _render_docx(vorlage, replacements, ooxml_blocks):
                 for ph, block in ooxml_blocks.items():
                     xml = _inject_block(xml, ph, block)
                 data = xml.encode("utf-8")
+            elif re.match(r"word/header\d+\.xml$", item.filename):
+                # Folgeseiten-Kopfzeile: "Seite N zum Schreiben vom {{DATUM}}"
+                kopf = data.decode("utf-8")
+                for k, v in replacements.items():
+                    kopf = kopf.replace(k, v)
+                data = kopf.encode("utf-8")
             zout.writestr(item, data)
     return output.getvalue()
 

@@ -1044,12 +1044,17 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
     rvg_ausserg_override  = cfg.get("rvg_ausserg_override")
     rvg_bereits_gezahlt   = round(float(cfg.get("rvg_bereits_gezahlt") or 0), 2)
     # BE-3: Welcher Betrag kommt in den RVG-Antrag?
+    # Bei vorsteuerabzugsberechtigten Klaegern ist die Umsatzsteuer kein
+    # erstattungsfaehiger Schaden — sie wird als Vorsteuer abgezogen. Dann
+    # zaehlt der Nettobetrag (RA Schatz, 2026-08-27). Ein manuell im Wizard
+    # gesetzter Override bleibt in jedem Fall massgeblich.
+    _rvg_summenfeld = "zwischen_netto" if vorsteuer else "gesamt"
     if rvg_ausserg_override is not None:
         rvg_antrag_betrag = float(rvg_ausserg_override)
-    elif rvg_ausserg.get("gesamt") is not None:
-        rvg_antrag_betrag = float(rvg_ausserg["gesamt"])
+    elif rvg_ausserg.get(_rvg_summenfeld) is not None:
+        rvg_antrag_betrag = float(rvg_ausserg[_rvg_summenfeld])
     else:
-        rvg_antrag_betrag = float(rvg["gesamt"])
+        rvg_antrag_betrag = float(rvg[_rvg_summenfeld])
     # Bereits gezahlten Anteil abziehen → nur offener Rest wird eingeklagt
     if rvg_bereits_gezahlt > 0:
         rvg_antrag_betrag = round(max(0.0, rvg_antrag_betrag - rvg_bereits_gezahlt), 2)
@@ -1746,7 +1751,10 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
     # Fallback auf klagebetrag damit die Tabelle nie leer bleibt.
     sw_ausserg = round(float(rvg_ausserg.get("streitwert") or 0), 2) or klagebetrag
     rvg_fuer_tab = rvg_ausserg if rvg_ausserg.get("gesamt") else rvg
-    rvg_brutto = round(float(rvg_ausserg_override or rvg_fuer_tab.get("gesamt") or 0), 2)
+    # Bei Vorsteuerabzug endet die Aufstellung beim Nettobetrag; eine
+    # USt-Zeile wuerde dem Klageantrag widersprechen.
+    rvg_summe = rvg_fuer_tab.get(_rvg_summenfeld) or 0
+    rvg_brutto = round(float(rvg_ausserg_override or rvg_summe or 0), 2)
     rvg_tabelle = (
         '<w:tbl><w:tblPr><w:tblW w:w="9163" w:type="dxa"/>'
         '<w:tblBorders>'
@@ -1760,8 +1768,11 @@ def _baue_klage_dokument(akte_daten: dict) -> dict:
                          _eur_str(rvg_fuer_tab.get("gebuehr_netto", 0)))
         + _rvg_tbl_zeile(_st("gebuehren_zeile_post"),
                          _eur_str(rvg_fuer_tab.get("post_pauschale", 0)))
-        + _rvg_tbl_zeile(_st("gebuehren_zeile_zwischensumme"), _eur_str(rvg_fuer_tab.get("zwischen_netto", 0)), fett=True)
-        + _rvg_tbl_zeile(_st("gebuehren_zeile_ust"), _eur_str(rvg_fuer_tab.get("ust", 0)))
+        + ("" if vorsteuer else
+           _rvg_tbl_zeile(_st("gebuehren_zeile_zwischensumme"),
+                          _eur_str(rvg_fuer_tab.get("zwischen_netto", 0)), fett=True)
+           + _rvg_tbl_zeile(_st("gebuehren_zeile_ust"),
+                            _eur_str(rvg_fuer_tab.get("ust", 0))))
         + _rvg_tbl_zeile(_st("gebuehren_zeile_gesamt"), _eur_str(rvg_brutto), fett=True)
         + (
             _rvg_tbl_zeile(_st("gebuehren_zeile_gezahlt"), f"- {_eur_str(rvg_bereits_gezahlt)}")

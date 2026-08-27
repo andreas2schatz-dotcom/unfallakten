@@ -780,7 +780,13 @@ function KlageSection({ akteId, akte, st, dispatch }) {
     } finally { setGenLaedt(false); }
   };
 
-  const rvgGesamt = (wizardRvgAussergData?.gesamt ?? rvgData?.gesamt) || 0;
+  // Backend akzeptiert J/JA/Y/1 (ist_vorsteuerabzugsberechtigt) — hier gleich
+  // lesen, sonst zeigt der Wizard brutto und das Dokument fordert netto.
+  const mandantVorsteuer = ["J", "JA", "Y", "1", "TRUE"].includes(
+    String(beklagte.find(b => b.rolle_klage === "klaeger")?.vorsteuer || "")
+      .trim().toUpperCase());
+  const rvgFeld = mandantVorsteuer ? "zwischen_netto" : "gesamt";
+  const rvgGesamt = (wizardRvgAussergData?.[rvgFeld] ?? rvgData?.[rvgFeld]) || 0;
 
   const inS = { padding:"6px 10px", border:`1px solid ${T.border}`, borderRadius:7,
     fontFamily:"ui-monospace,monospace", fontSize:"0.915rem", outline:"none",
@@ -835,7 +841,7 @@ function KlageSection({ akteId, akte, st, dispatch }) {
           onSachverhaltManuell={setWizardSachverhaltManuell}
           auslandsunfall={auslandsunfall}
           onAuslandsunfall={setAuslandsunfall}
-          mandantVorsteuer={beklagte.find(b => b.rolle_klage === "klaeger")?.vorsteuer === "J"}
+          mandantVorsteuer={mandantVorsteuer}
           unfallort={daten?.unfallort || ""}
           // Step 4: Unfallhergang
           schilderungOriginal={daten?.unfalldetails?.schilderung || ""}
@@ -1557,9 +1563,12 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                   { label:"Gegenstandswert",                                          val: swAussergEffektiv,            bold: false },
                   { label:`Geschäftsgebühr §§ 13, 14 Nr. 2300 VV RVG (${rvgData.faktor})`, val: rvgData.gebuehr_netto,   bold: false },
                   { label:"Post u. Telekommunikation Nr. 7002 VV RVG",               val: rvgData.post_pauschale,       bold: false },
-                  { label:"Zwischensumme netto",                                      val: rvgData.zwischen_netto,       bold: false, faint: true },
-                  { label:"19 % Umsatzsteuer",                                       val: rvgData.ust,                  bold: false },
-                  { label:"Gesamtbetrag",                                             val: rvgData.gesamt,               bold: true  },
+                  ...(mandantVorsteuer ? [] : [
+                    { label:"Zwischensumme netto",                                    val: rvgData.zwischen_netto,       bold: false, faint: true },
+                    { label:"19 % Umsatzsteuer",                                     val: rvgData.ust,                  bold: false },
+                  ]),
+                  { label:"Gesamtbetrag",
+                    val: mandantVorsteuer ? rvgData.zwischen_netto : rvgData.gesamt,   bold: true  },
                 ].map((z, i) => (
                   <div key={i} style={{ display:"flex", justifyContent:"space-between",
                     marginBottom: i < 6 ? 3 : 0,

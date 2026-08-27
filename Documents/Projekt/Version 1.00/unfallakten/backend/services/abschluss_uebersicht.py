@@ -78,7 +78,8 @@ def _empfaenger_fuer(key: str) -> str:
     return "mandant"
 
 
-def _berechne_anwaltskosten_cta_plausi(akte_daten, ueb, ra_gebuehren):
+def _berechne_anwaltskosten_cta_plausi(akte_daten, ueb, ra_gebuehren,
+                                       vorsteuer=False):
     akte = akte_daten.get("akte") or {}
     abrechnungen = akte_daten.get("abrechnungen") or []
     kontext = akte_daten.get("gebuehren_kontext") or None
@@ -87,7 +88,7 @@ def _berechne_anwaltskosten_cta_plausi(akte_daten, ueb, ra_gebuehren):
     # REGULIERTEN Streitwert abgerechnet — daher auch bei Teilhaftung
     # vollständig von der Gegenseite getragen; kontext.streitwert (Forderung)
     # ist bewusst NICHT die Berechnungsbasis.
-    rvg_betrag = None
+    rvg_betrag = rvg_netto = rvg_ust = rvg_brutto = None
     reguliert_basis = float(ueb["summen"]["gezahlt"] or 0)
     if kontext and reguliert_basis > 0:
         from ..word.klage_service import berechne_rvg
@@ -96,7 +97,14 @@ def _berechne_anwaltskosten_cta_plausi(akte_daten, ueb, ra_gebuehren):
             float(kontext.get("faktor") or 1.3),
             erstellt_am=kontext.get("erstellt_am"),
         )
-        rvg_betrag = rvg["gesamt"]
+        rvg_netto  = rvg["zwischen_netto"]
+        rvg_ust    = rvg["ust"]
+        rvg_brutto = rvg["gesamt"]
+        # Die Umsatzsteuer ist bei vorsteuerabzugsberechtigten Mandanten kein
+        # erstattungsfaehiger Schaden (RA Schatz, 2026-08-27): der Mandant
+        # zieht sie als Vorsteuer ab, die Gegenseite traegt nur den Netto-
+        # betrag. Sonst traegt sie die Gebuehren brutto.
+        rvg_betrag = rvg_netto if vorsteuer else rvg_brutto
 
     if abrechnungen:
         volle_haftung = all(
@@ -105,7 +113,11 @@ def _berechne_anwaltskosten_cta_plausi(akte_daten, ueb, ra_gebuehren):
         volle_haftung = float(akte.get("haftungsquote") or 100) >= 100
 
     anwaltskosten = {
-        "rvg_betrag":         rvg_betrag,
+        "rvg_betrag":         rvg_betrag,     # was die Gegenseite traegt
+        "rvg_netto":          rvg_netto,
+        "rvg_ust":            rvg_ust,
+        "rvg_brutto":         rvg_brutto,
+        "vorsteuer":          vorsteuer,
         "gezahlt_von_gegner": round(ra_gebuehren, 2),
         "getragen_von":       "gegner",
     }
@@ -218,7 +230,8 @@ def baue_abschluss_uebersicht(akte_daten: dict) -> dict:
             "anschrift": mandant.get("anschrift") or "",
             "plz_ort":   " ".join(filter(None, [mandant.get("plz"),
                                                 mandant.get("ort")])).strip(),
-            "anrede":    mandant.get("anrede") or "",
+            "anrede":      mandant.get("anrede") or "",
+            "briefanrede": mandant.get("briefanrede") or "",
         },
         "modus":      modus,
         "positionen": positionen,
@@ -233,5 +246,5 @@ def baue_abschluss_uebersicht(akte_daten: dict) -> dict:
         },
     }
     ueb.update(_berechne_anwaltskosten_cta_plausi(
-        akte_daten, ueb, ra_gebuehren))
+        akte_daten, ueb, ra_gebuehren, vorsteuer=vorsteuer))
     return ueb

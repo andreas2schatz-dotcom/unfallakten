@@ -7,6 +7,63 @@
 
 ---
 
+## 2026-08-27 — Abschlussbericht auf dem Kanzleibriefbogen + Umsatzsteuer der RA-Gebühren
+
+Branch `geld-ssot-abrechnungsvorschlag`. Ausgelöst durch RA Schatz beim Gegenlesen des Berichts zu 589/26. Backend 1923 grün (20 skipped), Frontend 571 grün.
+
+### Layout und Formulierungen (Abschluss-/Sachstandsbericht)
+
+Der Bericht baute seinen Briefkopf selbst über `styling.py` nach, statt den echten Kanzleibriefbogen zu verwenden. Er läuft jetzt auf `word/abschlussbericht_vorlage.docx` — derselben Briefbogen-Datei wie Forderungsschreiben, Sachstandsanfrage und Abrechnungsübersicht. Der Renderer öffnet sie mit python-docx, füllt die Platzhalter in **allen** Textknoten (auch Textrahmen und Kopfzeilen), entfernt den `{{ABSCHLUSSINHALT}}`-Absatz und hängt den Brieftext an. Das trägt, weil dieser Platzhalter der letzte Body-Absatz vor `sectPr` ist.
+
+`styling.py` blieb dabei **unangetastet** — der Bericht bringt seine Absatz- und Tabellenbausteine jetzt selbst mit, damit die Sachstandsanfrage (nutzt dieselbe Datei) nicht mitgezogen wird.
+
+Im Einzelnen:
+
+| Befund | Korrektur |
+|---|---|
+| Acht Schriftgrößen (8,5–14 pt), Calibri | Arial 12 pt im gesamten Brieftext; Briefkopf/Fußzeile bleiben Briefbogen-Rahmen |
+| Anrede immer „Sehr geehrte Damen und Herren“ | `_anrede_zeile()` nimmt die RA-MICRO-`briefanrede`, sonst das Anrede-Feld — als **Klartext** („Herr“) **und** als Code („1“). Der Code prüfte nur auf `"1"`/`"2"`, RA-MICRO liefert an dieser Stelle Klartext |
+| Tabellenspalten linksbündig, Kopf zentriert | Erste Spalte links, alle weiteren rechts **inkl. Kopfzeile**; „Gesamt“ fett + `#EBF2FB` hinterlegt |
+| Grußformel = Kanzleiname | Unterschriftsbild + Name + Titel des Aktensachbearbeiters (`_hole_sb_info`, `_unterschrift_bytes`) |
+| Navy/Gold | Kanzleiblau `#5488D4`, Tabellenkopf `#2C3E50`, Kachel `#D6E8FF` |
+| — | Betreffblock unter der Kurzbezeichnung: Aktenlangbezeichnung + „Abschlussbericht“/„Sachstandsbericht“; die frühere blaue Betreffzeile im Fließtext entfällt |
+| — | Einleitungssatz nach der Anrede (nur Abschluss): „Ihre Unfallsache ist abgeschlossen. Nachfolgend erhalten Sie eine Übersicht über den Regulierungsverlauf:“ |
+| „Zahlungsverlauf“ | → „Regulierungsverlauf“, Spalte „Datum“ → „Abrechnung“ (siehe DECISIONS) |
+| Schlusssatz + grauer Bewertungshinweis | Neuer Schlusssatz vor der Grußformel (nur Abschluss); Bewertungsabsatz schwarz mit klickbarem Link |
+
+**Aktenlangbezeichnung** (`tblAkten.sAktenBezeichnung`) stand nirgends im System — SQLite führt nur die Kurzbezeichnung. Neuer Loader `word_service._lade_aktenbezeichnung()`. Nebeneffekt: das Forderungsschreiben las `akte["aktenbezeichnung"]` längst als Betreff-Rückfall, bekam es aber nie geliefert — der Rückfall funktioniert jetzt.
+
+**Datumsformat:** `varU-TAG` liefert deutsch und oft zweistellig („11.06.26“), SQLite ISO. Neuer Helfer `_datum()` bringt beides auf TT.MM.JJJJ; `_jahr_vierstellig()` ergänzt zweistellige Jahre in der RA-MICRO-Langbezeichnung, ohne RA-MICRO zu verändern.
+
+**Zwei Layoutfehler aus der PDF-Sichtprüfung** (LibreOffice-Rendering im Container): python-docx' Zellbreiten wurden ignoriert, weil die Tabelle auf Automatik stand — „Nachbesichtigungskoste-n“ brach mitten im Wort um. Jetzt `tblLayout=fixed` + `tblGrid`, Breiten als Anteil der aus der Vorlage gelesenen Textbreite (16 cm). Dazu `tblHeader` (Kopfzeile wiederholt sich), `cantSplit` und `keep_with_next` für Abschnittstitel.
+
+### Folgeseiten-Kopfzeile (alle vier Vorlagen)
+
+„Seite N zum Schreiben vom …“ enthielt kein eingetipptes Datum, sondern ein `TIME`-Feld: es hätte beim Öffnen das **Tagesdatum** eingesetzt, nicht das Briefdatum, und zeigte bis zur nächsten Feldaktualisierung den eingefrorenen Stand („12. März 2026“). Ersetzt durch `{{DATUM}}`; die Renderer (`forderungsschreiben_wv._render_docx` — nutzt auch die Gebührennote —, `abrechnungsuebersicht_service._render_docx`, `sachstandsanfrage_wv`) ersetzen dafür jetzt auch in `word/header*.xml`. Die Seitenzahl bleibt ein automatisches `PAGE`-Feld.
+
+**Werkzeug `tools/patch_briefvorlagen.py`** (idempotent) legt die neue Vorlage an, benennt den Platzhalter um, ergänzt die von python-docx benötigte Formatvorlage „Table Grid“ (die Kanzleivorlagen bringen sie nicht mit → `KeyError`) sowie die Betreffzeilen, und zieht die Kopfzeile in allen vier Dateien nach.
+
+### Umsatzsteuer der Rechtsanwaltsgebühren
+
+Gemeldet von RA Schatz: *„Bei vorsteuerabsatzberechtigten Mandanten erhalten wir ja nur die Nettogebühren. Wird das in diesem Absatz berücksichtigt?“*
+
+**Befund:** Nein. `berechne_rvg()["gesamt"]` ist immer brutto, und `_berechne_anwaltskosten_cta_plausi()` bekam das Vorsteuer-Kennzeichen gar nicht übergeben — es steuerte nur die Schadenpositionen. Gegenprobe an 589/26 mit `vorsteuer = Y`: zeichengleiches Dokument. Der Absatz nannte 756,30 € (635,55 netto + 120,75 USt) und erklärte sie pauschal für „kostenfrei“.
+
+**Korrektur** (Begründung → DECISIONS):
+- `anwaltskosten` weist `rvg_netto` / `rvg_ust` / `rvg_brutto` / `vorsteuer` getrennt aus; `rvg_betrag` ist das, was die Gegenseite tatsächlich trägt.
+- Brieftext verzweigt: bei Vorsteuerabzug Nettobetrag und der von RA Schatz vorgegebene USt-Hinweis statt „für Sie kostenfrei“.
+- **Klageschrift** (`klage_service.py`): Antrag 2 fordert bei Vorsteuerabzug den Nettobetrag; die Gebührentabelle endet ohne Zwischensummen- und USt-Zeile beim Nettobetrag. Beispiel Gegenstandswert 4.000 €: vorher immer „weitere 480,17 €“, jetzt „weitere 403,50 €“. `rvg_ausserg_override` bleibt maßgeblich.
+- **Frontend nachgezogen** (`KlageWizard.jsx` Schritt 9 + Zusammenfassung, `KlageSection.jsx` Gebühren-Karte) — der Wizard rechnet die Anzeige selbst und hätte sonst brutto gezeigt, während das Dokument netto fordert. Dabei fiel auf, dass das Frontend das Kennzeichen nur als `"J"` erkannte, das Backend aber `J/JA/Y/1/TRUE` — bei einem als „Y“ erfassten Mandanten wären Bildschirm und Dokument auseinandergelaufen.
+- Die **Kostennote ist nicht betroffen** — sie ist eine Rechnung, dort gehört die USt hin.
+
+**Nicht behoben, gemeldet:** Die IF-Felder in der Fußzeile vergleichen ein fest eingetipptes `"AS"` gegen die Sachbearbeiterkürzel (`if "AS"="AS" "D90" ""`), deshalb trägt jeder Brief den Präfix D90 statt D2/D1/D6. Betrifft die Druckdatei-Nummerierung aller vier Dokumente → Entscheidung RA Schatz.
+
+### Tests
+
+Neu: 4 Fälle im Übersichts-Service (USt-Aufschlüsselung, beide Vorsteuer-Wege, Kennzeichen-Varianten), 12 im Brieftext (Briefbogen-Bestandteile, keine offenen Platzhalter, Betreffblock, Schriftgröße/-art, Tabellenausrichtung und -layout, Grußformel, Formulierungen, Bewertungslink, „freuen“ nur einmal), 5 in der Klageschrift, 3 im Wizard (`KlageWizard.vorsteuer.test.jsx`).
+
+---
+
 ## 2026-08-26 — Nachbesichtigungskosten als eigene Schadenposition (Migration 70)
 
 Gemeldet von RA Schatz: „Wir haben in der Schadentabelle keine Position für die Kosten der Nachbesichtigung. Diese Position kommt immer wieder." Er hatte den Betrag in 589/26 deshalb als *Sonstiges* eingebucht.

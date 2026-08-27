@@ -185,6 +185,13 @@ def generiere_sachstandsanfrage_wv(wv_daten: dict) -> bytes:
             elif item.filename == "word/media/image1.png" and unterschrift:
                 data = unterschrift
 
+            elif re.match(r"word/header\d+\.xml$", item.filename):
+                # Folgeseiten-Kopfzeile: "Seite N zum Schreiben vom {{DATUM}}"
+                kopf = data.decode("utf-8")
+                for placeholder, value in replacements.items():
+                    kopf = kopf.replace(placeholder, value)
+                data = kopf.encode("utf-8")
+
             zout.writestr(item, data)
 
     logger.info("Sachstandsanfrage generiert: AZ=%s SB=%s Empfänger=%s",

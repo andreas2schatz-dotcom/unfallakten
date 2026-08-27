@@ -159,6 +159,39 @@ class TestAnwaltskostenCtaPlausi(unittest.TestCase):
             ueb["summen"]["gezahlt"], 1.3, erstellt_am="2026-01-15")["gesamt"]
         self.assertEqual(ueb["anwaltskosten"]["rvg_betrag"], erwartet)
 
+    def test_rvg_aufschluesselung_wird_ausgewiesen(self):
+        ueb = baue_abschluss_uebersicht(self._voll_regulierte_daten())
+        ak = ueb["anwaltskosten"]
+        self.assertAlmostEqual(ak["rvg_netto"] + ak["rvg_ust"],
+                               ak["rvg_brutto"], places=2)
+        self.assertGreater(ak["rvg_ust"], 0)
+
+    def test_ohne_vorsteuer_traegt_gegenseite_den_bruttobetrag(self):
+        daten = self._voll_regulierte_daten()
+        daten["mandant"]["vorsteuer"] = "N"
+        ak = baue_abschluss_uebersicht(daten)["anwaltskosten"]
+        self.assertFalse(ak["vorsteuer"])
+        self.assertEqual(ak["rvg_betrag"], ak["rvg_brutto"])
+
+    def test_mit_vorsteuer_traegt_gegenseite_nur_den_nettobetrag(self):
+        # Die Umsatzsteuer ist kein Schaden — der Mandant zieht sie als
+        # Vorsteuer ab, die Gegenseite erstattet sie deshalb nicht.
+        daten = self._voll_regulierte_daten()
+        daten["mandant"]["vorsteuer"] = "J"
+        ak = baue_abschluss_uebersicht(daten)["anwaltskosten"]
+        self.assertTrue(ak["vorsteuer"])
+        self.assertEqual(ak["rvg_betrag"], ak["rvg_netto"])
+        self.assertLess(ak["rvg_betrag"], ak["rvg_brutto"])
+
+    def test_vorsteuer_kennzeichen_wird_erkannt(self):
+        for kennzeichen, erwartet in [("J", True), ("JA", True), ("Y", True),
+                                      ("1", True), ("N", False), ("", False),
+                                      (None, False)]:
+            daten = self._voll_regulierte_daten()
+            daten["mandant"]["vorsteuer"] = kennzeichen
+            ak = baue_abschluss_uebersicht(daten)["anwaltskosten"]
+            self.assertEqual(erwartet, ak["vorsteuer"], f"vorsteuer={kennzeichen!r}")
+
     def test_cta_false_bei_vorbehalt(self):
         ueb = baue_abschluss_uebersicht(
             self._voll_regulierte_daten(schluss_typ="vorbehalt_spaetfolgen"))

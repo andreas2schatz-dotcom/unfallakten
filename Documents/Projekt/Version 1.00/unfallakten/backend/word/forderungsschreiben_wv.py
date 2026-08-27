@@ -519,6 +519,12 @@ def _render_docx(
                 data = xml.encode("utf-8")
             elif item.filename == _SIG_MEDIA and unterschrift:
                 data = unterschrift
+            elif re.match(r"word/header\d+\.xml$", item.filename):
+                # Folgeseiten-Kopfzeile: "Seite N zum Schreiben vom {{DATUM}}"
+                kopf = data.decode("utf-8")
+                for key, value in replacements.items():
+                    kopf = kopf.replace(key, value)
+                data = kopf.encode("utf-8")
             zout.writestr(item, data)
     return output.getvalue()
 

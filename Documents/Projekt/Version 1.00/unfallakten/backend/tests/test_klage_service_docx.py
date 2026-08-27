@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from backend.word.klage_service import (
     generiere_klageschrift, berechne_rvg, _beweis, baue_klage_vorschau,
+    _eur_str as _eur,
 )
 from backend.word.klage_bloecke import ooxml_zu_text
 
@@ -230,6 +231,52 @@ class TestKW39VorsteuerNebenkostenDocx(unittest.TestCase):
             "Der Gesamtbetrag in Höhe von 200,00 € wird mit dem Klageantrag zu 1 geltend gemacht.",
             xml,
         )
+
+
+class TestVorsteuerRvgKosten(unittest.TestCase):
+    """
+    Die vorgerichtlichen Anwaltskosten sind bei vorsteuerabzugsberechtigten
+    Klaegern nur netto erstattungsfaehig — die Umsatzsteuer holt sich der
+    Klaeger als Vorsteuer vom Finanzamt (RA Schatz, 2026-08-27).
+    """
+
+    def _xml(self, vorsteuer):
+        positionen = [_position("wertminderung", "Wertminderung", 4000.0)]
+        return _document_xml(generiere_klageschrift(
+            _akte_daten(positionen, vorsteuer=vorsteuer)))
+
+    def _rvg(self):
+        return berechne_rvg(4000.0, 1.3, erstellt_am="2026-01-01")
+
+    def test_ohne_vorsteuer_wird_brutto_eingeklagt(self):
+        rvg = self._rvg()
+        xml = self._xml("N")
+        self.assertIn(_eur(rvg["gesamt"]), xml)
+        self.assertIn("19 % Umsatzsteuer", xml)
+
+    def test_mit_vorsteuer_wird_nur_netto_eingeklagt(self):
+        rvg = self._rvg()
+        xml = self._xml("J")
+        self.assertIn(_eur(rvg["zwischen_netto"]), xml)
+        self.assertNotIn(_eur(rvg["gesamt"]), xml)
+
+    def test_mit_vorsteuer_keine_umsatzsteuerzeile_in_der_tabelle(self):
+        xml = self._xml("J")
+        self.assertNotIn("19 % Umsatzsteuer", xml)
+        self.assertNotIn(_eur(self._rvg()["ust"]), xml)
+
+    def test_mit_vorsteuer_ist_der_klageantrag_der_nettobetrag(self):
+        rvg = self._rvg()
+        xml = self._xml("J")
+        # Antrag lautet "... weitere X € nebst Zinsen ..."
+        self.assertIn(f"weitere {_eur(rvg['zwischen_netto'])} nebst Zinsen", xml)
+
+    def test_manueller_override_bleibt_massgeblich(self):
+        positionen = [_position("wertminderung", "Wertminderung", 4000.0)]
+        daten = _akte_daten(positionen, vorsteuer="J")
+        daten["klage_config"]["rvg_ausserg_override"] = 999.99
+        xml = _document_xml(generiere_klageschrift(daten))
+        self.assertIn("999,99", xml)
 
 
 class TestKW07SchmerzensgeldNichtDoppelt(unittest.TestCase):

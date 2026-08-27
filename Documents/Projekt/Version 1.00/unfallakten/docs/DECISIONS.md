@@ -5,6 +5,44 @@ Format: Entscheidung → Grund → Alternative → Konsequenz.
 
 ---
 
+## Abschlussbericht und Klageschrift (RA Schatz, 2026-08-27)
+
+### Die Umsatzsteuer der Anwaltsgebühren ist bei Vorsteuerabzug kein erstattungsfähiger Schaden
+
+**Entscheidung:** Ist der Mandant vorsteuerabzugsberechtigt, trägt die Gegenseite die vorgerichtlichen Anwaltsgebühren nur **netto**. Die Umsatzsteuer stellt die Kanzlei dem Mandanten in Rechnung; er zieht sie als Vorsteuer ab.
+
+**Grund:** Die abziehbare Vorsteuer ist beim Geschädigten kein Schaden — sie fließt ihm vom Finanzamt zurück. Ein Brutto-Ansatz behauptet einen zu hohen Erstattungsanspruch: im Mandantenbrief als falsche „kostenfrei“-Zusage, in der Klageschrift als überhöhter Klageantrag.
+
+**Alternative:** Weiter pauschal brutto ansetzen und im Einzelfall manuell korrigieren (im Klage-Wizard gibt es dafür ein Überschreibfeld) — verworfen, weil der Fehler im Mandantenbrief gar nicht auffällt und der Wizard-Override nur greift, wenn jemand an die Umsatzsteuer denkt.
+
+**Konsequenz:**
+* Erstattungsbetrag = `zwischen_netto` bei Vorsteuerabzug, sonst `gesamt`. `berechne_rvg()["gesamt"]` nie ungeprüft anzeigen.
+* Mandantenbrief bei Vorsteuerabzug ohne „für Sie kostenfrei“; Wortlaut: *„Unsere Gebühren … in Höhe von X netto werden von der Gegenseite getragen. Die Umsatzsteuer erstattet die Gegenseite nicht, da Sie zum Vorsteuerabzug berechtigt sind; wir stellen sie Ihnen gesondert in Rechnung.“*
+* Klageschrift: Antrag 2 netto, Gebührentabelle ohne Zwischensummen- und USt-Zeile. `rvg_ausserg_override` bleibt maßgeblich.
+* Kennzeichen einheitlich `J/JA/Y/1/TRUE` — **Backend und Frontend müssen dieselbe Liste prüfen**, sonst zeigt der Bildschirm brutto und das Dokument fordert netto.
+* Die Kostennote bleibt unverändert: sie ist eine Rechnung, dort gehört die Umsatzsteuer hin.
+* **Grenze:** Die Regel greift nur bei gepflegtem Kennzeichen (RA-MICRO bzw. WDM-Variable `varSSTF`). Fehlt es, gilt „nicht vorsteuerabzugsberechtigt“ und es bleibt bei brutto.
+
+Ergänzt die Entscheidung „RVG aus reguliertem Streitwert“ (2026-08-06) — deren „kostenfrei gilt immer“ bezog sich auf die Haftungsquote, nicht auf die Umsatzsteuer.
+
+### „Zahlungsverlauf“ heißt „Regulierungsverlauf“
+
+**Entscheidung:** Die Verlaufstabelle im Abschlussbericht heißt „Regulierungsverlauf“, die Datumsspalte „Abrechnung“.
+
+**Grund:** Wortlaut RA Schatz: *„Aus der Akte geht der Zahlungsverlauf nicht hervor — es gibt kein Aktenkonto im System. Also können wir auch keine Auszahlungen dokumentieren.“* Die Tabelle zeigte immer schon das Datum des Abrechnungsschreibens und den regulierten Betrag; nur der Name behauptete eine Auszahlung.
+
+**Konsequenz:** Der Bericht sagt nichts mehr über Zahlungseingänge, sondern über Regulierungszusagen. Ein echtes Aktenkonto ist als eigenes Vorhaben vorgemerkt (TODO/Backlog).
+
+### Der Bericht sitzt auf dem echten Kanzleibriefbogen
+
+**Entscheidung:** Alle Mandanten- und Gegnerschreiben nutzen dieselbe Briefbogen-Vorlage; der Abschlussbericht bekommt eine eigene Kopie (`abschlussbericht_vorlage.docx`) statt eines in `styling.py` nachgebauten Briefkopfs.
+
+**Grund:** Der nachgebaute Kopf wich in Schrift, Kontaktdaten und Fußzeile vom echten Briefbogen ab und kannte die Sozietätsleiste nicht.
+
+**Konsequenz:** `styling.py` bleibt für die Sachstandsanfrage unverändert; der Abschlussbericht bringt seine Bausteine selbst mit. Vorlagenpflege über `tools/patch_briefvorlagen.py`. Wer eine Vorlage anfasst, muss wissen: „Table Grid“ fehlt darin, und `{{ABSCHLUSSINHALT}}` muss der letzte Body-Absatz bleiben.
+
+---
+
 ## Geld-SSOT (Grundsatzentscheidung RA Schatz, 2026-08-26)
 
 ### Die erfassten Schadenpositionen und die Abrechnungsart sind aktenwahr — immer und überall
