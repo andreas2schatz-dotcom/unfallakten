@@ -161,16 +161,23 @@ großschreiben. Danach Plausibilitätsprüfung gegen
 | `k.A. Fußgänger` | `KAFUSSGÄNGER` | nein |
 | `siehe Akte` | `SIEHEAKTE` | nein |
 
-Die Signale werden in `zustellungen.signale_json` abgelegt — genau dort, wo
-`finde_kandidaten` ohnehin nachsieht. Die Sammelfunktionen
-`_sammle_signale_mails` und `_sammle_signale_kfz` (`akten_matching.py:84`
-und `:97`) müssen die neuen Schlüssel mitlesen; die bisherigen Schlüssel
-(`absender`, `absender_email`, `kfz`, `kfz_kennzeichen`) bleiben unangetastet,
-damit andere Dokumentarten unverändert laufen. Die Pipeline bleibt
-unverändert. Die
-Signalbildung läuft sowohl beim Einliefern als auch beim **Reparse** aus dem
-gespeicherten Bogen-JSON; damit heilen die acht Altfälle über den bereits
-vorhandenen Knopf `POST /intake/dokument/<id>/reparse`, ohne Einmal-Skript.
+**Wo die Signale entstehen.** Nicht beim Einliefern, sondern **in der
+Pipeline**, bei jedem Lauf neu aus dem gespeicherten Bogen-JSON. Für
+Text-Dokumente hält die Pipeline den Payload ohnehin als `text_gesamt`
+(`pipeline.py:171`); ein Fragebogen ist daran zweifelsfrei erkennbar, weil
+`parse_fragebogen_anhang` gegen das Schema prüft. Die abgeleiteten Signale
+werden der Liste aus `_lade_zustellungs_signale` hinzugefügt, bevor
+`klassifiziere_stufe1` und `finde_kandidaten` sie sehen.
+
+Das hat drei Vorteile gegenüber dem Schreiben in `signale_json`: die Ableitung
+ist idempotent, es gibt nur eine Wahrheitsquelle (den Payload), und die acht
+Altfälle heilen allein über den bereits vorhandenen Knopf
+`POST /intake/dokument/<id>/reparse` — ohne Einmal-Skript und ohne Datenmigration.
+
+Die Sammelfunktionen `_sammle_signale_mails` und `_sammle_signale_kfz`
+(`akten_matching.py:84` und `:97`) müssen die neuen Schlüssel mitlesen; die
+bisherigen Schlüssel (`absender`, `absender_email`, `kfz`, `kfz_kennzeichen`)
+bleiben unangetastet, damit andere Dokumentarten unverändert laufen.
 
 ### 2. Suche — Erweiterungen in `akten_matching.py` und `ramicro/email_matching.py`
 
@@ -221,9 +228,11 @@ Markerliste, `bezeichnung_label: "Unfallfragebogen"`; danach
 Die Klasse wird **nicht** über den Textklassifikator gesetzt — ein Signal allein
 erreicht nur `SIGNAL_KONFIDENZ = 0.55` (`klassifikator.py:29`) und bliebe unter
 der Schwelle. Ein Fragebogen ist aber schema-validiert und damit keine
-Vermutung. Die Klasse wird beim Einliefern verbindlich gestempelt, mit einer
-eigenen `klasse_quelle`, die analog zu `manuell` (`pipeline.py:218`) gegen
-Überschreiben beim Reparse geschützt ist.
+Vermutung. Die Pipeline stempelt die Klasse deshalb selbst, sobald sie den
+Payload als Bogen erkennt, mit `klasse_quelle='fragebogen'` und Konfidenz 1,0.
+Der Zweig für bindende Klassen (`pipeline.py:218`, bisher nur `manuell`) wird
+um diesen Wert erweitert, damit ein manuell gesetzter Wert weiterhin Vorrang
+behält und die Fragebogen-Klasse nicht vom Auto-Vorschlag überschrieben wird.
 
 Ereignistyp-Zuordnung für die Freigabe über
 `positionsmodell_registry.klasse_ereignistyp` ergänzen.
