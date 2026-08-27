@@ -1536,12 +1536,14 @@ Datei `backend/tests/test_fragebogen_queue_endpunkt.py`:
 
 ```python
 """GET /intake/queue liefert Fragebogen-Kennzeichnung, Kopfdaten und Ampel."""
+import importlib
 import json
 import os
 import sys
 import tempfile
 import unittest
 
+_tmp_dir = tempfile.mkdtemp(prefix="fbqueue_")
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 BOGEN = {
@@ -1554,33 +1556,39 @@ BOGEN = {
 }
 
 
-def _setup(name):
-    fd, pfad = tempfile.mkstemp(prefix=f"fbqueue_{name}_", suffix=".sqlite")
-    os.close(fd)
-    import backend.db.database as _db
-    _db.DB_PATH = pfad
-    os.environ["DB_PATH"] = pfad
+def _setup(test_id: str):
+    """Muster aus backend/tests/test_abschluss_routes.py:12 -- eigener
+    DB_PATH je Test, danach die Module neu laden, damit sie ihn sehen."""
+    db_path = os.path.join(_tmp_dir, f"fbq_{test_id}.db")
+    if os.path.exists(db_path):
+        os.remove(db_path)
+    os.environ["DB_PATH"] = db_path
+    os.environ["UPLOAD_DIR"] = os.path.join(_tmp_dir, f"uploads_{test_id}")
     os.environ["RAMICRO_AKTIV"] = "false"
-    from backend.db.schema_manager import init_db
-    init_db()
-    from backend.app import erstelle_app
-    app = erstelle_app()
-    app.config["TESTING"] = True
+
+    import backend.db.database as db_mod
+    import backend.models.benutzer as ben_mod
+    import backend.models.akte as akte_mod
+    import backend.models.dokument as dok_mod
+    import backend.auth.jwt_handler as jwt_mod
+    import backend.auth.middleware as mw_mod
+    import backend.auth.service as svc_mod
+    import backend.routers.auth_routes as routes_mod
+    import backend.app as app_mod
+    for m in (db_mod, ben_mod, akte_mod, dok_mod,
+              jwt_mod, mw_mod, svc_mod, routes_mod, app_mod):
+        importlib.reload(m)
+    app = app_mod.erstelle_app({"TESTING": True})
     return app.test_client()
 
 
 def _auth(client):
-    from backend.db.database import get_connection
-    from werkzeug.security import generate_password_hash
-    with get_connection() as conn:
-        conn.execute(
-            "INSERT OR IGNORE INTO benutzer (email, passwort_hash, name, "
-            "rolle) VALUES ('admin@test.de', ?, 'Admin', 'admin')",
-            (generate_password_hash("test1234"),))
-    r = client.post("/api/auth/login", json={"email": "admin@test.de",
-                                              "passwort": "test1234"})
-    token = r.get_json()["token"]
-    return {"Authorization": f"Bearer {token}"}
+    r = client.post("/auth/login", json={
+        "email": os.environ.get("ADMIN_EMAIL", "admin@test.de"),
+        "passwort": os.environ.get("ADMIN_PASSWORT", "Admin123!"),
+    })
+    assert r.status_code == 200, f"Login fehlgeschlagen: {r.get_json()}"
+    return {"Authorization": f"Bearer {r.get_json()['access_token']}"}
 
 
 class TestQueueEndpunkt(unittest.TestCase):
@@ -1604,8 +1612,8 @@ class TestQueueEndpunkt(unittest.TestCase):
             return cur.lastrowid
 
     def _queue(self):
-        r = self.client.get("/api/intake/queue", headers=self.headers)
-        self.assertEqual(r.status_code, 200)
+        r = self.client.get("/intake/queue", headers=self.headers)
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
         return r.get_json()["eintraege"]
 
     def test_fragebogen_traegt_kopf_und_ampel(self):
