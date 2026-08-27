@@ -1002,6 +1002,7 @@ class TestSucheKandidatenInRamicro(unittest.TestCase):
         self.assertIn("tblAdressen", sql)
         self.assertIn("sAktenKurzBezeichnung", sql)
         self.assertIn("dtAblage", sql)
+        self.assertIn("iBeteiligtenArt = 1", sql)
         self.assertEqual(params, ("paulgolovin@web.de",))
 
     def test_eigenes_kennzeichen_fragt_varM_KZ(self):
@@ -1033,6 +1034,7 @@ class TestSucheKandidatenInRamicro(unittest.TestCase):
         self.assertEqual(treffer[0][1], "nachname")
         sql, params = cur.aufrufe[0]
         self.assertIn("sNachname", sql)
+        self.assertIn("iBeteiligtenArt = 1", sql)
         self.assertEqual(params, ("Golovin",))
 
     def test_mehrere_merkmale_ergeben_mehrere_treffer(self):
@@ -1105,6 +1107,13 @@ _WDM_TAG_SQL = """
       AND {aktiv}
 """
 
+# Rollenrichtig wie in SQLite: die Mandantenadresse und der Nachname des
+# Mandanten duerfen nur Auftraggeber-Zeilen treffen. iBeteiligtenArt = 1 ist
+# der Mandant (Konvention des Projekts, vgl. ramicro/akten_erkennung.py:36;
+# = 2 waere der Gegner, vgl. ramicro/wiedervorlage_service.py:192). Ohne
+# diesen Filter treffen Versicherer-, Gutachter- und Behoerdenadressen mit.
+_ART_MANDANT = 1
+
 _MAIL_SQL = """
     SELECT DISTINCT a.sAktenNummer AS az,
                     a.sAktenKurzBezeichnung AS bezeichnung
@@ -1112,6 +1121,7 @@ _MAIL_SQL = """
     INNER JOIN tblAktenBeteiligte b ON b.GUIDAdresse = adr.GUIDAdresse
     INNER JOIN tblAkten a ON a.GUIDAkte = b.GUIDAkte
     WHERE LOWER(adr.sEMail) = %s
+      AND b.iBeteiligtenArt = 1
       AND b.bDeaktiviert = 0
       AND {aktiv}
 """
@@ -1123,6 +1133,7 @@ _NAME_SQL = """
     INNER JOIN tblAktenBeteiligte b ON b.GUIDAdresse = adr.GUIDAdresse
     INNER JOIN tblAkten a ON a.GUIDAkte = b.GUIDAkte
     WHERE adr.sNachname = %s
+      AND b.iBeteiligtenArt = 1
       AND b.bDeaktiviert = 0
       AND {aktiv}
 """
