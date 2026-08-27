@@ -1011,14 +1011,15 @@ class TestSucheKandidatenInRamicro(unittest.TestCase):
             [[{"az": "742/26", "bezeichnung": "Golovin/Brochner"}]],
         )
         self.assertEqual(treffer[0][1], "kfz_mandant")
-        sql, _ = cur.aufrufe[0]
-        self.assertIn("varM-KZ", sql)
-        self.assertNotIn("varG-KZ", sql)
+        sql, params = cur.aufrufe[0]
+        self.assertIn("_tbl0WDMDaten", sql)
+        self.assertEqual(params, ("varM-KZ", "WÜPG777"))
 
     def test_gegnerkennzeichen_fragt_varG_KZ(self):
         _, cur = self._suche({"kfz_gegner": "MTKDB801"}, [[]])
-        sql, _ = cur.aufrufe[0]
-        self.assertIn("varG-KZ", sql)
+        sql, params = cur.aufrufe[0]
+        self.assertIn("_tbl0WDMDaten", sql)
+        self.assertEqual(params, ("varG-KZ", "MTKDB801"))
 
     def test_unfalltag_wird_ins_ramicro_format_uebersetzt(self):
         _, cur = self._suche({"unfalltag": "2026-08-03"}, [[]])
