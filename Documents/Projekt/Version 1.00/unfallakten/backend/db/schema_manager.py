@@ -2137,6 +2137,37 @@ def get_schema_version(conn: sqlite3.Connection) -> int:
         return 0  # Tabelle existiert noch nicht
 
 
+def _ist_reiner_kommentar_platzhalter(sql: str) -> bool:
+    """
+    Erkennt einen MIGRATIONS-Eintrag, der nur ein Kommentar-Platzhalter ist
+    (z.B. "-- migration_54_textquelle_email_text") und keine echte SQL
+    enthaelt.
+
+    Grund fuer diese Funktion: Die meisten Migrationen werden nicht per SQL,
+    sondern per Python-Funktion (_run_migration_N) ausgefuehrt. Ihr Eintrag
+    im MIGRATIONS-Dict ist deshalb nur ein einzeiliger Kommentar als
+    Markierung -- die eigentliche Arbeit passiert in einem eigenen
+    if/elif-Zweig in run_migrations(). Landet so ein Platzhalter trotzdem im
+    generischen else-Zweig (d.h. es existiert KEIN passender Zweig), bedeutet
+    das nicht "Migration ohne Inhalt", sondern fast immer: schema_manager.py
+    wurde unvollstaendig geladen. Typischer Ablauf: der Flask-Reloader im
+    Dev-Betrieb hat die Datei neu eingelesen, waehrend der MIGRATIONS-Eintrag
+    schon committet war, der dazugehoerige elif-Zweig aber noch nicht (oder
+    umgekehrt mitten in der Bearbeitung). Der else-Zweig fuehrt dann nur den
+    SQL-Kommentar aus (ein No-Op) und stempelt trotzdem die Version -- die
+    Migration gilt als erledigt, ohne je gelaufen zu sein. Genau diese Falle
+    hat die Migrationen 54, 55, 58, 60, 66 und 71 erwischt.
+
+    Echte SQL-Migrationen (aktuell 2, 3, 7, 37) bestehen aus mehreren Zeilen
+    mit echten Anweisungen und werden von dieser Pruefung nie erfasst, egal
+    wie viele neue Versionen dazukommen -- die Pruefung braucht deshalb keine
+    Liste von Ausnahme-Versionen, die bei jeder neuen Migration mitgepflegt
+    werden muesste.
+    """
+    zeilen = [z.strip() for z in sql.strip().splitlines() if z.strip()]
+    return len(zeilen) == 1 and zeilen[0].startswith("--")
+
+
 def run_migrations() -> None:
     """
     Führt ausstehende Migrationen aus.
@@ -2288,6 +2319,17 @@ def run_migrations() -> None:
             elif version == 72:
                 _run_migration_72(conn)
             else:
+                if _ist_reiner_kommentar_platzhalter(pending[version]):
+                    raise RuntimeError(
+                        f"Migration {version} kann nicht ausgefuehrt werden: "
+                        f"MIGRATIONS[{version}] ist nur ein Kommentar-Platzhalter, "
+                        f"aber es existiert kein dazugehoeriger Programmcode dafuer. "
+                        f"Das bedeutet, die Programmdatei schema_manager.py wurde "
+                        f"nur unvollstaendig geladen (z.B. durch einen Neustart "
+                        f"mitten in einer Aenderung). Bitte den Backend-Container "
+                        f"neu starten (docker compose restart backend) -- die "
+                        f"Migration NICHT manuell als erledigt markieren."
+                    )
                 conn.executescript(pending[version])
                 conn.execute(
                     "INSERT OR IGNORE INTO schema_version (version, beschreibung) VALUES (?, ?)",
