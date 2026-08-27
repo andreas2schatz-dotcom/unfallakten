@@ -6,8 +6,11 @@ Kennzeichen und Datum per Regex aus dem Volltext zu raten.
 """
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any, Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 # 1-3 Unterscheidungsbuchstaben, 1-2 Erkennungsbuchstaben, 1-4 Ziffern --
 # nach dem Entfernen aller Trennzeichen. Faengt Freitext wie "siehe Akte"
@@ -28,7 +31,8 @@ def erkenne_fragebogen(payload_typ: Optional[str],
     from ..email_import.fragebogen_parser import parse_fragebogen_anhang
     try:
         return parse_fragebogen_anhang(text_gesamt.encode("utf-8"))
-    except Exception:
+    except Exception as exc:
+        logger.warning("Fragebogen-Payload nicht lesbar: %s", exc)
         return None
 
 

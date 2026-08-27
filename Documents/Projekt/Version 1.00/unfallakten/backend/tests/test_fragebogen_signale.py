@@ -7,6 +7,7 @@ import json
 import os
 import sys
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -68,6 +69,17 @@ class TestErkenneFragebogen(unittest.TestCase):
     def test_leerer_text_ist_kein_bogen(self):
         self.assertIsNone(erkenne_fragebogen("text", ""))
         self.assertIsNone(erkenne_fragebogen("text", None))
+
+    def test_unerwarteter_fehler_wird_protokolliert(self):
+        with patch(
+            "backend.email_import.fragebogen_parser.parse_fragebogen_anhang",
+            side_effect=ValueError("kaputtes Encoding"),
+        ):
+            with self.assertLogs(
+                "backend.intake.fragebogen_signale", level="WARNING"
+            ) as log:
+                self.assertIsNone(erkenne_fragebogen("text", _bogen_json()))
+            self.assertIn("kaputtes Encoding", log.output[0])
 
 
 class TestBaueSignale(unittest.TestCase):
