@@ -325,6 +325,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     68: "-- migration_68_sachbearbeiter",  # Handled by _run_migration_68
     69: "-- migration_69_sv_portal_ablage",  # Handled by _run_migration_69
     70: "-- migration_70_kostennb_netto",  # Handled by _run_migration_70
+    71: "-- migration_71_klasse_quelle_fragebogen",  # Handled by _run_migration_71
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -1480,6 +1481,74 @@ def _run_migration_70(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _run_migration_71(conn: sqlite3.Connection) -> None:
+    """
+    Migration 71: intake_dokumente.klasse_quelle erlaubt 'fragebogen'.
+
+    Der Unfallbogen wird von der Pipeline schema-basiert erkannt, nicht
+    vom Textklassifikator (siehe intake/fragebogen_signale.py). Die
+    urspruengliche CHECK-Klausel aus Migration 46 kannte nur 'auto' und
+    'manuell'. SQLite kann CHECK-Klauseln nicht per ALTER TABLE aendern,
+    daher Tabellen-Neubau wie in Migration 69 (dokument_id-Reparatur):
+    DDL aus sqlite_master lesen, Klausel ersetzen, Daten umziehen.
+    """
+    conn.commit()
+
+    ddl_row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='intake_dokumente'"
+    ).fetchone()
+    if not ddl_row or "'fragebogen'" in (ddl_row[0] or ""):
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+            "VALUES (71, 'intake_dokumente.klasse_quelle: fragebogen erlaubt')"
+        )
+        conn.commit()
+        return
+
+    neues_ddl = ddl_row[0].replace(
+        "klasse_quelle       TEXT CHECK (klasse_quelle IN ('auto','manuell'))",
+        "klasse_quelle       TEXT CHECK (klasse_quelle IN ('auto','manuell','fragebogen'))",
+    ).replace(
+        "CREATE TABLE intake_dokumente", "CREATE TABLE intake_dokumente_neu71"
+    )
+    spalten = [r[1] for r in conn.execute(
+        "PRAGMA table_info(intake_dokumente)"
+    ).fetchall()]
+    spaltenliste = ", ".join('"{}"'.format(s) for s in spalten)
+    index_ddls = [
+        r[0] for r in conn.execute(
+            "SELECT sql FROM sqlite_master "
+            "WHERE type='index' AND tbl_name='intake_dokumente' AND sql IS NOT NULL"
+        ).fetchall()
+    ]
+
+    conn.execute("DROP TABLE IF EXISTS intake_dokumente_neu71")
+    conn.commit()
+    conn.execute("PRAGMA foreign_keys=OFF")
+    conn.execute("PRAGMA legacy_alter_table=ON")
+    conn.execute(neues_ddl)
+    conn.execute(
+        "INSERT INTO intake_dokumente_neu71 ({s}) SELECT {s} FROM intake_dokumente".format(
+            s=spaltenliste
+        )
+    )
+    conn.execute("DROP TABLE intake_dokumente")
+    conn.execute("ALTER TABLE intake_dokumente_neu71 RENAME TO intake_dokumente")
+    for index_ddl in index_ddls:
+        conn.execute(index_ddl)
+    conn.execute("PRAGMA legacy_alter_table=OFF")
+    conn.commit()
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.commit()
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (71, 'intake_dokumente.klasse_quelle: fragebogen erlaubt')"
+    )
+    conn.commit()
+    logger.info("Migration 71: intake_dokumente.klasse_quelle erlaubt jetzt 'fragebogen'.")
+
+
 def _migration_69_fk_reparatur(conn: sqlite3.Connection) -> None:
     """
     Baut forderung_positionen und abrechnungsschreiben neu auf, wenn ihr
@@ -2144,6 +2213,8 @@ def run_migrations() -> None:
                 _run_migration_69(conn)
             elif version == 70:
                 _run_migration_70(conn)
+            elif version == 71:
+                _run_migration_71(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(

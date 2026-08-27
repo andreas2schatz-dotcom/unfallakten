@@ -25,6 +25,10 @@ const DOK_TYPEN = [
     "label": "Forderungsschreiben"
   },
   {
+    "value": "fragebogen",
+    "label": "Unfallfragebogen"
+  },
+  {
     "value": "gutachten",
     "label": "Gutachten"
   },

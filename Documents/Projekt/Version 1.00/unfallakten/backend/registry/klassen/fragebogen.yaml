@@ -1,0 +1,23 @@
+klasse: fragebogen
+
+# Keine Marker: ein Fragebogen wird nicht am Text erkannt, sondern am
+# schema-validierten JSON-Payload (siehe intake/fragebogen_signale.py).
+marker: []
+
+regex_felder: {}
+
+schema:
+  mandant_name: string
+  kennzeichen: string
+  unfalltag: date
+
+pflichtfelder: []
+kritische_felder: []
+validierungsregeln: []
+fristrelevanz: false
+loeschfrist_jahre: 6
+label: Unfallfragebogen
+richtung: eingehend
+bezeichnung_label: Unfallfragebogen
+bezeichnung_felder:
+  datum: unfalltag

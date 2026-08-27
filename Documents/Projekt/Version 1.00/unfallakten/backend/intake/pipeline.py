@@ -32,6 +32,7 @@ from typing import Any, Dict
 from ..db.database import get_connection
 from ..intake.akten_matching import finde_kandidaten
 from ..intake.extraktion import extrahiere_felder
+from ..intake.fragebogen_signale import baue_signale, erkenne_fragebogen
 from ..intake.validierung import pruefe_validierungsregeln
 from ..intake.klassifikator import (
     Kandidat, klassifiziere_stufe1, klassifiziere_stufe2,
@@ -206,6 +207,9 @@ def verarbeite_dokument(intake_id: int) -> bool:
         #     die Felder werden mit dem manuellen Klassen-Schema extrahiert.
         #   * sonst: Auto-Ergebnis ist verbindlich.
         signale = _lade_zustellungs_signale(intake_id)
+        bogen = erkenne_fragebogen(dok.get("payload_typ"), text_gesamt)
+        if bogen is not None:
+            signale = signale + [baue_signale(bogen)]
         kandidaten, hinweise = klassifiziere_stufe1(text_gesamt, signale,
                                                      registry)
         labels = sorted(registry.klassen.keys())
@@ -222,6 +226,12 @@ def verarbeite_dokument(intake_id: int) -> bool:
             # alten Wert falls vorhanden (kann vom letzten Auto-Run stammen).
             konfidenz = dok.get("konfidenz") if dok.get("konfidenz") is not None else 1.0
             neue_klasse_quelle = "manuell"
+        elif bogen is not None:
+            # Schema-validiert, keine Vermutung: der Textklassifikator
+            # saehe im JSON-Payload nur 'sonstiges'.
+            klasse = "fragebogen"
+            konfidenz = 1.0
+            neue_klasse_quelle = "fragebogen"
         else:
             klasse = klasse_auto
             konfidenz = konfidenz_auto
