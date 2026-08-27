@@ -222,7 +222,10 @@ class TestAktenMatching(unittest.TestCase):
         # 999/99 gibt es NUR in RA-Micro-Mock, nicht in SQLite
         with mock.patch.object(
             akten_matching, "_suche_in_ramicro",
-            return_value=[("999/99", 1.0, "az_exakt", "999/99")],
+            return_value=[akten_matching.AktenKandidat(
+                akte_az="999/99", score=1.0, quelle="az_exakt",
+                treffer="999/99",
+            )],
         ):
             kandidaten = akten_matching.finde_kandidaten(
                 text="Aktenzeichen 999/99", signale=[],

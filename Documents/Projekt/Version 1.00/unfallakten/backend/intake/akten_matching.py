@@ -28,7 +28,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Sequence, Tuple
+from typing import Iterable, List, Optional, Sequence
 
 from ..db.database import get_connection
 
@@ -381,34 +381,61 @@ def _suche_mandantenname_in_sqlite(text: str) -> List[AktenKandidat]:
 def _suche_in_ramicro(text: str,
                      az_kandidaten: Sequence[str],
                      kfz_kandidaten: Sequence[str],
-                     mails: Sequence[str]) -> List[Tuple[str, float, str, str]]:
-    """Bricke zu RA-Micro. Rueckgabe: Liste von Tupeln
-    (akte_az, score, quelle, treffer). Fehler werden vom Aufrufer aufgefangen.
+                     mails: Sequence[str],
+                     bogen_merkmale: Optional[dict] = None,
+                     ) -> List[AktenKandidat]:
+    """Bruecke zu RA-Micro (nur lesend).
 
-    In S1.7 halten wir das duenn und stuetzen auf ramicro.email_matching --
-    das liefert einen einzelnen Treffer, den wir zu einem Kandidaten
-    aufwerten. Score = SCORE_AZ_EXAKT wenn Match-Methode 'aktenzeichen',
-    sonst SCORE_KFZ / SCORE_MAIL.
+    Zwei Wege: der bestehende Einzeltreffer ueber
+    ``suche_akte_in_ramicro`` und -- bei einem Fragebogen -- die
+    Kandidatensuche ueber die strukturierten Bogenmerkmale.
     """
+    ergebnis: List[AktenKandidat] = []
+
     try:
         from ..ramicro.email_matching import suche_akte_in_ramicro
     except Exception as exc:
         logger.debug("RA-Micro-Modul nicht importierbar: %s", exc)
-        return []
+        return ergebnis
 
     az, erkannt, methode = suche_akte_in_ramicro(
         list(az_kandidaten), list(kfz_kandidaten),
         mails[0] if mails else "",
     )
-    if not az:
-        return []
-    score_map = {
-        "aktenzeichen":     SCORE_AZ_EXAKT,
-        "kfz_kennzeichen":  SCORE_KFZ,
-        "absender_email":   SCORE_MAIL,
-    }
-    return [(az, score_map.get(methode or "", SCORE_AZ_BASIS),
-             methode or "az_exakt", erkannt or "")]
+    if az:
+        score_map = {
+            "aktenzeichen":     SCORE_AZ_EXAKT,
+            "kfz_kennzeichen":  SCORE_KFZ,
+            "absender_email":   SCORE_MAIL,
+        }
+        ergebnis.append(AktenKandidat(
+            akte_az=az,
+            score=score_map.get(methode or "", SCORE_AZ_BASIS),
+            quelle=methode or "az_exakt",
+            treffer=erkannt or "",
+        ))
+
+    if bogen_merkmale:
+        try:
+            from ..ramicro.email_matching import suche_kandidaten_in_ramicro
+            bogen_scores = {
+                "mandanten_mail": SCORE_MANDANTEN_MAIL,
+                "kfz_mandant":    SCORE_KFZ_MANDANT,
+                "unfalltag":      SCORE_UNFALLTAG,
+                "kfz_gegner":     SCORE_KFZ_GEGNER,
+                "nachname":       SCORE_MANDANTENNAME,
+            }
+            for az_tr, meth, treffer, bez in suche_kandidaten_in_ramicro(
+                    bogen_merkmale):
+                ergebnis.append(AktenKandidat(
+                    akte_az=az_tr,
+                    score=bogen_scores.get(meth, SCORE_MANDANTENNAME),
+                    quelle=meth, treffer=treffer, bezeichnung=bez,
+                ))
+        except Exception as exc:
+            logger.warning("RA-Micro-Bogensuche fehlgeschlagen: %s", exc)
+
+    return ergebnis
 
 
 def finde_kandidaten(text: str,
@@ -485,13 +512,15 @@ def finde_kandidaten(text: str,
     if not ergebnisse:
         ergebnisse.extend(_suche_mandantenname_in_sqlite(text))
 
+    bogen_merkmale = None
+    for s in signale or ():
+        if isinstance(s, dict) and s.get("dokument_art") == "fragebogen":
+            bogen_merkmale = s
+            break
     try:
-        for az, score, quelle, treffer in _suche_in_ramicro(
-            text, az_kandidaten, kfz_kandidaten, mails,
-        ):
-            ergebnisse.append(AktenKandidat(
-                akte_az=az, score=score, quelle=quelle, treffer=treffer,
-            ))
+        ergebnisse.extend(_suche_in_ramicro(
+            text, az_kandidaten, kfz_kandidaten, mails, bogen_merkmale,
+        ))
     except Exception as exc:
         logger.warning("RA-Micro-Kandidaten-Suche fehlgeschlagen: %s", exc)
 
@@ -500,6 +529,10 @@ def finde_kandidaten(text: str,
     for k in ergebnisse:
         vorher = beste.get(k.akte_az)
         if vorher is None or k.score > vorher.score:
+            if vorher is not None and k.bezeichnung is None:
+                k.bezeichnung = vorher.bezeichnung
             beste[k.akte_az] = k
+        elif vorher.bezeichnung is None and k.bezeichnung:
+            vorher.bezeichnung = k.bezeichnung
 
     return sorted(beste.values(), key=lambda k: k.score, reverse=True)

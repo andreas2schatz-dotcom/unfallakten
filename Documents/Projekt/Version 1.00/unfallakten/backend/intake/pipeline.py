@@ -260,7 +260,8 @@ def verarbeite_dokument(intake_id: int) -> bool:
             {"akte_az": k.akte_az,
              "score": round(k.score, 3),
              "quelle": k.quelle,
-             "treffer": k.treffer}
+             "treffer": k.treffer,
+             "bezeichnung": k.bezeichnung}
             for k in akten_kandidaten
         ]
 

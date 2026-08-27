@@ -217,3 +217,126 @@ def _suche_email(cur, email: str) -> Optional[str]:
     except Exception as e:
         logger.debug("_suche_email Fehler: %s", e)
         return None
+
+
+# ── Fragebogen-Signale: mehrere Kandidaten statt eines Treffers ──────────────
+
+_AKTIV_FILTER = ("(a.dtAblage IS NULL "
+                 "OR CAST(a.dtAblage AS DATE) = '1899-12-30')")
+
+_WDM_KZ_SQL = """
+    SELECT DISTINCT a.sAktenNummer AS az,
+                    a.sAktenKurzBezeichnung AS bezeichnung
+    FROM _tbl0WDMDaten w
+    INNER JOIN tblAkten a ON a.sAktenNummer = w.AktenNr
+    WHERE w.sName = %s
+      AND UPPER(REPLACE(REPLACE(CAST(w.Value AS nvarchar(50)),' ',''),'-','')) = %s
+      AND {aktiv}
+"""
+
+_WDM_TAG_SQL = """
+    SELECT DISTINCT a.sAktenNummer AS az,
+                    a.sAktenKurzBezeichnung AS bezeichnung
+    FROM _tbl0WDMDaten w
+    INNER JOIN tblAkten a ON a.sAktenNummer = w.AktenNr
+    WHERE w.sName = 'varU-TAG'
+      AND CAST(w.Value AS nvarchar(50)) LIKE %s
+      AND {aktiv}
+"""
+
+# Rollenrichtig wie in SQLite: die Mandantenadresse und der Nachname des
+# Mandanten duerfen nur Auftraggeber-Zeilen treffen. iBeteiligtenArt = 1 ist
+# der Mandant (Konvention des Projekts, vgl. ramicro/akten_erkennung.py:36;
+# = 2 waere der Gegner, vgl. ramicro/wiedervorlage_service.py:192). Ohne
+# diesen Filter treffen Versicherer-, Gutachter- und Behoerdenadressen mit.
+_ART_MANDANT = 1
+
+_MAIL_SQL = """
+    SELECT DISTINCT a.sAktenNummer AS az,
+                    a.sAktenKurzBezeichnung AS bezeichnung
+    FROM tblAdressen adr
+    INNER JOIN tblAktenBeteiligte b ON b.GUIDAdresse = adr.GUIDAdresse
+    INNER JOIN tblAkten a ON a.GUIDAkte = b.GUIDAkte
+    WHERE LOWER(adr.sEMail) = %s
+      AND b.iBeteiligtenArt = 1
+      AND b.bDeaktiviert = 0
+      AND {aktiv}
+"""
+
+_NAME_SQL = """
+    SELECT DISTINCT a.sAktenNummer AS az,
+                    a.sAktenKurzBezeichnung AS bezeichnung
+    FROM tblAdressen adr
+    INNER JOIN tblAktenBeteiligte b ON b.GUIDAdresse = adr.GUIDAdresse
+    INNER JOIN tblAkten a ON a.GUIDAkte = b.GUIDAkte
+    WHERE adr.sNachname = %s
+      AND b.iBeteiligtenArt = 1
+      AND b.bDeaktiviert = 0
+      AND {aktiv}
+"""
+
+
+def suche_kandidaten_in_ramicro(
+        merkmale: dict) -> list[tuple[str, str, str, Optional[str]]]:
+    """Sucht Akten-Kandidaten zu den Signalen eines Unfallbogens.
+
+    Anders als ``suche_akte_in_ramicro`` bricht diese Funktion nicht beim
+    ersten Treffer ab -- die Bewertung geschieht im Aufrufer.
+
+    Args:
+        merkmale: Signal-Dict mit den optionalen Schluesseln
+            ``mandant_email``, ``kfz_mandant``, ``kfz_gegner``,
+            ``unfalltag`` (ISO), ``nachname``.
+
+    Returns:
+        Liste von ``(akte_az, methode, treffer, kurzbezeichnung)``. Leer bei
+        fehlenden Merkmalen oder wenn RA-MICRO nicht erreichbar ist.
+
+    Nur lesend.
+    """
+    from ..utils.datum import iso_zu_ramicro
+
+    abfragen = []
+    mail = (merkmale.get("mandant_email") or "").strip().lower()
+    if mail:
+        abfragen.append((_MAIL_SQL, (mail,), "mandanten_mail", mail))
+    kfz_m = (merkmale.get("kfz_mandant") or "").strip().upper()
+    if kfz_m:
+        abfragen.append((_WDM_KZ_SQL, ("varM-KZ", kfz_m), "kfz_mandant", kfz_m))
+    kfz_g = (merkmale.get("kfz_gegner") or "").strip().upper()
+    if kfz_g:
+        abfragen.append((_WDM_KZ_SQL, ("varG-KZ", kfz_g), "kfz_gegner", kfz_g))
+    tag = (merkmale.get("unfalltag") or "").strip()
+    if tag:
+        abfragen.append((_WDM_TAG_SQL, (f"{iso_zu_ramicro(tag)}%",),
+                          "unfalltag", tag))
+    name = (merkmale.get("nachname") or "").strip()
+    if name:
+        abfragen.append((_NAME_SQL, (name,), "nachname", name))
+
+    if not abfragen:
+        return []
+
+    ergebnis: list[tuple[str, str, str, Optional[str]]] = []
+    try:
+        with get_ramicro_connection() as conn:
+            cur = conn.cursor()
+            for sql, params, methode, treffer in abfragen:
+                try:
+                    cur.execute(sql.format(aktiv=_AKTIV_FILTER), params)
+                    for row in cur.fetchall() or ():
+                        az = row["az"] if row else None
+                        if az:
+                            ergebnis.append((_az_basis(az), methode, treffer,
+                                              row.get("bezeichnung")))
+                except Exception as e:
+                    logger.debug("RA-Micro-Teilabfrage %s fehlgeschlagen: %s",
+                                  methode, e)
+    except RaMicroNichtAktiv:
+        logger.debug("RA-Micro nicht aktiv -- Bogen-Suche uebersprungen.")
+    except RaMicroVerbindungsFehler as e:
+        logger.warning("RA-Micro nicht erreichbar: %s", e)
+    except Exception as e:
+        logger.warning("RA-Micro Bogen-Suche Fehler: %s", e)
+
+    return ergebnis
