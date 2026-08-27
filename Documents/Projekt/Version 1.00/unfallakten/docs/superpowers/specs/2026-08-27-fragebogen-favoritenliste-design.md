@@ -234,8 +234,11 @@ Der Zweig für bindende Klassen (`pipeline.py:218`, bisher nur `manuell`) wird
 um diesen Wert erweitert, damit ein manuell gesetzter Wert weiterhin Vorrang
 behält und die Fragebogen-Klasse nicht vom Auto-Vorschlag überschrieben wird.
 
-Ereignistyp-Zuordnung für die Freigabe über
-`positionsmodell_registry.klasse_ereignistyp` ergänzen.
+**Kein Ereignistyp.** `klasse_ereignistyp.yaml` führt nur Klassen, die ein
+Geld- oder Belegereignis auslösen (Gutachten, Rechnungen, Abrechnungsschreiben).
+Ein Fragebogen ist keines davon; wie `sonstiges` und `forderungsschreiben`
+bekommt er keine Zuordnung, der Sachbearbeiter wählt im Freigabe-Dialog frei.
+Ein neuer Ereignistyp nur für Fragebögen wäre eine Abstraktion ohne Anlass.
 
 ### 5. Queue-Endpunkt
 
