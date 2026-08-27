@@ -326,6 +326,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     69: "-- migration_69_sv_portal_ablage",  # Handled by _run_migration_69
     70: "-- migration_70_kostennb_netto",  # Handled by _run_migration_70
     71: "-- migration_71_klasse_quelle_fragebogen",  # Handled by _run_migration_71
+    72: "-- migration_72_klasse_quelle_nachholung",  # Handled by _run_migration_72
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -1481,36 +1482,56 @@ def _run_migration_70(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def _run_migration_71(conn: sqlite3.Connection) -> None:
+def _repariere_klasse_quelle_check(conn: sqlite3.Connection) -> None:
     """
-    Migration 71: intake_dokumente.klasse_quelle erlaubt 'fragebogen'.
+    Baut intake_dokumente neu, damit klasse_quelle IN ('auto','manuell',
+    'fragebogen') gilt. SQLite kann CHECK-Klauseln nicht per ALTER TABLE
+    aendern, daher Tabellen-Neubau wie in Migration 69
+    (_migration_69_fk_reparatur): DDL aus sqlite_master lesen, Klausel
+    ersetzen, Daten umziehen, Indizes erhalten.
 
-    Der Unfallbogen wird von der Pipeline schema-basiert erkannt, nicht
-    vom Textklassifikator (siehe intake/fragebogen_signale.py). Die
-    urspruengliche CHECK-Klausel aus Migration 46 kannte nur 'auto' und
-    'manuell'. SQLite kann CHECK-Klauseln nicht per ALTER TABLE aendern,
-    daher Tabellen-Neubau wie in Migration 69 (dokument_id-Reparatur):
-    DDL aus sqlite_master lesen, Klausel ersetzen, Daten umziehen.
+    Eigene Funktion statt Migrations-Rumpf, damit sie unter mehreren
+    Versionsnummern erneut aufgerufen werden kann (siehe Migration 72) --
+    noetig, weil run_migrations() nur version > current betrachtet und
+    eine faelschlich gestempelte, aber nie ausgefuehrte Migration sich
+    sonst selbst versiegelt.
+
+    Idempotenz prueft die VOLLSTAENDIGE Zielklausel (nicht nur, ob
+    'fragebogen' irgendwo im DDL vorkommt -- das traefe auch auf
+    Kommentare oder andere Spalten zu). Fail-loud: bricht hart ab, wenn
+    die Textersetzung die CHECK-Zeile nicht getroffen hat, statt die
+    Tabelle sinnlos mit unveraenderter Klausel neu zu bauen und trotzdem
+    zu stempeln (stille Sackgasse).
     """
+    ziel_klausel = "klasse_quelle IN ('auto','manuell','fragebogen')"
+
     conn.commit()
 
     ddl_row = conn.execute(
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='intake_dokumente'"
     ).fetchone()
-    if not ddl_row or "'fragebogen'" in (ddl_row[0] or ""):
-        conn.execute(
-            "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
-            "VALUES (71, 'intake_dokumente.klasse_quelle: fragebogen erlaubt')"
-        )
-        conn.commit()
+    if not ddl_row:
+        return
+    alte_ddl = ddl_row[0] or ""
+    if ziel_klausel in alte_ddl:
         return
 
-    neues_ddl = ddl_row[0].replace(
+    neues_ddl = alte_ddl.replace(
         "klasse_quelle       TEXT CHECK (klasse_quelle IN ('auto','manuell'))",
-        "klasse_quelle       TEXT CHECK (klasse_quelle IN ('auto','manuell','fragebogen'))",
+        "klasse_quelle       TEXT CHECK (" + ziel_klausel + ")",
     ).replace(
         "CREATE TABLE intake_dokumente", "CREATE TABLE intake_dokumente_neu71"
     )
+    if ziel_klausel not in neues_ddl:
+        raise RuntimeError(
+            "klasse_quelle-Check-Reparatur: Textersetzung der CHECK-Klausel "
+            "griff nicht -- vorhandenes DDL weicht vom erwarteten Muster ab. "
+            "Abbruch vor dem Tabellen-Neubau (fail-loud statt stiller "
+            "Sackgasse)."
+        )
+
+    vor_anzahl = conn.execute("SELECT COUNT(*) FROM intake_dokumente").fetchone()[0]
+
     spalten = [r[1] for r in conn.execute(
         "PRAGMA table_info(intake_dokumente)"
     ).fetchall()]
@@ -1541,12 +1562,61 @@ def _run_migration_71(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA foreign_keys=ON")
     conn.commit()
 
+    nach_anzahl = conn.execute("SELECT COUNT(*) FROM intake_dokumente").fetchone()[0]
+    if nach_anzahl != vor_anzahl:
+        raise RuntimeError(
+            "klasse_quelle-Check-Reparatur: Zeilenzahl vor ({}) und nach "
+            "({}) dem Tabellen-Neubau weicht ab.".format(vor_anzahl, nach_anzahl)
+        )
+
+    logger.info(
+        "intake_dokumente.klasse_quelle erlaubt jetzt 'fragebogen' (%d Zeilen erhalten).",
+        nach_anzahl,
+    )
+
+
+def _run_migration_71(conn: sqlite3.Connection) -> None:
+    """
+    Migration 71: intake_dokumente.klasse_quelle erlaubt 'fragebogen'.
+
+    Der Unfallbogen wird von der Pipeline schema-basiert erkannt, nicht
+    vom Textklassifikator (siehe intake/fragebogen_signale.py). Die
+    urspruengliche CHECK-Klausel aus Migration 46 kannte nur 'auto' und
+    'manuell'.
+    """
+    _repariere_klasse_quelle_check(conn)
     conn.execute(
         "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
         "VALUES (71, 'intake_dokumente.klasse_quelle: fragebogen erlaubt')"
     )
     conn.commit()
-    logger.info("Migration 71: intake_dokumente.klasse_quelle erlaubt jetzt 'fragebogen'.")
+
+
+def _run_migration_72(conn: sqlite3.Connection) -> None:
+    """
+    Migration 72: Reparatur der Reloader-Falle bei Migration 71 nachholen.
+
+    Der Flask-Reloader hat schema_manager.py mitten in der Bearbeitung
+    erwischt: der Eintrag 71 stand schon im MIGRATIONS-Dict, der
+    `elif version == 71`-Zweig in der Dispatch-Kette aber noch nicht.
+    Betroffene Datenbanken haben Version 71 gestempelt (ueber den
+    generischen else-Zweig, der nur den SQL-Kommentar ausfuehrt), ohne
+    dass _run_migration_71 je lief -- die CHECK-Klausel blieb alt. Weil
+    run_migrations() nur version > current betrachtet, wird 71 dort nie
+    wieder aufgerufen; die Reparatur muss unter neuer Versionsnummer
+    erneut angestossen werden. Vorbild: Migration 69, die 38/39/45 auf
+    dieselbe Weise nachgeholt hat. Auf Datenbanken, auf denen Migration 71
+    bereits korrekt lief, ist dieser Aufruf ein No-Op (Idempotenz-Pruefung
+    in _repariere_klasse_quelle_check).
+    """
+    _repariere_klasse_quelle_check(conn)
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (72, 'Nachholung: klasse_quelle-Check-Reparatur "
+        "(Reloader-Falle bei Migration 71)')"
+    )
+    conn.commit()
+    logger.info("Migration 72 abgeschlossen.")
 
 
 def _migration_69_fk_reparatur(conn: sqlite3.Connection) -> None:
@@ -2215,6 +2285,8 @@ def run_migrations() -> None:
                 _run_migration_70(conn)
             elif version == 71:
                 _run_migration_71(conn)
+            elif version == 72:
+                _run_migration_72(conn)
             else:
                 conn.executescript(pending[version])
                 conn.execute(

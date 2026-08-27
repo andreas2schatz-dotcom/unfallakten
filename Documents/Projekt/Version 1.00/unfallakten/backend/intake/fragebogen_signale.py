@@ -28,6 +28,11 @@ def erkenne_fragebogen(payload_typ: Optional[str],
     """
     if payload_typ != "text" or not text_gesamt or not text_gesamt.strip():
         return None
+    if not text_gesamt.lstrip().startswith("{"):
+        # Gewoehnlicher Brief-/E-Mail-Text ist kein JSON und darf nicht erst
+        # beim Parser landen -- der protokolliert bei jedem Fehlschlag eine
+        # Warnung, und das waere fuer jede normale E-Mail Log-Rauschen.
+        return None
     from ..email_import.fragebogen_parser import parse_fragebogen_anhang
     try:
         return parse_fragebogen_anhang(text_gesamt.encode("utf-8"))

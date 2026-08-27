@@ -70,6 +70,22 @@ class TestErkenneFragebogen(unittest.TestCase):
         self.assertIsNone(erkenne_fragebogen("text", ""))
         self.assertIsNone(erkenne_fragebogen("text", None))
 
+    def test_normaler_brieftext_erzeugt_keine_log_warnung(self):
+        # Gewoehnliche E-Mails sind der weit haeufigere Fall als Boegen --
+        # der fruehe '{'-Check muss den Parser (und damit dessen Warnung
+        # bei jedem Nicht-JSON) gar nicht erst erreichen. Kontrollfall
+        # test_unerwarteter_fehler_wird_protokolliert zeigt, dass Logging
+        # bei echten Fehlern weiterhin funktioniert.
+        text = "Sehr geehrte Damen und Herren,\n\nanbei die Rechnung."
+        with patch(
+            "backend.email_import.fragebogen_parser.parse_fragebogen_anhang"
+        ) as mock_parse:
+            with self.assertNoLogs(
+                "backend.email_import.fragebogen_parser", level="WARNING"
+            ):
+                self.assertIsNone(erkenne_fragebogen("text", text))
+            mock_parse.assert_not_called()
+
     def test_unerwarteter_fehler_wird_protokolliert(self):
         with patch(
             "backend.email_import.fragebogen_parser.parse_fragebogen_anhang",
