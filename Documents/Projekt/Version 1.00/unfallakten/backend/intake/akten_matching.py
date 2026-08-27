@@ -6,9 +6,15 @@ RA-Micro (read-only). Score-Staffel laut Pipeline-Refactoring-Plan:
 
     az_exakt          1.0    Aktenzeichen exakt gefunden
     az_basis          0.9    Aktenzeichen ohne SB-Kuerzel getroffen
-    kfz               0.7    KFZ-Kennzeichen matcht einen Beteiligten
-    beteiligten_mail  0.6    Absender-Mail matcht einen Beteiligten
-    name_unfalldatum  0.5    Name im Text + Unfalldatum-Datumsangabe im Text
+    mandanten_mail    0.8    Bogen-Signal: Mandanten-Mail trifft mandant-Zeile
+    kfz_mandant       0.8    Bogen-Signal: eigenes Kennzeichen trifft mandant-Zeile
+    kfz               0.7    KFZ-Kennzeichen matcht einen Beteiligten (Altweg)
+    unfalltag_name    0.7    Bogen-Signal: Unfalltag + Nachname treffen zusammen
+    beteiligten_mail  0.6    Absender-Mail matcht einen Beteiligten (Altweg)
+    unfalltag         0.5    Bogen-Signal: Unfalltag allein trifft
+    kfz_gegner        0.5    Bogen-Signal: Gegner-Kennzeichen trifft gegner-Zeile
+    name_unfalldatum  0.5    Name im Text + Unfalldatum-Datumsangabe im Text (Altweg)
+    mandantenname     0.4    Nachname allein im Text (Altweg-Fallback)
 
 Kein Auto-Zuordnen -- die Funktion liefert eine sortierte KANDIDATENLISTE.
 Duplikate (dieselbe akte_az via mehrerer Signale) werden zum hoechsten
@@ -214,6 +220,32 @@ def _suche_kfz_rolle_in_sqlite(kfz_kandidaten: Sequence[str], rolle: str,
     return ergebnis
 
 
+def _suche_mail_rolle_in_sqlite(mails: Sequence[str], rolle: str,
+                                score: float, quelle: str
+                                ) -> List[AktenKandidat]:
+    """Mail-Suche mit Rollenfilter (Fragebogen-Weg)."""
+    ergebnis: List[AktenKandidat] = []
+    if not mails:
+        return ergebnis
+    with get_connection() as conn:
+        for mail in mails:
+            m = mail.lower().strip()
+            if not m:
+                continue
+            rows = conn.execute(
+                "SELECT DISTINCT akte_id FROM beteiligte "
+                "WHERE rolle = ? AND LOWER(email) = ?",
+                (rolle, m),
+            ).fetchall()
+            for row in rows:
+                if row["akte_id"]:
+                    ergebnis.append(AktenKandidat(
+                        akte_az=row["akte_id"], score=score,
+                        quelle=quelle, treffer=mail,
+                    ))
+    return ergebnis
+
+
 def _suche_unfalltag_in_sqlite(tage: Sequence[str], nachnamen: Sequence[str]
                                ) -> List[AktenKandidat]:
     """Unfalltag aus dem Bogenfeld (ISO), optional verstaerkt durch den
@@ -385,11 +417,18 @@ def finde_kandidaten(text: str,
     nach Score absteigend sortierte Liste. Duplikate werden zum hoechsten
     Score zusammengefasst.
 
+    Score-Staffel (siehe Modul-Docstring fuer die vollstaendige Tabelle):
+    az_exakt 1.0, az_basis 0.9, mandanten_mail/kfz_mandant 0.8,
+    kfz/unfalltag_name 0.7, beteiligten_mail 0.6, unfalltag/kfz_gegner/
+    name_unfalldatum 0.5, mandantenname 0.4.
+
     Args:
         text:    Volltext des Dokuments (Klassifikations-/Extraktions-Text).
         signale: Iterable von Zustellungs-Signal-Dicts (aus
                  zustellungen.signale_json). Liefert absender_mail und
-                 kfz_kennzeichen.
+                 kfz_kennzeichen (Altweg) sowie, bei Fragebogen-Signalen,
+                 mandant_email, kfz_mandant, kfz_gegner, nachname und
+                 unfalltag (rollenrichtig, kein Regex-Raten).
     """
     text = text or ""
 
@@ -432,12 +471,8 @@ def finde_kandidaten(text: str,
     ergebnisse.extend(_suche_mail_in_sqlite(mails))
     ergebnisse.extend(_suche_name_und_datum_in_sqlite(text))
 
-    for mail in mandanten_mails:
-        for k in _suche_mail_in_sqlite([mail]):
-            ergebnisse.append(AktenKandidat(
-                akte_az=k.akte_az, score=SCORE_MANDANTEN_MAIL,
-                quelle="mandanten_mail", treffer=mail,
-            ))
+    ergebnisse.extend(_suche_mail_rolle_in_sqlite(
+        mandanten_mails, "mandant", SCORE_MANDANTEN_MAIL, "mandanten_mail"))
     ergebnisse.extend(_suche_kfz_rolle_in_sqlite(
         kfz_mandant, "mandant", SCORE_KFZ_MANDANT, "kfz_mandant"))
     ergebnisse.extend(_suche_kfz_rolle_in_sqlite(

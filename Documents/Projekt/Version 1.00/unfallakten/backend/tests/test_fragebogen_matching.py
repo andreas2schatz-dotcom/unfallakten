@@ -31,8 +31,10 @@ def _setup_db(name):
             "('742/26', 'mandant', 'Golovin', 'paulgolovin@web.de', "
             "'WÜ PG 777')")
         conn.execute(
-            "INSERT INTO beteiligte (akte_id, rolle, name, kfz_kennzeichen) "
-            "VALUES ('742/26', 'gegner', 'Brochner', 'MTK-DB 801')")
+            "INSERT INTO beteiligte (akte_id, rolle, name, email, "
+            "kfz_kennzeichen) VALUES "
+            "('742/26', 'gegner', 'Brochner', 'brochner@gegner.de', "
+            "'MTK-DB 801')")
         conn.execute(
             "INSERT INTO beteiligte (akte_id, rolle, name) "
             "VALUES ('900/26', 'mandant', 'Schmitt')")
@@ -57,6 +59,17 @@ class TestFragebogenMatching(unittest.TestCase):
         self.assertEqual(k[0].akte_az, "742/26")
         self.assertEqual(k[0].score, 0.8)
         self.assertEqual(k[0].quelle, "mandanten_mail")
+
+    def test_mandanten_mail_trifft_keine_gegnerzeile(self):
+        k = self._finde(mandant_email="brochner@gegner.de")
+        self.assertEqual(k, [])
+
+    def test_altweg_mail_bleibt_rollenunabhaengig(self):
+        from backend.intake.akten_matching import finde_kandidaten
+        k = finde_kandidaten("", [{"absender": "brochner@gegner.de"}])
+        self.assertEqual(k[0].akte_az, "742/26")
+        self.assertEqual(k[0].score, 0.6)
+        self.assertEqual(k[0].quelle, "beteiligten_mail")
 
     def test_eigenes_kennzeichen_trifft_die_mandantenzeile(self):
         k = self._finde(kfz_mandant="WÜPG777")
