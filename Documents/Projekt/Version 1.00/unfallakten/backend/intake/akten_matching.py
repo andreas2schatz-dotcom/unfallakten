@@ -512,11 +512,27 @@ def finde_kandidaten(text: str,
     if not ergebnisse:
         ergebnisse.extend(_suche_mandantenname_in_sqlite(text))
 
+    # Bogen-Modus liegt vor, wenn IRGENDEIN Signal dokument_art='fragebogen'
+    # traegt. Die Merkmale kommen NICHT aus diesem einen Dict, sondern aus
+    # den oben bereits ueber alle Zustellungen aggregierten Listen -- in der
+    # Produktion legt import_service beim Einliefern zuerst ein duennes
+    # {"dokument_art": "fragebogen"}-Signal ohne Merkmale an, die Pipeline
+    # haengt das reiche baue_signale()-Dict erst danach an. Ein einzelnes
+    # Signal-Dict herauszugreifen waere reihenfolgeabhaengig und haette in
+    # genau dieser Konstellation nichts gefunden.
+    bogen_aktiv = any(
+        isinstance(s, dict) and s.get("dokument_art") == "fragebogen"
+        for s in signale or ()
+    )
     bogen_merkmale = None
-    for s in signale or ():
-        if isinstance(s, dict) and s.get("dokument_art") == "fragebogen":
-            bogen_merkmale = s
-            break
+    if bogen_aktiv:
+        bogen_merkmale = {
+            "mandant_email": mandanten_mails[0] if mandanten_mails else None,
+            "kfz_mandant":   kfz_mandant[0] if kfz_mandant else None,
+            "kfz_gegner":    kfz_gegner[0] if kfz_gegner else None,
+            "nachname":      nachnamen[0] if nachnamen else None,
+            "unfalltag":     unfalltage[0] if unfalltage else None,
+        }
     try:
         ergebnisse.extend(_suche_in_ramicro(
             text, az_kandidaten, kfz_kandidaten, mails, bogen_merkmale,

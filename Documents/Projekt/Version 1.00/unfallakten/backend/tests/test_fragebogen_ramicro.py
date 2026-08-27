@@ -122,5 +122,84 @@ class TestSucheKandidatenInRamicro(unittest.TestCase):
                 [])
 
 
+class TestFindeKandidatenProduktiveSignalKonstellation(unittest.TestCase):
+    """K-1-Regression: in der Produktion legt import_service beim Einliefern
+    zuerst ein DUENNES Signal ohne Merkmale an ({"dokument_art":
+    "fragebogen"} + optional "az"), die Pipeline haengt das REICHE
+    baue_signale()-Dict erst DANACH an (siehe pipeline.py:212). Ein
+    finde_kandidaten, das nur das erste 'fragebogen'-Signal auswertet,
+    findet in genau dieser -- der einzigen produktiv vorkommenden --
+    Reihenfolge nichts. Dieser Test bildet sie nach."""
+
+    def setUp(self):
+        import tempfile
+        fd, pfad = tempfile.mkstemp(prefix="fbramicro_", suffix=".sqlite")
+        os.close(fd)
+        import backend.db.database as _db
+        _db.DB_PATH = pfad
+        os.environ["DB_PATH"] = pfad
+        from backend.db.schema_manager import init_db
+        init_db()
+
+        from backend.ramicro import email_matching
+        self.akte_patcher = mock.patch.object(
+            email_matching, "suche_akte_in_ramicro",
+            return_value=(None, None, None))
+        self.akte_patcher.start()
+        self.addCleanup(self.akte_patcher.stop)
+
+    def test_duennes_signal_zuerst_reiches_danach_liefert_kandidaten(self):
+        from backend.intake.akten_matching import finde_kandidaten
+        from backend.ramicro import email_matching
+
+        duennes_signal = {"dateiname": "unfallbogen_x.json",
+                           "dokument_art": "fragebogen"}
+        reiches_signal = {
+            "dokument_art": "fragebogen",
+            "mandant_email": "paulgolovin@web.de",
+            "kfz_mandant": "WUEPG777",
+            "unfalltag": "2026-08-03",
+        }
+
+        with mock.patch.object(
+                email_matching, "suche_kandidaten_in_ramicro",
+                return_value=[("742/26", "mandanten_mail",
+                                "paulgolovin@web.de", "Golovin/Brochner")],
+        ) as mock_suche:
+            kandidaten = finde_kandidaten(
+                "", [duennes_signal, reiches_signal])
+
+        mock_suche.assert_called_once()
+        merkmale = mock_suche.call_args[0][0]
+        self.assertEqual(merkmale["mandant_email"], "paulgolovin@web.de")
+        self.assertEqual(merkmale["kfz_mandant"], "WUEPG777")
+        self.assertEqual(merkmale["unfalltag"], "2026-08-03")
+
+        self.assertEqual(len(kandidaten), 1)
+        k = kandidaten[0]
+        self.assertEqual(k.akte_az, "742/26")
+        self.assertEqual(k.score, 0.8)
+        self.assertEqual(k.quelle, "mandanten_mail")
+        self.assertEqual(k.treffer, "paulgolovin@web.de")
+        self.assertEqual(k.bezeichnung, "Golovin/Brochner")
+
+    def test_nur_duennes_signal_ruft_ramicro_bogensuche_nicht_umsonst_auf(self):
+        """Ohne reiches Signal sind alle Merkmale leer -- kein Crash, kein
+        Kandidat, aber der Bogen-Modus wird trotzdem erkannt (dokument_art
+        gesetzt) und die Suche mit leeren Merkmalen aufgerufen."""
+        from backend.intake.akten_matching import finde_kandidaten
+        from backend.ramicro import email_matching
+
+        with mock.patch.object(
+                email_matching, "suche_kandidaten_in_ramicro",
+                return_value=[]) as mock_suche:
+            kandidaten = finde_kandidaten(
+                "", [{"dateiname": "unfallbogen_x.json",
+                      "dokument_art": "fragebogen"}])
+
+        mock_suche.assert_called_once()
+        self.assertEqual(kandidaten, [])
+
+
 if __name__ == "__main__":
     unittest.main()

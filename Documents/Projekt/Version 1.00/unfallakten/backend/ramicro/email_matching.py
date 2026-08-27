@@ -221,11 +221,24 @@ def _suche_email(cur, email: str) -> Optional[str]:
 
 # ── Fragebogen-Signale: mehrere Kandidaten statt eines Treffers ──────────────
 
+def _kfz_norm(kfz: str) -> str:
+    """Wie die SQL-Normalisierung in _WDM_KZ_SQL: Leerzeichen/Bindestriche
+    raus, Grossbuchstaben -- sonst findet "OF-MU 1234" nichts."""
+    return (kfz or "").strip().upper().replace(" ", "").replace("-", "")
+
+
 _AKTIV_FILTER = ("(a.dtAblage IS NULL "
                  "OR CAST(a.dtAblage AS DATE) = '1899-12-30')")
 
+# Rollenrichtig wie in SQLite: die Mandantenadresse und der Nachname des
+# Mandanten duerfen nur Auftraggeber-Zeilen treffen. iBeteiligtenArt = 1 ist
+# der Mandant (Konvention des Projekts, vgl. ramicro/akten_erkennung.py:36;
+# = 2 waere der Gegner, vgl. ramicro/wiedervorlage_service.py:192). Ohne
+# diesen Filter treffen Versicherer-, Gutachter- und Behoerdenadressen mit.
+_ART_MANDANT = 1
+
 _WDM_KZ_SQL = """
-    SELECT DISTINCT a.sAktenNummer AS az,
+    SELECT DISTINCT TOP 100 a.sAktenNummer AS az,
                     a.sAktenKurzBezeichnung AS bezeichnung
     FROM _tbl0WDMDaten w
     INNER JOIN tblAkten a ON a.sAktenNummer = w.AktenNr
@@ -235,7 +248,7 @@ _WDM_KZ_SQL = """
 """
 
 _WDM_TAG_SQL = """
-    SELECT DISTINCT a.sAktenNummer AS az,
+    SELECT DISTINCT TOP 100 a.sAktenNummer AS az,
                     a.sAktenKurzBezeichnung AS bezeichnung
     FROM _tbl0WDMDaten w
     INNER JOIN tblAkten a ON a.sAktenNummer = w.AktenNr
@@ -244,36 +257,29 @@ _WDM_TAG_SQL = """
       AND {aktiv}
 """
 
-# Rollenrichtig wie in SQLite: die Mandantenadresse und der Nachname des
-# Mandanten duerfen nur Auftraggeber-Zeilen treffen. iBeteiligtenArt = 1 ist
-# der Mandant (Konvention des Projekts, vgl. ramicro/akten_erkennung.py:36;
-# = 2 waere der Gegner, vgl. ramicro/wiedervorlage_service.py:192). Ohne
-# diesen Filter treffen Versicherer-, Gutachter- und Behoerdenadressen mit.
-_ART_MANDANT = 1
-
-_MAIL_SQL = """
-    SELECT DISTINCT a.sAktenNummer AS az,
+_MAIL_SQL = ("""
+    SELECT DISTINCT TOP 100 a.sAktenNummer AS az,
                     a.sAktenKurzBezeichnung AS bezeichnung
     FROM tblAdressen adr
     INNER JOIN tblAktenBeteiligte b ON b.GUIDAdresse = adr.GUIDAdresse
     INNER JOIN tblAkten a ON a.GUIDAkte = b.GUIDAkte
     WHERE LOWER(adr.sEMail) = %s
-      AND b.iBeteiligtenArt = 1
+      AND b.iBeteiligtenArt = """ + str(_ART_MANDANT) + """
       AND b.bDeaktiviert = 0
       AND {aktiv}
-"""
+""")
 
-_NAME_SQL = """
-    SELECT DISTINCT a.sAktenNummer AS az,
+_NAME_SQL = ("""
+    SELECT DISTINCT TOP 100 a.sAktenNummer AS az,
                     a.sAktenKurzBezeichnung AS bezeichnung
     FROM tblAdressen adr
     INNER JOIN tblAktenBeteiligte b ON b.GUIDAdresse = adr.GUIDAdresse
     INNER JOIN tblAkten a ON a.GUIDAkte = b.GUIDAkte
     WHERE adr.sNachname = %s
-      AND b.iBeteiligtenArt = 1
+      AND b.iBeteiligtenArt = """ + str(_ART_MANDANT) + """
       AND b.bDeaktiviert = 0
       AND {aktiv}
-"""
+""")
 
 
 def suche_kandidaten_in_ramicro(
@@ -300,10 +306,10 @@ def suche_kandidaten_in_ramicro(
     mail = (merkmale.get("mandant_email") or "").strip().lower()
     if mail:
         abfragen.append((_MAIL_SQL, (mail,), "mandanten_mail", mail))
-    kfz_m = (merkmale.get("kfz_mandant") or "").strip().upper()
+    kfz_m = _kfz_norm(merkmale.get("kfz_mandant") or "")
     if kfz_m:
         abfragen.append((_WDM_KZ_SQL, ("varM-KZ", kfz_m), "kfz_mandant", kfz_m))
-    kfz_g = (merkmale.get("kfz_gegner") or "").strip().upper()
+    kfz_g = _kfz_norm(merkmale.get("kfz_gegner") or "")
     if kfz_g:
         abfragen.append((_WDM_KZ_SQL, ("varG-KZ", kfz_g), "kfz_gegner", kfz_g))
     tag = (merkmale.get("unfalltag") or "").strip()
@@ -330,8 +336,8 @@ def suche_kandidaten_in_ramicro(
                             ergebnis.append((_az_basis(az), methode, treffer,
                                               row.get("bezeichnung")))
                 except Exception as e:
-                    logger.debug("RA-Micro-Teilabfrage %s fehlgeschlagen: %s",
-                                  methode, e)
+                    logger.warning("RA-Micro-Teilabfrage %s fehlgeschlagen: %s",
+                                    methode, e)
     except RaMicroNichtAktiv:
         logger.debug("RA-Micro nicht aktiv -- Bogen-Suche uebersprungen.")
     except RaMicroVerbindungsFehler as e:
