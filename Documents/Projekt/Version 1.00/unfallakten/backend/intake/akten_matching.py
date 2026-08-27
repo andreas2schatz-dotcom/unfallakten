@@ -38,6 +38,13 @@ SCORE_NAME_DATUM = 0.5
 # es die Kandidatenliste verwaessern.
 SCORE_MANDANTENNAME = 0.4
 
+# Fragebogen-Signale (strukturierte Bogenfelder, kein Regex-Raten).
+SCORE_MANDANTEN_MAIL = 0.8
+SCORE_KFZ_MANDANT = 0.8
+SCORE_UNFALLTAG_NAME = 0.7
+SCORE_UNFALLTAG = 0.5
+SCORE_KFZ_GEGNER = 0.5
+
 # AZ-Kandidatenmuster: 1-4 Ziffern / 2-4 Ziffern, optional SB-Kuerzel
 # (2-3 Grossbuchstaben), z.B. "31/21", "31/21AS", "285/26"
 _AZ_MUSTER = re.compile(r"\b(\d{1,4}/\d{2,4}[A-Z]{0,3})\b")
@@ -58,6 +65,7 @@ class AktenKandidat:
     score: float
     quelle: str
     treffer: str  # was matched: kanonisches AZ, Kennzeichen, Mail, Name
+    bezeichnung: Optional[str] = None  # sAktenKurzBezeichnung, nur RA-Micro
 
 
 def _az_basis(az: str) -> str:
@@ -105,6 +113,20 @@ def _sammle_signale_kfz(signale: Iterable[dict]) -> List[str]:
                 wert = str(wert).strip().upper()
                 if wert and wert not in ergebnis:
                     ergebnis.append(wert)
+    return ergebnis
+
+
+def _sammle_signale_feld(signale: Iterable[dict], feld: str) -> List[str]:
+    """Einzelnes Signalfeld ueber alle Zustellungen einsammeln."""
+    ergebnis: List[str] = []
+    for s in signale or ():
+        if not isinstance(s, dict):
+            continue
+        wert = s.get(feld)
+        if wert:
+            wert = str(wert).strip()
+            if wert and wert not in ergebnis:
+                ergebnis.append(wert)
     return ergebnis
 
 
@@ -161,6 +183,67 @@ def _suche_kfz_in_sqlite(kfz_kandidaten: Sequence[str]) -> List[AktenKandidat]:
                     ergebnis.append(AktenKandidat(
                         akte_az=row["akte_id"], score=SCORE_KFZ,
                         quelle="kfz", treffer=kfz,
+                    ))
+    return ergebnis
+
+
+def _suche_kfz_rolle_in_sqlite(kfz_kandidaten: Sequence[str], rolle: str,
+                               score: float, quelle: str
+                               ) -> List[AktenKandidat]:
+    """Kennzeichen-Suche mit Rollenfilter (Fragebogen-Weg)."""
+    ergebnis: List[AktenKandidat] = []
+    if not kfz_kandidaten:
+        return ergebnis
+    with get_connection() as conn:
+        for kfz in kfz_kandidaten:
+            norm = _kfz_norm(kfz)
+            if not norm:
+                continue
+            rows = conn.execute(
+                "SELECT DISTINCT akte_id FROM beteiligte "
+                "WHERE rolle = ? "
+                "  AND UPPER(REPLACE(REPLACE(kfz_kennzeichen,' ',''),'-','')) = ?",
+                (rolle, norm),
+            ).fetchall()
+            for row in rows:
+                if row["akte_id"]:
+                    ergebnis.append(AktenKandidat(
+                        akte_az=row["akte_id"], score=score,
+                        quelle=quelle, treffer=kfz,
+                    ))
+    return ergebnis
+
+
+def _suche_unfalltag_in_sqlite(tage: Sequence[str], nachnamen: Sequence[str]
+                               ) -> List[AktenKandidat]:
+    """Unfalltag aus dem Bogenfeld (ISO), optional verstaerkt durch den
+    Nachnamen des Mandanten."""
+    ergebnis: List[AktenKandidat] = []
+    if not tage:
+        return ergebnis
+    namen_oben = [n.upper() for n in nachnamen if n]
+    with get_connection() as conn:
+        for tag in tage:
+            rows = conn.execute(
+                "SELECT DISTINCT u.az, b.name "
+                "FROM unfallakte u "
+                "LEFT JOIN beteiligte b ON b.akte_id = u.az "
+                "  AND b.rolle = 'mandant' "
+                "WHERE u.unfalldatum = ?",
+                (tag,),
+            ).fetchall()
+            for row in rows:
+                name_oben = (row["name"] or "").upper()
+                if name_oben and name_oben in namen_oben:
+                    ergebnis.append(AktenKandidat(
+                        akte_az=row["az"], score=SCORE_UNFALLTAG_NAME,
+                        quelle="unfalltag_name",
+                        treffer=f"{row['name']} + {tag}",
+                    ))
+                else:
+                    ergebnis.append(AktenKandidat(
+                        akte_az=row["az"], score=SCORE_UNFALLTAG,
+                        quelle="unfalltag", treffer=tag,
                     ))
     return ergebnis
 
@@ -336,11 +419,30 @@ def finde_kandidaten(text: str,
     # Absender-Mails: nur aus Signalen (Text-Mails sind unzuverlaessig)
     mails = _sammle_signale_mails(signale)
 
+    # Fragebogen-Signale: strukturierte Felder, kein Regex-Raten.
+    mandanten_mails = _sammle_signale_feld(signale, "mandant_email")
+    kfz_mandant = _sammle_signale_feld(signale, "kfz_mandant")
+    kfz_gegner = _sammle_signale_feld(signale, "kfz_gegner")
+    nachnamen = _sammle_signale_feld(signale, "nachname")
+    unfalltage = _sammle_signale_feld(signale, "unfalltag")
+
     ergebnisse: List[AktenKandidat] = []
     ergebnisse.extend(_suche_az_in_sqlite(az_kandidaten))
     ergebnisse.extend(_suche_kfz_in_sqlite(kfz_kandidaten))
     ergebnisse.extend(_suche_mail_in_sqlite(mails))
     ergebnisse.extend(_suche_name_und_datum_in_sqlite(text))
+
+    for mail in mandanten_mails:
+        for k in _suche_mail_in_sqlite([mail]):
+            ergebnisse.append(AktenKandidat(
+                akte_az=k.akte_az, score=SCORE_MANDANTEN_MAIL,
+                quelle="mandanten_mail", treffer=mail,
+            ))
+    ergebnisse.extend(_suche_kfz_rolle_in_sqlite(
+        kfz_mandant, "mandant", SCORE_KFZ_MANDANT, "kfz_mandant"))
+    ergebnisse.extend(_suche_kfz_rolle_in_sqlite(
+        kfz_gegner, "gegner", SCORE_KFZ_GEGNER, "kfz_gegner"))
+    ergebnisse.extend(_suche_unfalltag_in_sqlite(unfalltage, nachnamen))
 
     # Namens-Fallback: nur wenn KEIN staerkeres Signal getroffen hat.
     # Sonst wuerde jeder Text mit einem Mandanten-Nachnamen zusaetzliche
