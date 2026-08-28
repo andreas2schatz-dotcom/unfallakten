@@ -51,6 +51,16 @@ SCORE_UNFALLTAG_NAME = 0.7
 SCORE_UNFALLTAG = 0.5
 SCORE_KFZ_GEGNER = 0.5
 
+# Score je Bogen-Signal-Quelle -- auch fuer den Abgelegt-Rueckfall gebraucht,
+# deshalb auf Modulebene statt lokal in ``_suche_in_ramicro``.
+bogen_scores = {
+    "mandanten_mail": SCORE_MANDANTEN_MAIL,
+    "kfz_mandant":    SCORE_KFZ_MANDANT,
+    "unfalltag":      SCORE_UNFALLTAG,
+    "kfz_gegner":     SCORE_KFZ_GEGNER,
+    "nachname":       SCORE_MANDANTENNAME,
+}
+
 # AZ-Kandidatenmuster: 1-4 Ziffern / 2-4 Ziffern, optional SB-Kuerzel
 # (2-3 Grossbuchstaben), z.B. "31/21", "31/21AS", "285/26"
 _AZ_MUSTER = re.compile(r"\b(\d{1,4}/\d{2,4}[A-Z]{0,3})\b")
@@ -72,6 +82,8 @@ class AktenKandidat:
     quelle: str
     treffer: str  # was matched: kanonisches AZ, Kennzeichen, Mail, Name
     bezeichnung: Optional[str] = None  # sAktenKurzBezeichnung, nur RA-Micro
+    abgelegt: bool = False
+    abgelegt_am: Optional[str] = None
 
 
 def _az_basis(az: str) -> str:
@@ -418,13 +430,6 @@ def _suche_in_ramicro(text: str,
     if bogen_merkmale:
         try:
             from ..ramicro.email_matching import suche_kandidaten_in_ramicro
-            bogen_scores = {
-                "mandanten_mail": SCORE_MANDANTEN_MAIL,
-                "kfz_mandant":    SCORE_KFZ_MANDANT,
-                "unfalltag":      SCORE_UNFALLTAG,
-                "kfz_gegner":     SCORE_KFZ_GEGNER,
-                "nachname":       SCORE_MANDANTENNAME,
-            }
             for az_tr, meth, treffer, bez in suche_kandidaten_in_ramicro(
                     bogen_merkmale):
                 ergebnis.append(AktenKandidat(
@@ -550,5 +555,25 @@ def finde_kandidaten(text: str,
             beste[k.akte_az] = k
         elif vorher.bezeichnung is None and k.bezeichnung:
             vorher.bezeichnung = k.bezeichnung
+
+    # Rueckfall auf abgelegte Akten: nur wenn die reguläre Suche zu einem
+    # Bogen ueberhaupt nichts gefunden hat. Eine laufende Akte darf nie
+    # verdraengt werden, und ohne Bogen entsteht keine zusaetzliche Abfrage.
+    if bogen_aktiv and not beste:
+        try:
+            from ..ramicro.email_matching import suche_abgelegte_in_ramicro
+            for az_tr, meth, treffer, bez, abgelegt_am in \
+                    suche_abgelegte_in_ramicro(bogen_merkmale):
+                vorher = beste.get(az_tr)
+                if vorher is None:
+                    beste[az_tr] = AktenKandidat(
+                        akte_az=az_tr,
+                        score=bogen_scores.get(meth, SCORE_MANDANTENNAME),
+                        quelle=meth, treffer=treffer, bezeichnung=bez,
+                        abgelegt=True, abgelegt_am=abgelegt_am,
+                    )
+        except Exception as exc:
+            logger.warning("RA-Micro-Suche nach abgelegten Akten "
+                            "fehlgeschlagen: %s", exc)
 
     return sorted(beste.values(), key=lambda k: k.score, reverse=True)

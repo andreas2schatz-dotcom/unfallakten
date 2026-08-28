@@ -261,7 +261,9 @@ def verarbeite_dokument(intake_id: int) -> bool:
              "score": round(k.score, 3),
              "quelle": k.quelle,
              "treffer": k.treffer,
-             "bezeichnung": k.bezeichnung}
+             "bezeichnung": k.bezeichnung,
+             "abgelegt": k.abgelegt,
+             "abgelegt_am": k.abgelegt_am}
             for k in akten_kandidaten
         ]
 

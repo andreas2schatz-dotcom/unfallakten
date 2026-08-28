@@ -230,6 +230,12 @@ def _kfz_norm(kfz: str) -> str:
 _AKTIV_FILTER = ("(a.dtAblage IS NULL "
                  "OR CAST(a.dtAblage AS DATE) = '1899-12-30')")
 
+# Umkehrung von _AKTIV_FILTER: genau die abgelegten Akten. Rueckfall fuer
+# Boegen, zu denen keine laufende Akte existiert (siehe
+# suche_abgelegte_in_ramicro).
+_ABGELEGT_FILTER = ("(a.dtAblage IS NOT NULL "
+                    "AND CAST(a.dtAblage AS DATE) <> '1899-12-30')")
+
 # Rollenrichtig wie in SQLite: die Mandantenadresse und der Nachname des
 # Mandanten duerfen nur Auftraggeber-Zeilen treffen. iBeteiligtenArt = 1 ist
 # der Mandant (Konvention des Projekts, vgl. ramicro/akten_erkennung.py:36;
@@ -239,7 +245,8 @@ _ART_MANDANT = 1
 
 _WDM_KZ_SQL = """
     SELECT DISTINCT TOP 100 a.sAktenNummer AS az,
-                    a.sAktenKurzBezeichnung AS bezeichnung
+                    a.sAktenKurzBezeichnung AS bezeichnung,
+                    a.dtAblage AS abgelegt_am
     FROM _tbl0WDMDaten w
     INNER JOIN tblAkten a ON a.sAktenNummer = w.AktenNr
     WHERE w.sName = %s
@@ -249,7 +256,8 @@ _WDM_KZ_SQL = """
 
 _WDM_TAG_SQL = """
     SELECT DISTINCT TOP 100 a.sAktenNummer AS az,
-                    a.sAktenKurzBezeichnung AS bezeichnung
+                    a.sAktenKurzBezeichnung AS bezeichnung,
+                    a.dtAblage AS abgelegt_am
     FROM _tbl0WDMDaten w
     INNER JOIN tblAkten a ON a.sAktenNummer = w.AktenNr
     WHERE w.sName = 'varU-TAG'
@@ -259,7 +267,8 @@ _WDM_TAG_SQL = """
 
 _MAIL_SQL = ("""
     SELECT DISTINCT TOP 100 a.sAktenNummer AS az,
-                    a.sAktenKurzBezeichnung AS bezeichnung
+                    a.sAktenKurzBezeichnung AS bezeichnung,
+                    a.dtAblage AS abgelegt_am
     FROM tblAdressen adr
     INNER JOIN tblAktenBeteiligte b ON b.GUIDAdresse = adr.GUIDAdresse
     INNER JOIN tblAkten a ON a.GUIDAkte = b.GUIDAkte
@@ -271,7 +280,8 @@ _MAIL_SQL = ("""
 
 _NAME_SQL = ("""
     SELECT DISTINCT TOP 100 a.sAktenNummer AS az,
-                    a.sAktenKurzBezeichnung AS bezeichnung
+                    a.sAktenKurzBezeichnung AS bezeichnung,
+                    a.dtAblage AS abgelegt_am
     FROM tblAdressen adr
     INNER JOIN tblAktenBeteiligte b ON b.GUIDAdresse = adr.GUIDAdresse
     INNER JOIN tblAkten a ON a.GUIDAkte = b.GUIDAkte
@@ -282,23 +292,17 @@ _NAME_SQL = ("""
 """)
 
 
-def suche_kandidaten_in_ramicro(
-        merkmale: dict) -> list[tuple[str, str, str, Optional[str]]]:
-    """Sucht Akten-Kandidaten zu den Signalen eines Unfallbogens.
-
-    Anders als ``suche_akte_in_ramicro`` bricht diese Funktion nicht beim
-    ersten Treffer ab -- die Bewertung geschieht im Aufrufer.
-
-    Args:
-        merkmale: Signal-Dict mit den optionalen Schluesseln
-            ``mandant_email``, ``kfz_mandant``, ``kfz_gegner``,
-            ``unfalltag`` (ISO), ``nachname``.
+def _suche_bogen_abfragen(
+        merkmale: dict, ablage_filter: str
+        ) -> list[tuple[str, str, str, Optional[str], Optional[str]]]:
+    """Gemeinsamer Rumpf von ``suche_kandidaten_in_ramicro`` und
+    ``suche_abgelegte_in_ramicro`` -- baut dieselben fuenf Abfragen und
+    wendet nur den uebergebenen Ablage-Filter an, damit es keine zweite
+    Kopie der Abfrageliste gibt.
 
     Returns:
-        Liste von ``(akte_az, methode, treffer, kurzbezeichnung)``. Leer bei
-        fehlenden Merkmalen oder wenn RA-MICRO nicht erreichbar ist.
-
-    Nur lesend.
+        Liste von ``(akte_az, methode, treffer, kurzbezeichnung,
+        abgelegt_am)``.
     """
     from ..utils.datum import iso_zu_ramicro
 
@@ -323,18 +327,19 @@ def suche_kandidaten_in_ramicro(
     if not abfragen:
         return []
 
-    ergebnis: list[tuple[str, str, str, Optional[str]]] = []
+    ergebnis: list[tuple[str, str, str, Optional[str], Optional[str]]] = []
     try:
         with get_ramicro_connection() as conn:
             cur = conn.cursor()
             for sql, params, methode, treffer in abfragen:
                 try:
-                    cur.execute(sql.format(aktiv=_AKTIV_FILTER), params)
+                    cur.execute(sql.format(aktiv=ablage_filter), params)
                     for row in cur.fetchall() or ():
                         az = row["az"] if row else None
                         if az:
                             ergebnis.append((_az_basis(az), methode, treffer,
-                                              row.get("bezeichnung")))
+                                              row.get("bezeichnung"),
+                                              row.get("abgelegt_am")))
                 except Exception as e:
                     logger.warning("RA-Micro-Teilabfrage %s fehlgeschlagen: %s",
                                     methode, e)
@@ -346,3 +351,44 @@ def suche_kandidaten_in_ramicro(
         logger.warning("RA-Micro Bogen-Suche Fehler: %s", e)
 
     return ergebnis
+
+
+def suche_kandidaten_in_ramicro(
+        merkmale: dict) -> list[tuple[str, str, str, Optional[str]]]:
+    """Sucht Akten-Kandidaten zu den Signalen eines Unfallbogens.
+
+    Anders als ``suche_akte_in_ramicro`` bricht diese Funktion nicht beim
+    ersten Treffer ab -- die Bewertung geschieht im Aufrufer. Durchsucht nur
+    laufende Akten (siehe ``suche_abgelegte_in_ramicro`` fuer den Rueckfall).
+
+    Args:
+        merkmale: Signal-Dict mit den optionalen Schluesseln
+            ``mandant_email``, ``kfz_mandant``, ``kfz_gegner``,
+            ``unfalltag`` (ISO), ``nachname``.
+
+    Returns:
+        Liste von ``(akte_az, methode, treffer, kurzbezeichnung)``. Leer bei
+        fehlenden Merkmalen oder wenn RA-MICRO nicht erreichbar ist.
+
+    Nur lesend.
+    """
+    return [(az, methode, treffer, bezeichnung)
+            for az, methode, treffer, bezeichnung, _abgelegt_am in
+            _suche_bogen_abfragen(merkmale, _AKTIV_FILTER)]
+
+
+def suche_abgelegte_in_ramicro(
+        merkmale: dict) -> list[tuple[str, str, str, Optional[str],
+                                       Optional[str]]]:
+    """Wie ``suche_kandidaten_in_ramicro``, aber ausschliesslich abgelegte
+    Akten. Rueckfall fuer den Fall, dass zu einem Bogen keine laufende Akte
+    existiert -- ohne diesen Weg wuerde ein abgeschlossener Fall als
+    Neumandat erscheinen.
+
+    Returns:
+        Liste von ``(akte_az, methode, treffer, kurzbezeichnung,
+        abgelegt_am)``.
+
+    Nur lesend.
+    """
+    return _suche_bogen_abfragen(merkmale, _ABGELEGT_FILTER)
