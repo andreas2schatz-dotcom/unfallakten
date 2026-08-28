@@ -41,6 +41,8 @@ from flask import Blueprint, g, jsonify, request, send_file, Response
 
 from ..auth.middleware import login_erforderlich
 from ..db.database import get_connection
+from ..intake.fragebogen_signale import baue_kopf, erkenne_fragebogen
+from ..intake.fragebogen_zuordnung import bewerte as bewerte_zuordnung
 from ..intake.queue import enqueue
 from ..intake import split_service
 from ..intake.verwerfen import auto_verwerfen
@@ -144,7 +146,8 @@ def hole_queue():
         rows = conn.execute(
             "SELECT i.id, i.sha256, i.klasse, i.klasse_quelle, i.konfidenz, "
             "       i.queue_status, i.prioritaet_frist, i.erstellt_am, "
-            "       i.fehler_detail, i.payload_typ, "
+            "       i.fehler_detail, i.payload_typ, i.structured_payload, "
+            "       i.parse_json, "
             "       i.ocr_ratio_salat, i.ocr_quote_woerter, i.llm_degradiert, "
             "       json_extract(i.parse_json, '$.akten_kandidaten[0]') "
             "         AS akte_kandidat_top_json, "
@@ -171,6 +174,18 @@ def hole_queue():
     for r in rows:
         top_json = r["akte_kandidat_top_json"]
         top = json.loads(top_json) if top_json else None
+        bogen = None
+        if r["klasse"] == "fragebogen":
+            bogen = erkenne_fragebogen(r["payload_typ"],
+                                        r["structured_payload"])
+        kopf = baue_kopf(bogen) if bogen else None
+        zuordnung = None
+        if bogen:
+            try:
+                parse = json.loads(r["parse_json"] or "{}")
+            except (TypeError, ValueError):
+                parse = {}
+            zuordnung = bewerte_zuordnung(parse.get("akten_kandidaten"))
         eintraege.append({
             "id": r["id"],
             "sha256": r["sha256"],
@@ -192,6 +207,9 @@ def hole_queue():
             "absender": r["absender"],
             "betreff": r["betreff"],
             "absender_kategorie": r["absender_kategorie"],
+            "ist_fragebogen": bogen is not None,
+            "bogen_kopf": kopf,
+            "zuordnung": zuordnung,
         })
     return _j({"eintraege": eintraege})
 
