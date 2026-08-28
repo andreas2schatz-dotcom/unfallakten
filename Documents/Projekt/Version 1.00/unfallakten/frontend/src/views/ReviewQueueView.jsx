@@ -84,6 +84,116 @@ export function gruppenKey(item) {
   return item?.parent_zustellung_id || item?.zustellung_id || null;
 }
 
+export function teileQueue(gruppen) {
+  const boegen = [], uebrige = [];
+  (gruppen || []).forEach(g => {
+    if (g?.eintrag?.ist_fragebogen) boegen.push(g);
+    else uebrige.push(g);
+  });
+  return { boegen, uebrige };
+}
+
+const AMPEL_FARBEN = {
+  gruen:    { rand: "#1a7f37", grund: "#e8f5ec", schrift: "#1a7f37" },
+  pruefen:  { rand: "#9a6700", grund: "#fff6e0", schrift: "#9a6700" },
+  abgelegt: { rand: "#6e7781", grund: "#f0f1f3", schrift: "#57606a" },
+  neu:      { rand: "#0969da", grund: "#e8f0fb", schrift: "#0969da" },
+};
+
+export function ampelText(zuordnung) {
+  if (!zuordnung) return { farbe: "neu", text: "" };
+  if (zuordnung.ampel === "gruen") {
+    const kurz = zuordnung.kurzbezeichnung;
+    return { farbe: "gruen",
+             text: kurz ? `→ ${zuordnung.akte_az} · ${kurz}`
+                        : `→ ${zuordnung.akte_az}` };
+  }
+  if (zuordnung.ampel === "pruefen") {
+    const n = zuordnung.kandidaten_anzahl || 0;
+    return { farbe: "pruefen",
+             text: n > 1 ? `PRÜFEN · ${n} Kandidaten` : "PRÜFEN" };
+  }
+  if (zuordnung.ampel === "abgelegt") {
+    const kurz = zuordnung.kurzbezeichnung;
+    return { farbe: "abgelegt",
+             text: kurz ? `ABGELEGT · ${zuordnung.akte_az} · ${kurz}`
+                        : `ABGELEGT · ${zuordnung.akte_az}` };
+  }
+  return { farbe: "neu", text: "NEUE AKTE" };
+}
+
+function fmtTag(iso) {
+  if (!iso || iso.length !== 10) return iso || "";
+  return `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+}
+
+export function FragebogenEintrag({ item, aktiv, onClick, onVerwerfen,
+                                     onAktenanlage }) {
+  const kopf = item.bogen_kopf || {};
+  const { farbe, text } = ampelText(item.zuordnung);
+  const f = AMPEL_FARBEN[farbe] || AMPEL_FARBEN.neu;
+  const zeigeAnlage = item.zuordnung?.ampel === "neu";
+  return (
+    <div onClick={onClick}
+      style={{
+        padding: "10px 12px",
+        borderBottom: `1px solid ${T.border}`,
+        cursor: "pointer",
+        background: aktiv ? T.accentPale : "transparent",
+        borderLeft: aktiv ? `3px solid ${T.accent}` : "3px solid transparent",
+      }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8,
+                    marginBottom: 4 }}>
+        <span style={{
+          fontSize: T.textXs, fontWeight: 700, borderRadius: 4,
+          padding: "1px 6px", border: `1px solid ${f.rand}`,
+          background: f.grund, color: f.schrift,
+        }}>{text}</span>
+        <div style={{ flex: 1 }} />
+        <button type="button"
+          onClick={e => { e.stopPropagation(); onVerwerfen(item); }}
+          aria-label="Dokument verwerfen"
+          style={{
+            border: `1px solid ${T.redLight}`, background: T.redBg,
+            color: T.redText, cursor: "pointer", padding: "3px 8px",
+            fontSize: T.textXs, fontWeight: 600, borderRadius: 4,
+            lineHeight: 1.1,
+          }}>Verwerfen</button>
+      </div>
+      <div style={{ fontSize: T.textSm, color: T.text }}>
+        <span title="Unfallfragebogen">📝 </span>
+        <strong>{kopf.mandant_name || "Ohne Namen"}</strong>
+      </div>
+      <div style={{ fontSize: T.textXs, color: T.textMuted, marginTop: 2 }}>
+        {[kopf.kennzeichen, fmtTag(kopf.unfalltag)]
+          .filter(Boolean).join(" · ")}
+      </div>
+      {(item.zuordnung?.begruendung || item.zuordnung?.abgelegt_am) && (
+        <div style={{ fontSize: T.textXs, color: T.textMuted, marginTop: 2 }}>
+          {[item.zuordnung.begruendung
+              ? `Treffer: ${item.zuordnung.begruendung}` : null,
+            item.zuordnung.abgelegt_am
+              ? `abgelegt ${fmtTag(item.zuordnung.abgelegt_am)}` : null,
+           ].filter(Boolean).join(" · ")}
+        </div>
+      )}
+      <div style={{ fontSize: T.textXs, color: T.textFaint, marginTop: 2 }}>
+        #{item.id} · {item.erstellt_am}
+      </div>
+      {zeigeAnlage && (
+        <button type="button"
+          onClick={e => { e.stopPropagation(); onAktenanlage(item); }}
+          style={{
+            marginTop: 6, border: `1px solid ${T.accent}`,
+            background: T.accentPale, color: T.accent, cursor: "pointer",
+            padding: "3px 8px", fontSize: T.textXs, fontWeight: 600,
+            borderRadius: 4,
+          }}>Akte anlegen</button>
+      )}
+    </div>
+  );
+}
+
 export function vorgangFuerEintrag(item, vorgaenge, queue) {
   if (!item) return null;
   const key = gruppenKey(item);
@@ -1854,6 +1964,8 @@ export default function ReviewQueueView({ onOpenAkte, initialIntakeId = null, on
     [queue, sortAbsteigend],
   );
 
+  const { boegen, uebrige } = useMemo(() => teileQueue(gruppen), [gruppen]);
+
   const aktuellerEintrag = useMemo(
     () => queue.find(q => q.id === aktivId) || null,
     [queue, aktivId],
@@ -1939,7 +2051,34 @@ export default function ReviewQueueView({ onOpenAkte, initialIntakeId = null, on
                   Queue leer — alles freigegeben.
                 </div>
               )}
-              {gruppen.map(gruppe => (
+              {boegen.length > 0 && (
+                <div style={{ background: "#fbf9f2",
+                              borderBottom: `2px solid ${T.border}` }}>
+                  <div style={{
+                    padding: "6px 12px", fontSize: T.textXs, fontWeight: 700,
+                    letterSpacing: "0.06em", color: T.navy,
+                  }}>
+                    ⭐ UNFALLFRAGEBÖGEN ({boegen.length})
+                  </div>
+                  {boegen.map(g => (
+                    <FragebogenEintrag key={g.eintrag.id} item={g.eintrag}
+                      aktiv={aktivId === g.eintrag.id}
+                      onClick={() => setAktivId(g.eintrag.id)}
+                      onVerwerfen={setVerwerfenDok}
+                      onAktenanlage={it => setAnlageDialog({ item: it })} />
+                  ))}
+                </div>
+              )}
+              {boegen.length > 0 && uebrige.length > 0 && (
+                <div style={{
+                  padding: "6px 12px", fontSize: T.textXs, fontWeight: 700,
+                  letterSpacing: "0.06em", color: T.textMuted,
+                  borderBottom: `1px solid ${T.border}`,
+                }}>
+                  ÜBRIGE DOKUMENTE ({uebrige.length})
+                </div>
+              )}
+              {uebrige.map(gruppe => (
                 <React.Fragment key={gruppe.eintrag.id}>
                   <QueueEintrag item={gruppe.eintrag}
                     aktiv={aktivId === gruppe.eintrag.id}
