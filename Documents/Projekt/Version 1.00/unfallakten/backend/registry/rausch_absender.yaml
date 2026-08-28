@@ -5,3 +5,23 @@
   policy: nur_body
 - domain: bea-brak.de
   policy: komplett
+# Fachverlags-Newsletter und Seminarwerbung (Sichtung Posteingang 2026-08-28).
+# Bewusst NICHT aufgenommen: anwaltverein.de (Einladungen zu Mitglieder-
+# versammlungen der ARGEn) und iww.de (Abo-/Kuendigungskorrespondenz) --
+# beide verschicken neben Newslettern auch echte Post.
+- domain: eiden-seminare.com
+  policy: komplett
+- domain: newsletter.anwaltverlag.de
+  policy: komplett
+- domain: news.deubner-verlag.de
+  policy: komplett
+- domain: anwaltakademie-event.de
+  policy: komplett
+- domain: zorn-seminare.de
+  policy: komplett
+- domain: mails.nomos.de
+  policy: komplett
+- domain: stempel-fabrik-mail.de
+  policy: komplett
+- domain: facebookmail.com
+  policy: komplett

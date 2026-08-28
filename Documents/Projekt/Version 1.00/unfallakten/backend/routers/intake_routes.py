@@ -429,7 +429,8 @@ def post_reparse(intake_id: int):
 # ─── POST /intake/dokument/<id>/verwerfen ─────────────────────────────────────
 
 _VERWERFEN_GRUENDE = {"spam", "duplikat", "nicht_relevant",
-                       "falsche_kanzlei", "sonstiges", "aufgeteilt", "rauschen"}
+                       "falsche_kanzlei", "sonstiges", "aufgeteilt", "rauschen",
+                       "altbestand"}
 
 
 @intake_bp.route("/dokument/<int:intake_id>/verwerfen", methods=["POST"])

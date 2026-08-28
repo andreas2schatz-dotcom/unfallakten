@@ -40,6 +40,7 @@ const GRUND_LABELS = {
   falsche_kanzlei: "Falsche Kanzlei",
   aufgeteilt: "Aufgeteilt",
   sonstiges: "Sonstiges",
+  altbestand: "Altbestand Testbetrieb",
 };
 
 export function grundLabel(grund) {
