@@ -1355,18 +1355,33 @@ git commit -m "feat(ramicro): Bogen-Kandidatensuche ueber varM-KZ, varG-KZ, varU
 
 ---
 
-## Task 5: Ampel-Bewertung und Queue-Endpunkt
+## Task 5: Abgelegt-Erkennung, Ampel-Bewertung und Queue-Endpunkt
 
 **Dateien:**
+- Ändern: `backend/ramicro/email_matching.py` (Abgelegt-Suche)
+- Ändern: `backend/intake/akten_matching.py` (Rückfall auf abgelegte Akten)
 - Anlegen: `backend/intake/fragebogen_zuordnung.py`
 - Ändern: `backend/routers/intake_routes.py:134-197` (`hole_queue`)
-- Test: `backend/tests/test_fragebogen_zuordnung.py`, `backend/tests/test_fragebogen_queue_endpunkt.py`
+- Test: `backend/tests/test_fragebogen_abgelegt.py`, `backend/tests/test_fragebogen_zuordnung.py`, `backend/tests/test_fragebogen_queue_endpunkt.py`
 
 **Schnittstellen:**
-- Verbraucht: `akten_kandidaten` aus `parse_json` (Liste von `{akte_az, score, quelle, treffer}`)
+- Verbraucht: `akten_kandidaten` aus `parse_json` (Liste von `{akte_az, score, quelle, treffer, bezeichnung, abgelegt, abgelegt_am}`)
 - Liefert: `bewerte(kandidaten: list[dict]) -> dict` mit
-  `{"ampel": "gruen"|"pruefen"|"neu", "akte_az": str|None, "kurzbezeichnung": str|None, "begruendung": str|None, "kandidaten_anzahl": int}`
+  `{"ampel": "gruen"|"pruefen"|"abgelegt"|"neu", "akte_az": str|None, "kurzbezeichnung": str|None, "begruendung": str|None, "kandidaten_anzahl": int, "abgelegt_am": str|None}`
 - Queue-Endpunkt liefert je Eintrag zusätzlich `ist_fragebogen: bool`, `bogen_kopf: dict|None`, `zuordnung: dict|None`
+
+### Warum es den vierten Zustand gibt
+
+An den acht liegenden Bögen verifiziert (2026-08-28): Bogen 672 (Bernd Rügner)
+gehört zu Akte 749/26, die am 26.08.2026 **abgelegt** wurde. Der Ablage-Filter
+blendet sie korrekt aus — dadurch bleibt kein Kandidat übrig, und der Bogen
+bekäme den blauen Chip „NEUE AKTE" samt Anlage-Knopf. Das Ergebnis wäre eine
+Dublette zu einem abgeschlossenen Fall. Entscheidung RA Schatz: eigener,
+vierter Zustand, ohne Anlage-Knopf.
+
+Die Abgelegt-Suche läuft **nur als Rückfall**, wenn die reguläre Suche gar
+keinen Kandidaten geliefert hat — sie darf laufende Akten nie verdrängen und
+kostet bei jedem anderen Ausgang keine zusätzliche Abfrage.
 
 Klartext-Begründungen:
 
@@ -1380,7 +1395,210 @@ Klartext-Begründungen:
 | `kfz_gegner` | „Kennzeichen des Gegners" |
 | `nachname`, `mandantenname` | „Nachname" |
 
-- [ ] **Schritt 1: Den fehlschlagenden Test für die Bewertung schreiben**
+- [ ] **Schritt 1: Den fehlschlagenden Test für die Abgelegt-Suche schreiben**
+
+Datei `backend/tests/test_fragebogen_abgelegt.py`:
+
+```python
+"""Rueckfall auf abgelegte Akten.
+
+Findet die regulaere Suche gar nichts, wird einmal ohne Ablage-Filter
+nachgesehen -- sonst bekaeme ein Bogen zu einem abgeschlossenen Fall den
+Vorschlag "neue Akte anlegen" und erzeugte eine Dublette.
+"""
+import os
+import sys
+import unittest
+from unittest import mock
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+
+MERKMALE = {"dokument_art": "fragebogen",
+            "mandant_email": "bernd.ruegner@t-online.de",
+            "kfz_mandant": "OFBR1612",
+            "nachname": "Rügner",
+            "unfalltag": "2026-08-06"}
+
+
+class TestAbgelegtSuche(unittest.TestCase):
+    def test_filter_sucht_nur_abgelegte(self):
+        from backend.ramicro import email_matching as em
+        aufrufe = []
+
+        class _Cur:
+            def execute(self, sql, params=None):
+                aufrufe.append(" ".join(sql.split()))
+            def fetchall(self):
+                return [{"az": "749/26", "bezeichnung": "Rügner/Unbekannt",
+                          "abgelegt_am": "2026-08-26"}]
+
+        conn = mock.MagicMock()
+        conn.cursor.return_value = _Cur()
+        ctx = mock.MagicMock()
+        ctx.__enter__.return_value = conn
+        ctx.__exit__.return_value = False
+        with mock.patch.object(em, "get_ramicro_connection", return_value=ctx):
+            treffer = em.suche_abgelegte_in_ramicro(MERKMALE)
+
+        self.assertTrue(treffer)
+        az, methode, _tr, bez, abgelegt_am = treffer[0]
+        self.assertEqual(az, "749/26")
+        self.assertEqual(bez, "Rügner/Unbekannt")
+        self.assertEqual(abgelegt_am, "2026-08-26")
+        self.assertIn("dtAblage IS NOT NULL", aufrufe[0])
+        self.assertNotIn("dtAblage IS NULL", aufrufe[0])
+
+    def test_ohne_merkmale_keine_abfrage(self):
+        from backend.ramicro import email_matching as em
+        with mock.patch.object(em, "get_ramicro_connection") as verbindung:
+            self.assertEqual(em.suche_abgelegte_in_ramicro({}), [])
+            verbindung.assert_not_called()
+
+
+class TestRueckfallInFindeKandidaten(unittest.TestCase):
+    def _finde(self, regulaer, abgelegt):
+        from backend.intake import akten_matching as am
+        with mock.patch.object(am, "_suche_in_ramicro", return_value=regulaer), \
+             mock.patch("backend.ramicro.email_matching."
+                         "suche_abgelegte_in_ramicro", return_value=abgelegt):
+            return am.finde_kandidaten("", [MERKMALE])
+
+    def test_rueckfall_nur_wenn_nichts_gefunden(self):
+        k = self._finde([], [("749/26", "mandanten_mail",
+                               "bernd.ruegner@t-online.de",
+                               "Rügner/Unbekannt", "2026-08-26")])
+        self.assertEqual(len(k), 1)
+        self.assertEqual(k[0].akte_az, "749/26")
+        self.assertTrue(k[0].abgelegt)
+        self.assertEqual(k[0].abgelegt_am, "2026-08-26")
+        self.assertEqual(k[0].bezeichnung, "Rügner/Unbekannt")
+
+    def test_laufende_akte_verdraengt_den_rueckfall(self):
+        from backend.intake import akten_matching as am
+        from backend.intake.akten_matching import AktenKandidat
+        laufend = [AktenKandidat(akte_az="742/26", score=0.8,
+                                  quelle="mandanten_mail", treffer="x",
+                                  bezeichnung="Golovin/Brochner")]
+        with mock.patch.object(am, "_suche_in_ramicro", return_value=laufend), \
+             mock.patch("backend.ramicro.email_matching."
+                         "suche_abgelegte_in_ramicro") as abgelegt:
+            k = am.finde_kandidaten("", [MERKMALE])
+            abgelegt.assert_not_called()
+        self.assertEqual([x.akte_az for x in k], ["742/26"])
+        self.assertFalse(k[0].abgelegt)
+
+    def test_kein_rueckfall_ohne_bogen(self):
+        from backend.intake import akten_matching as am
+        with mock.patch.object(am, "_suche_in_ramicro", return_value=[]), \
+             mock.patch("backend.ramicro.email_matching."
+                         "suche_abgelegte_in_ramicro") as abgelegt:
+            am.finde_kandidaten("Sehr geehrte Damen und Herren", [])
+            abgelegt.assert_not_called()
+
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+- [ ] **Schritt 2: Test laufen lassen, Fehlschlag bestätigen**
+
+```bash
+docker exec unfallakten-backend-dev python -m pytest backend/tests/test_fragebogen_abgelegt.py -v
+```
+
+Erwartet: `AttributeError: module ... has no attribute 'suche_abgelegte_in_ramicro'`
+
+- [ ] **Schritt 3: Abgelegt-Suche implementieren**
+
+In `backend/ramicro/email_matching.py`:
+
+Die vier Abfragevorlagen aus Task 4 tragen bereits einen Platzhalter für den
+Ablage-Filter. Ergänze in **allen vier** die Spalte `a.dtAblage AS abgelegt_am`
+in der Auswahlliste — für die reguläre Suche ist der Wert dann stets leer
+beziehungsweise das Platzhalterdatum, was niemanden stört. Definiere daneben
+den umgekehrten Filter:
+
+```python
+# Umkehrung von _AKTIV_FILTER: genau die abgelegten Akten.
+_ABGELEGT_FILTER = ("(a.dtAblage IS NOT NULL "
+                    "AND CAST(a.dtAblage AS DATE) <> '1899-12-30')")
+```
+
+Zieh den gemeinsamen Rumpf von `suche_kandidaten_in_ramicro` in eine private
+Hilfsfunktion, die den Filter als Argument bekommt, und baue beide öffentlichen
+Funktionen darauf auf — **keine** zweite Kopie der Abfrageliste:
+
+```python
+def suche_abgelegte_in_ramicro(
+        merkmale: dict) -> list[tuple[str, str, str, Optional[str],
+                                       Optional[str]]]:
+    """Wie ``suche_kandidaten_in_ramicro``, aber ausschliesslich abgelegte
+    Akten. Rueckfall fuer den Fall, dass zu einem Bogen keine laufende Akte
+    existiert -- ohne diesen Weg wuerde ein abgeschlossener Fall als
+    Neumandat erscheinen.
+
+    Returns:
+        Liste von ``(akte_az, methode, treffer, kurzbezeichnung,
+        abgelegt_am)``.
+
+    Nur lesend.
+    """
+```
+
+Die Rückgabe trägt gegenüber der regulären Suche zusätzlich das Ablagedatum als
+letzten Wert.
+
+- [ ] **Schritt 4: Rückfall in `finde_kandidaten` verdrahten**
+
+In `backend/intake/akten_matching.py` die Datenklasse um zwei Felder erweitern:
+
+```python
+    abgelegt: bool = False
+    abgelegt_am: Optional[str] = None
+```
+
+Und **nach** der Verdichtung auf den besten Score je Akte, unmittelbar vor dem
+`return`, den Rückfall ergänzen:
+
+```python
+    if bogen_aktiv and not beste:
+        try:
+            from ..ramicro.email_matching import suche_abgelegte_in_ramicro
+            for az_tr, meth, treffer, bez, abgelegt_am in \
+                    suche_abgelegte_in_ramicro(bogen_merkmale):
+                vorher = beste.get(az_tr)
+                if vorher is None:
+                    beste[az_tr] = AktenKandidat(
+                        akte_az=az_tr,
+                        score=bogen_scores.get(meth, SCORE_MANDANTENNAME),
+                        quelle=meth, treffer=treffer, bezeichnung=bez,
+                        abgelegt=True, abgelegt_am=abgelegt_am,
+                    )
+        except Exception as exc:
+            logger.warning("RA-Micro-Suche nach abgelegten Akten "
+                            "fehlgeschlagen: %s", exc)
+```
+
+`bogen_scores` steht dafür auf Modulebene statt lokal in `_suche_in_ramicro` —
+zieh es dorthin, wenn es noch lokal liegt.
+
+In `backend/intake/pipeline.py` den Aufbau von `akten_kandidaten_json` um die
+zwei neuen Felder erweitern, damit sie im `parse_json` landen:
+
+```python
+             "abgelegt": k.abgelegt,
+             "abgelegt_am": k.abgelegt_am,
+```
+
+- [ ] **Schritt 5: Tests laufen lassen, Erfolg bestätigen**
+
+```bash
+docker exec unfallakten-backend-dev python -m pytest backend/tests/test_fragebogen_abgelegt.py backend/tests/test_fragebogen_ramicro.py backend/tests/test_fragebogen_matching.py -v
+```
+
+Erwartet: alle grün.
+
+- [ ] **Schritt 6: Den fehlschlagenden Test für die Bewertung schreiben**
 
 Datei `backend/tests/test_fragebogen_zuordnung.py`:
 
@@ -1395,9 +1613,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from backend.intake.fragebogen_zuordnung import bewerte
 
 
-def _k(az, score, quelle, bezeichnung=None):
+def _k(az, score, quelle, bezeichnung=None, abgelegt=False,
+        abgelegt_am=None):
     return {"akte_az": az, "score": score, "quelle": quelle, "treffer": "x",
-            "bezeichnung": bezeichnung}
+            "bezeichnung": bezeichnung, "abgelegt": abgelegt,
+            "abgelegt_am": abgelegt_am}
 
 
 class TestBewerte(unittest.TestCase):
@@ -1456,6 +1676,27 @@ class TestBewerte(unittest.TestCase):
         self.assertEqual(e["akte_az"], "742/26")
         self.assertEqual(e["kandidaten_anzahl"], 2)
 
+    def test_nur_abgelegte_kandidaten_ergeben_abgelegt(self):
+        e = bewerte([_k("749/26", 0.8, "mandanten_mail", "Rügner/Unbekannt",
+                         abgelegt=True, abgelegt_am="2026-08-26")])
+        self.assertEqual(e["ampel"], "abgelegt")
+        self.assertEqual(e["akte_az"], "749/26")
+        self.assertEqual(e["kurzbezeichnung"], "Rügner/Unbekannt")
+        self.assertEqual(e["abgelegt_am"], "2026-08-26")
+
+    def test_laufender_kandidat_schlaegt_abgelegten(self):
+        e = bewerte([_k("742/26", 0.8, "mandanten_mail", "Golovin/Brochner"),
+                      _k("749/26", 0.8, "mandanten_mail", "Rügner/Unbekannt",
+                         abgelegt=True, abgelegt_am="2026-08-26")])
+        self.assertEqual(e["ampel"], "gruen")
+        self.assertEqual(e["akte_az"], "742/26")
+        self.assertIsNone(e["abgelegt_am"])
+
+    def test_abgelegt_am_fehlt_kein_absturz(self):
+        e = bewerte([_k("749/26", 0.8, "mandanten_mail", abgelegt=True)])
+        self.assertEqual(e["ampel"], "abgelegt")
+        self.assertIsNone(e["abgelegt_am"])
+
     def test_unbekannte_quelle_bekommt_lesbaren_ersatz(self):
         e = bewerte([_k("742/26", 0.9, "irgendwas")])
         self.assertEqual(e["begruendung"], "irgendwas")
@@ -1465,7 +1706,7 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Schritt 2: Test laufen lassen, Fehlschlag bestätigen**
+- [ ] **Schritt 7: Test laufen lassen, Fehlschlag bestätigen**
 
 ```bash
 docker exec unfallakten-backend-dev python -m pytest backend/tests/test_fragebogen_zuordnung.py -v
@@ -1473,16 +1714,18 @@ docker exec unfallakten-backend-dev python -m pytest backend/tests/test_fragebog
 
 Erwartet: `ModuleNotFoundError: No module named 'backend.intake.fragebogen_zuordnung'`
 
-- [ ] **Schritt 3: Modul schreiben**
+- [ ] **Schritt 8: Modul schreiben**
 
 Datei `backend/intake/fragebogen_zuordnung.py`:
 
 ```python
 """Verdichtet die Akten-Kandidaten eines Unfallbogens zu einer Ampel.
 
-gruen   -- genau ein starker Kandidat, Zuordnung steht
-pruefen -- mehrere starke Kandidaten oder nur ein schwaches Merkmal
-neu     -- kein Kandidat, vermutlich ein Neumandat
+gruen    -- genau ein starker Kandidat, Zuordnung steht
+pruefen  -- mehrere starke Kandidaten oder nur ein schwaches Merkmal
+abgelegt -- passt nur zu einer abgeschlossenen Akte; keine Aktenanlage
+            anbieten, sonst entsteht eine Dublette zu einem alten Fall
+neu      -- kein Kandidat, vermutlich ein Neumandat
 """
 from __future__ import annotations
 
@@ -1514,27 +1757,38 @@ def bewerte(kandidaten: Optional[List[Dict[str, Any]]]) -> Dict[str, Any]:
     liste = [k for k in (kandidaten or []) if k and k.get("akte_az")]
     if not liste:
         return {"ampel": "neu", "akte_az": None, "kurzbezeichnung": None,
-                "begruendung": None, "kandidaten_anzahl": 0}
+                "begruendung": None, "kandidaten_anzahl": 0,
+                "abgelegt_am": None}
 
-    sortiert = sorted(liste, key=lambda k: k.get("score") or 0.0, reverse=True)
+    # Laufende Akten haben immer Vorrang; abgelegte sind nur der Rueckfall,
+    # wenn gar keine laufende Akte zum Bogen passt.
+    laufend = [k for k in liste if not k.get("abgelegt")]
+    sortiert = sorted(laufend or liste,
+                      key=lambda k: k.get("score") or 0.0, reverse=True)
     bester = sortiert[0]
+
+    if not laufend:
+        return {
+            "ampel": "abgelegt",
+            "akte_az": bester["akte_az"],
+            "kurzbezeichnung": bester.get("bezeichnung"),
+            "begruendung": begruendung(bester.get("quelle")),
+            "kandidaten_anzahl": len(sortiert),
+            "abgelegt_am": bester.get("abgelegt_am"),
+        }
+
     starke = [k for k in sortiert if (k.get("score") or 0.0) >= STARK_AB]
-
-    if len(starke) == 1:
-        ampel = "gruen"
-    else:
-        ampel = "pruefen"
-
     return {
-        "ampel": ampel,
+        "ampel": "gruen" if len(starke) == 1 else "pruefen",
         "akte_az": bester["akte_az"],
         "kurzbezeichnung": bester.get("bezeichnung"),
         "begruendung": begruendung(bester.get("quelle")),
         "kandidaten_anzahl": len(sortiert),
+        "abgelegt_am": None,
     }
 ```
 
-- [ ] **Schritt 4: Test laufen lassen, Erfolg bestätigen**
+- [ ] **Schritt 9: Test laufen lassen, Erfolg bestätigen**
 
 ```bash
 docker exec unfallakten-backend-dev python -m pytest backend/tests/test_fragebogen_zuordnung.py -v
@@ -1542,7 +1796,7 @@ docker exec unfallakten-backend-dev python -m pytest backend/tests/test_fragebog
 
 Erwartet: alle grün.
 
-- [ ] **Schritt 5: Den fehlschlagenden Test für den Endpunkt schreiben**
+- [ ] **Schritt 10: Den fehlschlagenden Test für den Endpunkt schreiben**
 
 Datei `backend/tests/test_fragebogen_queue_endpunkt.py`:
 
@@ -1669,7 +1923,7 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Schritt 6: Test laufen lassen, Fehlschlag bestätigen**
+- [ ] **Schritt 11: Test laufen lassen, Fehlschlag bestätigen**
 
 ```bash
 docker exec unfallakten-backend-dev python -m pytest backend/tests/test_fragebogen_queue_endpunkt.py -v
@@ -1677,7 +1931,7 @@ docker exec unfallakten-backend-dev python -m pytest backend/tests/test_fragebog
 
 Erwartet: `KeyError: 'ist_fragebogen'`
 
-- [ ] **Schritt 7: Endpunkt erweitern**
+- [ ] **Schritt 12: Endpunkt erweitern**
 
 In `backend/routers/intake_routes.py` oben ergänzen:
 
@@ -1720,7 +1974,7 @@ Und im `eintraege.append({...})` die drei Felder anfügen:
             "zuordnung": zuordnung,
 ```
 
-- [ ] **Schritt 8: Tests laufen lassen, Erfolg bestätigen**
+- [ ] **Schritt 13: Tests laufen lassen, Erfolg bestätigen**
 
 ```bash
 docker exec unfallakten-backend-dev python -m pytest backend/tests/test_fragebogen_queue_endpunkt.py backend/tests/test_fragebogen_zuordnung.py -v
@@ -1728,7 +1982,7 @@ docker exec unfallakten-backend-dev python -m pytest backend/tests/test_fragebog
 
 Erwartet: alle grün.
 
-- [ ] **Schritt 9: Committen**
+- [ ] **Schritt 14: Committen**
 
 ```bash
 git add "backend/intake/fragebogen_zuordnung.py" "backend/routers/intake_routes.py" "backend/tests/test_fragebogen_zuordnung.py" "backend/tests/test_fragebogen_queue_endpunkt.py"
@@ -1823,6 +2077,16 @@ describe("ampelText", () => {
     expect(ampelText({ ampel: "neu" }).text).toContain("NEUE AKTE");
   });
 
+  it("abgelegt nennt Aktenzeichen und Kurzbezeichnung", () => {
+    const a = ampelText({ ampel: "abgelegt", akte_az: "749/26",
+                          kurzbezeichnung: "Rügner/Unbekannt",
+                          abgelegt_am: "2026-08-26" });
+    expect(a.farbe).toBe("abgelegt");
+    expect(a.text).toContain("ABGELEGT");
+    expect(a.text).toContain("749/26");
+    expect(a.text).toContain("Rügner/Unbekannt");
+  });
+
   it("ohne Zuordnung kein Absturz", () => {
     expect(ampelText(null).text).toBe("");
   });
@@ -1854,6 +2118,14 @@ describe("FragebogenEintrag", () => {
       aktiv={false} onClick={() => {}} onVerwerfen={() => {}}
       onAktenanlage={() => {}} />);
     expect(screen.queryByRole("button", { name: /Akte anlegen/ })).toBeNull();
+
+    rerender(<FragebogenEintrag
+      item={{ ...basis, zuordnung: { ampel: "abgelegt", akte_az: "749/26",
+                                     abgelegt_am: "2026-08-26" } }}
+      aktiv={false} onClick={() => {}} onVerwerfen={() => {}}
+      onAktenanlage={() => {}} />);
+    expect(screen.queryByRole("button", { name: /Akte anlegen/ })).toBeNull();
+    expect(screen.getByText(/abgelegt 26\.08\.2026/)).toBeTruthy();
 
     rerender(<FragebogenEintrag
       item={{ ...basis, zuordnung: { ampel: "neu" } }}
@@ -1900,9 +2172,10 @@ export function teileQueue(gruppen) {
 }
 
 const AMPEL_FARBEN = {
-  gruen:   { rand: "#1a7f37", grund: "#e8f5ec", schrift: "#1a7f37" },
-  pruefen: { rand: "#9a6700", grund: "#fff6e0", schrift: "#9a6700" },
-  neu:     { rand: "#0969da", grund: "#e8f0fb", schrift: "#0969da" },
+  gruen:    { rand: "#1a7f37", grund: "#e8f5ec", schrift: "#1a7f37" },
+  pruefen:  { rand: "#9a6700", grund: "#fff6e0", schrift: "#9a6700" },
+  abgelegt: { rand: "#6e7781", grund: "#f0f1f3", schrift: "#57606a" },
+  neu:      { rand: "#0969da", grund: "#e8f0fb", schrift: "#0969da" },
 };
 
 export function ampelText(zuordnung) {
@@ -1917,6 +2190,12 @@ export function ampelText(zuordnung) {
     const n = zuordnung.kandidaten_anzahl || 0;
     return { farbe: "pruefen",
              text: n > 1 ? `PRÜFEN · ${n} Kandidaten` : "PRÜFEN" };
+  }
+  if (zuordnung.ampel === "abgelegt") {
+    const kurz = zuordnung.kurzbezeichnung;
+    return { farbe: "abgelegt",
+             text: kurz ? `ABGELEGT · ${zuordnung.akte_az} · ${kurz}`
+                        : `ABGELEGT · ${zuordnung.akte_az}` };
   }
   return { farbe: "neu", text: "NEUE AKTE" };
 }
@@ -1970,6 +2249,8 @@ export function FragebogenEintrag({ item, aktiv, onClick, onVerwerfen,
       {item.zuordnung?.begruendung && (
         <div style={{ fontSize: T.textXs, color: T.textMuted, marginTop: 2 }}>
           Treffer: {item.zuordnung.begruendung}
+          {item.zuordnung.abgelegt_am
+            && ` · abgelegt ${fmtTag(item.zuordnung.abgelegt_am)}`}
         </div>
       )}
       <div style={{ fontSize: T.textXs, color: T.textFaint, marginTop: 2 }}>
@@ -2425,7 +2706,7 @@ Nach Abschluss aller Tasks, an den echten Daten:
 | 476 | Perisa Petrovic | 🟢 641/26 (Aktenzeichen im Bogen) |
 | 527 | Paul Golovin | 🟢 742/26 |
 | 613 | Sandra Hartmann | 🟢 751/26 (848/25 ist abgelegt) |
-| 672 | Bernd Rügner | 🟢 749/26 |
+| 672 | Bernd Rügner | ⚫ ABGELEGT · 749/26 (am 26.08.2026 abgelegt), **kein** Anlage-Knopf |
 | 727 | Bernharda Darowski | 🟢 760/26 |
 | 834 | Ingelor Reinhard | 🟢 768/26 |
 
