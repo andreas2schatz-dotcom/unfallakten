@@ -7,6 +7,7 @@ Tests für die neuen Action-Board Endpoints:
 
 import os
 import sys
+import pytest
 import unittest
 import tempfile
 
@@ -87,6 +88,7 @@ class TestDashboardUebersicht(unittest.TestCase):
         resp = self.client.get("/dashboard/nachrichten-neu", headers=headers)
         self.assertIn(resp.status_code, (404, 405))
 
+    @pytest.mark.ramicro_integration
     def test_ramicro_fristen_gibt_liste_zurueck(self):
         """Endpoint /dashboard/ramicro-fristen liefert eintraege-Liste (leer wenn RA-MICRO nicht verbunden)."""
         headers = self._auth_header()
@@ -101,6 +103,7 @@ class TestDashboardUebersicht(unittest.TestCase):
         resp = self.client.get("/dashboard/ramicro-fristen")
         self.assertEqual(resp.status_code, 401)
 
+    @pytest.mark.ramicro_integration
     def test_termine_heute_gibt_liste_zurueck(self):
         """GET /dashboard/termine-heute liefert eintraege-Liste (leer wenn RA-MICRO nicht verbunden)."""
         headers = self._auth_header()
@@ -115,6 +118,7 @@ class TestDashboardUebersicht(unittest.TestCase):
         resp = self.client.get("/dashboard/termine-heute")
         self.assertEqual(resp.status_code, 401)
 
+    @pytest.mark.ramicro_integration
     def test_termine_heute_felder(self):
         """Wenn Einträge vorhanden, müssen az, termin_art, termin_datum, tage_bis vorhanden sein."""
         headers = self._auth_header()
@@ -125,6 +129,7 @@ class TestDashboardUebersicht(unittest.TestCase):
                 self.assertIn(feld, e, f"Feld '{feld}' fehlt in Eintrag: {e}")
 
 
+    @pytest.mark.ramicro_integration
     def test_fristen_gibt_liste_zurueck(self):
         """GET /dashboard/fristen liefert eintraege-Liste."""
         headers = self._auth_header()
@@ -138,6 +143,7 @@ class TestDashboardUebersicht(unittest.TestCase):
         resp = self.client.get("/dashboard/fristen")
         self.assertEqual(resp.status_code, 401)
 
+    @pytest.mark.ramicro_integration
     def test_wiedervorlagen_gibt_dict_zurueck(self):
         """GET /dashboard/wiedervorlagen liefert wv + ohne_wv Listen."""
         headers = self._auth_header()
@@ -153,6 +159,7 @@ class TestDashboardUebersicht(unittest.TestCase):
         resp = self.client.get("/dashboard/wiedervorlagen")
         self.assertEqual(resp.status_code, 401)
 
+    @pytest.mark.ramicro_integration
     def test_wiedervorlagen_ohne_wv_enthaelt_lokale_akte(self):
         """Eine Akte ohne RA-MICRO WV erscheint in ohne_wv (wenn RA-MICRO nicht verbunden)."""
         from backend.db.database import get_connection

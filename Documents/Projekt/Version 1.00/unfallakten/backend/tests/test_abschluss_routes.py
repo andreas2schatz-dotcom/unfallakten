@@ -3,6 +3,7 @@ import importlib
 import os
 import sys
 import tempfile
+import pytest
 import unittest
 
 _tmp_dir = tempfile.mkdtemp(prefix="abschluss_routes_")
@@ -55,6 +56,7 @@ class TestAbschlussRouten(unittest.TestCase):
         self.headers = _auth_header(self.client)
         _seed_akte()
 
+    @pytest.mark.ramicro_integration
     def test_get_uebersicht_liefert_objekt(self):
         r = self.client.get("/akten/55/26/abschluss-uebersicht",
                             headers=self.headers)
@@ -70,6 +72,7 @@ class TestAbschlussRouten(unittest.TestCase):
                             headers=self.headers)
         self.assertEqual(r.status_code, 404)
 
+    @pytest.mark.ramicro_integration
     def test_put_status_upsert_und_modus_wechsel(self):
         r = self.client.put("/akten/55/26/abschluss-status",
                             headers=self.headers,

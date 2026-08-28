@@ -24,6 +24,7 @@ import os
 import shutil
 import sys
 import tempfile
+import pytest
 import unittest
 from email.message import EmailMessage
 
@@ -168,6 +169,7 @@ class TestBug15AbsenderMailSignal(_DBBasis):
                          "Body-Zustellung muss die geparste Absenderadresse "
                          "als absender_email fuehren (nicht das From-Roh-Feld)")
 
+    @pytest.mark.ramicro_integration
     def test_finde_kandidaten_matcht_beteiligten_mail(self):
         from backend.db.database import get_connection
         with get_connection() as conn:
@@ -191,6 +193,7 @@ class TestBug15AbsenderMailSignal(_DBBasis):
 
 
 class TestBug16EakteKeyMismatch(_DBBasis):
+    @pytest.mark.ramicro_integration
     def test_eakte_adapter_schreibt_az_signal(self):
         from backend.db.database import get_connection
         with get_connection() as conn:
@@ -232,6 +235,7 @@ class TestBug17UmlautKfz(_DBBasis):
                 akten_matching._KFZ_MUSTER.search(kfz),
                 f"Umlaut-Kennzeichen {kfz!r} muss matchen")
 
+    @pytest.mark.ramicro_integration
     def test_finde_kandidaten_matcht_umlaut_kfz(self):
         from backend.db.database import get_connection
         with get_connection() as conn:

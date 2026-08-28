@@ -20,6 +20,7 @@ import os
 import shutil
 import sys
 import tempfile
+import pytest
 import unittest
 import uuid
 from email.message import EmailMessage
@@ -90,6 +91,7 @@ class _FkGuardTestBase(unittest.TestCase):
 
 
 class TestOnDemandAnlage(_FkGuardTestBase):
+    @pytest.mark.ramicro_integration
     def test_stelle_sqlite_akte_sicher_legt_akte_an(self):
         """Die On-demand-Anlage muss die Akte wirklich anlegen -- auch wenn
         RA-MICRO fuer die Stammdaten nicht erreichbar ist."""

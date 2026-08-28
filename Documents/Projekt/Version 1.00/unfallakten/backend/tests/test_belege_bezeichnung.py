@@ -9,6 +9,7 @@ import importlib
 import os
 import sys
 import tempfile
+import pytest
 import unittest
 
 _tmp_dir = tempfile.mkdtemp(prefix="belege_bez_")
@@ -96,6 +97,7 @@ class TestBelegeListeBezeichnung(unittest.TestCase):
 
 class TestKandidatenBezeichnung(unittest.TestCase):
 
+    @pytest.mark.ramicro_integration
     def test_kandidaten_liefern_bezeichnung(self):
         client = _setup("kandidaten")
         kopf = _auth_header(client)
@@ -110,6 +112,7 @@ class TestKandidatenBezeichnung(unittest.TestCase):
             self.assertEqual(k["bezeichnung"],
                              "Rechnung SV-HO vom 18.06.2026 (992,34 EUR)")
 
+    @pytest.mark.ramicro_integration
     def test_gutachten_kandidaten_tragen_bezeichnung(self):
         client = _setup("gutachten")
         kopf = _auth_header(client)
@@ -122,6 +125,7 @@ class TestKandidatenBezeichnung(unittest.TestCase):
         for k in lokal:
             self.assertEqual(k["bezeichnung"], "Gutachten NEUBAUER vom 17.06.2026")
 
+    @pytest.mark.ramicro_integration
     def test_abrechnungsschreiben_kandidat_traegt_bezeichnung(self):
         client = _setup("abrechnung")
         kopf = _auth_header(client)

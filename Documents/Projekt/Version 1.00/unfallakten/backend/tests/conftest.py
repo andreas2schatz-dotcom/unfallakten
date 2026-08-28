@@ -22,6 +22,19 @@ ADMIN_EMAIL / ADMIN_PASSWORT / ADMIN_NAME:
 Alle Werte sind bewusst Fix-Testkonstanten -- der produktive Betrieb
 verwendet echte .env-Konfiguration. Nur pytest laedt conftest.py
 automatisch, ausserhalb von pytest greifen diese Defaults NICHT.
+
+RAMICRO_INTEGRATION / @pytest.mark.ramicro_integration:
+    Tests, die absichtlich ECHT gegen die RA-MICRO-Datenbank der
+    Kanzlei laufen sollen (statt gegen Mocks), tragen die Markierung
+    ``@pytest.mark.ramicro_integration``. Ohne die Umgebungsvariable
+    ``RAMICRO_INTEGRATION=1`` werden sie uebersprungen (mit Klartext-
+    Grund), damit die normale Suite nicht vom laufenden Kanzleiserver
+    abhaengt -- ``RAMICRO_INTEGRATION=1 pytest ...`` fuehrt sie echt
+    aus. Der Grund fuer die Trennung: die Suite soll beantworten "habe
+    ich etwas kaputtgemacht" (nur der Code darf sich aendern), die
+    Integrationstests beantworten "stimmt unsere Annahme ueber
+    RA-MICRO noch" -- beide sind wertvoll, duerfen aber nicht dasselbe
+    rote Kreuz erzeugen.
 """
 import os
 
@@ -63,19 +76,39 @@ def _ramicro_sperrhahn(*_args, **_kwargs):
         "ein mock.patch fuer "
         "get_ramicro_connection / suche_akte_in_ramicro / "
         "suche_kandidaten_in_ramicro / suche_abgelegte_in_ramicro / "
-        "_suche_in_ramicro -- oder braucht dieser Test bewusst eine echte "
-        "Verbindung? Dann @pytest.mark.erlaubt_echte_ramicro_verbindung "
-        "setzen und begruenden."
+        "_suche_in_ramicro -- oder ist das absichtlich ein "
+        "Integrationstest? Dann @pytest.mark.ramicro_integration setzen "
+        "(siehe Modul-Docstring)."
     )
+
+
+_RAMICRO_INTEGRATION_GRUND = (
+    "Integrationstest gegen die echte RA-MICRO-Datenbank der Kanzlei -- "
+    "standardmaessig uebersprungen, damit die normale Testsuite nicht vom "
+    "laufenden Kanzleiserver abhaengt. Mit der Umgebungsvariable "
+    "RAMICRO_INTEGRATION=1 vor dem pytest-Aufruf ausfuehren, um ihn "
+    "echt gegen RA-MICRO laufen zu lassen."
+)
 
 
 def pytest_configure(config):
     config.addinivalue_line(
         "markers",
-        "erlaubt_echte_ramicro_verbindung: Opt-out aus der globalen "
-        "RA-MICRO-Verbindungssperre (siehe _ramicro_verbindungssperre in "
-        "conftest.py) -- nur mit Begruendung im Test-Docstring verwenden.",
+        "ramicro_integration: Integrationstest, der ECHT gegen die "
+        "RA-MICRO-Datenbank der Kanzlei laeuft (keine Mocks). "
+        "Standardmaessig uebersprungen; mit RAMICRO_INTEGRATION=1 als "
+        "Umgebungsvariable ausgefuehrt. Siehe Modul-Docstring in "
+        "conftest.py.",
     )
+
+
+def pytest_collection_modifyitems(config, items):
+    if os.environ.get("RAMICRO_INTEGRATION") == "1":
+        return
+    ueberspringen = pytest.mark.skip(reason=_RAMICRO_INTEGRATION_GRUND)
+    for item in items:
+        if item.get_closest_marker("ramicro_integration"):
+            item.add_marker(ueberspringen)
 
 
 @pytest.fixture(autouse=True)
@@ -92,26 +125,27 @@ def _ramicro_verbindungssperre(request):
     Datei-Liste, die jemand pflegen muss, ist dagegen kein verlaesslicher
     Schutz -- mehrere Bestandsdateien und mehrere RA-MICRO-Module
     (adress_service, ablage_service, wiedervorlage_service,
-    akten_erkennung, output_adapter, email_matching) holen sich
-    ``get_ramicro_connection`` jeweils selbst, eine Sperre auf einer
-    einzelnen Modulbindung deckt das nicht ab.
+    akten_erkennung, eakte_service, email_matching) holen sich
+    ``get_ramicro_connection`` jeweils selbst oder rufen (eakte_service)
+    sogar ``pymssql.connect`` direkt auf, eine Sperre auf einer einzelnen
+    Modulbindung deckt das nicht ab.
 
     Der Haken sitzt deshalb an der niedrigsten gemeinsamen Stelle:
-    ``pymssql.connect`` -- der einzige Ort, an dem ``connector.py``
-    tatsaechlich eine Socket-Verbindung oeffnet (sowohl
-    ``get_ramicro_connection()`` als auch ``verbindung_pruefen()``
-    importieren ``pymssql`` erst innerhalb der Funktion und rufen
-    ``pymssql.connect`` auf; das Patchen des Attributs auf dem bereits
-    importierten ``pymssql``-Modul wirkt deshalb fuer jeden Aufrufer,
+    ``pymssql.connect`` -- der einzige Ort, an dem tatsaechlich eine
+    Socket-Verbindung geoeffnet wird (das Patchen des Attributs auf dem
+    bereits importierten ``pymssql``-Modul wirkt fuer jeden Aufrufer,
     unabhaengig davon, ueber welches Zwischenmodul er kommt).
 
-    Opt-out: ``@pytest.mark.erlaubt_echte_ramicro_verbindung`` auf einem
-    Test, der bewusst real gegen RA-MICRO laufen soll. Tests, die selbst
-    gezielt ``get_ramicro_connection``, ``pymssql.connect`` oder eine der
-    oeffentlichen Suchfunktionen mocken, ueberschreiben diese Sperre fuer
-    ihre Dauer ohnehin -- ``mock.patch`` stapelt korrekt.
+    Ausnahme: bei mit ``@pytest.mark.ramicro_integration`` markierten
+    Tests und gesetztem ``RAMICRO_INTEGRATION=1`` bleibt die Sperre aus --
+    genau diese Tests SOLLEN dann echt verbinden (siehe Modul-Docstring).
+    Tests, die selbst gezielt ``get_ramicro_connection``,
+    ``pymssql.connect`` oder eine der oeffentlichen Suchfunktionen mocken,
+    ueberschreiben diese Sperre fuer ihre Dauer ohnehin -- ``mock.patch``
+    stapelt korrekt.
     """
-    if request.node.get_closest_marker("erlaubt_echte_ramicro_verbindung"):
+    if (request.node.get_closest_marker("ramicro_integration")
+            and os.environ.get("RAMICRO_INTEGRATION") == "1"):
         yield
         return
     with mock.patch("pymssql.connect", side_effect=_ramicro_sperrhahn):

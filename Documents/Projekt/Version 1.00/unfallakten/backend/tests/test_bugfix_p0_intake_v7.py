@@ -14,6 +14,7 @@ import os
 import shutil
 import sys
 import tempfile
+import pytest
 import unittest
 import uuid
 from email.message import EmailMessage
@@ -87,6 +88,7 @@ class TestBug03UploadZielAkte(_P0TestBase):
         self.assertEqual(signale.get("az"), "285/26",
                          "Ziel-Akte muss als 'az'-Signal durchgereicht werden")
 
+    @pytest.mark.ramicro_integration
     def test_ziel_akte_wird_top_kandidat_im_matching(self):
         with self.db.get_connection() as conn:
             conn.execute(
@@ -166,11 +168,13 @@ class TestBug02StillerFehler(_P0TestBase):
             )
         return bericht, mark_mock, move_mock
 
+    @pytest.mark.ramicro_integration
     def test_mail_bleibt_ungelesen_bei_registrierungsfehler(self):
         bericht, mark_mock, move_mock = self._rufe_mit_defektem_adapter()
         mark_mock.assert_not_called()
         move_mock.assert_not_called()
 
+    @pytest.mark.ramicro_integration
     def test_status_fehler_und_bericht_zaehlt_fehler(self):
         bericht, _mark, _move = self._rufe_mit_defektem_adapter()
         self.assertEqual(bericht["fehler"], 1)
