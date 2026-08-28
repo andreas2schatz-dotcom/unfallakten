@@ -36,72 +36,83 @@ from unittest import mock
 
 
 class EchteRamicroVerbindungVersucht(BaseException):
-    """Ein Fragebogen-Matching-Test hat versucht, eine ECHTE RA-MICRO-
-    Verbindung aufzubauen, statt ``suche_akte_in_ramicro`` /
-    ``suche_kandidaten_in_ramicro`` / ``suche_abgelegte_in_ramicro`` (oder
-    ``_suche_in_ramicro``) zu mocken.
+    """Ein Test hat versucht, eine ECHTE RA-MICRO-Verbindung aufzubauen,
+    statt den RA-MICRO-Zugriff zu mocken.
 
-    Erbt bewusst von ``BaseException`` statt ``Exception``: die
-    Matching-Logik faengt RA-MICRO-Fehler in der Produktion absichtlich
+    Erbt bewusst von ``BaseException`` statt ``Exception``: RA-MICRO-
+    Zugriffscode faengt Verbindungsfehler in der Produktion absichtlich
     grosszuegig mit ``except Exception`` ab (Resilienz bei echtem
     RA-MICRO-Ausfall) -- genau das wuerde einen vergessenen Mock in einem
-    Test lautlos zu einer leeren Kandidatenliste machen, statt den Test
-    hart scheitern zu lassen. ``BaseException`` rutscht durch diese
-    Except-Bloecke hindurch.
+    Test lautlos zu einem leeren Ergebnis machen, statt den Test hart
+    scheitern zu lassen. ``BaseException`` rutscht durch diese
+    Except-Bloecke hindurch. Verifiziert (2026-08-28): kein
+    ``except BaseException``/nacktes ``except:`` im Produktionscode
+    ausserhalb der Tests, ``finally``-Bloecke (Verbindungsaufraeumung)
+    laufen unbeeinflusst, weil der Sperrhahn schon vor dem eigentlichen
+    Verbindungsaufbau wirft.
     """
 
 
 def _ramicro_sperrhahn(*_args, **_kwargs):
     raise EchteRamicroVerbindungVersucht(
-        "get_ramicro_connection() haette eine ECHTE Verbindung zur "
+        "pymssql.connect() haette eine ECHTE Verbindung zur "
         "Kanzlei-RA-MICRO-Datenbank aufgebaut. Der Container hat "
         "RAMICRO_AKTIV=true UND echte Netzwerksicht auf den Kanzleiserver "
         "(2026-08-28 verifiziert) -- ein fehlender Mock in diesem Test "
         "wuerde also lesend gegen die Produktivdatenbank laufen. Fehlt "
-        "hier ein mock.patch fuer suche_akte_in_ramicro / "
+        "ein mock.patch fuer "
+        "get_ramicro_connection / suche_akte_in_ramicro / "
         "suche_kandidaten_in_ramicro / suche_abgelegte_in_ramicro / "
-        "_suche_in_ramicro?"
+        "_suche_in_ramicro -- oder braucht dieser Test bewusst eine echte "
+        "Verbindung? Dann @pytest.mark.erlaubt_echte_ramicro_verbindung "
+        "setzen und begruenden."
     )
 
 
-# Dateien, in denen Fragebogen-/Akten-Matching-Code (finde_kandidaten und
-# alles, was darunter RA-MICRO beruehrt) ohne echte Verbindung laufen muss.
-# Tests, die selbst gezielt get_ramicro_connection oder eine der oeffentlichen
-# Suchfunktionen mocken, ueberschreiben diese Sperre fuer ihre Dauer --
-# mock.patch stapelt korrekt.
-_RAMICRO_TESTSPERRE_DATEIEN = {
-    "test_fragebogen_abgelegt.py",
-    "test_fragebogen_matching.py",
-    "test_fragebogen_pipeline_klasse.py",
-    "test_fragebogen_queue_endpunkt.py",
-    "test_fragebogen_ramicro.py",
-    "test_fragebogen_zuordnung.py",
-    "test_intake_akten_matching.py",
-    "test_s17_akten_matching_e2e.py",
-}
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "erlaubt_echte_ramicro_verbindung: Opt-out aus der globalen "
+        "RA-MICRO-Verbindungssperre (siehe _ramicro_verbindungssperre in "
+        "conftest.py) -- nur mit Begruendung im Test-Docstring verwenden.",
+    )
 
 
 @pytest.fixture(autouse=True)
-def _keine_echte_ramicro_verbindung(request):
-    """Harte Sperre gegen unbemerkte echte RA-MICRO-Verbindungen in den
-    Fragebogen-/Akten-Matching-Tests (siehe
-    handover/feedback_unfallakten_geld_ssot.md-Nachbarn -- Befund
-    2026-08-28: RAMICRO_AKTIV=true im Dev-Container plus echte
-    Netzwerksicht auf 192.168.10.100 fuehrten dazu, dass ein vergessener
-    Mock in ``test_fragebogen_matching.py`` lesend gegen die
-    Produktivdatenbank der Kanzlei lief, unbemerkt, weil die
-    Matching-Logik Verbindungsfehler bewusst grosszuegig abfaengt).
+def _ramicro_verbindungssperre(request):
+    """Harte Sperre gegen unbemerkte echte RA-MICRO-Verbindungen -- gilt
+    standardmaessig fuer die GESAMTE Suite, nicht nur fuer einzelne
+    Dateien.
 
-    Wirkt nur in den Dateien aus ``_RAMICRO_TESTSPERRE_DATEIEN``. Ein
-    kuenftiger neuer RA-MICRO-Suchweg, der dort ungemockt durchlaeuft,
-    bricht den Test sofort mit ``EchteRamicroVerbindungVersucht`` ab,
-    statt still leere Ergebnisse zu liefern.
+    Befund 2026-08-28: RAMICRO_AKTIV=true im Dev-Container plus echte
+    Netzwerksicht auf den Kanzleiserver fuehrten dazu, dass mehrere Tests
+    (u.a. in test_fragebogen_matching.py) ohne Mock lesend gegen die
+    Produktivdatenbank der Kanzlei liefen, unbemerkt, weil RA-MICRO-
+    Zugriffscode Verbindungsfehler bewusst grosszuegig abfaengt. Eine
+    Datei-Liste, die jemand pflegen muss, ist dagegen kein verlaesslicher
+    Schutz -- mehrere Bestandsdateien und mehrere RA-MICRO-Module
+    (adress_service, ablage_service, wiedervorlage_service,
+    akten_erkennung, output_adapter, email_matching) holen sich
+    ``get_ramicro_connection`` jeweils selbst, eine Sperre auf einer
+    einzelnen Modulbindung deckt das nicht ab.
+
+    Der Haken sitzt deshalb an der niedrigsten gemeinsamen Stelle:
+    ``pymssql.connect`` -- der einzige Ort, an dem ``connector.py``
+    tatsaechlich eine Socket-Verbindung oeffnet (sowohl
+    ``get_ramicro_connection()`` als auch ``verbindung_pruefen()``
+    importieren ``pymssql`` erst innerhalb der Funktion und rufen
+    ``pymssql.connect`` auf; das Patchen des Attributs auf dem bereits
+    importierten ``pymssql``-Modul wirkt deshalb fuer jeden Aufrufer,
+    unabhaengig davon, ueber welches Zwischenmodul er kommt).
+
+    Opt-out: ``@pytest.mark.erlaubt_echte_ramicro_verbindung`` auf einem
+    Test, der bewusst real gegen RA-MICRO laufen soll. Tests, die selbst
+    gezielt ``get_ramicro_connection``, ``pymssql.connect`` oder eine der
+    oeffentlichen Suchfunktionen mocken, ueberschreiben diese Sperre fuer
+    ihre Dauer ohnehin -- ``mock.patch`` stapelt korrekt.
     """
-    dateiname = os.path.basename(str(request.fspath))
-    if dateiname not in _RAMICRO_TESTSPERRE_DATEIEN:
+    if request.node.get_closest_marker("erlaubt_echte_ramicro_verbindung"):
         yield
         return
-    from backend.ramicro import email_matching as _em
-    with mock.patch.object(_em, "get_ramicro_connection",
-                            side_effect=_ramicro_sperrhahn):
+    with mock.patch("pymssql.connect", side_effect=_ramicro_sperrhahn):
         yield

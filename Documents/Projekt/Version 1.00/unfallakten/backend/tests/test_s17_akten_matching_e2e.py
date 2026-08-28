@@ -59,9 +59,13 @@ class TestS17AktenMatchingE2E(unittest.TestCase):
         self._ramicro_patcher = mock.patch.object(
             akten_matching, "_suche_in_ramicro", return_value=[])
         self._ramicro_patcher.start()
+        # addCleanup statt .stop() in tearDown: scheitert setUp VOR dieser
+        # Zeile (z.B. init_db()), bricht tearDown sonst mit AttributeError
+        # ab (self._ramicro_patcher existiert nicht) und verdeckt den
+        # eigentlichen Fehler.
+        self.addCleanup(self._ramicro_patcher.stop)
 
     def tearDown(self):
-        self._ramicro_patcher.stop()
         import backend.db.database as _db
         _db.DB_PATH = self._alt_db_path
         os.environ.pop("DB_PATH", None)
