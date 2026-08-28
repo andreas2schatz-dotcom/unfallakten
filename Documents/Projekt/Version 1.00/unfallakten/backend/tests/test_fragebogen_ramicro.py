@@ -148,6 +148,16 @@ class TestFindeKandidatenProduktiveSignalKonstellation(unittest.TestCase):
         self.akte_patcher.start()
         self.addCleanup(self.akte_patcher.stop)
 
+        # Findet die (in beiden Tests gemockte) reguläre Bogen-Suche nichts,
+        # greift der Abgelegt-Rueckfall in finde_kandidaten -- der ruft
+        # suche_abgelegte_in_ramicro separat auf. Ohne diesen Mock waere das
+        # in test_nur_duennes_signal_... nur zufaellig harmlos (leere
+        # Merkmale -> frueher Abbruch vor der Verbindung).
+        self.abgelegt_patcher = mock.patch.object(
+            email_matching, "suche_abgelegte_in_ramicro", return_value=[])
+        self.abgelegt_patcher.start()
+        self.addCleanup(self.abgelegt_patcher.stop)
+
     def test_duennes_signal_zuerst_reiches_danach_liefert_kandidaten(self):
         from backend.intake.akten_matching import finde_kandidaten
         from backend.ramicro import email_matching

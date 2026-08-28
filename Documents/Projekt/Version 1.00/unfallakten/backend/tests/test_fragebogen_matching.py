@@ -49,6 +49,16 @@ class TestFragebogenMatching(unittest.TestCase):
             return_value=[])
         self.patcher.start()
         self.addCleanup(self.patcher.stop)
+        # _suche_in_ramicro deckt NICHT den Abgelegt-Rueckfall ab -- der
+        # importiert suche_abgelegte_in_ramicro separat direkt in
+        # finde_kandidaten. Ohne diesen zweiten Mock wuerde jeder Test
+        # hier, der regulaer leer ausgeht (z.B. Gegner-Mail trifft keine
+        # Mandanten-Zeile), eine ECHTE RA-MICRO-Verbindung versuchen.
+        self.abgelegt_patcher = mock.patch(
+            "backend.ramicro.email_matching.suche_abgelegte_in_ramicro",
+            return_value=[])
+        self.abgelegt_patcher.start()
+        self.addCleanup(self.abgelegt_patcher.stop)
 
     def _finde(self, **signal):
         from backend.intake.akten_matching import finde_kandidaten

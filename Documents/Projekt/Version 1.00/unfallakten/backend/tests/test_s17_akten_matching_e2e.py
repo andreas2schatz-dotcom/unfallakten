@@ -49,7 +49,19 @@ class TestS17AktenMatchingE2E(unittest.TestCase):
                 "VALUES ('31-21_AS04', '2021-04-27', 'offen')"
             )
 
+        # Ohne diesen Mock ruft finde_kandidaten fuer jedes Dokument
+        # unbedingt suche_akte_in_ramicro auf -- im Dev-Container ist
+        # RAMICRO_AKTIV=true und der Server tatsaechlich erreichbar, die
+        # Tests wuerden also lesend gegen die Produktivdatenbank der
+        # Kanzlei laufen (mit dem Risiko, dass echte Kanzleidaten die
+        # erwarteten Scores/Quellen kippen).
+        from backend.intake import akten_matching
+        self._ramicro_patcher = mock.patch.object(
+            akten_matching, "_suche_in_ramicro", return_value=[])
+        self._ramicro_patcher.start()
+
     def tearDown(self):
+        self._ramicro_patcher.stop()
         import backend.db.database as _db
         _db.DB_PATH = self._alt_db_path
         os.environ.pop("DB_PATH", None)

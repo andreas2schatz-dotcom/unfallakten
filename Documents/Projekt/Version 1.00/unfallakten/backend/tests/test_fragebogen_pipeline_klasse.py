@@ -50,12 +50,18 @@ class TestFragebogenKlasse(unittest.TestCase):
 
     def _verarbeite(self, intake_id):
         from backend.intake import pipeline
+        # _suche_in_ramicro deckt NICHT den Abgelegt-Rueckfall ab -- der
+        # Bogen-Modus ist hier immer aktiv und die SQLite-Suche findet
+        # nichts (leere Test-DB), also greift ohne den zweiten Mock bei
+        # jedem BOGEN-Testfall eine ECHTE RA-MICRO-Verbindung.
         with mock.patch.object(pipeline, "klassifiziere_stufe2",
                                 return_value=("sonstiges", 0.5)), \
              mock.patch.object(pipeline, "extrahiere_felder",
                                 return_value={"felder": {}}), \
              mock.patch("backend.intake.akten_matching._suche_in_ramicro",
-                         return_value=[]):
+                         return_value=[]), \
+             mock.patch("backend.ramicro.email_matching."
+                         "suche_abgelegte_in_ramicro", return_value=[]):
             return pipeline.verarbeite_dokument(intake_id)
 
     def _klasse(self, intake_id):
