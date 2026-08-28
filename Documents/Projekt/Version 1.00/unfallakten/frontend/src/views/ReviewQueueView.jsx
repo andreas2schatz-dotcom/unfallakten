@@ -75,9 +75,30 @@ export function sortiereGruppen(gruppen, absteigend) {
 }
 
 export function zeigeAktenanlageVorschlag(item) {
+  if (item?.ist_fragebogen) return item?.zuordnung?.ampel === "neu";
   return item?.klasse === "gutachten"
     && item?.absender_kategorie === "gutachter"
     && !item?.akte_kandidat_top;
+}
+
+export function bogenVorbefuellung(rohJson) {
+  let d = null;
+  try { d = JSON.parse(rohJson); } catch { return null; }
+  if (!d || d?.meta?.formular !== "unfallbogen") return null;
+  const m = d.mandant || {};
+  const u = d.unfall || {};
+  const ef = (d.sachschaden || {}).eigenes_fahrzeug || {};
+  return {
+    mandant: {
+      nachname: m.name || "", vorname: m.vorname || "",
+      strasse: m.strasse || "", plz: m.plz || "", ort: m.ort || "",
+      telefon: m.telefon || "", email: m.email || "",
+    },
+    unfall: {
+      unfalldatum: u.datum || "", unfallort: u.ort || "",
+      kennzeichen: ef.kennzeichen || "",
+    },
+  };
 }
 
 export function gruppenKey(item) {
@@ -2219,7 +2240,10 @@ function AktenanlageDialogLoader({ item, onClose, onAngelegt,
         } catch {}
       }
       if (aktiv) {
-        setPrefill(baueVorbefuellung(detail, vorlage));
+        const ausBogen = item.ist_fragebogen
+          ? bogenVorbefuellung(detail?.parse?.text_gesamt)
+          : null;
+        setPrefill(ausBogen || baueVorbefuellung(detail, vorlage));
         setGeladen(true);
       }
     })();

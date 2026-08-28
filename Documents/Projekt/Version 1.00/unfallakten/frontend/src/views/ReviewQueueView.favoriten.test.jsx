@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ReviewQueueView, {
   teileQueue, ampelText, FragebogenEintrag,
+  bogenVorbefuellung, zeigeAktenanlageVorschlag,
 } from "./ReviewQueueView.jsx";
 
 const api = vi.hoisted(() => ({
@@ -194,5 +195,56 @@ describe("Kinder in der Liste (ReviewQueueView)", () => {
     render(<ReviewQueueView onOpenAkte={() => {}} />);
     await waitFor(() => expect(screen.getByText(/Tim Englert/)).toBeTruthy());
     expect(screen.getByText(/PRÜFEN/)).toBeTruthy();
+  });
+});
+
+describe("bogenVorbefuellung", () => {
+  const roh = JSON.stringify({
+    meta: { formular: "unfallbogen", version: "2.1" },
+    mandant: { name: "Golovin", vorname: "Paul", strasse: "Bergstr. 1",
+               plz: "63075", ort: "Offenbach am Main",
+               telefon: "01785799951", email: "paulgolovin@web.de" },
+    unfall: { datum: "2026-08-03", ort: "Mainhausen" },
+    sachschaden: { eigenes_fahrzeug: { kennzeichen: "WÜ PG 777" } },
+  });
+
+  it("übernimmt Mandanten- und Unfalldaten", () => {
+    const p = bogenVorbefuellung(roh);
+    expect(p.mandant.nachname).toBe("Golovin");
+    expect(p.mandant.vorname).toBe("Paul");
+    expect(p.mandant.plz).toBe("63075");
+    expect(p.mandant.email).toBe("paulgolovin@web.de");
+    expect(p.unfall.unfalldatum).toBe("2026-08-03");
+    expect(p.unfall.unfallort).toBe("Mainhausen");
+    expect(p.unfall.kennzeichen).toBe("WÜ PG 777");
+  });
+
+  it("liefert null bei fremdem Inhalt", () => {
+    expect(bogenVorbefuellung("Sehr geehrte Damen")).toBeNull();
+    expect(bogenVorbefuellung('{"meta":{}}')).toBeNull();
+    expect(bogenVorbefuellung(null)).toBeNull();
+  });
+});
+
+describe("zeigeAktenanlageVorschlag", () => {
+  it("gilt für Fragebögen ohne Treffer", () => {
+    expect(zeigeAktenanlageVorschlag({
+      klasse: "fragebogen", ist_fragebogen: true,
+      zuordnung: { ampel: "neu" },
+    })).toBe(true);
+  });
+
+  it("gilt nicht für Fragebögen mit Treffer", () => {
+    expect(zeigeAktenanlageVorschlag({
+      klasse: "fragebogen", ist_fragebogen: true,
+      zuordnung: { ampel: "gruen", akte_az: "742/26" },
+    })).toBe(false);
+  });
+
+  it("der Gutachten-Fall bleibt erhalten", () => {
+    expect(zeigeAktenanlageVorschlag({
+      klasse: "gutachten", absender_kategorie: "gutachter",
+      akte_kandidat_top: null,
+    })).toBe(true);
   });
 });
