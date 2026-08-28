@@ -7,6 +7,41 @@
 
 ---
 
+## 2026-08-28 — Review-Queue für den Testbetrieb entlastet: 879 Altdokumente archiviert, Rauschfilter erweitert
+
+Anlass RA Schatz: *„Die Review-Queue ist nur im Testbetrieb. Aktuell sind fast 900 Einträge drin … mich erschlägt es so.“* Branch `fragebogen-favoritenliste`, Commit `9cf71a31`.
+
+### Befund
+
+Die Queue ist im Testbetrieb ein zweiter Posteingang: **876 der 879 wartenden Dokumente stammen aus IMAP**, nur 9 aus der E-Akte. Der Zufluss beträgt **40–80 Dokumente pro Tag** (am 28.08. bis mittags 56). Einmaliges Leeren hätte also nur rund zwei Wochen Ruhe gebracht — deshalb Altbestand und Zufluss zusammen behandelt.
+
+Absender-Verteilung: Placetel-Anrufbenachrichtigungen (107, bereits per Rausch-Regel body-verworfen), Allianz (70), Sachverständigenbüro Neubauer-Käswurm (50), HUK (46), AXA (26) — überwiegend echte Post. 864 der wartenden Dokumente trugen die Klasse `sonstiges`.
+
+### Umsetzung
+
+**Nichts gelöscht.** Der Soft-Delete aus `intake/verwerfen.py` war bereits da: `verworfen_grund/am/von` plus `korrektur_log`-Zeile, die Queue filtert `verworfen_am IS NULL`, das Frontend hat einen Papierkorb-Reiter mit Wiederherstellen-Knopf (187 Dokumente lagen dort schon als Spam/Rauschen). Neues Werkzeug `tools/queue_altbestand_archivieren.py` setzt denselben Zustand in einer Transaktion, mit `--stichtag`, `--ausnehmen` und `--dry-run`; neuer Verwerfen-Grund `altbestand` (Backend-Menge + Frontend-Label „Altbestand Testbetrieb“), damit ein Sammellauf im Papierkorb erkennbar bleibt. Ausgenommen wurden die acht Unfallfragebögen (474, 475, 476, 527, 613, 672, 727, 834) — sie werden für die Abnahme der Favoritenliste gebraucht. Das Skript nimmt zu geschützten Dokumenten automatisch deren Anhänge mit aus, sonst bliebe der Bogen stehen und seine Anlagen verschwänden.
+
+Lauf am 28.08., vorher Backup nach `/app/data/bak_vor_queue_archiv_20260828.db` (`conn.backup()`, nicht `cp`): **879 archiviert, 879 Korrektur-Log-Zeilen, 8 in der Queue verblieben.** Ein kompletter Lauf lässt sich über sein Datum zurückholen:
+
+```sql
+UPDATE intake_dokumente SET verworfen_grund=NULL, verworfen_am=NULL
+WHERE verworfen_grund='altbestand' AND verworfen_am LIKE '2026-08-28%';
+```
+
+**Rauschfilter** (`backend/registry/rausch_absender.yaml`) um acht Werbedomains erweitert, alle mit Policy `komplett`: `eiden-seminare.com`, `newsletter.anwaltverlag.de`, `news.deubner-verlag.de`, `anwaltakademie-event.de`, `zorn-seminare.de`, `mails.nomos.de`, `stempel-fabrik-mail.de`, `facebookmail.com`.
+
+**Bewusst nicht aufgenommen** (Grund als Kommentar in der YAML): `anwaltverein.de` verschickt neben der DAV-Depesche Einladungen zu Mitgliederversammlungen der Arbeitsgemeinschaften; `iww.de` neben dem BGH-Newsletter Abo- und Kündigungskorrespondenz. Beide sahen in der Häufigkeitsliste nach reinem Newsletter aus — erst die Sichtung **aller** Betreffzeilen je Domain zeigte die echte Post. Ebenso außen vor: Versicherer, Sachverständige, Behörden und die Freemailer (`gmail.com`, `outlook.com`, `web.de`), über die Mandanten schreiben — die Regel matcht domainweit.
+
+### Grenzen, bewusst so
+
+* **Der Filter löst das Volumen nicht:** die acht Domains fangen rund 7 % des Zuflusses, der Rest ist echte Post. Die Queue läuft weiter voll, solange sie im Testbetrieb niemand abarbeitet — bis zum Live-Gang ist regelmäßiges Archivieren der Weg.
+* **Die Dublettenprüfung ignoriert den Papierkorb** (`_persistenz.py`: `WHERE sha256 = ?` ohne Filter). Ein archiviertes Dokument kommt bei erneutem Import nicht zurück; der einzige Weg zurück ist Wiederherstellen. E-Mails im Postfach und Dokumente in RA-MICRO bleiben unberührt.
+* Nach einer YAML-Änderung ist ein `docker restart unfallakten-backend-dev` nötig — der Flask-Reloader reagiert nur auf `.py`, und `rausch_regel.lade_regeln()` cached.
+
+Tests: `test_rausch_aussortieren_e2e`, `test_auto_verwerfen`, `test_papierkorb_routes`, `test_intake_routes` 51 grün; Frontend `ReviewQueueView.papierkorb` + `.favoriten` 26 grün.
+
+---
+
 ## 2026-08-28 — Priorisierte Fragebogen-Liste in der Review-Queue (Branch `fragebogen-favoritenliste`)
 
 Spec `docs/superpowers/specs/2026-08-27-fragebogen-favoritenliste-design.md`, Plan `docs/superpowers/plans/2026-08-27-fragebogen-favoritenliste.md` (8 Aufgaben, TDD). Commits `60e28ef4`..`b15bcd24`. Backend 1994 grün (38 skipped), Frontend 594 grün. Codeseitig komplett, Abnahme im Betrieb offen.

@@ -17,6 +17,12 @@ Spec + Plan unter `docs/superpowers/`, Protokoll → CHANGELOG. Alle 8 Aufgaben 
 - **`unfall@`-Reiter prüfen:** Die Karte „Fragebogen-Erstkontakt" ist verschwunden, der Reiter im Übrigen unverändert. Der Erstkontakt-Weg ist stillgelegt, die Tabelle `fragebogen_erstkontakt` bleibt leer bestehen.
 - **Merken für Tests:** 18 Tests laufen absichtlich echt gegen RA-MICRO und werden normal übersprungen — Aufruf mit `RAMICRO_INTEGRATION=1 pytest -m ramicro_integration backend/tests/`.
 
+### Review-Queue im Testbetrieb sauber halten (seit 2026-08-28)
+879 Altdokumente archiviert (reversibel, Papierkorb-Reiter), acht Werbedomains in die Rausch-Regel. Protokoll → CHANGELOG. **Offen:**
+- **Regelmäßig aufräumen, solange das System nicht live ist** — Zufluss 40–80 Dokumente/Tag, der Rauschfilter fängt davon nur ~7 %. Kommando: `MSYS_NO_PATHCONV=1 docker exec unfallakten-backend-dev python /app/tools/queue_altbestand_archivieren.py --dry-run` (ohne `--dry-run` räumt es auf).
+- **Entscheidung RA Schatz:** automatischen Archivierungslauf einrichten? Falls ja, muss er **vor dem Live-Gang wieder abgeschaltet werden**, sonst verschwindet ungesehene Post.
+- **Beim Live-Gang prüfen:** Die acht neuen Rausch-Domains und die bewussten Ausnahmen (`anwaltverein.de`, `iww.de` — verschicken auch echte Post) noch einmal gegenlesen.
+
 ### Geld-SSOT + Abrechnungs-Vorschlag (2026-08-26, Branch `geld-ssot-abrechnungsvorschlag`)
 Grundsatzentscheidung RA Schatz in `docs/DECISIONS.md` („Geld-SSOT", hebt den Beschluss vom 2026-08-10 auf). Protokoll → CHANGELOG. **Offen:**
 - **Browser-Abnahme an 589/26:** Beleg-Dropdown zeigt Bezeichnungen statt Hashes; Hinweisleiste „ausgelesene Abrechnungsschreiben" in der Regulierung + Übernahme-Dialog; Kopfzahl der Übersicht = 6.256,57 € und deckungsgleich mit dem Abschlussbericht; neue Zeile „Kosten der Nachbesichtigung (brutto)" im Schaden-Tab.
