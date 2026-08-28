@@ -94,14 +94,15 @@ export function teileQueue(gruppen) {
 }
 
 const AMPEL_FARBEN = {
-  gruen:    { rand: "#1a7f37", grund: "#e8f5ec", schrift: "#1a7f37" },
-  pruefen:  { rand: "#9a6700", grund: "#fff6e0", schrift: "#9a6700" },
-  abgelegt: { rand: "#6e7781", grund: "#f0f1f3", schrift: "#57606a" },
-  neu:      { rand: "#0969da", grund: "#e8f0fb", schrift: "#0969da" },
+  gruen:    { rand: T.green, grund: T.greenBg, schrift: T.greenText },
+  pruefen:  { rand: T.amber, grund: T.amberBg, schrift: T.amberText },
+  abgelegt: { rand: T.border, grund: T.surface, schrift: T.textMuted },
+  neu:      { rand: T.blue, grund: T.blueBg, schrift: T.blueText },
+  neutral:  { rand: T.border, grund: T.surface, schrift: T.textMuted },
 };
 
 export function ampelText(zuordnung) {
-  if (!zuordnung) return { farbe: "neu", text: "" };
+  if (!zuordnung) return { farbe: "neutral", text: "" };
   if (zuordnung.ampel === "gruen") {
     const kurz = zuordnung.kurzbezeichnung;
     return { farbe: "gruen",
@@ -119,7 +120,8 @@ export function ampelText(zuordnung) {
              text: kurz ? `ABGELEGT · ${zuordnung.akte_az} · ${kurz}`
                         : `ABGELEGT · ${zuordnung.akte_az}` };
   }
-  return { farbe: "neu", text: "NEUE AKTE" };
+  if (zuordnung.ampel === "neu") return { farbe: "neu", text: "NEUE AKTE" };
+  return { farbe: "neutral", text: "" };
 }
 
 function fmtTag(iso) {
@@ -128,19 +130,22 @@ function fmtTag(iso) {
 }
 
 export function FragebogenEintrag({ item, aktiv, onClick, onVerwerfen,
-                                     onAktenanlage }) {
+                                     onAktenanlage, eingerueckt, vorgang }) {
   const kopf = item.bogen_kopf || {};
   const { farbe, text } = ampelText(item.zuordnung);
-  const f = AMPEL_FARBEN[farbe] || AMPEL_FARBEN.neu;
-  const zeigeAnlage = item.zuordnung?.ampel === "neu";
+  const f = AMPEL_FARBEN[farbe] || AMPEL_FARBEN.neutral;
+  const zeigeAnlage = !vorgang && item.zuordnung?.ampel === "neu";
   return (
     <div onClick={onClick}
       style={{
         padding: "10px 12px",
+        marginLeft: eingerueckt ? 26 : 0,
         borderBottom: `1px solid ${T.border}`,
         cursor: "pointer",
         background: aktiv ? T.accentPale : "transparent",
-        borderLeft: aktiv ? `3px solid ${T.accent}` : "3px solid transparent",
+        borderLeft: aktiv
+          ? `3px solid ${T.accent}`
+          : eingerueckt ? `2px solid ${T.accent}40` : "3px solid transparent",
       }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8,
                     marginBottom: 4 }}>
@@ -149,9 +154,11 @@ export function FragebogenEintrag({ item, aktiv, onClick, onVerwerfen,
           padding: "1px 6px", border: `1px solid ${f.rand}`,
           background: f.grund, color: f.schrift,
         }}>{text}</span>
+        <AnlageChip vorgang={vorgang} />
         <div style={{ flex: 1 }} />
         <button type="button"
           onClick={e => { e.stopPropagation(); onVerwerfen(item); }}
+          title="Dokument aus der Queue verwerfen (Soft-Delete)"
           aria-label="Dokument verwerfen"
           style={{
             border: `1px solid ${T.redLight}`, background: T.redBg,
@@ -492,6 +499,16 @@ function QueueEintrag({ item, aktiv, onClick, onVerwerfen, eingerueckt, vorgang 
       )}
     </div>
   );
+}
+
+function KindZeile({ item, aktiv, onClick, onVerwerfen, onAktenanlage, vorgang }) {
+  if (item.ist_fragebogen) {
+    return <FragebogenEintrag item={item} aktiv={aktiv} onClick={onClick}
+      onVerwerfen={onVerwerfen} onAktenanlage={onAktenanlage}
+      eingerueckt vorgang={vorgang} />;
+  }
+  return <QueueEintrag item={item} aktiv={aktiv} onClick={onClick}
+    onVerwerfen={onVerwerfen} eingerueckt vorgang={vorgang} />;
 }
 
 const VERWERFEN_GRUENDE = [
@@ -2052,7 +2069,7 @@ export default function ReviewQueueView({ onOpenAkte, initialIntakeId = null, on
                 </div>
               )}
               {boegen.length > 0 && (
-                <div style={{ background: "#fbf9f2",
+                <div style={{ background: T.surface,
                               borderBottom: `2px solid ${T.border}` }}>
                   <div style={{
                     padding: "6px 12px", fontSize: T.textXs, fontWeight: 700,
@@ -2061,11 +2078,21 @@ export default function ReviewQueueView({ onOpenAkte, initialIntakeId = null, on
                     ⭐ UNFALLFRAGEBÖGEN ({boegen.length})
                   </div>
                   {boegen.map(g => (
-                    <FragebogenEintrag key={g.eintrag.id} item={g.eintrag}
-                      aktiv={aktivId === g.eintrag.id}
-                      onClick={() => setAktivId(g.eintrag.id)}
-                      onVerwerfen={setVerwerfenDok}
-                      onAktenanlage={it => setAnlageDialog({ item: it })} />
+                    <React.Fragment key={g.eintrag.id}>
+                      <FragebogenEintrag item={g.eintrag}
+                        aktiv={aktivId === g.eintrag.id}
+                        onClick={() => setAktivId(g.eintrag.id)}
+                        onVerwerfen={setVerwerfenDok}
+                        onAktenanlage={it => setAnlageDialog({ item: it })}
+                        vorgang={vorgangFuerEintrag(g.eintrag, vorgaenge, queue)} />
+                      {g.kinder.map(k => (
+                        <KindZeile key={k.id} item={k} aktiv={aktivId === k.id}
+                          onClick={() => setAktivId(k.id)}
+                          onVerwerfen={setVerwerfenDok}
+                          onAktenanlage={it => setAnlageDialog({ item: it })}
+                          vorgang={vorgangFuerEintrag(k, vorgaenge, queue)} />
+                      ))}
+                    </React.Fragment>
                   ))}
                 </div>
               )}
@@ -2086,9 +2113,10 @@ export default function ReviewQueueView({ onOpenAkte, initialIntakeId = null, on
                     onVerwerfen={setVerwerfenDok}
                     vorgang={vorgangFuerEintrag(gruppe.eintrag, vorgaenge, queue)} />
                   {gruppe.kinder.map(k => (
-                    <QueueEintrag key={k.id} item={k} aktiv={aktivId === k.id}
+                    <KindZeile key={k.id} item={k} aktiv={aktivId === k.id}
                       onClick={() => setAktivId(k.id)}
-                      onVerwerfen={setVerwerfenDok} eingerueckt
+                      onVerwerfen={setVerwerfenDok}
+                      onAktenanlage={it => setAnlageDialog({ item: it })}
                       vorgang={vorgangFuerEintrag(k, vorgaenge, queue)} />
                   ))}
                 </React.Fragment>

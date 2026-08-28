@@ -1,9 +1,22 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import {
+import ReviewQueueView, {
   teileQueue, ampelText, FragebogenEintrag,
 } from "./ReviewQueueView.jsx";
+
+const api = vi.hoisted(() => ({
+  apiIntake: {
+    queue: vi.fn(() => Promise.resolve({ eintraege: [] })),
+    klassen: vi.fn(() => Promise.resolve({ klassen: [] })),
+    ereignistypen: vi.fn(() => Promise.resolve({ typen: [] })),
+    papierkorb: vi.fn(() => Promise.resolve({ eintraege: [] })),
+  },
+  apiAktenanlage: { offen: vi.fn(() => Promise.resolve({ vorgaenge: [], ramicro_verfuegbar: true })) },
+  tokenStore: { getAccess: vi.fn(() => "test-token") },
+  API_BASE: "http://localhost:5000",
+}));
+vi.mock("../api", () => api);
 
 const bogen = (id, zuordnung) => ({
   eintrag: {
@@ -134,5 +147,52 @@ describe("FragebogenEintrag", () => {
       screen.getByRole("button", { name: /Akte anlegen/ }));
     expect(onAktenanlage).toHaveBeenCalledTimes(1);
     expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("zeigt bei laufendem Anlage-Vorgang den Status statt des Knopfes", () => {
+    render(<FragebogenEintrag
+      item={{ ...basis, zuordnung: { ampel: "neu" } }}
+      aktiv={false} onClick={() => {}} onVerwerfen={() => {}}
+      onAktenanlage={() => {}}
+      vorgang={{ status: "laeuft", warnung: false }} />);
+    expect(screen.queryByRole("button", { name: /Akte anlegen/ })).toBeNull();
+    expect(screen.getByText(/Aktenanlage läuft/)).toBeTruthy();
+  });
+});
+
+describe("Kinder in der Liste (ReviewQueueView)", () => {
+  const kopf = (name) => ({ mandant_name: name, kennzeichen: "OF-XX 1",
+                            unfalltag: "2026-08-01" });
+
+  it("Anhänge eines Fragebogens verschwinden nicht", async () => {
+    api.apiIntake.queue.mockResolvedValueOnce({ eintraege: [
+      { id: 1, klasse: "fragebogen", ist_fragebogen: true,
+        queue_status: "bereit_zur_review", erstellt_am: "2026-08-15 09:00",
+        zustellung_id: 100, parent_zustellung_id: null,
+        bogen_kopf: kopf("Erika Mustermann"),
+        zuordnung: { ampel: "gruen", akte_az: "100/26" } },
+      { id: 2, klasse: "lichtbilder", ist_fragebogen: false,
+        queue_status: "bereit_zur_review", erstellt_am: "2026-08-15 09:05",
+        zustellung_id: 101, parent_zustellung_id: 100 },
+    ] });
+    render(<ReviewQueueView onOpenAkte={() => {}} />);
+    await waitFor(() => expect(screen.getByText(/Erika Mustermann/)).toBeTruthy());
+    expect(screen.getByText("lichtbilder")).toBeTruthy();
+  });
+
+  it("ein Fragebogen als Anhang bekommt Chip und Ampel statt der schlichten Zeile", async () => {
+    api.apiIntake.queue.mockResolvedValueOnce({ eintraege: [
+      { id: 3, klasse: "sonstiges", ist_fragebogen: false,
+        queue_status: "bereit_zur_review", erstellt_am: "2026-08-14 09:00",
+        zustellung_id: 200, parent_zustellung_id: null },
+      { id: 4, klasse: "fragebogen", ist_fragebogen: true,
+        queue_status: "bereit_zur_review", erstellt_am: "2026-08-14 09:10",
+        zustellung_id: 201, parent_zustellung_id: 200,
+        bogen_kopf: kopf("Tim Englert"),
+        zuordnung: { ampel: "pruefen", kandidaten_anzahl: 2 } },
+    ] });
+    render(<ReviewQueueView onOpenAkte={() => {}} />);
+    await waitFor(() => expect(screen.getByText(/Tim Englert/)).toBeTruthy());
+    expect(screen.getByText(/PRÜFEN/)).toBeTruthy();
   });
 });
