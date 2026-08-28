@@ -7,6 +7,74 @@
 
 ---
 
+## 2026-08-28 — Priorisierte Fragebogen-Liste in der Review-Queue (Branch `fragebogen-favoritenliste`)
+
+Spec `docs/superpowers/specs/2026-08-27-fragebogen-favoritenliste-design.md`, Plan `docs/superpowers/plans/2026-08-27-fragebogen-favoritenliste.md` (8 Aufgaben, TDD). Commits `60e28ef4`..`b15bcd24`. Backend 1994 grün (38 skipped), Frontend 594 grün. Codeseitig komplett, Abnahme im Betrieb offen.
+
+**Anlass.** Unfallfragebögen von der Website landeten in der Review-Queue als Klasse `sonstiges` — optisch ununterscheidbar von Spam und Rundschreiben. Am 2026-08-27 lagen acht Bögen seit dem 4. bis 15. August unbearbeitet. Nachprüfung gegen RA-MICRO: **alle acht gehörten zu bestehenden Akten**, kein einziges Neumandat.
+
+### Warum die Bestandsprüfung versagte
+
+| Befund | Ursache |
+|---|---|
+| Sechs von acht Bögen fanden gar keine Akte | `akten_matching.py` übergab `mails[0]` — den Mail-Absender, also `unfall@anwalt-offenbach.de`, das eigene Postfach. `mandant.email` aus dem Bogen wurde nie benutzt |
+| Kennzeichen trafen nicht | Der Regex verlangte `OF-BR 1612`; eingetippt wurde `WÜ PG 777`, `OF A-418`, `OFGM891`, `OF CJ 828`. Einer von sechs traf das Muster |
+| Kennzeichen trafen fremde Akten | `_suche_kfz_in_sqlite` suchte ohne `rolle`-Filter — ein Gegner-Kennzeichen konnte eine fremde Mandantenakte treffen |
+| „Name + Unfalltag" fiel immer still aus | Der Bogen liefert ISO (`2026-03-28`), das Muster erwartete `28.03.2026` |
+| Die Queue-Liste kannte keine Fragebögen | `GET /intake/queue` las aus `signale_json` nur `absender_kategorie`, nicht `dokument_art` |
+| Doppelweg | `_fragebogen_neuer_mandant_stub` war die einzige Fragebogen-Funktion **ohne** `review_pflicht_aktiv()`-Guard |
+
+### Gebaut
+
+**Signalbildung** — neues Modul `backend/intake/fragebogen_signale.py`. Reine Lesefunktion ohne DB-Zugriff: Mandanten-E-Mail, eigenes und gegnerisches Kennzeichen, Nachname, Unfalltag kommen aus den **strukturierten Bogenfeldern** statt aus Regex-Raten im Volltext. Kennzeichen werden normalisiert (alles außer Buchstaben/Ziffern raus, großschreiben) und plausibilisiert — `k.A. Fußgänger` und `siehe Akte` werden verworfen, die vier realen Schreibweisen alle erkannt.
+
+Die Signale entstehen **in der Pipeline**, bei jedem Lauf neu aus dem gespeicherten Bogen-JSON — nicht beim Einliefern in `signale_json`. Dadurch ist die Ableitung idempotent, es gibt nur eine Wahrheitsquelle, und die acht Altfälle heilen allein über den vorhandenen Reparse-Knopf: kein Einmal-Skript, keine Datenmigration.
+
+**Dokumentenklasse `fragebogen`** (Registry-YAML, `bezeichnung_label: "Unfallfragebogen"`). Nicht über den Textklassifikator — ein Signal allein erreicht nur `SIGNAL_KONFIDENZ = 0.55` und bliebe unter der Schwelle. Ein Bogen ist aber schema-validiert und keine Vermutung, deshalb stempelt die Pipeline die Klasse selbst mit `klasse_quelle='fragebogen'` und Konfidenz 1,0. Der Zweig für bindende Klassen (bisher nur `manuell`) wurde erweitert, damit eine manuell gesetzte Klasse weiter Vorrang behält. Kein Ereignistyp — ein Bogen löst kein Geld- oder Belegereignis aus.
+
+**Suche.** `akten_matching.py` liest die neuen Schlüssel mit; die bisherigen bleiben unangetastet, damit andere Dokumentarten unverändert laufen. Neu in `ramicro/email_matching.py`: `suche_kandidaten_in_ramicro()` über `varM-KZ`, `varG-KZ`, `varU-TAG` und Nachname — liefert **mehrere** Kandidaten statt eines Einzeltreffers; `suche_akte_in_ramicro()` blieb unverändert. Alle Adress- und Namenssuchen laufen rollenrichtig über `iBeteiligtenArt = 1` (Auftraggeber), sonst treffen Versicherer-, Gutachter- und Behördenadressen mit.
+
+Gewichtung: Aktenzeichen 1,0 · Mandanten-E-Mail 0,8 · eigenes Kennzeichen 0,8 · Unfalltag + Nachname 0,7 · Unfalltag allein 0,5 · Gegner-Kennzeichen 0,5 · Nachname allein 0,4.
+
+**Ampel** (`backend/intake/fragebogen_zuordnung.py`) — vier Zustände statt der geplanten drei:
+
+| Zustand | Bedingung | Anzeige |
+|---|---|---|
+| 🟢 grün | genau ein laufender Kandidat ab Score 0,7 | `→ 751/26 · Hartmann/Guthier` |
+| 🟡 prüfen | mehrere starke Kandidaten oder nur schwache Merkmale | `PRÜFEN · n Kandidaten` |
+| 🔵 abgelegt | passt nur zu einer abgeschlossenen Akte | Ablagedatum, **kein** Anlage-Knopf |
+| 🔵 neue Akte | kein Kandidat | `NEUE AKTE` + Knopf „Akte anlegen" |
+
+Der vierte Zustand kam während der Umsetzung dazu (Freigabe RA Schatz, `24d82f5a`): Bogen 672 gehört zu Akte 749/26, die am 26.08. abgelegt wurde. Der Ablage-Filter hätte sie ausgeblendet, der Bogen wäre als „NEUE AKTE" erschienen und hätte eine Dublette zu einem abgeschlossenen Fall erzeugt. Die Rückfall-Suche ohne Ablage-Filter läuft nur, wenn sonst **kein starker** Kandidat vorliegt — ein zufälliger schwacher Nachnamens-Treffer darf eine perfekt passende abgelegte Akte nicht verdecken.
+
+Jeder Eintrag nennt die Trefferbegründung im Klartext („Mandanten-E-Mail", „eigenes Kennzeichen", „Unfalltag + Name").
+
+**Queue-Endpunkt.** `GET /intake/queue` liefert je Eintrag zusätzlich `ist_fragebogen`, `bogen_kopf` und `zuordnung` — ohne zweiten Endpunkt und ohne Nachladen je Zeile, da alles bereits in `parse_json` steht.
+
+**Frontend** (`ReviewQueueView.jsx`): angepinnte Sektion „⭐ Unfallfragebögen (n)" oben, darunter „Übrige Dokumente"; ist sie leer, entfällt sie ganz. Die Darstellungsentscheidung fällt **je Eintrag** (Dispatcher `KindZeile`), nicht je Gruppe — sonst wurden Anhänge eines Bogens verschluckt und ein Bogen als Anhang einer fremden E-Mail blieb eine gewöhnliche Zeile ohne Ampel. Ampelfarben nutzen die Gestaltungstoken `T.green/T.amber/T.blue`, nicht feste Hex-Werte (Dunkelmodus- und clio-fähig). `zeigeAktenanlageVorschlag` greift jetzt auch beim Fragebogen; der `AktenanlageDialog` wird aus den Bogendaten vorbefüllt (Name, Anschrift, Telefon, E-Mail, Kennzeichen, Unfalltag), das Anlage-Banner nennt dabei den Mandanten statt „Gutachten".
+
+**Doppelweg stillgelegt** (`b15bcd24`). Der Guard `review_pflicht_aktiv()` sitzt jetzt in `_fragebogen_neuer_mandant_stub`; entfernt wurden `FragebogenErstkontaktKarte` samt Einbindung, die API-Helfer `fragebogenErstkontakt`/`fragebogenErstkontaktStatus`, die beiden Routen in `email_routes.py` und der Zähler `fragebogen_neu` im Dashboard (`gesamt` = `emails_nicht_zugeordnet`). Die Tabelle `fragebogen_erstkontakt` bleibt bestehen — sie ist leer, eine Migration nur zum Löschen wäre unnötiges Risiko.
+
+### Besonderheiten aus den Prüfrunden
+
+**K-1 (kritisch, `539ad70f`):** `import_service` legt beim Einliefern zuerst ein dünnes `{"dokument_art": "fragebogen"}`-Signal ohne Merkmale an, die Pipeline hängt das reiche Signal-Dict erst danach an. `finde_kandidaten` griff das **erste** Signal mit `dokument_art == 'fragebogen'` heraus — produktiv immer das dünne. Die RA-MICRO-Bogensuche lief dadurch nie mit brauchbaren Merkmalen. Jetzt wird der Bogen-Modus über „irgendein Signal trägt `dokument_art`" erkannt und die Merkmale kommen aus den über alle Zustellungen aggregierten Listen — reihenfolge- und mengenunabhängig.
+
+**K-1 (kritisch, `f1ec75a5`):** RA-MICRO liefert `dtAblage` als `datetime`, nicht als String; `json.dumps` in der Pipeline hatte kein `default=`, das Dokument fiel in den Fehlerzustand — die Ampel „abgelegt" erschien nie. Wandlung jetzt an der Quelle über `ablage_service._datum()`.
+
+**Reloader-Falle Migration 71 → Migration 72 + Guard (`9f107861`, `50b12fd3`).** Migration 71 wurde vom Flask-Reloader mitten in der Bearbeitung erwischt: Eintrag im `MIGRATIONS`-Dict vorhanden, Dispatch-Zweig noch nicht — der generische `else`-Zweig führte den Kommentar-Platzhalter als No-Op aus und stempelte die Version trotzdem. Dasselbe Muster wie bei 54/55/58/60/66. **Der Mechanismus ist jetzt geschlossen:** `run_migrations()` bricht mit `RuntimeError` ab, sobald ein reiner Kommentar-Platzhalter ohne Dispatch-Zweig auftaucht, und stempelt die Version nicht. `_ist_reiner_kommentar_platzhalter()` prüft inhaltlich, keine Ausnahmeliste nötig. Neuer Guard-Test `test_migration_dispatch_guard.py` sichert zu, dass jeder Platzhalter einen Zweig hat — nachgezählt: 67 von 71 Einträgen sind Platzhalter, alle 67 haben einen Zweig.
+
+**RA-MICRO-Verbindungssperre in Tests (`1b81fb9c`, `080881b7`, `be0cd214`).** Der Dev-Container hat `RAMICRO_AKTIV=true` und echte Netzwerksicht auf den Kanzleiserver — vergessene Mocks liefen unbemerkt lesend gegen die Produktivdatenbank, weil die Matching-Logik Verbindungsfehler großzügig abfängt (per Timing-Vergleich über 12 Testläufe verifiziert). Die dateilistenbasierte Sperre deckte weder neun weitere Testdateien noch die RA-MICRO-Module ab, die sich die Verbindung selbst holen. Der Haken sitzt jetzt an der einzigen Stelle, an der wirklich eine Verbindung aufgeht: **`pymssql.connect`, autouse für die gesamte Suite.**
+
+Dabei wurden 18 Tests in 6 Dateien sichtbar, die **absichtlich** echt gegen RA-MICRO laufen (Entscheidung RA Schatz: nicht auf nachgestellte Daten umstellen, die echten Daten bleiben die Prüfung). Beide Anliegen — „habe ich etwas kaputtgemacht" und „stimmt unsere Annahme über RA-MICRO noch" — saßen im selben roten Kreuz. Neue Markierung `@pytest.mark.ramicro_integration` (registriert in `conftest.py`, keine `pytest.ini`): ohne Umgebungsvariable werden sie mit Klartext-Grund übersprungen, mit `RAMICRO_INTEGRATION=1` laufen sie und die Sperre bleibt für genau sie aus.
+
+```bash
+RAMICRO_INTEGRATION=1 pytest -m ramicro_integration backend/tests/
+```
+
+**W-2 (`838a5454`):** Der Queue-Endpunkt erkennt Bögen jetzt über `payload_typ == 'text'` statt über `klasse == 'fragebogen'` — sonst lieferten Queue- und Detail-Endpunkt für dieselbe Zeile gegenteilige Antworten, solange kein Reparse gelaufen war (alle acht Altbögen tragen noch `sonstiges`).
+
+---
+
 ## 2026-08-27 — Abschlussbericht auf dem Kanzleibriefbogen + Umsatzsteuer der RA-Gebühren
 
 Branch `geld-ssot-abrechnungsvorschlag`. Ausgelöst durch RA Schatz beim Gegenlesen des Berichts zu 589/26. Backend 1923 grün (20 skipped), Frontend 571 grün.

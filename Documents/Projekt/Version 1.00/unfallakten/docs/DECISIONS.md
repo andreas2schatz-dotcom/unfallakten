@@ -5,6 +5,57 @@ Format: Entscheidung → Grund → Alternative → Konsequenz.
 
 ---
 
+## Fragebogen-Zuordnung in der Review-Queue (RA Schatz, 2026-08-27/28)
+
+### Die Review-Queue ist der einzige Arbeitsort für Unfallfragebögen
+
+**Entscheidung:** Der Erstkontakt-Weg (Tabelle `fragebogen_erstkontakt`, eigene Karte im `unfall@`-Reiter, eigener Dashboard-Zähler) wird stillgelegt. Bögen werden ausschließlich über die Review-Queue bearbeitet.
+
+**Grund:** Zwei Arbeitsorte für dieselbe Sache heißt: einer wird übersehen. `_fragebogen_neuer_mandant_stub` war zudem die einzige Fragebogen-Funktion ohne `review_pflicht_aktiv()`-Guard und damit ein zweiter Schreibweg an der Freigabe vorbei — gegen die Kern-Invariante `INTAKE_REVIEW_PFLICHT`. Praktisch war der Weg ohnehin tot: die Tabelle hatte 0 Zeilen, elf von zwölf historischen Versuchen scheiterten mit `no such table`.
+
+**Alternative:** Beide Wege pflegen und synchron halten — verworfen, doppelte Pflege ohne Nutzen.
+
+**Konsequenz:** Die Tabelle `fragebogen_erstkontakt` bleibt bestehen (leer, ohne Wirkung) — eine Migration nur zum Löschen wäre unnötiges Risiko. `gesamt` im Dashboard-Eingangsblock besteht nur noch aus `emails_nicht_zugeordnet`.
+
+### Vier Ampelzustände statt drei — „abgelegt“ ist kein Neumandat
+
+**Entscheidung:** Passt ein Bogen nur zu einer abgeschlossenen Akte, bekommt er einen eigenen Zustand mit Ablagedatum und **ohne** Knopf „Akte anlegen“.
+
+**Grund:** An den echten Bögen aufgefallen: Bogen 672 gehört zu Akte 749/26, die am 26.08. abgelegt wurde. Der Ablage-Filter blendet abgelegte Akten aus — der Bogen wäre als „NEUE AKTE“ erschienen und hätte per Knopfdruck eine Dublette zu einem abgeschlossenen Fall erzeugt.
+
+**Alternative:** Den Ablage-Filter generell lockern — verworfen, weil dann jede Bestandssuche wieder Altakten mitschleppt. Die Rückfall-Suche ohne Filter läuft deshalb nur, wenn sonst **kein starker** Kandidat (Score ≥ 0,7) vorliegt; ein zufälliger schwacher Nachnamens-Treffer darf eine perfekt passende abgelegte Akte nicht verdecken.
+
+**Konsequenz:** Der Sachbearbeiter entscheidet bei diesem Zustand von Hand — Akte reaktivieren oder Bogen der alten Akte zuordnen. Kein automatischer Weg.
+
+### Merkmale aus strukturierten Bogenfeldern, nicht aus dem Volltext
+
+**Entscheidung:** Bei Fragebögen kommen Aktenzeichen, Mandanten-E-Mail, Kennzeichen, Nachname und Unfalltag aus den Bogenfeldern; die Regex-Extraktion aus dem Volltext bleibt den übrigen Dokumentarten vorbehalten. Die Ableitung geschieht **in der Pipeline** bei jedem Lauf neu, nicht einmalig beim Einliefern in `signale_json`.
+
+**Grund:** Bei einem schema-validierten Formular ist Regex-Raten der falsche Weg — von sechs realen Kennzeichen traf genau eines das erwartete Muster. Die Ableitung in der Pipeline ist idempotent, hat mit dem Payload nur eine Wahrheitsquelle, und Altfälle heilen über den vorhandenen Reparse-Knopf statt über ein Einmal-Skript.
+
+**Konsequenz:** Alle Adress- und Namenssuchen laufen rollenrichtig (`iBeteiligtenArt = 1` in RA-MICRO, `rolle`-Filter in SQLite) — sonst treffen Versicherer-, Gutachter- und Behördenadressen mit, und ein Gegner-Kennzeichen könnte eine fremde Mandantenakte treffen.
+
+### RA-MICRO-Integrationstests laufen gegen echte Daten und werden markiert, nicht gemockt
+
+**Entscheidung:** Die 18 Tests, die absichtlich gegen die Kanzlei-Datenbank laufen, werden **nicht** auf nachgestellte Daten umgestellt. Sie tragen `@pytest.mark.ramicro_integration`, werden in der normalen Suite übersprungen und nur mit `RAMICRO_INTEGRATION=1` ausgeführt. Die generelle Verbindungssperre hängt an `pymssql.connect`, autouse für die gesamte Suite.
+
+**Grund:** Wortlaut RA Schatz sinngemäß: die echten Daten *sind* die Prüfung. Zwei verschiedene Fragen saßen im selben roten Kreuz — „habe ich etwas kaputtgemacht“ (Suite, darf nur auf Codeänderungen reagieren) und „stimmt unsere Annahme über RA-MICRO noch“ (Integrationstest, muss an echte Daten und darf ausfallen, wenn der Server aus ist).
+
+**Alternative:** Sperre über eine gepflegte Liste betroffener Testdateien — verworfen: sie deckte neun weitere Dateien und die RA-MICRO-Module nicht ab, die sich die Verbindung selbst holen. Eine Liste, die jemand pflegen muss, ist kein verlässlicher Schutz.
+
+**Konsequenz:** Ein vergessener Mock läuft nicht mehr unbemerkt lesend gegen die Produktivdatenbank (der Dev-Container hat `RAMICRO_AKTIV=true` und Netzwerksicht auf den Kanzleiserver; die Matching-Logik fängt Verbindungsfehler großzügig ab, es fiel nie auf). Aufruf: `RAMICRO_INTEGRATION=1 pytest -m ramicro_integration backend/tests/`.
+
+### Migrationen scheitern laut statt still (technisch, 2026-08-28)
+
+**Entscheidung:** `run_migrations()` bricht mit `RuntimeError` ab, sobald ein Eintrag im `MIGRATIONS`-Dict ein reiner Kommentar-Platzhalter ohne passenden Dispatch-Zweig ist — und stempelt die Version **nicht**.
+
+**Grund:** Der generische `else`-Zweig führte solche Platzhalter als No-Op aus und setzte die Versionsnummer trotzdem. Genau so hat der Flask-Reloader die Migrationen 54, 55, 58, 60, 66 und 71 verschluckt: Eintrag im Dict schon da, Zweig noch nicht geschrieben. Weil `run_migrations()` nur `version > current` betrachtet, wird die verschluckte Migration nie nachgeholt — die Spalte fehlt, die Version behauptet das Gegenteil.
+
+**Konsequenz:** Migration 72 holt die Reparatur von 71 nach; `test_migration_dispatch_guard.py` sichert für die Zukunft zu, dass jeder Platzhalter einen Zweig hat (67 von 71 Einträgen sind Platzhalter, alle mit Zweig). Die alte Arbeitsregel „Migration atomar in einem Edit schreiben“ bleibt sinnvoll, ist aber nicht mehr die einzige Absicherung.
+
+---
+
+
 ## Abschlussbericht und Klageschrift (RA Schatz, 2026-08-27)
 
 ### Die Umsatzsteuer der Anwaltsgebühren ist bei Vorsteuerabzug kein erstattungsfähiger Schaden
