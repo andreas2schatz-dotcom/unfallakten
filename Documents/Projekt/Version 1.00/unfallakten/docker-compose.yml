@@ -6,7 +6,10 @@
 # Neubauen: docker compose up --build
 # Stoppen:  docker compose down
 #
-# HINWEIS: E-Akte-Mount geht nach jedem Docker-/PC-Neustart verloren und muss
+# HINWEIS: E-Akte-Mount geht nach jedem Docker-/PC-Neustart verloren.
+# Bequemster Weg: PowerShell im Projektordner -> .	ools\eakte_mount.ps1
+# (idempotent, liest .env, startet das Backend bei Bedarf neu).
+# Von Hand geht es so -- der Mount muss
 # in der DOCKER-DESKTOP-VM erneuert werden (nicht in der Standard-WSL-Distro!).
 # Zugangsdaten: EAKTE_SMB_USER / EAKTE_SMB_PASSWORD in .env (Benutzername
 # enthält ein Leerzeichen -> einfache Anführungszeichen sind Pflicht).
