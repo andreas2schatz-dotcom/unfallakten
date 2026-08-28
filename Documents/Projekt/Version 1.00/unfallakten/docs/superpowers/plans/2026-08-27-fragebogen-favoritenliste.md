@@ -2246,11 +2246,13 @@ export function FragebogenEintrag({ item, aktiv, onClick, onVerwerfen,
         {[kopf.kennzeichen, fmtTag(kopf.unfalltag)]
           .filter(Boolean).join(" · ")}
       </div>
-      {item.zuordnung?.begruendung && (
+      {(item.zuordnung?.begruendung || item.zuordnung?.abgelegt_am) && (
         <div style={{ fontSize: T.textXs, color: T.textMuted, marginTop: 2 }}>
-          Treffer: {item.zuordnung.begruendung}
-          {item.zuordnung.abgelegt_am
-            && ` · abgelegt ${fmtTag(item.zuordnung.abgelegt_am)}`}
+          {[item.zuordnung.begruendung
+              ? `Treffer: ${item.zuordnung.begruendung}` : null,
+            item.zuordnung.abgelegt_am
+              ? `abgelegt ${fmtTag(item.zuordnung.abgelegt_am)}` : null,
+           ].filter(Boolean).join(" · ")}
         </div>
       )}
       <div style={{ fontSize: T.textXs, color: T.textFaint, marginTop: 2 }}>
