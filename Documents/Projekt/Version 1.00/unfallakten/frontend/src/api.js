@@ -429,17 +429,6 @@ export const emailImport = {
   vorlageSpeichern: (d) => request('/email/import/absender-vorlagen', { method: 'POST', body: JSON.stringify(d) }),
   vorlageAktualisieren: (id, d) => request(`/email/import/absender-vorlagen/${id}`, { method: 'PATCH', body: JSON.stringify(d) }),
   vorlageLoeschen: (id) => request(`/email/import/absender-vorlagen/${id}`, { method: 'DELETE' }),
-  // Fragebogen-Erstkontakte (PRD-22d)
-  fragebogenErstkontakt: (params = {}) => {
-    const qs = new URLSearchParams(
-      Object.fromEntries(Object.entries(params).filter(([,v]) => v != null && v !== ''))
-    ).toString();
-    return request(`/email/fragebogen-erstkontakt${qs ? '?' + qs : ''}`);
-  },
-  fragebogenErstkontaktStatus: (id, status) => request(
-    `/email/fragebogen-erstkontakt/${id}/status`,
-    { method: 'PATCH', body: JSON.stringify({ status }) }
-  ),
 };
 
 // ─────────────────────────────────────────────────────────────

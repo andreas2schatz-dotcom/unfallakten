@@ -1096,8 +1096,17 @@ def _fragebogen_neuer_mandant_stub(fragebogen: dict, parsed: dict,
                                     bericht: dict) -> None:
     """
     Stub: Speichert Fragebogen-Daten in fragebogen_erstkontakt.
-    Keine Akte-Anlage – das ist PRD-22d.
+
+    S1.9d / K-P1: unter INTAKE_REVIEW_PFLICHT NICHT AKTIV -- Frageboegen
+    werden ausschliesslich ueber die Review-Queue bearbeitet.
     """
+    from ..intake.feature_flags import review_pflicht_aktiv
+    if review_pflicht_aktiv():
+        logger.debug(
+            "K-P1: _fragebogen_neuer_mandant_stub uebersprungen -- "
+            "Fragebogen liegt bereits in der Review-Queue")
+        return
+
     with get_connection() as conn:
         conn.execute(
             """

@@ -60,7 +60,7 @@ INTAKE_PFADE = (
 BEKANNTE_ALT_AUFRUFER = {
     # Zeilen-Drift durch E-Mail-Hotfixes 34342daa/8e9b50ea (2026-08-06):
     # per git-Diff verifiziert, dass es dieselben 4 Alt-Aufrufer sind.
-    ("email_import/import_service.py", "registriere_dokument"): {324, 784, 814, 1182},
+    ("email_import/import_service.py", "registriere_dokument"): {324, 784, 814, 1191},
     ("pdf/upload_service.py",         "registriere_dokument"):    {171},
     ("pdf/upload_service.py",         "setze_schadenpositionen"): {293},
     ("routers/eakte_routes.py",       "registriere_dokument"):    {254},

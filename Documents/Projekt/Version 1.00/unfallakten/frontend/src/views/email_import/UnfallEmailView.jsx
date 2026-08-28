@@ -5,7 +5,6 @@ import { IMAP_CONFIG, IMPORT_STEPS, normalisiereLogEintrag } from "../../config/
 import { Card, Toast } from "../../components/common.jsx";
 import { emailImport as apiEmail, request } from "../../api.js";
 import ImapKonfigDialog from "./components/ImapKonfigDialog.jsx";
-import FragebogenErstkontaktKarte from "./components/FragebogenErstkontaktKarte.jsx";
 import EmailKarte from "./components/EmailKarte.jsx";
 import EmailDetailView from "./EmailDetailView.jsx";
 
@@ -57,7 +56,6 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
   const [showKonfigDialog, setShowKonfigDialog] = useState(false);
 
   const [zuordnungState, setZuordnungState] = useState({});
-  const [fragebogenListe, setFragebogenListe] = useState([]);
   const [streamFilter,   setStreamFilter]   = useState("alle");
   const [streamSuche,    setStreamSuche]    = useState("");
   const [ansichtsModus,  setAnsichtsModus]  = useState("stream");
@@ -95,9 +93,6 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
       .then(d => { if (d?.log) setLog(d.log.map(normalisiereLogEintrag)); })
       .catch(() => {})
       .finally(() => setLaedt(false));
-    apiEmail.fragebogenErstkontakt({ status: "neu" })
-      .then(d => { if (d?.eintraege) setFragebogenListe(d.eintraege); })
-      .catch(() => {});
   }, []);
 
   const angezeigteKfg = imapCfg ?? IMAP_CONFIG;
@@ -144,9 +139,6 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
       setToast(`Import: ${gueltig.length} neue E-Mail(s).`);
       apiEmail.log({ limit: 200, konto: "unfall" })
         .then(d => { if (d?.log) setLog(d.log.map(normalisiereLogEintrag)); })
-        .catch(() => {});
-      apiEmail.fragebogenErstkontakt({ status: "neu" })
-        .then(d => { if (d?.eintraege) setFragebogenListe(d.eintraege); })
         .catch(() => {});
     } else {
       setToast(importFehler
@@ -216,16 +208,6 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
   const handleEmailGeloescht = useCallback((logId) => {
     setLog(prev => prev.filter(e => e.id !== logId));
   }, []);
-
-  const fragebogenAlsBearbeitet = async (id) => {
-    try {
-      await apiEmail.fragebogenErstkontaktStatus(id, "bearbeitet");
-      setFragebogenListe(prev => prev.filter(e => e.id !== id));
-      setToast("Fragebogen als bearbeitet markiert.");
-    } catch {
-      setToast("Fehler beim Aktualisieren des Status.");
-    }
-  };
 
   return (
     <>
@@ -298,7 +280,7 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
       </div>
 
       {/* Aktionspflichtig-Block (PRD-22d Session 2) */}
-      {(aktionNichtZugeordnet.length > 0 || fragebogenListe.length > 0) && (
+      {aktionNichtZugeordnet.length > 0 && (
         <div style={{
           marginBottom:"1.5rem",
           border:`1.5px solid ${T.amber}55`,
@@ -326,19 +308,17 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
               padding:"1px 8px", fontSize:"0.775rem", fontWeight:700,
               fontFamily:"ui-monospace,monospace",
             }}>
-              {aktionNichtZugeordnet.length + fragebogenListe.length}
+              {aktionNichtZugeordnet.length}
             </span>
           </div>
 
-          {/* Zwei-Spalten-Inhalt */}
           <div style={{
-            display:"grid", gridTemplateColumns:"1fr 1fr", gap:0,
+            display:"grid", gridTemplateColumns:"1fr", gap:0,
             background:T.offWhite,
           }}>
-            {/* Links: Nicht zugeordnete E-Mails */}
+            {/* Nicht zugeordnete E-Mails */}
             <div style={{
               padding:"1rem 1.1rem",
-              borderRight:`1px solid ${T.border}`,
             }}>
               <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:"0.65rem" }}>
                 <span style={{
@@ -376,41 +356,6 @@ function UnfallEmailView({ onOpenAkte, dispatch }) {
                       onZuordnen={fuehreZuordnungDurch}
                       onInAkteImportiert={onInAkteImportiert}
                       letzter={i === aktionNichtZugeordnet.length - 1}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Rechts: Fragebogen-Erstkontakte */}
-            <div style={{ padding:"1rem 1.1rem" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:"0.65rem" }}>
-                <span style={{
-                  fontFamily:T.fontBody, fontSize:"0.8rem",
-                  fontWeight:700, color:T.textMid,
-                  textTransform:"uppercase", letterSpacing:"0.07em",
-                }}>Fragebogen-Erstkontakt</span>
-                <span style={{
-                  background:T.amberBg, color:T.amber, border:`1px solid ${T.amber}33`,
-                  borderRadius:10, padding:"1px 7px",
-                  fontSize:"0.775rem", fontWeight:600, fontFamily:"ui-monospace,monospace",
-                }}>{fragebogenListe.length}</span>
-              </div>
-              {fragebogenListe.length === 0 ? (
-                <div style={{
-                  fontFamily:T.fontBody, fontSize:"0.9rem",
-                  color:T.textMuted, padding:"1.5rem", textAlign:"center",
-                  background:T.cardBg, border:`1px solid ${T.border}`, borderRadius:8,
-                }}>
-                  Keine neuen Fragebogen ✓
-                </div>
-              ) : (
-                <div>
-                  {fragebogenListe.map(e => (
-                    <FragebogenErstkontaktKarte
-                      key={e.id}
-                      eintrag={e}
-                      onAlsBearbeitet={fragebogenAlsBearbeitet}
                     />
                   ))}
                 </div>

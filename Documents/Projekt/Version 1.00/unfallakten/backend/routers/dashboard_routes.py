@@ -117,7 +117,7 @@ def _lade_fristen(conn):
 
 def _lade_eingaenge(conn):
     """
-    Zählt nicht zugeordnete E-Mails und neue Fragebogen-Erstkontakte.
+    Zählt nicht zugeordnete E-Mails.
     """
     emails = conn.execute(
         """
@@ -127,18 +127,9 @@ def _lade_eingaenge(conn):
         """
     ).fetchone()["n"]
 
-    fragebogen = 0
-    try:
-        fragebogen = conn.execute(
-            "SELECT COUNT(*) AS n FROM fragebogen_erstkontakt WHERE status = 'neu'"
-        ).fetchone()["n"]
-    except Exception:
-        pass  # Tabelle existiert erst ab Migration 30
-
     return {
         "emails_nicht_zugeordnet": emails,
-        "fragebogen_neu":          fragebogen,
-        "gesamt":                  emails + fragebogen,
+        "gesamt":                  emails,
     }
 
 
