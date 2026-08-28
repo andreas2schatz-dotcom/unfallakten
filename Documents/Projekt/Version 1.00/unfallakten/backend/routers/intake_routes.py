@@ -174,8 +174,14 @@ def hole_queue():
     for r in rows:
         top_json = r["akte_kandidat_top_json"]
         top = json.loads(top_json) if top_json else None
+        # Guard auf klasse=='fragebogen' waere falsch: die Klasse steht erst
+        # nach einem (Re-)Parse-Durchlauf fest, aber die Ampel soll auch fuer
+        # noch nicht neu eingelesene Boegen (klasse noch 'sonstiges') gelten.
+        # erkenne_fragebogen() hat mit lstrip().startswith("{") schon die
+        # billige Vorpruefung -- der Aufruf kostet fuer Nicht-Text-Payloads
+        # praktisch nichts.
         bogen = None
-        if r["klasse"] == "fragebogen":
+        if r["payload_typ"] == "text":
             bogen = erkenne_fragebogen(r["payload_typ"],
                                         r["structured_payload"])
         kopf = baue_kopf(bogen) if bogen else None

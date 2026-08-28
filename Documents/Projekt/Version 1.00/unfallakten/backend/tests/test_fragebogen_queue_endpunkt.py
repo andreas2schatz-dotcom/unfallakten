@@ -101,6 +101,26 @@ class TestQueueEndpunkt(unittest.TestCase):
         e = self._queue()[0]
         self.assertEqual(e["zuordnung"]["ampel"], "neu")
 
+    def test_bogen_mit_klasse_sonstiges_wird_trotzdem_erkannt(self):
+        """W-2-Regression: alle acht echten Boegen tragen in der DB noch
+        klasse='sonstiges' (kein Reparse gelaufen). Ein Guard auf
+        klasse=='fragebogen' liefert fuer sie ist_fragebogen=False, obwohl
+        der Detail-Endpunkt (parse_fragebogen_payload ohne Klassen-Guard)
+        fuer dieselbe Zeile True sagt. Die Liste muss payload_typ=='text'
+        pruefen und erkenne_fragebogen entscheiden lassen -- unabhaengig
+        von der (noch nicht aktualisierten) Klasse."""
+        self._lege_eintrag(
+            json.dumps(BOGEN, ensure_ascii=False), "sonstiges",
+            [{"akte_az": "742/26", "score": 0.8, "quelle": "mandanten_mail",
+              "treffer": "paulgolovin@web.de",
+              "bezeichnung": "Golovin/Brochner"}])
+        e = self._queue()[0]
+        self.assertTrue(e["ist_fragebogen"])
+        self.assertIsNotNone(e["bogen_kopf"])
+        self.assertEqual(e["bogen_kopf"]["mandant_name"], "Paul Golovin")
+        self.assertIsNotNone(e["zuordnung"])
+        self.assertEqual(e["zuordnung"]["ampel"], "gruen")
+
     def test_normales_dokument_ohne_bogenfelder(self):
         self._lege_eintrag("Sehr geehrte Damen und Herren", "sonstiges", [])
         e = self._queue()[0]
