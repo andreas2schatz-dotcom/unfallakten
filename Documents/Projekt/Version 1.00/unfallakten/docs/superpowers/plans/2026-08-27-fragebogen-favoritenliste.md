@@ -2171,11 +2171,15 @@ export function teileQueue(gruppen) {
   return { boegen, uebrige };
 }
 
+// Gestaltungstoken statt fester Farbwerte: tokens.css definiert eigene Werte
+// fuer den Dunkelmodus und das clio-Schema, feste Pastellflaechen wirken dort
+// falsch.
 const AMPEL_FARBEN = {
-  gruen:    { rand: "#1a7f37", grund: "#e8f5ec", schrift: "#1a7f37" },
-  pruefen:  { rand: "#9a6700", grund: "#fff6e0", schrift: "#9a6700" },
-  abgelegt: { rand: "#6e7781", grund: "#f0f1f3", schrift: "#57606a" },
-  neu:      { rand: "#0969da", grund: "#e8f0fb", schrift: "#0969da" },
+  gruen:    { rand: T.green,  grund: T.greenBg, schrift: T.greenText },
+  pruefen:  { rand: T.amber,  grund: T.amberBg, schrift: T.amberText },
+  abgelegt: { rand: T.border, grund: T.surface, schrift: T.textMuted },
+  neu:      { rand: T.blue,   grund: T.blueBg,  schrift: T.blueText },
+  neutral:  { rand: T.border, grund: T.surface, schrift: T.textMuted },
 };
 
 export function ampelText(zuordnung) {
@@ -2285,7 +2289,7 @@ Im Render-Block `{ansicht === "queue" && (<>...</>)}` (Zeile 1935) den `gruppen.
 
 ```jsx
               {boegen.length > 0 && (
-                <div style={{ background: "#fbf9f2",
+                <div style={{ background: T.surface,
                               borderBottom: `2px solid ${T.border}` }}>
                   <div style={{
                     padding: "6px 12px", fontSize: T.textXs, fontWeight: 700,
