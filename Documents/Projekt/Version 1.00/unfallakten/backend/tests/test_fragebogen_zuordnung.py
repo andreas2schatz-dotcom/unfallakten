@@ -96,6 +96,17 @@ class TestBewerte(unittest.TestCase):
         e = bewerte([_k("742/26", 0.9, "irgendwas")])
         self.assertEqual(e["begruendung"], "irgendwas")
 
+    def test_kandidaten_anzahl_zaehlt_bei_gemischter_liste_alle(self):
+        """W-Nachtrag-Punkt 2: kandidaten_anzahl zaehlte bisher bei einer
+        Mischung aus laufenden und abgelegten Kandidaten nur die laufenden
+        -- die Zeile zeigte dann eine kleinere Zahl als die Kandidatenliste
+        im Detail. Muss durchgaengig ALLE Kandidaten zaehlen, egal ob
+        laufend oder abgelegt."""
+        e = bewerte([_k("742/26", 0.8, "mandanten_mail", "Golovin/Brochner"),
+                      _k("749/26", 0.8, "mandanten_mail", "Rügner/Unbekannt",
+                         abgelegt=True, abgelegt_am="2026-08-26")])
+        self.assertEqual(e["kandidaten_anzahl"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -227,6 +227,24 @@ def _kfz_norm(kfz: str) -> str:
     return (kfz or "").strip().upper().replace(" ", "").replace("-", "")
 
 
+def _ablage_datum_str(wert) -> Optional[str]:
+    """RA-MICRO liefert dtAblage als datetime -- json.dumps() kann das
+    nicht serialisieren (parse_json in pipeline.py ruft ohne default= auf).
+    Wandelt an der Quelle in einen String um, per ablage_service._datum(),
+    die fuer dieselbe Spalte bereits Nullwert 1899-12-30 (RA-MICRO-
+    Konvention fuer "nicht abgelegt") -> None behandelt.
+
+    Reine Test-Mocks liefern hier oft schon einen fertigen ISO-String --
+    der wird unveraendert durchgereicht (_datum() erwartet ein
+    datetime-Objekt mit .year, kein Test-Double)."""
+    if wert is None:
+        return None
+    if not hasattr(wert, "strftime"):
+        return str(wert)
+    from .ablage_service import _datum
+    return _datum(wert)
+
+
 _AKTIV_FILTER = ("(a.dtAblage IS NULL "
                  "OR CAST(a.dtAblage AS DATE) = '1899-12-30')")
 
@@ -339,7 +357,8 @@ def _suche_bogen_abfragen(
                         if az:
                             ergebnis.append((_az_basis(az), methode, treffer,
                                               row.get("bezeichnung"),
-                                              row.get("abgelegt_am")))
+                                              _ablage_datum_str(
+                                                  row.get("abgelegt_am"))))
                 except Exception as e:
                     logger.warning("RA-Micro-Teilabfrage %s fehlgeschlagen: %s",
                                     methode, e)

@@ -52,7 +52,7 @@ def bewerte(kandidaten: Optional[List[Dict[str, Any]]]) -> Dict[str, Any]:
             "akte_az": bester["akte_az"],
             "kurzbezeichnung": bester.get("bezeichnung"),
             "begruendung": begruendung(bester.get("quelle")),
-            "kandidaten_anzahl": len(sortiert),
+            "kandidaten_anzahl": len(liste),
             "abgelegt_am": bester.get("abgelegt_am"),
         }
 
@@ -62,6 +62,6 @@ def bewerte(kandidaten: Optional[List[Dict[str, Any]]]) -> Dict[str, Any]:
         "akte_az": bester["akte_az"],
         "kurzbezeichnung": bester.get("bezeichnung"),
         "begruendung": begruendung(bester.get("quelle")),
-        "kandidaten_anzahl": len(sortiert),
+        "kandidaten_anzahl": len(liste),
         "abgelegt_am": None,
     }

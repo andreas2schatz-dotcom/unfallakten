@@ -31,6 +31,7 @@ from dataclasses import dataclass
 from typing import Iterable, List, Optional, Sequence
 
 from ..db.database import get_connection
+from .fragebogen_zuordnung import STARK_AB
 
 logger = logging.getLogger(__name__)
 
@@ -557,21 +558,39 @@ def finde_kandidaten(text: str,
             vorher.bezeichnung = k.bezeichnung
 
     # Rueckfall auf abgelegte Akten: nur wenn die reguläre Suche zu einem
-    # Bogen ueberhaupt nichts gefunden hat. Eine laufende Akte darf nie
-    # verdraengt werden, und ohne Bogen entsteht keine zusaetzliche Abfrage.
-    if bogen_aktiv and not beste:
+    # Bogen keinen STARKEN Kandidaten geliefert hat (Schwelle STARK_AB, wie
+    # in fragebogen_zuordnung.bewerte()). Ein zufaelliger schwacher Treffer
+    # (z.B. Nachname allein, Score 0.4) darf die Erkennung einer abgelegten
+    # Akte, die per Mandantenadresse perfekt passt, nicht unterdruecken --
+    # bewerte() bevorzugt ohnehin weiterhin laufende Akten fuer die Ampel,
+    # der abgelegte Treffer soll aber wenigstens in der Kandidatenliste
+    # auftauchen statt unsichtbar zu bleiben. Ohne Bogen entsteht keine
+    # zusaetzliche Abfrage.
+    kein_starker_kandidat = not any(
+        (k.score or 0.0) >= STARK_AB for k in beste.values())
+    if bogen_aktiv and kein_starker_kandidat:
         try:
             from ..ramicro.email_matching import suche_abgelegte_in_ramicro
             for az_tr, meth, treffer, bez, abgelegt_am in \
                     suche_abgelegte_in_ramicro(bogen_merkmale):
+                kandidat = AktenKandidat(
+                    akte_az=az_tr,
+                    score=bogen_scores.get(meth, SCORE_MANDANTENNAME),
+                    quelle=meth, treffer=treffer, bezeichnung=bez,
+                    abgelegt=True, abgelegt_am=abgelegt_am,
+                )
+                # Gleiche Verdichtungslogik wie in der Hauptschleife oben:
+                # bester Score gewinnt, Kurzbezeichnung wird nachgefuellt.
+                # Bei 749/26 treffen z.B. mandanten_mail UND nachname
+                # gleichzeitig -- ohne das hier wuerde "wer zuerst kommt"
+                # gewinnen statt des staerkeren Signals.
                 vorher = beste.get(az_tr)
-                if vorher is None:
-                    beste[az_tr] = AktenKandidat(
-                        akte_az=az_tr,
-                        score=bogen_scores.get(meth, SCORE_MANDANTENNAME),
-                        quelle=meth, treffer=treffer, bezeichnung=bez,
-                        abgelegt=True, abgelegt_am=abgelegt_am,
-                    )
+                if vorher is None or kandidat.score > vorher.score:
+                    if vorher is not None and kandidat.bezeichnung is None:
+                        kandidat.bezeichnung = vorher.bezeichnung
+                    beste[az_tr] = kandidat
+                elif vorher.bezeichnung is None and kandidat.bezeichnung:
+                    vorher.bezeichnung = kandidat.bezeichnung
         except Exception as exc:
             logger.warning("RA-Micro-Suche nach abgelegten Akten "
                             "fehlgeschlagen: %s", exc)
