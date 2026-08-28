@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ReviewQueueView, {
   teileQueue, ampelText, FragebogenEintrag,
-  bogenVorbefuellung, zeigeAktenanlageVorschlag,
+  bogenVorbefuellung, zeigeAktenanlageVorschlag, aktenanlageBannerText,
 } from "./ReviewQueueView.jsx";
 
 const api = vi.hoisted(() => ({
@@ -246,5 +246,35 @@ describe("zeigeAktenanlageVorschlag", () => {
       klasse: "gutachten", absender_kategorie: "gutachter",
       akte_kandidat_top: null,
     })).toBe(true);
+  });
+});
+
+describe("aktenanlageBannerText", () => {
+  it("nennt beim Fragebogen den Mandanten, nicht das Postfach", () => {
+    const text = aktenanlageBannerText({
+      ist_fragebogen: true, absender: "unfall@anwalt-offenbach.de",
+      bogen_kopf: { mandant_name: "Paul Golovin" },
+    });
+    expect(text).toContain("Paul Golovin");
+    expect(text).not.toMatch(/Gutachten/);
+    expect(text).not.toContain("unfall@anwalt-offenbach.de");
+  });
+
+  it("formuliert beim Fragebogen ohne Namen ohne leeren Platzhalter", () => {
+    const text = aktenanlageBannerText({
+      ist_fragebogen: true, absender: "unfall@anwalt-offenbach.de",
+      bogen_kopf: {},
+    });
+    expect(text).not.toMatch(/Gutachten/);
+    expect(text).not.toContain("undefined");
+    expect(text).toContain("Unfallfragebogen");
+  });
+
+  it("bleibt beim Gutachten unveraendert", () => {
+    const text = aktenanlageBannerText({
+      klasse: "gutachten", absender: "Sachverständigenbüro Krause",
+    });
+    expect(text).toBe(
+      "Vermutlich neue Akte: Gutachten von Sachverständigenbüro Krause, kein Treffer im Bestand.");
   });
 });

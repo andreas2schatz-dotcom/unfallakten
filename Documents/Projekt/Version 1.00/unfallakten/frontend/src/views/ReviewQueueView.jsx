@@ -101,6 +101,16 @@ export function bogenVorbefuellung(rohJson) {
   };
 }
 
+export function aktenanlageBannerText(item) {
+  if (item?.ist_fragebogen) {
+    const name = item?.bogen_kopf?.mandant_name;
+    return name
+      ? `Vermutlich neuer Mandant: Unfallfragebogen von ${name}, kein Treffer im Bestand.`
+      : "Vermutlich neuer Mandant: Unfallfragebogen ohne Treffer im Bestand.";
+  }
+  return `Vermutlich neue Akte: Gutachten von ${item?.absender || "bestätigtem Gutachter"}, kein Treffer im Bestand.`;
+}
+
 export function gruppenKey(item) {
   return item?.parent_zustellung_id || item?.zustellung_id || null;
 }
@@ -1594,11 +1604,7 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
                         fontSize: T.textSm, display: "flex",
                         alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: "1.1rem" }}>🆕</span>
-            <span style={{ flex: 1 }}>
-              Vermutlich neue Akte: Gutachten von{" "}
-              {item.absender || "bestätigtem Gutachter"}, kein Treffer im
-              Bestand.
-            </span>
+            <span style={{ flex: 1 }}>{aktenanlageBannerText(item)}</span>
             <button onClick={onAktenanlage}
               style={{ padding: "6px 12px", background: T.accent,
                        color: T.white, border: "none", borderRadius: 4,
