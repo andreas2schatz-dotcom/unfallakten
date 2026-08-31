@@ -115,7 +115,11 @@ def liste(akte_id: str):
             # Kürzelverzeichnis (beteiligten_kuerzel_registry). Hier wird
             # nicht mehr nachsortiert; genau diese zweite Auslegung war Teil
             # des Befunds vom 2026-08-31.
-            for rb in (ra.get("alle") or []):
+            # Mandant zuerst: RA-MICRO sortiert die gegnerische Haftpflicht
+            # nach vorne, in der Akte gehoert der Mandant an den Anfang.
+            ra_alle = sorted(ra.get("alle") or [],
+                             key=lambda b: 0 if b.get("rolle") == "mandant" else 1)
+            for rb in ra_alle:
                 if rb.get("rolle") == "mandant" and hat_mandant:
                     continue
                 _merge(rb, rb.get("rolle") or "sonstiger")

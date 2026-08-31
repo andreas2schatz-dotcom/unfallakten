@@ -136,6 +136,13 @@ class TestBeteiligtenlisteEndpunkt:
         assert rollen.get("I1") == "gericht"
         assert rollen.get("PO") == "polizei"
 
+    def test_mandant_steht_an_erster_stelle(self):
+        """Die Liste fuehrt mit dem Mandanten -- RA-MICRO sortiert sonst die
+        gegnerische Haftpflicht nach vorne."""
+        liste = self._liste("13/26")
+        assert liste[0]["rolle"] == "mandant", (
+            f"Erster Eintrag ist {liste[0]['rolle']} ({liste[0]['name']})")
+
     def test_mandant_und_gegner_bleiben_stehen(self):
         liste = self._liste("13/26")
         assert any(b["rolle"] == "mandant" for b in liste)
