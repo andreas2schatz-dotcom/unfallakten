@@ -22,6 +22,7 @@ from typing import Optional
 
 from ..models.akte import hole_akte_by_id
 from ..services.fristen_service import setze_pflvg_frist, setze_antwort_frist
+from ..services.beteiligten_kuerzel_registry import bestimme_beteiligten_rolle
 from ..models.schaden import (
     hole_beteiligte_by_akte, hole_schadenpositionen,
     hole_regulierungen_by_akte
@@ -623,11 +624,20 @@ def _lade_beteiligte_aus_ramicro(az: str) -> dict:
     Lädt Mandant und Gegner direkt aus RA-Micro.
 
     Fallback wenn Beteiligte nicht in SQLite erfasst sind.
-    Gibt {"mandant": dict|None, "gegner": dict|None, "alle_gegner": list} zurück.
+    Gibt {"mandant", "gegner", "alle_gegner", "sonstige", "alle"} zurück.
     "gegner" ist der erste/höchst-priorisierte Gegner (GHPV-Rang 0 für Briefe).
-    "alle_gegner" enthält alle klassifizierten Gegner-Einträge (für Klagewizard).
+    "alle_gegner" enthält alle Beteiligten, die das Kürzelverzeichnis als
+    Beklagte ausweist (für Klagewizard).
+    "alle" enthält jeden RA-MICRO-Beteiligten mit seiner Rolle — die Quelle
+    für die Beteiligtenliste.
+
+    Die Rollen kommen aus beteiligten_kuerzel_registry (SSOT). Wer dort
+    nicht als Beklagter hinterlegt ist, wird auch keiner — bis 2026-08-31
+    machte eine Ausschlussliste hier stillschweigend jeden Zeugen zum
+    Gegner.
     """
-    result = {"mandant": None, "gegner": None, "alle_gegner": [], "sonstige": []}
+    result = {"mandant": None, "gegner": None, "alle_gegner": [],
+              "sonstige": [], "alle": []}
     try:
         from ..ramicro.connector import (
             get_ramicro_connection, RaMicroNichtAktiv, RaMicroVerbindungsFehler
@@ -701,20 +711,6 @@ def _lade_beteiligte_aus_ramicro(az: str) -> dict:
             """, {"az_roh": az_roh})
             wdm = {r["sName"]: r["wert"] for r in cur.fetchall()}
 
-        def _klassifiziere(art: int, kz: str) -> str:
-            kz_up = (kz or "").strip().upper()
-            if art == 1 and kz_up not in ("SB", "SO", "G"):
-                return "mandant"
-            # Nicht-Beklagte: eigene Versicherungen, Anwälte, Sachverständige, Abwickler, RSV, SB
-            _nicht_gegner = ("HP", "HPV", "KASK", "GBEV", "SAB", "RSV", "SB")
-            # art=2 (Schadengegner): auch ohne Kürzel Gegner – z.B. DBGK ohne kz-Eintrag
-            if art == 2 and kz_up not in _nicht_gegner and not kz_up.startswith("SV"):
-                return "gegner"
-            # art=4/9: leeres Kürzel → nicht automatisch Gegner
-            if art in (4, 9) and kz_up and kz_up not in _nicht_gegner and not kz_up.startswith("SV"):
-                return "gegner"
-            return "andere"
-
         def _beteiligter_dict(r: dict, wdm_dict: dict) -> dict:
             vorname  = (r.get("sVorname")          or "").strip()
             nachname = (r.get("sNachname")         or "").strip()
@@ -769,15 +765,22 @@ def _lade_beteiligte_aus_ramicro(az: str) -> dict:
             if adr_nr:
                 seen.add(adr_nr)
 
-            gruppe = _klassifiziere(row.get("art", 0), row.get("kz", ""))
-            if gruppe == "mandant" and result["mandant"] is None:
-                d = _beteiligter_dict(dict(row), wdm)
-                d["id"] = adr_nr or 0
+            art = row.get("art", 0)
+            kz_up = (row.get("kz") or "").strip().upper()
+            eintrag = bestimme_beteiligten_rolle(art, kz_up)
+
+            d = _beteiligter_dict(dict(row), wdm)
+            d["id"]  = adr_nr or 0
+            d["art"] = art
+            d["rolle"]               = eintrag.rolle
+            d["bezeichnung"]         = eintrag.bezeichnung
+            d["beklagter_vorschlag"] = eintrag.beklagter_vorschlag
+            d["kuerzel_hinweis"]     = eintrag.hinweis
+            result["alle"].append(d)
+
+            if eintrag.rolle == "mandant" and result["mandant"] is None:
                 result["mandant"] = d
-            elif gruppe == "gegner":
-                d = _beteiligter_dict(dict(row), wdm)
-                d["id"] = adr_nr or 0
-                kz_up = (row.get("kz") or "").strip().upper()
+            elif eintrag.beklagter_vorschlag:
                 # Firmennamen als versicherung setzen wenn kein Vorname oder sErsteAdresszeile gesetzt
                 if not d.get("vorname") or not d.get("vorname").strip():
                     d["versicherung"] = d["name"]
@@ -790,10 +793,6 @@ def _lade_beteiligte_aus_ramicro(az: str) -> dict:
                 # Alle Gegner sammeln (für Klagewizard)
                 result["alle_gegner"].append(d)
             else:
-                kz_sonst = (row.get("kz") or "").strip().upper()
-                d = _beteiligter_dict(dict(row), wdm)
-                d["id"] = adr_nr or 0
-                d["rolle"] = "sachverstaendiger" if kz_sonst.startswith("SV") else "sonstiger"
                 result["sonstige"].append(d)
 
     except (RaMicroNichtAktiv, RaMicroVerbindungsFehler):

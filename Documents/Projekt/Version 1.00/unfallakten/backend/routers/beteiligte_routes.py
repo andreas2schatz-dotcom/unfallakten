@@ -77,6 +77,8 @@ def liste(akte_id: str):
             "vorsteuer":   b.get("vorsteuer", "N"),
             "kuerzel":     b.get("kuerzel", ""),
             "briefanrede": b.get("briefanrede", ""),
+            "bezeichnung":      b.get("bezeichnung", ""),
+            "kuerzel_hinweis":   b.get("kuerzel_hinweis", ""),
             "betreff1":    b.get("betreff1", ""),
             "betreff2":    b.get("betreff2", ""),
             "betreff3":    b.get("betreff3", ""),
@@ -109,19 +111,13 @@ def liste(akte_id: str):
                 if rb_name:
                     namen_sqlite.add(rb_name)
 
-            def _gegner_rolle(rb):
-                kz = (rb.get("kuerzel") or "").strip().upper()
-                if kz.startswith("SV"):
-                    return "sachverstaendiger"
-                if kz in ("SAB", "RSV", "SB"):
-                    return "sonstiger"
-                return "gegner"
-
-            if not hat_mandant:
-                _merge(ra.get("mandant"), "mandant")
-            for rb in (ra.get("alle_gegner") or []):
-                _merge(rb, _gegner_rolle(rb))
-            for rb in (ra.get("sonstige") or []):
+            # Die Rolle steht bereits an jedem Eintrag — sie kommt aus dem
+            # Kürzelverzeichnis (beteiligten_kuerzel_registry). Hier wird
+            # nicht mehr nachsortiert; genau diese zweite Auslegung war Teil
+            # des Befunds vom 2026-08-31.
+            for rb in (ra.get("alle") or []):
+                if rb.get("rolle") == "mandant" and hat_mandant:
+                    continue
                 _merge(rb, rb.get("rolle") or "sonstiger")
     except Exception as e:
         logger.debug("RA-Micro-Merge Beteiligte: %s", e)

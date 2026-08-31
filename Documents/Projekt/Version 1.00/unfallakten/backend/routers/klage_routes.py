@@ -30,6 +30,7 @@ from ..models.schaden import hole_schadenpositionen, hole_regulierungen_by_akte
 from ..models.dokument import registriere_dokument
 from ..word.klage_service import berechne_rvg, generiere_klageschrift, berechne_fahrzeugschaden, baue_klage_vorschau
 from ..word.word_service import KANZLEI_INFO, _lade_beteiligte_aus_ramicro, name_aus_ramicro_adresse
+from ..services.beteiligten_kuerzel_registry import bestimme_beteiligten_rolle
 from ..word.forderungsschreiben_wv import _grammatik_vars, _netto_oder_brutto
 from ..word.stellungnahme_service import ersetze_platzhalter
 from ..models.schaden import (
@@ -992,6 +993,7 @@ def hole_klage_daten(akte_id: str):
                 "schaden_nr":    rb.get("schaden_nr") or "",
                 "kfz_kennzeichen": rb.get("kfz_kennzeichen") or "",
                 "kuerzel":       rb.get("kuerzel") or "",
+                "beklagter_laut_verzeichnis": bool(rb.get("beklagter_vorschlag")),
             })
             _namen_bet.add(rb_name)  # Dedup auch für nachfolgende Einträge
 
@@ -1008,19 +1010,21 @@ def hole_klage_daten(akte_id: str):
         kz      = (b.get("kuerzel") or "").upper()
         ist_mandant = rolle == "mandant"
 
-        # Haftpflichtversicherung des Gegners (direkt Beklagte nach § 115 VVG)
-        # GBEV = Gegnerbevollmächtigter (Anwalt) → kein Beklagter
+        # Wer Beklagter wird, entscheidet das Kürzelverzeichnis
+        # (beteiligten_kuerzel_registry) — bis 2026-08-31 stand hier eine
+        # eigene Auslegung, die Zeugen zu Beklagten machte.
+        # RA-MICRO-Einträge bringen die Antwort mit; für von Hand in SQLite
+        # angelegte Beteiligte ohne Kürzel gilt weiter die erfasste Rolle.
+        if "beklagter_laut_verzeichnis" in b:
+            soll_beklagter = b["beklagter_laut_verzeichnis"]
+        elif kz:
+            soll_beklagter = bestimme_beteiligten_rolle(None, kz).beklagter_vorschlag
+        else:
+            soll_beklagter = rolle == "gegner"
+        soll_beklagter = soll_beklagter and not ist_mandant
+
         ist_ghpv = kz in ("GHPV", "GH", "GHV")
-
-        # Echter Gegner: G1/G2/G3 (explizit), SB/SO und leer (Auffangklasse) wenn rolle=="gegner"
-        # Nicht-Beklagte explizit ausschließen: eigene Versicherungen, Anwalt, SV, Abwickler
-        _kein_beklagter = {"HP", "HPV", "KASK", "GBEV", "SAB", "RSV", "SB"}
-        ist_echter_gegner = (
-            bool(re.match(r'^G\d+$', kz))
-            or (rolle == "gegner" and kz not in _kein_beklagter and not kz.startswith("SV"))
-        )
-
-        soll_beklagter = (ist_ghpv or ist_echter_gegner) and not ist_mandant
+        ist_echter_gegner = soll_beklagter and not ist_ghpv
 
         b["rolle_klage"]        = "klaeger" if ist_mandant else ("beklagter" if soll_beklagter else "nicht_partei")
         b["vorschlag_beklagter"] = soll_beklagter

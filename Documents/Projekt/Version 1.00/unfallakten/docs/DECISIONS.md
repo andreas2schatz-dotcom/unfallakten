@@ -5,6 +5,46 @@ Format: Entscheidung → Grund → Alternative → Konsequenz.
 
 ---
 
+## Beteiligten-Kürzel und Passivlegitimation (RA Schatz, 2026-08-31)
+
+### Nur der Gegner und seine Haftpflichtversicherung dürfen als Beklagte vorgeschlagen werden
+
+**Entscheidung:** `beklagter_vorschlag` ist ausschließlich bei `rolle: gegner` und `rolle: gegner_hv` (`GHPV`/`GH`/`GHV`) zulässig. Bevollmächtigte der Gegner (`GR`/`GR2`/`GR3`, `GBEV`) und Schadenabwickler (`SAB`, `SA`) bekommen ihn **nie** — auch nicht als Vorschlag, den man abwählen kann.
+
+**Grund:** Wortlaut RA Schatz: *„SAB ist kein Gegner! Schadenabwickler sind nicht passivlegitimiert!"* und *„Das sind keine Gegner, sondern Bevollmächtigte der Gegner. Die sind nie passivlegitimiert."* Ein falscher Beklagter kostet den Mandanten die Klage, und ein vorausgewählter Haken im Wizard wird leicht übersehen. Der Direktanspruch gegen den Haftpflichtversicherer folgt aus § 115 VVG — er ist der einzige Grund, warum überhaupt jemand außer dem Schädiger vorgeschlagen wird.
+
+**Alternative:** „Gehört zur Gegenseite" als Kriterium — verworfen. Genau diese Gleichsetzung war der Fehler: Zugehörigkeit zur Gegenseite und Passivlegitimation sind zwei verschiedene Fragen.
+
+**Konsequenz:** Die Zulässigkeit wird beim Laden der Registry erzwungen (`ROLLEN_BEKLAGTER`); ein Verstoß in der YAML lässt das Backend nicht starten. Ein zwischenzeitlich eingeführtes Feld `gegnerseite` wurde wieder entfernt — es war deckungsgleich mit `beklagter_vorschlag` und lud zum Fehlschluss ein; ein Test verhindert seine Rückkehr.
+
+### Ein unbekanntes Kürzel wird niemals stillschweigend zum Gegner
+
+**Entscheidung:** Die Zuordnung arbeitet mit einer **Positivliste**. Ein Kürzel, das nicht im Verzeichnis steht, wird „Sonstige Beteiligte" mit sichtbarem Hinweis in der Oberfläche — nicht Gegner.
+
+**Grund:** Vier der fünf Zuordnungen im System arbeiteten mit Ausschlusslisten („alles ist Gegner, außer diesen sieben"). Jede Kürzelart, an die beim Schreiben niemand dachte, wurde damit automatisch zum Gegner: Zeugen, Gerichtsvollzieher, Polizei, Finanzamt, Kreditinstitute. Eine Ausschlussliste ist bei einem offenen Wertebereich strukturell falsch — sie muss vollständig sein, um zu funktionieren, und das kann sie nie.
+
+**Alternative:** Ausschlussliste pflegen und erweitern — verworfen: derselbe Fehler wäre beim nächsten neuen Kürzel zurück, nur später.
+
+**Konsequenz:** Neue Kürzel müssen einmal eingetragen werden, sonst erscheinen sie als „Sonstige" mit Fragezeichen. Das ist beabsichtigt: Der Fehler fällt auf, statt sich als falscher Beklagter zu tarnen. Im Bestand betrifft das drei Beteiligte (`KOAN`, `OA`, `UB`).
+
+### Bei leerem Kürzel entscheidet die Beteiligtenart
+
+**Entscheidung:** Die Regel „leeres Kürzel → Weitere/Sonstige Beteiligte" gilt **nicht** für die Beteiligtenarten 1 und 2. Dort bleibt es bei Mandant bzw. Gegner. Ebenso Art 3 → Rechtsschutz, 6 → Behörde, 9 → Gegnerbevollmächtigter.
+
+**Grund:** RA Schatz gab die Regel zunächst pauschal vor. In RA-MICRO tragen Mandant und Gegner aber regulär **kein** Kennzeichen: 928 von 928 Mandanten und 579 Gegner. Wörtlich angewandt hätte die Regel jeder Akte Mandant und Gegner genommen — ein größerer Schaden als der ursprüngliche Fehler. Bei leerem Kürzel ist die Beteiligtenart die einzige vorhandene Information, und in RA-MICRO ist sie dort eindeutig.
+
+**Konsequenz:** Ein leeres Kürzel ist der Normalfall, keine Lücke. Nur bei den Arten ohne eindeutige Bedeutung (4, 33, 34) greift die Regel wie vorgegeben.
+
+### Widerspricht das Kürzel der Beteiligtenart, gewinnt die sichere Auslegung
+
+**Entscheidung:** Trägt ein Beteiligter der Art 1 (Mandantenseite) ein Kürzel der Gegnerseite, wird er `sonstiger` mit Hinweis — nie Mandant, nie Beklagter.
+
+**Grund:** Beim Bestandslauf aufgefallen: Akte 668/23 führt die Mandantin unter Art 1 mit dem Kürzel `g`. Die Regel „Kürzel schlägt Art" hätte sie zur Beklagten gemacht. Bei widersprüchlichen Daten darf nicht die riskantere Auslegung gewinnen.
+
+**Alternative:** Die Art gewinnen lassen (→ Mandantin) — verworfen, weil dann ein echter Fehleintrag stillschweigend verschwände. So wird er sichtbar und lässt sich in RA-MICRO korrigieren.
+
+---
+
 ## Fragebogen-Zuordnung in der Review-Queue (RA Schatz, 2026-08-27/28)
 
 ### Die Review-Queue ist der einzige Arbeitsort für Unfallfragebögen

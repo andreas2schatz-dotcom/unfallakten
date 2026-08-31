@@ -7,6 +7,57 @@
 
 ---
 
+## 2026-08-31 — Zeugen standen als Gegner in der Akte: fünf Kürzel-Auslegungen auf ein Verzeichnis vereinheitlicht
+
+Meldung RA Schatz: *„in der Beteiligtenliste tauchen Zeugen als Gegner auf."* Branch `fragebogen-favoritenliste`.
+
+### Befund
+
+RA-MICRO führt je Beteiligtem eine **Beteiligtenart** (1 = Mandant, 2 = Gegner, 4 = weitere Beteiligte …) und ein **Kennzeichen** (`GHPV`, `SV`, `Z` …). `word_service._klassifiziere` las Art 4 nach dem Prinzip *„alles ist Gegner, außer …"* gegen eine Ausschlussliste aus sieben Kürzeln. `Z` (Zeuge) stand nicht darauf — ebenso wenig Polizei, Gerichtsvollzieher, Finanzamt oder die finanzierende Bank.
+
+Das blieb nicht bei der Anzeige: dieselbe Einstufung speiste den Klage-Wizard. Abruf von `/akten/13-26/klage/daten` am Echtsystem zeigte beide Zeugen mit `rolle_klage=beklagter` und `vorschlag_beklagter=true` — vorausgewählt.
+
+Die eigentliche Ursache war nicht das Kürzel, sondern **fünf Stellen, die dieselbe Frage unabhängig beantworteten**:
+
+| Stelle | Prinzip | Folge |
+|---|---|---|
+| `word/word_service.py` `_klassifiziere` | Ausschlussliste | fehlerhaft — der gemeldete Bug |
+| `routers/beteiligte_routes.py` `_gegner_rolle` | zweite Nachsortierung darauf | wirkungslos |
+| `routers/ramicro_akte_routes.py` `_klassifiziere` | Positivliste, 6 Gruppen | richtig, kannte aber weder RSV noch Polizei unter Art 4 |
+| `routers/belege_routes.py` `_KZ_ROLLE_MAP` | 10 Kürzel, dann Art 2/4/9 → Gegner | derselbe Zeugen-Fehler, eigenständig |
+| `routers/klage_routes.py` | eigene Beklagten-Logik auf der bereits falschen Rolle | Zeuge als Beklagter |
+
+Zweiter, gravierenderer Teil des Befunds: **1.029 Beteiligte** lagen pauschal unter „Sonstige Beteiligte", obwohl die Rolle bekannt war — sämtliche 180 Rechtsschutzversicherer, 61 Gegneranwälte, 259 Polizeidienststellen, 135 Gerichte. Ein Feld `rolle` musste zwei Fragen zugleich beantworten: *wer ist das* und *wird derjenige verklagt*.
+
+### Umsetzung
+
+Eine Registry als SSOT, nach dem Muster der Dokumentenklassen:
+
+* `backend/registry/beteiligten_kuerzel.yaml` — je Kürzel `bezeichnung`, `rolle`, `beklagter_vorschlag`. Bezeichnungen aus der **Kürzelliste der Kanzlei** (RA Schatz), 54 Kürzel plus die Mandanten- (`M`, `M1`–`M3`) und Gegner-Familie (`G`, `G1`–`G3`).
+* `backend/services/beteiligten_kuerzel_registry.py` — `bestimme_beteiligten_rolle(art, kuerzel)`. Fail-loud beim Laden: unbekannte Rolle oder ein Beklagten-Vorschlag bei nicht passivlegitimierter Rolle verweigern den Start.
+* Alle fünf Stellen lesen jetzt dort. `_lade_beteiligte_aus_ramicro` liefert zusätzlich `alle` — jeden Beteiligten mit seiner Rolle; das ist die Quelle der Beteiligtenliste. `alle_gegner` enthält weiterhin genau die Beklagten-Kandidaten, damit die Brief-Adressierung (GHPV-Vorrang) unverändert bleibt.
+* Frontend: `ROLLEN_ANZEIGE` + `rolleLabel(rolle, bezeichnung)` in `constants.js`, Farben je Rolle, Fragezeichen mit Erklärung bei unbekanntem Kürzel. Das Auswahlfeld beim Anlegen bleibt bei den Rollen, die die SQLite-`CHECK`-Klausel zulässt — die neuen Rollen kommen ausschließlich aus RA-MICRO und werden nie in `beteiligte` geschrieben, deshalb **keine Migration**.
+
+### Zwei Funde während der Abnahme
+
+**Akte 668/23** führt die Mandantin unter Art 1 mit dem Kürzel `g` (klein) — vermutlich ein Vertipper. Die erste Fassung hätte sie zur **Beklagten** gemacht, weil das Kürzel die Beteiligtenart schlug. Jetzt gilt: Art 1 plus Gegner-Kürzel ist ein Widerspruch → `sonstiger`, nie Beklagter, mit sichtbarem Hinweis.
+
+Ein Feld `gegnerseite` je Kürzel wurde eingeführt und nach den Entscheidungen zu `SAB`/`GR` wieder **entfernt**: Es war zeilenweise deckungsgleich mit `beklagter_vorschlag` und lud zum Fehlschluss „Gegenseite = Beklagter" ein. Ein Test verhindert die Rückkehr.
+
+### Zahlen
+
+Bestandslauf über 4.186 Beteiligte in 928 Akten: **1.752 Rollen korrigiert.** Beklagten-Vorschläge **1.456 → 1.316** (735 gegnerische Haftpflicht + 581 Gegner, sonst niemand). Die 140 entfernten: 23 Zeugen, 55 `SO`, 17 Kreditinstitute, dazu Polizei, Gerichtsvollzieher, Inkasso, Finanzamt, Hausverwaltung.
+
+Nur noch **drei** Beteiligte tragen ein Kürzel ohne Verzeichniseintrag (`KOAN` 2×, `OA` 2×, `UB` 1×); sie laufen sicher in die Auffangregel. `HV`/`VS` sind als `offen: true` markiert — das Kürzel nennt die Sparte, nicht die Seite.
+
+### Tests
+
+`test_beteiligten_kuerzel.py` (111 Einheitstests inkl. Vollständigkeits- und Schranken-Prüfungen der Registry) und `test_beteiligten_rollen_ramicro.py` (33 Tests **echt gegen RA-MICRO**, Akten 13/26, 20/25, 249/26, 108/26 — `RAMICRO_INTEGRATION=1`), Frontend `BeteiligteSection.rollen.test.jsx` (9). Vollsuiten: Backend **2.105 grün / 71 übersprungen**, Frontend **603 grün**.
+
+Alle Tests wurden vor der Umsetzung geschrieben und rot gesehen — die 21 Integrationstests scheiterten zunächst genau an den Zeugen.
+
+---
+
 ## 2026-08-28 — Review-Queue für den Testbetrieb entlastet: 879 Altdokumente archiviert, Rauschfilter erweitert
 
 Anlass RA Schatz: *„Die Review-Queue ist nur im Testbetrieb. Aktuell sind fast 900 Einträge drin … mich erschlägt es so.“* Branch `fragebogen-favoritenliste`, Commit `9cf71a31`.

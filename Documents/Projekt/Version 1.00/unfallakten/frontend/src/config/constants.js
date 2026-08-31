@@ -75,12 +75,50 @@ const ROLLEN = [
 
 const ROLLEN_MIT_AZ = new Set(["gericht","polizei","staatsanwaltschaft"]);
 
+// Rollen, die nur aus RA-MICRO kommen (Kürzelverzeichnis, Befund 2026-08-31).
+// Bewusst NICHT in ROLLEN: das Auswahlfeld beim Anlegen bleibt bei den
+// Rollen, die die Datenbank für selbst erfasste Beteiligte zulässt.
+const ROLLEN_ANZEIGE = {
+  mandant:            "Mandant",
+  gegner:             "Gegner",
+  gegner_hv:          "Gegnerische Haftpflicht",
+  gegner_anwalt:      "Gegnerischer Anwalt",
+  schadenabwickler:   "Schadenabwickler",
+  eigene_versicherung:"Eigene Versicherung",
+  rechtsschutz:       "Rechtsschutz",
+  zeuge:              "Zeuge",
+  sachverstaendiger:  "Sachverständiger",
+  gericht:            "Gericht",
+  polizei:            "Polizei",
+  staatsanwaltschaft: "Staatsanwaltschaft",
+  behoerde:           "Behörde",
+  bank:               "Bank / Leasing",
+  vollstreckung:      "Vollstreckung",
+  sonstiger:          "Sonstige Beteiligte",
+};
+
+/** Beschriftung eines Beteiligten. Die Bezeichnung aus dem Kürzelverzeichnis
+ *  ist genauer als die Rolle ("Gerichtsvollzieher" statt "Vollstreckung")
+ *  und hat deshalb Vorrang. */
+function rolleLabel(rolle, bezeichnung) {
+  return bezeichnung || ROLLEN_ANZEIGE[rolle] || rolle;
+}
+
 const ROLLEN_C = {
   mandant:           {c:T.blue,   bg:T.blueBg},
   gegner:            {c:T.red,    bg:T.redBg},
+  gegner_hv:         {c:T.red,    bg:T.redBg},
+  gegner_anwalt:     {c:"#c2410c",bg:"#ffedd5"},
+  schadenabwickler:  {c:"#c2410c",bg:"#ffedd5"},
+  eigene_versicherung:{c:T.blue,  bg:T.blueBg},
+  rechtsschutz:      {c:"#0f766e",bg:"#ccfbf1"},
+  zeuge:             {c:"#4338ca",bg:"#e0e7ff"},
   gericht:           {c:"#7c3aed",bg:"#ede9fe"},
   polizei:           {c:"#0369a1",bg:"#e0f2fe"},
   staatsanwaltschaft:{c:"#b45309",bg:T.amberMid},
+  behoerde:          {c:"#0369a1",bg:"#e0f2fe"},
+  bank:              {c:T.textMuted,bg:T.surface},
+  vollstreckung:     {c:"#b45309",bg:T.amberMid},
   sachverstaendiger: {c:T.green,  bg:T.greenBg},
   sonstiger:         {c:T.textMuted,bg:T.surface},
 };
@@ -523,6 +561,8 @@ export {
   ROLLEN,
   ROLLEN_MIT_AZ,
   ROLLEN_C,
+  ROLLEN_ANZEIGE,
+  rolleLabel,
   ROLLEN_LABEL,
   ROLLEN_ICON,
   SCHADEN_F,

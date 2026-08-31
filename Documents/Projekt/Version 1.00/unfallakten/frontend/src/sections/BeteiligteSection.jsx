@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
-import { ROLLEN, ROLLEN_MIT_AZ, ROLLEN_C } from "../config/constants.js";
+import { ROLLEN, ROLLEN_MIT_AZ, ROLLEN_C, rolleLabel } from "../config/constants.js";
 import { Card, CardHead, Btn, FieldInput, FieldSelect, Toast, SlidePanel } from "../components/common.jsx";
 import {
   beteiligte as apiBeteiligte,
@@ -74,8 +74,11 @@ function BeteiligteSection({ beteiligte, dispatch, akteId }) {
                   return (
                     <tr key={b.id} style={{ borderBottom:`1px solid ${T.borderSoft}`, background:i%2===0?T.cardBg:T.surface }}>
                       <td style={{ padding:"10px 14px" }}>
-                        <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:rc.bg, color:rc.c, border:`1px solid ${rc.c}33`, borderRadius:12, padding:"2px 8px", fontSize:"0.825rem", fontWeight:600 }}>
-                          {ROLLEN.find(r => r.value===b.rolle)?.label || b.rolle}
+                        <span
+                          title={b.kuerzel_hinweis || undefined}
+                          style={{ display:"inline-flex", alignItems:"center", gap:4, background:rc.bg, color:rc.c, border:`1px solid ${rc.c}33`, borderRadius:12, padding:"2px 8px", fontSize:"0.825rem", fontWeight:600 }}>
+                          {rolleLabel(b.rolle, b.bezeichnung)}
+                          {b.kuerzel_hinweis && <span aria-hidden="true">?</span>}
                         </span>
                       </td>
                       <td style={{ padding:"10px 14px" }}>

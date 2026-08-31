@@ -1,0 +1,133 @@
+# Beteiligten-Kuerzel aus RA-MICRO -- Single Source of Truth
+# ===========================================================
+#
+# Quelle der Bezeichnungen: Kuerzelliste der Kanzlei (RA Schatz, 2026-08-31).
+# Die Liste gilt dort fuer Beteiligtenart 4 ("weitere Beteiligte"); die
+# Kuerzel tragen aber unter allen Arten dieselbe Bedeutung, deshalb wird
+# hier nach Kuerzel geschluesselt und die Art nur als Auffang benutzt.
+#
+# Zwei Angaben je Kuerzel:
+#   rolle               -- steuert Anzeige, Farbe und Filter
+#   beklagter_vorschlag -- wird im Klage-Wizard vorausgewaehlt
+#
+# beklagter_vorschlag NUR bei rolle gegner/gegner_hv -- passivlegitimiert ist
+# allein der Gegner selbst und seine Haftpflichtversicherung (§ 115 VVG).
+# Wer zur Gegenseite gehoert, ist damit noch lange nicht Beklagter:
+# Bevollmaechtigte und Schadenabwickler sind es NIE (RA Schatz, 2026-08-31).
+# Ein frueheres Feld "gegnerseite" ist bewusst entfernt -- es war deckungs-
+# gleich mit beklagter_vorschlag und verleitete zum falschen Schluss.
+# Unbekannte Kuerzel werden NIE stillschweigend zum Gegner, sondern zu
+# "Sonstige Beteiligte" mit Vermerk -- Befund 2026-08-31, siehe
+# docs/DECISIONS.md.
+
+kuerzel:
+
+  # ── Mandantenseite ────────────────────────────────────────────────────
+  M:    {bezeichnung: "Mandant",                       rolle: mandant}
+  M1:   {bezeichnung: "Mandant",                       rolle: mandant}
+  M2:   {bezeichnung: "Mandant",                       rolle: mandant}
+  M3:   {bezeichnung: "Mandant",                       rolle: mandant}
+
+  # ── Gegnerseite ───────────────────────────────────────────────────────
+  G:    {bezeichnung: "Gegner",  rolle: gegner, beklagter_vorschlag: true}
+  G1:   {bezeichnung: "Gegner",  rolle: gegner, beklagter_vorschlag: true}
+  G2:   {bezeichnung: "Gegner",  rolle: gegner, beklagter_vorschlag: true}
+  G3:   {bezeichnung: "Gegner",  rolle: gegner, beklagter_vorschlag: true}
+
+  # Direktanspruch gegen den Haftpflichtversicherer, § 115 VVG
+  GHPV: {bezeichnung: "Gegnerische Haftpflichtversicherung", rolle: gegner_hv, beklagter_vorschlag: true}
+  GH:   {bezeichnung: "Gegnerische Haftpflichtversicherung", rolle: gegner_hv, beklagter_vorschlag: true}
+  GHV:  {bezeichnung: "Gegnerische Haftpflichtversicherung", rolle: gegner_hv, beklagter_vorschlag: true}
+
+  # Bevollmaechtigte der Gegner -- KEINE Gegner und nie passivlegitimiert
+  # (RA Schatz, 2026-08-31). Ebenso Schadenabwickler, die nur fuer den
+  # Versicherer regulieren. SA wird wie SAB behandelt.
+  GR:   {bezeichnung: "Gegnerischer Anwalt",        rolle: gegner_anwalt}
+  GR2:  {bezeichnung: "Gegnerischer Anwalt (2)",    rolle: gegner_anwalt}
+  GR3:  {bezeichnung: "Gegnerischer Anwalt (3)",    rolle: gegner_anwalt}
+  GBEV: {bezeichnung: "Gegnerbevollmaechtigter",    rolle: gegner_anwalt}
+  SAB:  {bezeichnung: "Schadenabwickler",           rolle: schadenabwickler}
+  SA:   {bezeichnung: "Schadenabwickler",           rolle: schadenabwickler}
+
+  # ── Versicherungen der eigenen Seite ──────────────────────────────────
+  HPV:  {bezeichnung: "Eigene Haftpflichtversicherung", rolle: eigene_versicherung}
+  KASK: {bezeichnung: "Kaskoversicherung",              rolle: eigene_versicherung}
+  RS:   {bezeichnung: "Rechtsschutzversicherung",       rolle: rechtsschutz}
+  RSV:  {bezeichnung: "Rechtsschutzversicherung",       rolle: rechtsschutz}
+
+  # ── Beweismittel und Gutachten ────────────────────────────────────────
+  Z:    {bezeichnung: "Zeuge/Zeugin",   rolle: zeuge}
+  SV:   {bezeichnung: "Sachverstaendiger", rolle: sachverstaendiger}
+  SVR:  {bezeichnung: "Sachverstaendiger", rolle: sachverstaendiger}
+  DT:   {bezeichnung: "Detektei",       rolle: sonstiger}
+
+  # ── Gerichte ──────────────────────────────────────────────────────────
+  GE:   {bezeichnung: "Gericht",                  rolle: gericht}
+  I1:   {bezeichnung: "Gericht 1. Instanz",       rolle: gericht}
+  I2:   {bezeichnung: "Gericht 2. Instanz",       rolle: gericht}
+  VG:   {bezeichnung: "Vollstreckungsgericht",    rolle: gericht}
+  BA:   {bezeichnung: "Bundesarbeitsgericht",     rolle: gericht}
+  BF:   {bezeichnung: "Bundesfinanzhof",          rolle: gericht}
+  BG:   {bezeichnung: "Bundesgerichtshof",        rolle: gericht}
+  BV:   {bezeichnung: "BVerfG/BVerwG",            rolle: gericht}
+
+  # ── Strafverfolgung, Polizei, Behoerden ───────────────────────────────
+  ST:   {bezeichnung: "Staatsanwaltschaft",  rolle: staatsanwaltschaft}
+  AM:   {bezeichnung: "Amtsanwaltschaft",    rolle: staatsanwaltschaft}
+  PO:   {bezeichnung: "Polizei",             rolle: polizei}
+  AB:   {bezeichnung: "Amt/Behoerde",        rolle: behoerde}
+  FA:   {bezeichnung: "Finanzamt",           rolle: behoerde}
+  GB:   {bezeichnung: "Grundbuchamt",        rolle: behoerde}
+  HR:   {bezeichnung: "Handelsregister",     rolle: behoerde}
+
+  # ── Geld, Vollstreckung, Insolvenz ────────────────────────────────────
+  KI:   {bezeichnung: "Kreditinstitut",      rolle: bank}
+  GVZ:  {bezeichnung: "Gerichtsvollzieher",  rolle: vollstreckung}
+  GV:   {bezeichnung: "Gerichtsvollzieher",  rolle: vollstreckung}
+  INK:  {bezeichnung: "Inkassobuero",        rolle: vollstreckung}
+  DS:   {bezeichnung: "Drittschuldner",      rolle: vollstreckung}
+  INS:  {bezeichnung: "Insolvenzverwalter",  rolle: vollstreckung}
+  ZVW:  {bezeichnung: "Zwangsverwalter",     rolle: vollstreckung}
+
+  # ── Vertretung, Verwaltung, Uebrige ───────────────────────────────────
+  # Bewusst rolle=sonstiger: die Bezeichnung traegt die Genauigkeit,
+  # eine eigene Rolle braeuchte keiner dieser Faelle.
+  KR:   {bezeichnung: "Korrespondenzanwalt",           rolle: sonstiger}
+  TR:   {bezeichnung: "Terminsvertreter",              rolle: sonstiger}
+  REF:  {bezeichnung: "Referendar/in",                 rolle: sonstiger}
+  SH:   {bezeichnung: "Streithelfer",                  rolle: sonstiger}
+  BE:   {bezeichnung: "Betreuer",                      rolle: sonstiger}
+  TV:   {bezeichnung: "Testamentsvollstrecker",        rolle: sonstiger}
+  NPF:  {bezeichnung: "Nachlasspfleger",               rolle: sonstiger}
+  HVW:  {bezeichnung: "Hausverwaltung",                rolle: sonstiger}
+  WEG:  {bezeichnung: "Wohnungseigentuemergemeinschaft", rolle: sonstiger}
+  SB:   {bezeichnung: "Sonstige Beteiligte",           rolle: sonstiger}
+  SO:   {bezeichnung: "Sonstige Dritte",               rolle: sonstiger}
+  IN:   {bezeichnung: "Intern",                        rolle: sonstiger}
+  UN:   {bezeichnung: "Unterlagen",                    rolle: sonstiger}
+
+  # Terminsvertretung -- hat nichts mit Versicherungen zu tun
+  # (RA Schatz, 2026-08-31).
+  HBV:  {bezeichnung: "Hauptbevollmaechtigter",        rolle: sonstiger}
+  UBV:  {bezeichnung: "Unterbevollmaechtigter",        rolle: sonstiger}
+
+  # Offen: Kuerzel nennt die Sparte, nicht die Seite. Bis zur Klaerung die
+  # sichere Variante -- kein Beklagtenvorschlag.
+  HV:   {bezeichnung: "Haftpflichtversicherung",   rolle: sonstiger, offen: true}
+  VS:   {bezeichnung: "Versicherung",              rolle: sonstiger, offen: true}
+
+
+# Auffang, wenn KEIN Kuerzel gesetzt ist: dann entscheidet die
+# Beteiligtenart. Ohne diese Ausnahme verloere jede Akte ihren Mandanten
+# (Art 1, 928 Faelle) und ihren Gegner (Art 2, 579 Faelle) -- beide tragen
+# in RA-MICRO regulaer kein Kennzeichen.
+art_standard:
+  1: {bezeichnung: "Mandant", rolle: mandant}
+  2: {bezeichnung: "Gegner",  rolle: gegner, beklagter_vorschlag: true}
+  3: {bezeichnung: "Rechtsschutzversicherung", rolle: rechtsschutz}
+  6: {bezeichnung: "Behoerde", rolle: behoerde}
+  9: {bezeichnung: "Gegnerbevollmaechtigter", rolle: gegner_anwalt}
+
+# Auffang fuer alles Uebrige: gesetztes, aber unbekanntes Kuerzel und
+# unbekannte Beteiligtenart ohne Kuerzel.
+standard: {bezeichnung: "Sonstige Beteiligte", rolle: sonstiger}

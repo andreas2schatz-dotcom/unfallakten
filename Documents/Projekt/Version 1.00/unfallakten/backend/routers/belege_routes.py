@@ -24,19 +24,10 @@ from ..db.database import get_connection
 
 # ── RA-Micro Beteiligte-Fallback ──────────────────────────────────────────────
 
-# sBeteiligtenKennzeichen → interne Rolle
-_KZ_ROLLE_MAP = {
-    "M":    "mandant",
-    "M1":   "mandant",
-    "SV":   "sachverstaendiger",
-    "SV1":  "sachverstaendiger",
-    "GHPV": "gegner",
-    "GH":   "gegner",
-    "GHV":  "gegner",
-    "GBEV": "gegner",
-    "G":    "gegner",
-    "G1":   "gegner",
-}
+# Rollen kommen aus dem Kürzelverzeichnis (beteiligten_kuerzel_registry).
+# Bis 2026-08-31 stand hier eine eigene Tabelle, die alles unter
+# Beteiligtenart 2/4/9 zum Gegner machte — auch Zeugen.
+from ..services.beteiligten_kuerzel_registry import bestimme_beteiligten_rolle
 
 
 def _az_basis(az_str: str) -> str:
@@ -90,17 +81,7 @@ def _lade_beteiligte_alle_ramicro(az: str) -> list:
         for r in rows:
             kz  = (r.get("kz") or "").strip().upper()
             art = r.get("art") or 0
-            # Rolle bestimmen: erst KZ-Map, dann art-Fallback
-            if kz in _KZ_ROLLE_MAP:
-                rolle = _KZ_ROLLE_MAP[kz]
-            elif kz.startswith("SV"):
-                rolle = "sachverstaendiger"
-            elif art == 1:
-                rolle = "mandant"
-            elif art in (2, 4, 9):
-                rolle = "gegner"
-            else:
-                rolle = "sonstiger"
+            rolle = bestimme_beteiligten_rolle(art, kz).rolle
 
             nachname = (r.get("sNachname")         or "").strip()
             erste    = (r.get("sErsteAdresszeile") or "").strip()

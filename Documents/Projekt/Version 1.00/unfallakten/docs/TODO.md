@@ -17,6 +17,14 @@ Spec + Plan unter `docs/superpowers/`, Protokoll → CHANGELOG. Alle 8 Aufgaben 
 - **`unfall@`-Reiter prüfen:** Die Karte „Fragebogen-Erstkontakt" ist verschwunden, der Reiter im Übrigen unverändert. Der Erstkontakt-Weg ist stillgelegt, die Tabelle `fragebogen_erstkontakt` bleibt leer bestehen.
 - **Merken für Tests:** 18 Tests laufen absichtlich echt gegen RA-MICRO und werden normal übersprungen — Aufruf mit `RAMICRO_INTEGRATION=1 pytest -m ramicro_integration backend/tests/`.
 
+### Beteiligten-Kürzel-Verzeichnis — ✅ umgesetzt (2026-08-31, Branch `fragebogen-favoritenliste`), Abnahme offen
+Zeugen standen als Gegner in der Beteiligtenliste und waren im Klage-Wizard als Beklagte vorausgewählt. Fünf getrennte Kürzel-Auslegungen sind auf `backend/registry/beteiligten_kuerzel.yaml` vereinheitlicht. Protokoll → CHANGELOG, Begründungen → DECISIONS. Backend 2105 grün, Frontend 603 grün. **Offen — Abnahme im Browser:**
+- **Akte 13/26:** Müller und Bukh müssen als „Zeuge/Zeugin" erscheinen (violett), nicht als Gegner. Danach den Klage-Wizard derselben Akte öffnen: nur die VHV darf angehakt sein.
+- **Akte 108/26:** Rechtsschutzversicherung, Schadenabwickler, Landgericht, Staatsanwaltschaft und Polizei müssen einzeln benannt sein — vorher hießen alle fünf „Sonstige Beteiligte".
+- **Fragezeichen-Fälle sichten:** Drei Beteiligte im Bestand tragen ein Kürzel ohne Eintrag (`KOAN`, `OA`, `UB`). Sie zeigen ein „?" mit Erklärung beim Überfahren. Wenn Sie die Bedeutung kennen: in die YAML nachtragen.
+- **Entscheidung RA Schatz — `HV`/`VS`:** Beide sind als `offen: true` markiert, weil das Kürzel die Sparte nennt (Haftpflicht/Versicherung), nicht die Seite. In den Unfallakten kommt derzeit keines vor.
+- **Merken:** Nach Änderungen an der YAML ist ein `docker restart unfallakten-backend-dev` nötig (Reloader reagiert nur auf `.py`, die Registry cached).
+
 ### Review-Queue im Testbetrieb sauber halten (seit 2026-08-28)
 879 Altdokumente archiviert (reversibel, Papierkorb-Reiter), acht Werbedomains in die Rausch-Regel. Protokoll → CHANGELOG. **Offen:**
 - **Regelmäßig aufräumen, solange das System nicht live ist** — Zufluss 40–80 Dokumente/Tag, der Rauschfilter fängt davon nur ~7 %. Kommando: `MSYS_NO_PATHCONV=1 docker exec unfallakten-backend-dev python /app/tools/queue_altbestand_archivieren.py --dry-run` (ohne `--dry-run` räumt es auf).

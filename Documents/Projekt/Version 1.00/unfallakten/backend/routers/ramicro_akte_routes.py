@@ -16,6 +16,7 @@ import logging
 import os
 from flask import Blueprint, jsonify, request, make_response
 from ..auth.middleware import login_erforderlich
+from ..services.beteiligten_kuerzel_registry import bestimme_beteiligten_rolle
 from ..ramicro.connector import (
     get_ramicro_connection, RaMicroNichtAktiv, RaMicroVerbindungsFehler
 )
@@ -42,52 +43,36 @@ GHPV_KZ          = {'GHPV', 'GH'}
 GBEV_KZ          = {'GBEV', 'GHV'}
 BEHOERDEN_KZ_A4  = {'AA'}       # Art 4, trotzdem Behörde
 
+# Rolle aus dem Kuerzelverzeichnis -> Gruppe dieser Ansicht.
+_ROLLE_GRUPPE = {
+    'mandant':             'mandant',
+    'gegner':              'gegner',
+    'gegner_hv':           'gegner',
+    'gegner_anwalt':       'weitere',   # Bevollmaechtigter, kein Gegner
+    'schadenabwickler':    'weitere',   # nicht passivlegitimiert -> kein Gegner
+    'eigene_versicherung': 'eigene_versicherung',
+    'rechtsschutz':        'rechtsschutz',
+    'behoerde':            'behoerde',
+    'polizei':             'behoerde',
+    'staatsanwaltschaft':  'behoerde',
+    'gericht':             'behoerde',
+}
+
 
 def _klassifiziere(art: int, kz: str) -> str:
     """
-    Gibt eine von 6 Gruppen zurück:
+    Gruppe fuer die Aktenansicht, abgeleitet aus dem Kuerzelverzeichnis
+    (beteiligten_kuerzel_registry -- SSOT).
+
+    Gibt eine von 6 Gruppen zurueck:
       mandant | eigene_versicherung | gegner | rechtsschutz | behoerde | weitere
+
+    Bis 2026-08-31 fuehrte diese Funktion eine eigene Kuerzeltabelle. Sie war
+    die genaueste der fuenf im System, kannte aber weder RSV noch Polizei
+    unter Beteiligtenart 4.
     """
-    kz_up = (kz or "").strip().upper()
-
-    if art == 1:
-        # M, M1, M2 … = explizit Mandant
-        # Leeres Kennzeichen bei Art 1 = ebenfalls Mandant (RA-Micro-Standard)
-        # Nur Ausnahmen explizit raus: SB (Sachbearbeiter), SO (Sonstiges)
-        if kz_up in ("SB", "SO", "G"):
-            return "weitere"
-        return "mandant"
-
-    if art == 2:
-        if kz_up in EIGENE_VERS_KZ:
-            return "eigene_versicherung"
-        if kz_up == "RSV":
-            return "rechtsschutz"
-        if kz_up in ("SB", "SO"):
-            return "weitere"
-        return "gegner"
-
-    if art == 3:
-        return "rechtsschutz"
-
-    if art == 4:
-        if kz_up in GHPV_KZ:
-            return "gegner"
-        if kz_up in GBEV_KZ:
-            return "gegner"
-        if kz_up in EIGENE_VERS_KZ:
-            return "eigene_versicherung"
-        if kz_up in BEHOERDEN_KZ_A4:
-            return "behoerde"
-        return "weitere"
-
-    if art == 6:
-        return "behoerde"
-
-    if art == 9:
-        return "gegner"
-
-    return "weitere"
+    eintrag = bestimme_beteiligten_rolle(art, kz)
+    return _ROLLE_GRUPPE.get(eintrag.rolle, "weitere")
 
 
 # ── RA-Micro Variablen-Ersetzung (analog sachstandsanfrage_wv.py) ─────────────
