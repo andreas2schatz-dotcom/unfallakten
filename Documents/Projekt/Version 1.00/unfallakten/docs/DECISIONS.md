@@ -5,6 +5,16 @@ Format: Entscheidung → Grund → Alternative → Konsequenz.
 
 ---
 
+## Wiedervorlagegrund: Freitext ist die Quelle, die Nummer nur der Notnagel (2026-09-01)
+
+RA-MICRO speichert den Wiedervorlagegrund in zwei Regimen: eingebaute Codes 5–99 ohne Text (958 von 1.610 Zeilen) und laufende IDs ab 63912 mit Freitext. Der Katalogtext der eingebauten Gründe steht in keiner der acht Serverdatenbanken. Deshalb: `sWiedervorlagegrund` hat immer Vorrang, `backend/registry/wiedervorlage_codes.yaml` springt nur bei leerem Text ein. Die Registry wird nicht gepflegt — neue Gründe der Kanzlei bekommen eine Nummer ab 63912 und bringen ihren Text mit.
+
+`sBemerkung` (optional, ~10 % der Zeilen) wird als Zusatzzeile angezeigt.
+
+Die Bezeichnungen der eingebauten Codes stammen aus einer frühen Session und sind bis zur Prüfung durch RA Schatz mit `verifiziert: false` gekennzeichnet.
+
+---
+
 ## Beteiligten-Kürzel und Passivlegitimation (RA Schatz, 2026-08-31)
 
 ### Nur der Gegner und seine Haftpflichtversicherung dürfen als Beklagte vorgeschlagen werden

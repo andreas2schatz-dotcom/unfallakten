@@ -142,6 +142,8 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 ---
 
 ## ❓ Unklar / zu klären
+- **Echte RA-MICRO-Fristen** — liegen nicht im SQL Server (alle acht Datenbanken geprüft, `raKalender.dbo.Deadlist` existiert und ist leer). Offen: In welchem RA-MICRO-Modul werden sie geführt, und lässt sich die Synchronisation nach `Deadlist` einschalten?
+- **Freitext-Wiedervorlagen mit Fristcharakter** — 652 Einträge, darunter „Anspruchsbegründung fertigen! DRINGEND!". Landen in der Wiedervorlagen-Kachel. Erkennung offen.
 - **PRD-29 DKz-Filter — erledigt oder offen?** Handover sagt „implementiert" (via Schlagwort `E-Brief`, da DKz-Feld in DB fehlt), v56 sagt „nicht gestartet". Ist das ursprüngliche Ziel als erfüllt zu betrachten?
 - **Zwei getrennte Positions-Modelle abgleichen (aus UX-Review 2026-07-31, Baustelle 3):** Das alte Schaden-Formular (`schadenpositionen`-Tabelle, füttert Forderung/Klage) und das neuere Ereignis-Modell (`ereignisse`/`ereignis_positionen`/`position_ereignis_cache`, füttert `PositionsDashboard`) laufen parallel und gleichen sich **nicht** automatisch ab; die `position_key`-Namensräume differieren (alt hat `_netto`-Varianten, Registry `positionsarten.yaml` nicht — im Code als „bis P1.7" vertagt, `belege_routes.py:135-152`). Zu klären: konsolidieren (eine SSOT) oder bewusst getrennt lassen? Kontext: `docs/superpowers/specs/2026-07-31-belege-zu-positionen-design.md` §9.
 

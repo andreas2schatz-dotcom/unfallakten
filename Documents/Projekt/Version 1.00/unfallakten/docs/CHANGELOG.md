@@ -7,6 +7,24 @@
 
 ---
 
+## 2026-09-01 — Wiedervorlagegrund: sieben Auslegungsstellen auf eine Registry vereinheitlicht
+
+Branch `wiedervorlage-registry`. Die Tagesübersicht liest für Fristen- und Wiedervorlagen-Kachel das Feld `iWiedervorlageGrund` aus RA-MICRO. Sieben Stellen legten diesen Code unabhängig voneinander aus: vier Bezeichnungslisten (`RAMICRO_WV_GRUENDE` 40 Einträge, `_RAMICRO_GRUENDE` 16, `_FRIST_LABELS` 7, `_TERMIN_LABELS` 3) und vier Codelisten direkt im SQL — drei davon für die Kachel-Abfragen, eine vierte im Stellungnahme-Filter.
+
+**Umgesetzt:** `backend/registry/wiedervorlage_codes.yaml` (46 eingebaute RA-MICRO-Codes) als SSOT, gelesen über `backend/services/wiedervorlage_code_registry.py` (`loese_wv_grund`, `codes_fuer_art`, `sql_codeliste`, `stellungnahme_codes`). `dashboard_routes.py` und `wiedervorlage_service.py` lesen nur noch von dort; die vier Bezeichnungslisten und vier hartcodierten Codelisten sind entfernt. Begründung + Freitext-Vorrang → `docs/DECISIONS.md`.
+
+Die vier Bezeichnungslisten widersprachen sich nicht, wo sie sich überschnitten — sie unterschieden sich nur im Umfang. Der Zusammenzug ändert deshalb keine bestehende Beschriftung. Anders bei `_RAMICRO_GRUENDE`, der Liste hinter der Wiedervorlagen-Kachel: Sie kannte nur 16 der 46 Codes. **537 Wiedervorlagen, die bisher pauschal „Wiedervorlage" anzeigten, zeigen jetzt einen konkreten Grund** — diese Bezeichnungen sind bislang unverifiziert (`verifiziert: false`, siehe Guard-Test unten).
+
+Der tote Endpunkt `/dashboard/ramicro-fristen` (definiert, von niemandem aufgerufen) ist entfernt, ebenso `ramicroFristen` aus `frontend/src/api.js`.
+
+**Frontend:** `sBemerkung` (~10 % der Zeilen, 155 von 1.610) erscheint jetzt als dritte Zeile in Fristen- und Wiedervorlagen-Kachel (`ZeileText`-`zusatz`-Prop in `boardUi.jsx`, verdrahtet in `FristenKachel.jsx` und `WiedervorlagenKachel.jsx`).
+
+**Guard-Test** `test_wiedervorlage_registry_guard.py` durchsucht den Quellcode statisch nach neuen Codelisten auf `iWiedervorlageGrund` außerhalb der Registry-Datei und gibt bei jedem Testlauf aus, wie viele der 46 eingebauten Codes noch unverifiziert sind (aktuell alle 46).
+
+Vollsuiten: Backend **2088 passed / 70 skipped / 0 failed**, Frontend **607 passed**.
+
+---
+
 ## 2026-08-31 — Zeugen standen als Gegner in der Akte: fünf Kürzel-Auslegungen auf ein Verzeichnis vereinheitlicht
 
 Meldung RA Schatz: *„in der Beteiligtenliste tauchen Zeugen als Gegner auf."* Branch `fragebogen-favoritenliste`.
