@@ -31,52 +31,52 @@ freitext_ab: 1000
 # stellungnahme: true ersetzt die Codeliste im Stellungnahme-Filter
 # von hole_faellige_wiedervorlagen().
 codes:
-  21: {bezeichnung: "Klage",                 art: frist, verifiziert: false}
-  22: {bezeichnung: "Urteil",                art: frist, verifiziert: false}
-  31: {bezeichnung: "Mahnbescheid",          art: frist, verifiziert: false}
-  46: {bezeichnung: "Berufung",              art: frist, verifiziert: false}
-  51: {bezeichnung: "Einspruch",             art: frist, verifiziert: false}
-  55: {bezeichnung: "Beschwerde",            art: frist, verifiziert: false}
-  75: {bezeichnung: "Fristablauf",           art: frist, verifiziert: false}
-  9: {bezeichnung: "Entscheidung/Gericht",  art: termin, verifiziert: false}
-  58: {bezeichnung: "Verhandlungstermin",    art: termin, verifiziert: false}
-  60: {bezeichnung: "Anhoerungstermin",      art: termin, verifiziert: false}
-  5: {bezeichnung: "Stellungnahme Gegner",  art: wiedervorlage, verifiziert: false, stellungnahme: true}
-  6: {bezeichnung: "Stellungnahme Mandant", art: wiedervorlage, verifiziert: false, stellungnahme: true}
-  10: {bezeichnung: "Ermittlungsakte",       art: wiedervorlage, verifiziert: false}
-  11: {bezeichnung: "Stellungnahme Mandant", art: wiedervorlage, verifiziert: false, stellungnahme: true}
-  12: {bezeichnung: "Zahlung Gegner",        art: wiedervorlage, verifiziert: false}
-  16: {bezeichnung: "Stellungnahme Gegner?", art: wiedervorlage, verifiziert: false, stellungnahme: true}
-  17: {bezeichnung: "Reaktion Rechtsschutz", art: wiedervorlage, verifiziert: false}
-  18: {bezeichnung: "Deckungszusage",        art: wiedervorlage, verifiziert: false}
-  19: {bezeichnung: "Sachstand",             art: wiedervorlage, verifiziert: false}
-  20: {bezeichnung: "Fristverlaengerung",    art: wiedervorlage, verifiziert: false}
-  23: {bezeichnung: "Vergleich",             art: wiedervorlage, verifiziert: false}
-  26: {bezeichnung: "Gutachten",             art: wiedervorlage, verifiziert: false}
-  28: {bezeichnung: "Sachverstaendiger",     art: wiedervorlage, verifiziert: false}
-  32: {bezeichnung: "Vollstreckung",         art: wiedervorlage, verifiziert: false}
-  34: {bezeichnung: "Erneute EV moeglich",   art: wiedervorlage, verifiziert: false}
-  35: {bezeichnung: "Insolvenzverfahren",    art: wiedervorlage, verifiziert: false}
-  36: {bezeichnung: "Zwangsvollstreckung",   art: wiedervorlage, verifiziert: false}
-  38: {bezeichnung: "Kostenantrag",          art: wiedervorlage, verifiziert: false}
-  39: {bezeichnung: "Honorar",               art: wiedervorlage, verifiziert: false}
-  43: {bezeichnung: "Akteneinsicht",         art: wiedervorlage, verifiziert: false}
-  49: {bezeichnung: "Revision",              art: wiedervorlage, verifiziert: false}
-  54: {bezeichnung: "Widerspruch",           art: wiedervorlage, verifiziert: false}
-  62: {bezeichnung: "Schriftsatz",           art: wiedervorlage, verifiziert: false}
-  69: {bezeichnung: "Post",                  art: wiedervorlage, verifiziert: false}
-  71: {bezeichnung: "Telefonat",             art: wiedervorlage, verifiziert: false}
-  81: {bezeichnung: "Rueckruf",              art: wiedervorlage, verifiziert: false}
-  88: {bezeichnung: "Besprechung",           art: wiedervorlage, verifiziert: false}
-  91: {bezeichnung: "Abrechnung",            art: wiedervorlage, verifiziert: false}
-  94: {bezeichnung: "Akte schliessen",       art: wiedervorlage, verifiziert: false}
-  99: {bezeichnung: "Sonstiges",             art: wiedervorlage, verifiziert: false}
-  25: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}
-  61: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}
-  63: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}
-  78: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}
-  93: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}
-  98: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}
+  21: {bezeichnung: "Klage",                 art: frist, verifiziert: false}  #  20x
+  22: {bezeichnung: "Urteil",                art: frist, verifiziert: false}  #   0x
+  31: {bezeichnung: "Mahnbescheid",          art: frist, verifiziert: false}  #   1x
+  46: {bezeichnung: "Berufung",              art: frist, verifiziert: false}  #   0x
+  51: {bezeichnung: "Einspruch",             art: frist, verifiziert: false}  #  10x
+  55: {bezeichnung: "Beschwerde",            art: frist, verifiziert: false}  #  38x
+  75: {bezeichnung: "Fristablauf",           art: frist, verifiziert: false}  #   3x
+  9: {bezeichnung: "Entscheidung/Gericht",  art: termin, verifiziert: false}  #   1x
+  58: {bezeichnung: "Verhandlungstermin",    art: termin, verifiziert: false}  #  14x
+  60: {bezeichnung: "Anhoerungstermin",      art: termin, verifiziert: false}  #   4x
+  5: {bezeichnung: "Stellungnahme Gegner",  art: wiedervorlage, verifiziert: false, stellungnahme: true}  #   5x
+  6: {bezeichnung: "Stellungnahme Mandant", art: wiedervorlage, verifiziert: false, stellungnahme: true}  #   7x
+  10: {bezeichnung: "Ermittlungsakte",       art: wiedervorlage, verifiziert: false}  #  44x
+  11: {bezeichnung: "Stellungnahme Mandant", art: wiedervorlage, verifiziert: false, stellungnahme: true}  #  80x
+  12: {bezeichnung: "Zahlung Gegner",        art: wiedervorlage, verifiziert: false}  # 169x
+  16: {bezeichnung: "Stellungnahme Gegner?", art: wiedervorlage, verifiziert: false, stellungnahme: true}  # 217x
+  17: {bezeichnung: "Reaktion Rechtsschutz", art: wiedervorlage, verifiziert: false}  #  19x
+  18: {bezeichnung: "Deckungszusage",        art: wiedervorlage, verifiziert: false}  #  10x
+  19: {bezeichnung: "Sachstand",             art: wiedervorlage, verifiziert: false}  #  44x
+  20: {bezeichnung: "Fristverlaengerung",    art: wiedervorlage, verifiziert: false}  #   5x
+  23: {bezeichnung: "Vergleich",             art: wiedervorlage, verifiziert: false}  #   4x
+  26: {bezeichnung: "Gutachten",             art: wiedervorlage, verifiziert: false}  #   5x
+  28: {bezeichnung: "Sachverstaendiger",     art: wiedervorlage, verifiziert: false}  #   9x
+  32: {bezeichnung: "Vollstreckung",         art: wiedervorlage, verifiziert: false}  #  69x
+  34: {bezeichnung: "Erneute EV moeglich",   art: wiedervorlage, verifiziert: false}  #  10x
+  35: {bezeichnung: "Insolvenzverfahren",    art: wiedervorlage, verifiziert: false}  #  49x
+  36: {bezeichnung: "Zwangsvollstreckung",   art: wiedervorlage, verifiziert: false}  #  37x
+  38: {bezeichnung: "Kostenantrag",          art: wiedervorlage, verifiziert: false}  #   0x
+  39: {bezeichnung: "Honorar",               art: wiedervorlage, verifiziert: false}  #   2x
+  43: {bezeichnung: "Akteneinsicht",         art: wiedervorlage, verifiziert: false}  #   8x
+  49: {bezeichnung: "Revision",              art: wiedervorlage, verifiziert: false}  #   2x
+  54: {bezeichnung: "Widerspruch",           art: wiedervorlage, verifiziert: false}  #   8x
+  62: {bezeichnung: "Schriftsatz",           art: wiedervorlage, verifiziert: false}  #   2x
+  69: {bezeichnung: "Post",                  art: wiedervorlage, verifiziert: false}  #  17x
+  71: {bezeichnung: "Telefonat",             art: wiedervorlage, verifiziert: false}  #   1x
+  81: {bezeichnung: "Rueckruf",              art: wiedervorlage, verifiziert: false}  #   2x
+  88: {bezeichnung: "Besprechung",           art: wiedervorlage, verifiziert: false}  #   0x
+  91: {bezeichnung: "Abrechnung",            art: wiedervorlage, verifiziert: false}  #  32x
+  94: {bezeichnung: "Akte schliessen",       art: wiedervorlage, verifiziert: false}  #   0x
+  99: {bezeichnung: "Sonstiges",             art: wiedervorlage, verifiziert: false}  #   1x
+  25: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}  #  1x
+  61: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}  #  1x
+  63: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}  #  3x
+  78: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}  #  2x
+  93: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}  #  1x
+  98: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}  #  1x
 
 standard:
   text_und_code_leer: "ohne Angabe"
