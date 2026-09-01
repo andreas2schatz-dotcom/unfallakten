@@ -180,7 +180,12 @@ def sql_codeliste(*arten: str) -> str:
     Die Werte sind ints aus der Registry, nie Nutzereingaben -- die
     Interpolation in den SQL-String ist deshalb unbedenklich.
     """
-    return ", ".join(str(int(c)) for c in codes_fuer_art(*arten))
+    codes = codes_fuer_art(*arten)
+    if not codes:
+        raise RuntimeError(
+            f"Wiedervorlagecode-Registry: keine Codes fuer art {arten!r} -- "
+            f"IN () waere ein SQL-Fehler")
+    return ", ".join(str(int(c)) for c in codes)
 
 
 def stellungnahme_codes() -> Tuple[int, ...]:

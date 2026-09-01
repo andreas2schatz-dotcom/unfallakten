@@ -42,7 +42,7 @@ codes:
 # ── Termine-Kachel ────────────────────────────────────────────────────
   9: {bezeichnung: "Entscheidung/Gericht",  art: termin, verifiziert: false}  #   1x
   58: {bezeichnung: "Verhandlungstermin",    art: termin, verifiziert: false}  #  14x
-  60: {bezeichnung: "Anhoerungstermin",      art: termin, verifiziert: false}  #   4x
+  60: {bezeichnung: "Anhörungstermin",       art: termin, verifiziert: false}  #   4x
 # ── Wiedervorlagen-Kachel ─────────────────────────────────────────────
   5: {bezeichnung: "Stellungnahme Gegner",  art: wiedervorlage, verifiziert: false, stellungnahme: true}  #   5x
   6: {bezeichnung: "Stellungnahme Mandant", art: wiedervorlage, verifiziert: false, stellungnahme: true}  #   7x
@@ -53,12 +53,12 @@ codes:
   17: {bezeichnung: "Reaktion Rechtsschutz", art: wiedervorlage, verifiziert: false}  #  19x
   18: {bezeichnung: "Deckungszusage",        art: wiedervorlage, verifiziert: false}  #  10x
   19: {bezeichnung: "Sachstand",             art: wiedervorlage, verifiziert: false}  #  44x
-  20: {bezeichnung: "Fristverlaengerung",    art: wiedervorlage, verifiziert: false}  #   5x
+  20: {bezeichnung: "Fristverlängerung",     art: wiedervorlage, verifiziert: false}  #   5x
   23: {bezeichnung: "Vergleich",             art: wiedervorlage, verifiziert: false}  #   4x
   26: {bezeichnung: "Gutachten",             art: wiedervorlage, verifiziert: false}  #   5x
-  28: {bezeichnung: "Sachverstaendiger",     art: wiedervorlage, verifiziert: false}  #   9x
+  28: {bezeichnung: "Sachverständiger",      art: wiedervorlage, verifiziert: false}  #   9x
   32: {bezeichnung: "Vollstreckung",         art: wiedervorlage, verifiziert: false}  #  69x
-  34: {bezeichnung: "Erneute EV moeglich",   art: wiedervorlage, verifiziert: false}  #  10x
+  34: {bezeichnung: "Erneute EV möglich",    art: wiedervorlage, verifiziert: false}  #  10x
   35: {bezeichnung: "Insolvenzverfahren",    art: wiedervorlage, verifiziert: false}  #  49x
   36: {bezeichnung: "Zwangsvollstreckung",   art: wiedervorlage, verifiziert: false}  #  37x
   38: {bezeichnung: "Kostenantrag",          art: wiedervorlage, verifiziert: false}  #   0x
@@ -69,10 +69,10 @@ codes:
   62: {bezeichnung: "Schriftsatz",           art: wiedervorlage, verifiziert: false}  #   2x
   69: {bezeichnung: "Post",                  art: wiedervorlage, verifiziert: false}  #  17x
   71: {bezeichnung: "Telefonat",             art: wiedervorlage, verifiziert: false}  #   1x
-  81: {bezeichnung: "Rueckruf",              art: wiedervorlage, verifiziert: false}  #   2x
+  81: {bezeichnung: "Rückruf",               art: wiedervorlage, verifiziert: false}  #   2x
   88: {bezeichnung: "Besprechung",           art: wiedervorlage, verifiziert: false}  #   0x
   91: {bezeichnung: "Abrechnung",            art: wiedervorlage, verifiziert: false}  #  32x
-  94: {bezeichnung: "Akte schliessen",       art: wiedervorlage, verifiziert: false}  #   0x
+  94: {bezeichnung: "Akte schließen",        art: wiedervorlage, verifiziert: false}  #   0x
   99: {bezeichnung: "Sonstiges",             art: wiedervorlage, verifiziert: false}  #   1x
 # ── kommen im Bestand vor, standen aber in KEINER alten Liste ─────────
   # Bezeichnung offen -- siehe Task 0. offen: true erlaubt die leere

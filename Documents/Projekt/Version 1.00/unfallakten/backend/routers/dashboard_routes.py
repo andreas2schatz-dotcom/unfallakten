@@ -6,7 +6,7 @@ Endpunkte für das Action-Dashboard.
 Endpunkte:
   GET  /dashboard/action-items    Priorisierte Arbeitsliste für den Tag
   GET  /dashboard/termine-heute   Heutige + morgige Gerichtstermine aus RA-MICRO
-  GET  /dashboard/fristen         Harte Fristen aus RA-MICRO (Codes 21,22,31,46,75), überfällig bis +14 Tage
+  GET  /dashboard/fristen         Harte Fristen aus RA-MICRO (Codes laut backend/registry/wiedervorlage_codes.yaml, art: frist), überfällig bis +14 Tage
   GET  /dashboard/wiedervorlagen  WV überfällig+heute aus RA-MICRO + lokale Akten ohne aktive WV
 
 Python 3.9 kompatibel.
@@ -369,6 +369,7 @@ def _lade_termine_heute():
 
     ergebnis  = []
     seen_keys = set()  # Dedup: (az, datum_iso)
+    codes_termin = sql_codeliste("termin")
 
     try:
         kalender_map = kalender_zu_kuerzel()
@@ -433,7 +434,8 @@ def _lade_termine_heute():
                         "bemerkung":       "",
                     })
 
-            # Ergänzung: tblAktenWiedervorlagen Codes 9/58/60 (Gerichtstermine als WV)
+            # Ergänzung: tblAktenWiedervorlagen, Codes laut
+            # backend/registry/wiedervorlage_codes.yaml (art: termin) -- Gerichtstermine als WV
             cur.execute(f"""
                 SELECT TOP 30
                     a.sAktenNummer          AS az_roh,
@@ -446,7 +448,7 @@ def _lade_termine_heute():
                     w.sBemerkung            AS bemerkung
                 FROM tblAktenWiedervorlagen w
                 INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
-                WHERE w.iWiedervorlageGrund IN ({sql_codeliste("termin")})
+                WHERE w.iWiedervorlageGrund IN ({codes_termin})
                   AND CAST(w.dtWiedervorlage AS DATE) BETWEEN %(heute)s AND %(morgen)s
                   AND (a.dtAblage IS NULL
                        OR CAST(a.dtAblage AS DATE) = '1899-12-30')
@@ -499,6 +501,7 @@ def _lade_ramicro_fristen_hart():
     plus14_s    = plus14_dt.isoformat()
     minus365_dt = heute_dt - timedelta(days=365)
     minus365_s  = minus365_dt.isoformat()
+    codes_frist = sql_codeliste("frist")
 
     try:
         with get_ramicro_connection() as conn:
@@ -515,7 +518,7 @@ def _lade_ramicro_fristen_hart():
                     w.sBemerkung            AS bemerkung
                 FROM tblAktenWiedervorlagen w
                 INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
-                WHERE w.iWiedervorlageGrund IN ({sql_codeliste("frist")})
+                WHERE w.iWiedervorlageGrund IN ({codes_frist})
                   AND CAST(w.dtWiedervorlage AS DATE) BETWEEN %(minus365)s AND %(plus14)s
                   AND (a.dtAblage IS NULL
                        OR CAST(a.dtAblage AS DATE) = '1899-12-30')
@@ -550,7 +553,8 @@ def _lade_ramicro_fristen_hart():
 @dashboard_bp.route("/fristen", methods=["GET"])
 @login_erforderlich
 def fristen():
-    """Fristen aus RA-MICRO: Codes 21,22,31,46,75 — überfällig bis +14 Tage."""
+    """Fristen aus RA-MICRO: Codes laut backend/registry/wiedervorlage_codes.yaml
+    (art: frist) — überfällig bis +14 Tage."""
     return _j({"eintraege": _lade_ramicro_fristen_hart()})
 
 
@@ -563,6 +567,7 @@ def _lade_wiedervorlagen():
     wv_eintraege       = []
     az_mit_aktiver_wv  = set()
     ramicro_erreichbar = True
+    codes_frist_termin = sql_codeliste("frist", "termin")
 
     try:
         with get_ramicro_connection() as conn:
@@ -580,7 +585,7 @@ def _lade_wiedervorlagen():
                     w.sBemerkung            AS bemerkung
                 FROM tblAktenWiedervorlagen w
                 INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
-                WHERE w.iWiedervorlageGrund NOT IN ({sql_codeliste("frist", "termin")})
+                WHERE w.iWiedervorlageGrund NOT IN ({codes_frist_termin})
                   AND CAST(w.dtWiedervorlage AS DATE) BETWEEN %(minus90)s AND %(heute)s
                   AND (a.dtAblage IS NULL
                        OR CAST(a.dtAblage AS DATE) = '1899-12-30')

@@ -21,7 +21,9 @@ MUSTER_SQL = re.compile(r"iWiedervorlageGrund\s+(?:NOT\s+)?IN\s*\(\s*\d")
 
 def _quelldateien():
     for ordner, _, dateien in os.walk(WURZEL):
-        if "tests" in ordner or "__pycache__" in ordner:
+        rel = os.path.relpath(ordner, WURZEL)
+        segmente = rel.split(os.sep) if rel != "." else []
+        if "tests" in segmente or "__pycache__" in segmente:
             continue
         for d in dateien:
             if d.endswith(".py"):

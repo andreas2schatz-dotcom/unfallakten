@@ -86,6 +86,12 @@ class TestKachelzuordnung:
         with pytest.raises(ValueError):
             codes_fuer_art("quatsch")
 
+    def test_sql_codeliste_ohne_arten_bricht_ab(self):
+        """Ohne Treffer waere das Ergebnis eine leere IN () -- ein SQL-Fehler
+        statt eines klaren Registry-Fehlers. Muss fail-loud sein."""
+        with pytest.raises(RuntimeError, match="keine Codes"):
+            sql_codeliste()
+
     def test_stellungnahme_codes_unveraendert(self):
         assert stellungnahme_codes() == (5, 6, 11, 16)
 

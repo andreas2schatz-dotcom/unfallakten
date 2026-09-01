@@ -2,6 +2,9 @@ import os
 os.environ.setdefault("FLASK_SECRET_KEY", "test-secret-key-dashboard-wv")
 
 import datetime
+import textwrap
+
+import pytest
 
 from backend.routers import dashboard_routes
 
@@ -101,3 +104,38 @@ def test_alte_konstanten_sind_verschwunden():
                  "_lade_ramicro_fristen"):
         assert not hasattr(dashboard_routes, name), \
             f"{name} lebt noch -- die Registry ist nicht die einzige Quelle"
+
+
+def _kaputte_registry(tmp_path):
+    p = tmp_path / "kaputte_registry.yaml"
+    p.write_text(textwrap.dedent("""
+        freitext_ab: 1000
+        codes:
+          5: {bezeichnung: "X", art: quatsch, verifiziert: false}
+        standard: {text_und_code_leer: "a", code_unbekannt: "b", art: wiedervorlage}
+    """), encoding="utf-8")
+    return str(p)
+
+
+class TestKaputteRegistryFaelltNichtLeiseAus:
+    """Eine fehlerhafte Registry darf NICHT im generischen except der
+    Loader landen -- sonst zeigt die Kachel faelschlich 'keine Fristen',
+    obwohl RA-MICRO nie befragt wurde. Der Registry-Fehler muss durch."""
+
+    def test_termine_heute_bricht_sichtbar_ab(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("WIEDERVORLAGE_CODES_REGISTRY_PFAD",
+                           _kaputte_registry(tmp_path))
+        with pytest.raises(RuntimeError, match="art"):
+            dashboard_routes._lade_termine_heute()
+
+    def test_fristen_hart_bricht_sichtbar_ab(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("WIEDERVORLAGE_CODES_REGISTRY_PFAD",
+                           _kaputte_registry(tmp_path))
+        with pytest.raises(RuntimeError, match="art"):
+            dashboard_routes._lade_ramicro_fristen_hart()
+
+    def test_wiedervorlagen_bricht_sichtbar_ab(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("WIEDERVORLAGE_CODES_REGISTRY_PFAD",
+                           _kaputte_registry(tmp_path))
+        with pytest.raises(RuntimeError, match="art"):
+            dashboard_routes._lade_wiedervorlagen()
