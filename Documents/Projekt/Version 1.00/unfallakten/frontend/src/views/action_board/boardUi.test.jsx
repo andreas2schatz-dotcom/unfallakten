@@ -58,6 +58,16 @@ describe("boardUi", () => {
     expect(screen.getByText("Fristen")).toBeInTheDocument();
     expect(screen.getByText("2 überfällig")).toBeInTheDocument();
   });
+
+  it("zeigt die Bemerkung als dritte Zeile", () => {
+    render(<ZeileText titel="100/26" meta="Fristablauf" zusatz="Deckungszusage ist da!" />);
+    expect(screen.getByText("Deckungszusage ist da!")).toBeInTheDocument();
+  });
+
+  it("laesst die Zeile weg, wenn keine Bemerkung da ist", () => {
+    const { container } = render(<ZeileText titel="100/26" meta="Fristablauf" zusatz="" />);
+    expect(container.textContent).toBe("100/26Fristablauf");
+  });
 });
 
 describe("boardUi – A11y und Button-Semantik", () => {

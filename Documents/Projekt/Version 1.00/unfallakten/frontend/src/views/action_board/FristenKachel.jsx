@@ -43,6 +43,7 @@ export default function FristenKachel({ status, eintraege, onOpenAkte, onRetry, 
                         titel={<><b className="tabular-nums">{e.az}</b> · {e.kurzbezeichnung || e.mandant}</>}
                         meta={`${e.frist_art} · Frist ${fmtDatumDe(e.frist_datum)}`}
                         metaFarbe={stufe === "rot" ? T.redText : T.amberText}
+                        zusatz={e.bemerkung}
                       />
                     }
                     rechts={<StufenBadge stufe={stufe}>{tageBadgeText(e.tage_bis)}</StufenBadge>}
@@ -64,6 +65,7 @@ export default function FristenKachel({ status, eintraege, onOpenAkte, onRetry, 
                     <ZeileText
                       titel={<><b className="tabular-nums">{e.az}</b> · {e.kurzbezeichnung || e.mandant}</>}
                       meta={e.frist_art}
+                      zusatz={e.bemerkung}
                     />
                   }
                   rechts={<span className="tabular-nums" style={{ fontSize: T.textXs, color: T.textMuted, whiteSpace: "nowrap" }}>{fmtDatumDe(e.frist_datum)}</span>}

@@ -78,12 +78,15 @@ export function Zeile({ stufe, onClick, links, rechts }) {
   );
 }
 
-export function ZeileText({ titel, meta, metaFarbe }) {
+export function ZeileText({ titel, meta, metaFarbe, zusatz }) {
   return (
     <span style={{ display: "block", minWidth: 0 }}>
       <span style={{ display: "block", fontSize: T.textSm, fontWeight: 500, color: T.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{titel}</span>
       {meta && (
         <span style={{ display: "block", fontSize: T.textXs, color: metaFarbe || T.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1 }}>{meta}</span>
+      )}
+      {zusatz && (
+        <span style={{ display: "block", fontSize: T.textXs, color: T.textMuted, fontStyle: "italic", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1 }}>{zusatz}</span>
       )}
     </span>
   );

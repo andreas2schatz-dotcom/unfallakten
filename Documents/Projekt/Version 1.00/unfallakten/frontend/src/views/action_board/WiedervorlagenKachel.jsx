@@ -32,6 +32,7 @@ export default function WiedervorlagenKachel({ status, wv, ohne_wv, onOpenAkte, 
             titel={<><b className="tabular-nums">{e.az}</b> · {e.kurzbezeichnung || e.mandant || e.az}</>}
             meta={e.grund || "Wiedervorlage"}
             metaFarbe={stufe === "rot" ? T.redText : T.amberText}
+            zusatz={e.bemerkung}
           />
         }
         rechts={<StufenBadge stufe={stufe}>{tageBadgeText(e.tage_bis)}</StufenBadge>}

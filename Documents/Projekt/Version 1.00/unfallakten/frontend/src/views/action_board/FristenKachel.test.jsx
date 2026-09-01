@@ -41,6 +41,23 @@ describe("FristenKachel", () => {
     expect(screen.getByText(/1 überfällig/)).toBeInTheDocument();
     expect(screen.getByText(/1 heute · 1 demnächst/)).toBeInTheDocument();
   });
+
+  it("zeigt die Bemerkung zur Frist", () => {
+    render(
+      <FristenKachel
+        status="ok"
+        eintraege={[{
+          az: "403/26AH", kurzbezeichnung: "Reinhard/Susnjar", mandant: "",
+          frist_art: "Fristablauf", frist_datum: "2026-09-02", tage_bis: 0,
+          bemerkung: "Wenn nix mehr gekommen ist, ablegen",
+        }]}
+        onOpenAkte={() => {}}
+        onRetry={() => {}}
+        retryLaeuft={false}
+      />
+    );
+    expect(screen.getByText("Wenn nix mehr gekommen ist, ablegen")).toBeInTheDocument();
+  });
 });
 
 describe("FristenKachel – eindeutige Keys", () => {

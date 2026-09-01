@@ -36,6 +36,25 @@ describe("WiedervorlagenKachel", () => {
     render(<WiedervorlagenKachel status="ok" wv={[]} ohne_wv={[]} onOpenAkte={() => {}} onRetry={() => {}} onAlleOeffnen={() => {}} />);
     expect(screen.getByText("Alle Wiedervorlagen erledigt")).toBeInTheDocument();
   });
+
+  it("zeigt die Bemerkung zur Wiedervorlage", () => {
+    render(
+      <WiedervorlagenKachel
+        status="ok"
+        wv={[{
+          az: "200/26SK", kurzbezeichnung: "M/G", mandant: "",
+          grund: "Zahlung Gegner", datum: "2026-09-01", tage_bis: 0,
+          bemerkung: "Mandant hat mehrfach nachgefragt!",
+        }]}
+        ohne_wv={[]}
+        onOpenAkte={() => {}}
+        onRetry={() => {}}
+        onAlleOeffnen={() => {}}
+        retryLaeuft={false}
+      />
+    );
+    expect(screen.getByText("Mandant hat mehrfach nachgefragt!")).toBeInTheDocument();
+  });
 });
 
 describe("WiedervorlagenKachel – eindeutige Keys", () => {
