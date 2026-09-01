@@ -23,6 +23,7 @@ import re
 from datetime import date
 from typing import Optional
 from .connector import get_ramicro_connection
+from ..services.wiedervorlage_code_registry import stellungnahme_codes
 
 logger = logging.getLogger(__name__)
 
@@ -31,63 +32,12 @@ logger = logging.getLogger(__name__)
 GHPV_KENNZEICHEN = "GHPV"
 
 
-# Vordefinierte RA-Micro Wiedervorlagengründe (fest einprogrammiert, keine DB-Tabelle)
-# Quelle: RA-Micro Handbuch / empirisch ermittelt
-RAMICRO_WV_GRUENDE: dict[int, str] = {
-    5:  "Stellungnahme Gegner",
-    6:  "Stellungnahme Mandant",
-    9:  "Entscheidung/Gericht",
-    10: "Ermittlungsakte",
-    11: "Stellungnahme Mandant",   # in dieser RA-Micro Installation
-    12: "Zahlung Gegner",
-    16: "Stellungnahme Gegner?",   # in dieser RA-Micro Installation
-    17: "Reaktion Rechtsschutz",
-    18: "Deckungszusage",
-    19: "Sachstand",
-    20: "Fristverlängerung",
-    21: "Klage",
-    22: "Urteil",
-    23: "Vergleich",
-    26: "Gutachten",
-    28: "Sachverständiger",
-    31: "Mahnbescheid",
-    32: "Vollstreckung",
-    34: "Erneute EV möglich",
-    35: "Insolvenzverfahren",
-    36: "Zwangsvollstreckung",
-    38: "Kostenantrag",
-    39: "Honorar",
-    43: "Akteneinsicht",
-    46: "Berufung",
-    49: "Revision",
-    51: "Einspruch",
-    54: "Widerspruch",
-    55: "Beschwerde",
-    58: "Verhandlungstermin",
-    60: "Anhörungstermin",
-    62: "Schriftsatz",
-    69: "Post",
-    71: "Telefonat",
-    75: "Fristablauf",
-    81: "Rückruf",
-    88: "Besprechung",
-    91: "Abrechnung",
-    94: "Akte schließen",
-    99: "Sonstiges",
-}
-
-
-def _loeseWvGrund(sGrund: str, iGrund) -> str:
-    """Gibt den WV-Grund als Text zurück.
-    Nutzt sWiedervorlagegrund wenn vorhanden, sonst Lookup via iWiedervorlageGrund."""
-    if sGrund:
-        return sGrund
-    if iGrund:
-        try:
-            return RAMICRO_WV_GRUENDE.get(int(iGrund), f"Grund {iGrund}")
-        except (ValueError, TypeError):
-            pass
-    return ""
+def _stellungnahme_sql() -> str:
+    codes = ", ".join(str(c) for c in stellungnahme_codes())
+    return f"""AND (
+            w.sWiedervorlagegrund LIKE '%nahme%'
+            OR w.iWiedervorlageGrund IN ({codes})
+        )"""
 
 
 
@@ -130,13 +80,9 @@ def hole_faellige_wiedervorlagen(
     if grund_filter:
         grund_sql = "AND w.sWiedervorlagegrund = %(grund)s"
     elif nur_stellungnahme:
-        # Stellungnahmen können als Text (sWiedervorlagegrund LIKE '%nahme%')
-        # ODER als Zahl (iWiedervorlageGrund IN (5,6,11,16)) gespeichert sein.
-        # Beide Varianten abfragen.
-        grund_sql = """AND (
-            w.sWiedervorlagegrund LIKE '%nahme%'
-            OR w.iWiedervorlageGrund IN (5, 6, 11, 16)
-        )""" 
+        # Stellungnahmen stehen entweder als Freitext ('%nahme%') oder als
+        # Katalogcode in der Registry.
+        grund_sql = _stellungnahme_sql()
     else:
         grund_sql = ""
 

@@ -32,11 +32,11 @@ from ..ramicro.connector import (
 )
 from ..ramicro.wiedervorlage_service import (
     hole_aktenbeteiligte,
-    _loeseWvGrund,
     hole_faellige_wiedervorlagen,
     hole_wiedervorlage_details,
     hole_wiedervorlagen_statistik,
 )
+from ..services.wiedervorlage_code_registry import loese_wv_grund
 from ..word.sachstandsanfrage_wv import (
     generiere_sachstandsanfrage_wv,
     dateiname_generieren,
@@ -178,7 +178,8 @@ def liste_wiedervorlagen():
             "guid":             r.get("GUIDWiedervorlage"),
             "datum":            r["dtWiedervorlage"].strftime("%Y-%m-%d")
                                 if r.get("dtWiedervorlage") else None,
-            "grund":            _loeseWvGrund(r.get("sWiedervorlagegrund", ""), r.get("iWiedervorlageGrund")),
+            "grund":            loese_wv_grund(r.get("sWiedervorlagegrund", ""),
+                                               r.get("iWiedervorlageGrund")).text,
             "bemerkung":        r.get("wv_bemerkung", ""),
             "sachbearbeiter":   r.get("wv_sachbearbeiter_kuerzel", ""),
             "aktenzeichen":     _az_vollstaendig(r.get("sAktenNummer", ""),
