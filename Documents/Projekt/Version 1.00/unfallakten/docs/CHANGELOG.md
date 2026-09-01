@@ -21,7 +21,7 @@ Der tote Endpunkt `/dashboard/ramicro-fristen` (definiert, von niemandem aufgeru
 
 **Guard-Test** `test_wiedervorlage_registry_guard.py` durchsucht den Quellcode statisch nach neuen Codelisten auf `iWiedervorlageGrund` außerhalb der Registry-Datei und gibt bei jedem Testlauf aus, wie viele der 46 eingebauten Codes noch unverifiziert sind (aktuell alle 46).
 
-Vollsuiten: Backend **2088 passed / 70 skipped / 0 failed**, Frontend **607 passed**.
+Vollsuiten: Backend **2142 passed / 69 skipped / 0 failed**, Frontend **607 passed**.
 
 ---
 
