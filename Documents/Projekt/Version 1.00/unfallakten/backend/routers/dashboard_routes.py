@@ -23,6 +23,7 @@ from ..ramicro.connector import (
     get_ramicro_connection, RaMicroNichtAktiv, RaMicroVerbindungsFehler
 )
 from ..ramicro.sachbearbeiter import kalender_zu_kuerzel
+from ..services.wiedervorlage_code_registry import loese_wv_grund, sql_codeliste
 
 logger = logging.getLogger(__name__)
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
@@ -335,126 +336,6 @@ def onboarding_offen():
         return _j({"eintraege": _lade_onboarding_offen(conn)})
 
 
-# ══════════════════════════════════════════════════════════════
-#  GET /dashboard/ramicro-fristen
-# ══════════════════════════════════════════════════════════════
-#
-#  RA-MICRO Tabellen (MS SQL Server, pymssql, read-only):
-#    tblAktenWiedervorlagen  — Wiedervorlagen / harte Fristen
-#      dtWiedervorlage        DATE    — Fälligkeitsdatum
-#      sWiedervorlagegrund    NVARCHAR — Fristen-Art als Text
-#      iWiedervorlageGrund    INT     — Fristen-Art als Code
-#      GUIDAkte               GUID    — Join → tblAkten
-#    tblAkten
-#      sAktenNummer           NVARCHAR — Aktenzeichen (ohne SB-Kürzel)
-#      sAktenSachbearbeiter   NVARCHAR — SB-Kürzel
-#      sMandant               NVARCHAR — Mandanten-Kurzname
-#      dtAblage               DATE    — NULL / '1899-12-30' = aktiv
-#
-#  Fristen-Codes (empirisch, s. wiedervorlage_service.py):
-#    75 = Fristablauf, 5/6/11/16 = Stellungnahme, 58 = Verhandlungstermin
-#    21 = Klage, 46 = Berufung, 31 = Mahnbescheid, 22 = Urteil
-
-_RAMICRO_GRUENDE = {
-    5: "Stellungnahme Gegner", 6: "Stellungnahme Mandant",
-    9: "Entscheidung/Gericht", 11: "Stellungnahme Mandant",
-    16: "Stellungnahme Gegner?", 21: "Klage", 22: "Urteil",
-    23: "Vergleich", 31: "Mahnbescheid", 46: "Berufung",
-    51: "Einspruch", 54: "Widerspruch", 55: "Beschwerde",
-    58: "Verhandlungstermin", 60: "Anhörungstermin", 75: "Fristablauf",
-}
-
-
-def _lade_ramicro_fristen():
-    # type: () -> list
-    """
-    Liest harte Fristen aus RA-MICRO (tblAktenWiedervorlagen) für die
-    letzten 7 Tage bis heute. Gibt leere Liste zurück wenn RA-MICRO nicht erreichbar.
-    """
-    try:
-        heute_dt = date.today()
-        von_dt   = heute_dt - timedelta(days=7)
-        # MS SQL Server erwartet Datumsstring im Format YYYY-MM-DD
-        von_s    = von_dt.isoformat()
-        heute_s  = heute_dt.isoformat()
-
-        with get_ramicro_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT TOP 50
-                    a.sAktenNummer              AS az_roh,
-                    a.sAktenSachbearbeiter      AS az_sb,
-                    a.sMandant                  AS mandant,
-                    w.dtWiedervorlage           AS frist_datum,
-                    w.sWiedervorlagegrund       AS frist_art_text,
-                    w.iWiedervorlageGrund       AS frist_art_code
-                FROM tblAktenWiedervorlagen w
-                INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
-                WHERE CAST(w.dtWiedervorlage AS DATE) BETWEEN %(von)s AND %(bis)s
-                  AND (a.dtAblage IS NULL OR CAST(a.dtAblage AS DATE) = '1899-12-30')
-                ORDER BY w.dtWiedervorlage DESC
-            """, {"von": von_s, "bis": heute_s})
-            rows = cur.fetchall()
-
-        ergebnis = []
-        for r in rows:
-            az = _bilde_az(r)
-
-            frist_art_text = (r.get("frist_art_text") or "").strip()
-            frist_art_code = r.get("frist_art_code")
-            if not frist_art_text and frist_art_code:
-                try:
-                    frist_art_text = _RAMICRO_GRUENDE.get(int(frist_art_code), f"Grund {frist_art_code}")
-                except (ValueError, TypeError):
-                    frist_art_text = ""
-
-            frist_iso, tage = _parse_datum(r.get("frist_datum"), heute_dt)
-
-            ergebnis.append({
-                "az":         az,
-                "mandant":    (r.get("mandant") or "").strip(),
-                "frist_art":  frist_art_text,
-                "frist_datum": frist_iso,
-                "tage_bis":   tage,
-            })
-        return ergebnis
-
-    except (RaMicroNichtAktiv, RaMicroVerbindungsFehler):
-        return []
-    except Exception as e:
-        logger.warning("ramicro_fristen Fehler: %s", e)
-        return []
-
-
-@dashboard_bp.route("/ramicro-fristen", methods=["GET"])
-@login_erforderlich
-def ramicro_fristen():
-    """Harte RA-MICRO Wiedervorlagen/Fristen für die nächsten 60 Tage."""
-    return _j({"eintraege": _lade_ramicro_fristen()})
-
-
-_TERMIN_CODES  = {9, 58, 60}
-_FRIST_CODES   = {21, 22, 31, 46, 51, 55, 75}
-_WV_AUSSCHLUSS = _TERMIN_CODES | _FRIST_CODES
-
-# Nur für Termine-Kachel: spezifischere Labels als in _RAMICRO_GRUENDE für Codes 9, 58, 60
-_TERMIN_LABELS = {
-    9:  "Entscheidung/Gericht",
-    58: "Verhandlungstermin",
-    60: "Anhörungstermin",
-}
-
-_FRIST_LABELS = {
-    21: "Klage",
-    22: "Urteil",
-    31: "Mahnbescheid",
-    46: "Berufung",
-    51: "Einspruch",
-    55: "Beschwerde",
-    75: "Fristablauf",
-}
-
-
 def _bilde_az(row):
     # type: (dict) -> str
     az_roh = (row.get("az_roh") or "").strip()
@@ -549,10 +430,11 @@ def _lade_termine_heute():
                         "uhrzeit":         uhrzeit,
                         "tage_bis":        tage,
                         "sb":              sb or "",
+                        "bemerkung":       "",
                     })
 
             # Ergänzung: tblAktenWiedervorlagen Codes 9/58/60 (Gerichtstermine als WV)
-            cur.execute("""
+            cur.execute(f"""
                 SELECT TOP 30
                     a.sAktenNummer          AS az_roh,
                     a.sAktenSachbearbeiter  AS az_sb,
@@ -560,10 +442,11 @@ def _lade_termine_heute():
                     a.sAktenKurzBezeichnung AS kurzbezeichnung,
                     w.dtWiedervorlage       AS termin_datum,
                     w.iWiedervorlageGrund   AS grund_code,
+                    w.sWiedervorlagegrund   AS grund_text,
                     w.sBemerkung            AS bemerkung
                 FROM tblAktenWiedervorlagen w
                 INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
-                WHERE w.iWiedervorlageGrund IN (9, 58, 60)
+                WHERE w.iWiedervorlageGrund IN ({sql_codeliste("termin")})
                   AND CAST(w.dtWiedervorlage AS DATE) BETWEEN %(heute)s AND %(morgen)s
                   AND (a.dtAblage IS NULL
                        OR CAST(a.dtAblage AS DATE) = '1899-12-30')
@@ -572,8 +455,7 @@ def _lade_termine_heute():
             for r in cur.fetchall():
                 az = _bilde_az(r)
                 datum_iso, tage = _parse_datum(r.get("termin_datum"), heute_dt)
-                code = r.get("grund_code")
-                termin_art = _TERMIN_LABELS.get(int(code), "Termin") if code else "Termin"
+                termin_art = loese_wv_grund(r.get("grund_text"), r.get("grund_code")).text
                 bemerkung = (r.get("bemerkung") or "").strip()
                 m = re.search(r"(\d{1,2}:\d{2})", bemerkung)
                 uhrzeit = m.group(1) if m else None
@@ -590,6 +472,7 @@ def _lade_termine_heute():
                         "uhrzeit":         uhrzeit,
                         "tage_bis":        tage,
                         "sb":              (r.get("az_sb") or "").strip(),
+                        "bemerkung":       bemerkung,
                     })
 
     except (RaMicroNichtAktiv, RaMicroVerbindungsFehler):
@@ -620,17 +503,19 @@ def _lade_ramicro_fristen_hart():
     try:
         with get_ramicro_connection() as conn:
             cur = conn.cursor()
-            cur.execute("""
+            cur.execute(f"""
                 SELECT TOP 50
                     a.sAktenNummer          AS az_roh,
                     a.sAktenSachbearbeiter  AS az_sb,
                     a.sMandant              AS mandant,
                     a.sAktenKurzBezeichnung AS kurzbezeichnung,
                     w.dtWiedervorlage       AS frist_datum,
-                    w.iWiedervorlageGrund   AS grund_code
+                    w.iWiedervorlageGrund   AS grund_code,
+                    w.sWiedervorlagegrund   AS grund_text,
+                    w.sBemerkung            AS bemerkung
                 FROM tblAktenWiedervorlagen w
                 INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
-                WHERE w.iWiedervorlageGrund IN (21, 22, 31, 46, 51, 55, 75)
+                WHERE w.iWiedervorlageGrund IN ({sql_codeliste("frist")})
                   AND CAST(w.dtWiedervorlage AS DATE) BETWEEN %(minus365)s AND %(plus14)s
                   AND (a.dtAblage IS NULL
                        OR CAST(a.dtAblage AS DATE) = '1899-12-30')
@@ -642,16 +527,16 @@ def _lade_ramicro_fristen_hart():
         for r in rows:
             az = _bilde_az(r)
             frist_iso, tage = _parse_datum(r.get("frist_datum"), heute_dt)
-            code = r.get("grund_code")
-            frist_art = _FRIST_LABELS.get(int(code), f"Grund {code}") if code else "Frist"
 
             ergebnis.append({
                 "az":              az,
                 "mandant":         (r.get("mandant") or "").strip(),
                 "kurzbezeichnung": (r.get("kurzbezeichnung") or "").strip(),
-                "frist_art":       frist_art,
+                "frist_art":       loese_wv_grund(r.get("grund_text"),
+                                                  r.get("grund_code")).text,
                 "frist_datum":     frist_iso,
                 "tage_bis":        tage,
+                "bemerkung":       (r.get("bemerkung") or "").strip(),
             })
         return ergebnis
 
@@ -683,7 +568,7 @@ def _lade_wiedervorlagen():
         with get_ramicro_connection() as conn:
             cur = conn.cursor()
 
-            cur.execute("""
+            cur.execute(f"""
                 SELECT TOP 500
                     a.sAktenNummer          AS az_roh,
                     a.sAktenSachbearbeiter  AS az_sb,
@@ -691,10 +576,11 @@ def _lade_wiedervorlagen():
                     a.sAktenKurzBezeichnung AS kurzbezeichnung,
                     w.dtWiedervorlage       AS datum,
                     w.iWiedervorlageGrund   AS grund_code,
-                    w.sWiedervorlagegrund   AS grund_text
+                    w.sWiedervorlagegrund   AS grund_text,
+                    w.sBemerkung            AS bemerkung
                 FROM tblAktenWiedervorlagen w
                 INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
-                WHERE w.iWiedervorlageGrund NOT IN (9, 21, 22, 31, 46, 51, 55, 58, 60, 75)
+                WHERE w.iWiedervorlageGrund NOT IN ({sql_codeliste("frist", "termin")})
                   AND CAST(w.dtWiedervorlage AS DATE) BETWEEN %(minus90)s AND %(heute)s
                   AND (a.dtAblage IS NULL
                        OR CAST(a.dtAblage AS DATE) = '1899-12-30')
@@ -703,19 +589,15 @@ def _lade_wiedervorlagen():
             for r in cur.fetchall():
                 az = _bilde_az(r)
                 datum_iso, tage = _parse_datum(r.get("datum"), heute_dt)
-                grund = (r.get("grund_text") or "").strip()
-                if not grund and r.get("grund_code"):
-                    try:
-                        grund = _RAMICRO_GRUENDE.get(int(r["grund_code"]), "Wiedervorlage")
-                    except (ValueError, TypeError):
-                        grund = "Wiedervorlage"
                 wv_eintraege.append({
                     "az":              az,
                     "mandant":         (r.get("mandant") or "").strip(),
                     "kurzbezeichnung": (r.get("kurzbezeichnung") or "").strip(),
-                    "grund":           grund,
+                    "grund":           loese_wv_grund(r.get("grund_text"),
+                                                      r.get("grund_code")).text,
                     "datum":           datum_iso,
                     "tage_bis":        tage,
+                    "bemerkung":       (r.get("bemerkung") or "").strip(),
                     "hat_wv":          True,
                 })
 
@@ -759,6 +641,7 @@ def _lade_wiedervorlagen():
                     "grund":           None,
                     "datum":           None,
                     "tage_bis":        None,
+                    "bemerkung":       "",
                     "hat_wv":          False,
                 })
     except Exception as e:

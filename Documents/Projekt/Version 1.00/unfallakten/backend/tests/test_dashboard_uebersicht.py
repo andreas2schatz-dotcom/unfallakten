@@ -88,20 +88,16 @@ class TestDashboardUebersicht(unittest.TestCase):
         resp = self.client.get("/dashboard/nachrichten-neu", headers=headers)
         self.assertIn(resp.status_code, (404, 405))
 
-    @pytest.mark.ramicro_integration
-    def test_ramicro_fristen_gibt_liste_zurueck(self):
-        """Endpoint /dashboard/ramicro-fristen liefert eintraege-Liste (leer wenn RA-MICRO nicht verbunden)."""
+    def test_ramicro_fristen_entfernt(self):
+        """Der Endpoint /dashboard/ramicro-fristen wurde entfernt (ungenutzt,
+        Wiedervorlagegruende laufen jetzt ueber /dashboard/fristen).
+
+        405 statt 404, weil der CORS-Preflight-Catch-all (/<path:path>, nur
+        OPTIONS) in app.py jeden Pfad matcht.
+        """
         headers = self._auth_header()
         resp = self.client.get("/dashboard/ramicro-fristen", headers=headers)
-        self.assertEqual(resp.status_code, 200)
-        data = resp.get_json()
-        self.assertIn("eintraege", data)
-        self.assertIsInstance(data["eintraege"], list)
-
-    def test_ramicro_fristen_ohne_token_401(self):
-        """Ohne Token sollte 401 zurückgegeben werden."""
-        resp = self.client.get("/dashboard/ramicro-fristen")
-        self.assertEqual(resp.status_code, 401)
+        self.assertIn(resp.status_code, (404, 405))
 
     @pytest.mark.ramicro_integration
     def test_termine_heute_gibt_liste_zurueck(self):
