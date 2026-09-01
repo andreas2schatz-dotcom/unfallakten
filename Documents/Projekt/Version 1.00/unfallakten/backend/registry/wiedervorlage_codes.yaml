@@ -1,0 +1,84 @@
+# RA-MICRO-Wiedervorlagecodes -- Uebersetzungshilfe, KEIN Katalog
+# ================================================================
+#
+# Der Wiedervorlagegrund ist in RA-MICRO ein freier Text und die einzige
+# massgebliche Angabe. Diese Datei deutet ihn NICHT und vereinheitlicht ihn
+# NICHT -- sie springt nur dort ein, wo RA-MICRO den Text nicht in die
+# SQL-Datenbank schreibt.
+#
+# Datenbefund 2026-09-01, alle 1.610 Zeilen tblAktenWiedervorlagen:
+#   Codes 5..99      958 Zeilen  sWiedervorlagegrund AUSNAHMSLOS leer
+#   Codes ab 63912   652 Zeilen  sWiedervorlagegrund gefuellt (648 von 652)
+# Der Katalogtext der eingebauten Gruende steht in KEINER der acht
+# Datenbanken auf dem Server (rund 500 Textspalten durchsucht).
+#
+# PFLEGE: keine. Legt die Kanzlei einen neuen Grund an, bekommt er eine
+# Nummer ab 63912 und immer den Text dazu -- er landet nie hier.
+#
+# Die Bezeichnungen sind aus einer frueheren Session uebernommen und NICHT
+# belegt ("RA-Micro Handbuch / empirisch ermittelt"), deshalb ueberall
+# verifiziert: false. Die Haeufigkeit im Kommentar ist der Realitaetstest.
+# verifiziert steuert die Anzeige NICHT -- es dokumentiert den Pruefstand
+# und wird vom Guard-Test gezaehlt.
+
+version: "1.0-unverifiziert"
+
+# Ab hier ist die Zahl eine laufende ID, kein eingebauter Grund.
+# Zwischen 99 und 63912 klafft eine Luecke; 1000 liegt sicher darin.
+freitext_ab: 1000
+
+# art steuert allein die Kachel-Zuordnung der Tagesuebersicht.
+# stellungnahme: true ersetzt die Codeliste im Stellungnahme-Filter
+# von hole_faellige_wiedervorlagen().
+codes:
+  21: {bezeichnung: "Klage",                 art: frist, verifiziert: false}
+  22: {bezeichnung: "Urteil",                art: frist, verifiziert: false}
+  31: {bezeichnung: "Mahnbescheid",          art: frist, verifiziert: false}
+  46: {bezeichnung: "Berufung",              art: frist, verifiziert: false}
+  51: {bezeichnung: "Einspruch",             art: frist, verifiziert: false}
+  55: {bezeichnung: "Beschwerde",            art: frist, verifiziert: false}
+  75: {bezeichnung: "Fristablauf",           art: frist, verifiziert: false}
+  9: {bezeichnung: "Entscheidung/Gericht",  art: termin, verifiziert: false}
+  58: {bezeichnung: "Verhandlungstermin",    art: termin, verifiziert: false}
+  60: {bezeichnung: "Anhoerungstermin",      art: termin, verifiziert: false}
+  5: {bezeichnung: "Stellungnahme Gegner",  art: wiedervorlage, verifiziert: false, stellungnahme: true}
+  6: {bezeichnung: "Stellungnahme Mandant", art: wiedervorlage, verifiziert: false, stellungnahme: true}
+  10: {bezeichnung: "Ermittlungsakte",       art: wiedervorlage, verifiziert: false}
+  11: {bezeichnung: "Stellungnahme Mandant", art: wiedervorlage, verifiziert: false, stellungnahme: true}
+  12: {bezeichnung: "Zahlung Gegner",        art: wiedervorlage, verifiziert: false}
+  16: {bezeichnung: "Stellungnahme Gegner?", art: wiedervorlage, verifiziert: false, stellungnahme: true}
+  17: {bezeichnung: "Reaktion Rechtsschutz", art: wiedervorlage, verifiziert: false}
+  18: {bezeichnung: "Deckungszusage",        art: wiedervorlage, verifiziert: false}
+  19: {bezeichnung: "Sachstand",             art: wiedervorlage, verifiziert: false}
+  20: {bezeichnung: "Fristverlaengerung",    art: wiedervorlage, verifiziert: false}
+  23: {bezeichnung: "Vergleich",             art: wiedervorlage, verifiziert: false}
+  26: {bezeichnung: "Gutachten",             art: wiedervorlage, verifiziert: false}
+  28: {bezeichnung: "Sachverstaendiger",     art: wiedervorlage, verifiziert: false}
+  32: {bezeichnung: "Vollstreckung",         art: wiedervorlage, verifiziert: false}
+  34: {bezeichnung: "Erneute EV moeglich",   art: wiedervorlage, verifiziert: false}
+  35: {bezeichnung: "Insolvenzverfahren",    art: wiedervorlage, verifiziert: false}
+  36: {bezeichnung: "Zwangsvollstreckung",   art: wiedervorlage, verifiziert: false}
+  38: {bezeichnung: "Kostenantrag",          art: wiedervorlage, verifiziert: false}
+  39: {bezeichnung: "Honorar",               art: wiedervorlage, verifiziert: false}
+  43: {bezeichnung: "Akteneinsicht",         art: wiedervorlage, verifiziert: false}
+  49: {bezeichnung: "Revision",              art: wiedervorlage, verifiziert: false}
+  54: {bezeichnung: "Widerspruch",           art: wiedervorlage, verifiziert: false}
+  62: {bezeichnung: "Schriftsatz",           art: wiedervorlage, verifiziert: false}
+  69: {bezeichnung: "Post",                  art: wiedervorlage, verifiziert: false}
+  71: {bezeichnung: "Telefonat",             art: wiedervorlage, verifiziert: false}
+  81: {bezeichnung: "Rueckruf",              art: wiedervorlage, verifiziert: false}
+  88: {bezeichnung: "Besprechung",           art: wiedervorlage, verifiziert: false}
+  91: {bezeichnung: "Abrechnung",            art: wiedervorlage, verifiziert: false}
+  94: {bezeichnung: "Akte schliessen",       art: wiedervorlage, verifiziert: false}
+  99: {bezeichnung: "Sonstiges",             art: wiedervorlage, verifiziert: false}
+  25: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}
+  61: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}
+  63: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}
+  78: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}
+  93: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}
+  98: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}
+
+standard:
+  text_und_code_leer: "ohne Angabe"
+  code_unbekannt:     "Unbekannter Grund"
+  art:                wiedervorlage
