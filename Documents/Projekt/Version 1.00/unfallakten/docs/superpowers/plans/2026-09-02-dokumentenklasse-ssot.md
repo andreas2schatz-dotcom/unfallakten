@@ -19,8 +19,9 @@
 - **Migrationen atomar in EINEM Edit schreiben.** Der Flask-Reloader greift sonst einen Zwischenstand ab, stempelt die Version und lässt die Änderung aus. Betraf bereits die Migrationen 54, 55, 58, 60, 71.
 - **Niemals `executescript()`** für `ALTER TABLE`; explizites `conn.commit()` davor und danach.
 - **Die aktive Entwicklungsdatenbank liegt im Docker-Volume** (`/app/data/unfallakten.db` im Container), nicht unter `backend/data/`.
-- **Backend-Tests:** `python -m pytest backend/tests/ --tb=short -q`
+- **Backend-Tests:** `python -m pytest backend/tests/ --tb=short -q` — die Vollsuite braucht **rund 11–12 Minuten** (gemessen 690 s am 2026-09-02). Sie hängt nicht; im Hintergrund laufen lassen. Für die Zwischenschritte gezielt einzelne Dateien fahren.
 - **Frontend-Tests:** `cd frontend && npm test` (`vitest run`)
+- **Beim Durchsuchen des Projekts `frontend/dist` ausschließen** — der Build-Bundle enthält den kompletten minifizierten Quelltext und verrauscht jede Suche.
 - **Testregeln aus `backend/tests/conftest.py`:** Admin ist `admin@test.de` / `Admin123!`; jeder RA-MICRO-Zugriff muss gemockt sein (sonst `EchteRamicroVerbindungVersucht`); jede Fixture setzt ihren eigenen `DB_PATH`.
 - **Ausgangslage:** `schema_version` = 72, Vollsuite 2207 grün (Stand 2026-09-02).
 
