@@ -45,7 +45,7 @@ function UnfalldetailsSection({ akteId }) {
     ermittlungsakte_az:"", ermittlungsakte_behoerde:"", ermittlungsakte_ort:"",
     fahrer_mandant:"", fahrer_gegner:"",
     vorsteuerabzug: false, haftungsquote: 100, haftungsbegruendung:"",
-    unfalldatum:"",
+    unfalldatum:"", unfallort:"",
   };
   const [form, setForm] = useState(leer);
   const [datumFehler, setDatumFehler] = useState("");
@@ -171,30 +171,41 @@ function UnfalldetailsSection({ akteId }) {
         <Card>
           <CardHead title="Unfallschilderung" />
           <div style={{ padding:"1rem 1.25rem" }}>
-            <label style={lbS}>Unfalldatum</label>
-            <div style={{ display:"flex", gap:6, alignItems:"center", position:"relative",
-              maxWidth:240, marginBottom: datumFehler ? 4 : "1rem" }}>
-              <input type="text" value={form.unfalldatum || ""}
-                onChange={e => datumTippen(e.target.value)}
-                onBlur={datumBlur}
-                placeholder="TT.MM.JJJJ"
-                style={{ ...inS, borderColor: datumFehler ? T.red : T.border }}/>
-              <button type="button" onClick={() => pickerRef.current?.showPicker?.()}
-                title="Kalender öffnen" style={calBtnStyle}>
-                <CalIcon />
-              </button>
-              <input ref={pickerRef} type="date"
-                value={datumZuIso(form.unfalldatum)}
-                onChange={e => datumAusKalender(e.target.value)}
-                style={{ position:"absolute", opacity:0, pointerEvents:"none", width:0, height:0, right:0 }}
-                tabIndex={-1}/>
-            </div>
-            {datumFehler && (
-              <div style={{ color:T.redText, fontFamily:T.fontBody,
-                fontSize:"0.78rem", marginBottom:"1rem" }}>
-                {datumFehler}
+            <div style={{ display:"flex", gap:12, alignItems:"flex-start",
+              flexWrap:"wrap", marginBottom:"1rem" }}>
+              <div style={{ width:240, flexShrink:0 }}>
+                <label style={lbS}>Unfalldatum</label>
+                <div style={{ display:"flex", gap:6, alignItems:"center", position:"relative" }}>
+                  <input type="text" value={form.unfalldatum || ""}
+                    onChange={e => datumTippen(e.target.value)}
+                    onBlur={datumBlur}
+                    placeholder="TT.MM.JJJJ"
+                    style={{ ...inS, borderColor: datumFehler ? T.red : T.border }}/>
+                  <button type="button" onClick={() => pickerRef.current?.showPicker?.()}
+                    title="Kalender öffnen" style={calBtnStyle}>
+                    <CalIcon />
+                  </button>
+                  <input ref={pickerRef} type="date"
+                    value={datumZuIso(form.unfalldatum)}
+                    onChange={e => datumAusKalender(e.target.value)}
+                    style={{ position:"absolute", opacity:0, pointerEvents:"none", width:0, height:0, right:0 }}
+                    tabIndex={-1}/>
+                </div>
+                {datumFehler && (
+                  <div style={{ color:T.redText, fontFamily:T.fontBody,
+                    fontSize:"0.78rem", marginTop:4 }}>
+                    {datumFehler}
+                  </div>
+                )}
               </div>
-            )}
+              <div style={{ flex:1, minWidth:220 }}>
+                <label style={lbS}>Unfallort</label>
+                <input type="text" value={form.unfallort || ""}
+                  onChange={e => upd("unfallort", e.target.value)}
+                  placeholder="Ort, Straße / Kreuzung"
+                  style={inS}/>
+              </div>
+            </div>
             <label style={lbS}>Schilderung des Unfallhergangs</label>
             <textarea value={form.schilderung} onChange={e => upd("schilderung", e.target.value)}
               placeholder="Der Kläger befuhr die … in Richtung … Als an der dortigen Kreuzung …"

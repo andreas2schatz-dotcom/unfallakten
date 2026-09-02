@@ -330,11 +330,14 @@ def hole_unfalldetails(akte_id: str):
         return sqlite_daten.get("haftungsquote") or 100.0
 
     _utag = _wdm("varU-TAG")
+    _uort = _wdm("varU-ORT")
     merged = {
         # Aus SQLite (eigene Werte haben Vorrang)
         **sqlite_daten,
         # Unfalldatum lebt in unfallakte; WDM (varU-TAG) fuellt leere/force_wdm.
         "unfalldatum": _utag if (force_wdm and _utag) else (akte.unfalldatum or _utag),
+        # Unfallort ebenso (unfallakte.unfallort, WDM varU-ORT).
+        "unfallort":   _uort if (force_wdm and _uort) else (akte.unfallort or _uort),
         # WDM-Prefills für leere Felder
         "schilderung":            merge("schilderung", "varSCHILD"),
         "zeuge_1":                merge("zeuge_1", "varZ1"),
@@ -392,16 +395,26 @@ def speichere_unfalldetails(akte_id: str):
         "aktivlegitimation_datum",
     ]
 
-    felder = {f: (d.get(f) or "").strip() or None for f in TEXT_FELDER}
-    felder["vorsteuerabzug"] = 1 if d.get("vorsteuerabzug") else 0
-    try:
-        felder["haftungsquote"] = float(d.get("haftungsquote") or 100)
-    except (TypeError, ValueError):
-        felder["haftungsquote"] = 100.0
+    # Nur was der Client geschickt hat: ein fehlendes Feld bleibt stehen, ein
+    # leer gesendetes wird geloescht. Frueher schrieb der UPDATE-Zweig alle
+    # Felder, fehlende als NULL -- da die Maske aktivlegitimation_typ und
+    # -freigabe nie sendet und beide Spalten NOT NULL sind, endete jedes
+    # zweite Speichern derselben Akte in einem 500er.
+    felder = {f: (d.get(f) or "").strip() or None for f in TEXT_FELDER if f in d}
+    if "vorsteuerabzug" in d:
+        felder["vorsteuerabzug"] = 1 if d.get("vorsteuerabzug") else 0
+    if "haftungsquote" in d:
+        try:
+            felder["haftungsquote"] = float(d.get("haftungsquote") or 100)
+        except (TypeError, ValueError):
+            felder["haftungsquote"] = 100.0
 
-    # Unfalldatum gehoert zu unfallakte (die unfalldetails-Tabelle hat keine
-    # Datums-Spalte) und wird nur geschrieben, wenn der Client das Feld schickt.
+    # Unfalldatum und Unfallort gehoeren zu unfallakte (die unfalldetails-
+    # Tabelle hat dafuer keine Spalten) und werden nur geschrieben, wenn der
+    # Client das jeweilige Feld schickt -- eine Teil-Speicherung aus einer
+    # anderen Maske darf sie nicht loeschen.
     unfalldatum = (d.get("unfalldatum") or "").strip()
+    unfallort   = (d.get("unfallort") or "").strip()
 
     with get_connection() as conn:
         if "unfalldatum" in d:
@@ -409,18 +422,24 @@ def speichere_unfalldetails(akte_id: str):
                 "UPDATE unfallakte SET unfalldatum = ? WHERE az = ?",
                 (unfalldatum, az)
             )
+        if "unfallort" in d:
+            conn.execute(
+                "UPDATE unfallakte SET unfallort = ? WHERE az = ?",
+                (unfallort, az)
+            )
 
         existing = conn.execute(
             "SELECT id FROM unfalldetails WHERE akte_id = ?", (az,)
         ).fetchone()
 
         if existing:
-            set_sql = ", ".join(f"{k} = ?" for k in felder)
-            conn.execute(
-                f"UPDATE unfalldetails SET {set_sql}, geaendert_am = datetime('now','localtime') "
-                f"WHERE akte_id = ?",
-                (*felder.values(), az)
-            )
+            if felder:
+                set_sql = ", ".join(f"{k} = ?" for k in felder)
+                conn.execute(
+                    f"UPDATE unfalldetails SET {set_sql}, geaendert_am = datetime('now','localtime') "
+                    f"WHERE akte_id = ?",
+                    (*felder.values(), az)
+                )
         else:
             # None-Werte beim Neuanlegen weglassen, damit NOT-NULL-Spalten mit
             # DEFAULT (aktivlegitimation_typ/-freigabe) ihren Vorgabewert bekommen.
@@ -439,6 +458,8 @@ def speichere_unfalldetails(akte_id: str):
     result = dict(row) if row else {}
     if "unfalldatum" in d:
         result["unfalldatum"] = unfalldatum
+    if "unfallort" in d:
+        result["unfallort"] = unfallort
     return _j({"unfalldetails": result})
 
 
