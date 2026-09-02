@@ -15,12 +15,20 @@ const FRIST = { az: "312/26 AS", frist_art: "Stellungnahme", frist_datum: "2026-
 
 const SB_LISTE = [
   { kuerzel: "AS", name: "Andreas Schatz", titel: "Rechtsanwalt", aktiv: 1, ignoriert: 0,
-    dashboard_vorauswahl: 1, sortierung: 10 },
+    dashboard_vorauswahl: 1, sortierung: 10, kalender_name: "RA.Schatz" },
+  { kuerzel: "CO", name: "Claudia Ostarek", titel: "Rechtsanwältin", aktiv: 1, ignoriert: 0,
+    dashboard_vorauswahl: 0, sortierung: 30, kalender_name: "C. Ostarek" },
   { kuerzel: "TB", name: "Tanja Brunner", titel: "Rechtsanwalts- und Notarfachangestellte",
-    aktiv: 1, ignoriert: 0, dashboard_vorauswahl: 0, sortierung: 70 },
+    aktiv: 1, ignoriert: 0, dashboard_vorauswahl: 0, sortierung: 70, kalender_name: null },
   { kuerzel: "JH", name: "Jochen Hofmann", titel: "Rechtsanwalt", aktiv: 0, ignoriert: 0,
-    dashboard_vorauswahl: 0, sortierung: 110 },
+    dashboard_vorauswahl: 0, sortierung: 110, kalender_name: null },
 ];
+
+// Termin ohne Akte: genau der Fall, bei dem die AZ-Ableitung versagt.
+const TERMIN_OHNE_AKTE = { az: "", sb: "CO", termin_art: "", betreff: "Sigkeris neue Sache",
+  termin_datum: "2026-09-02", uhrzeit: "12:00", tage_bis: 0 };
+const TERMIN_AS = { az: "", sb: "AS", termin_art: "", betreff: "Herr Kirto Pektas",
+  termin_datum: "2026-09-02", uhrzeit: "09:00", tage_bis: 0 };
 
 function mockOk({ fristen = [], termine = [], wv = [], ohne_wv = [] } = {}) {
   api.termineHeute.mockResolvedValue({ eintraege: termine });
@@ -151,7 +159,7 @@ describe("ActionBoardView", () => {
 
   it("aktiviert ein neu hinzugekommenes Kürzel automatisch, auch wenn die gespeicherte Auswahl es nicht enthält", async () => {
     localStorage.setItem("dashboard.aktiveSB", JSON.stringify(["AS"]));
-    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "TB"]));
+    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "CO", "TB"]));
     mockOk();
     einst.sachbearbeiter.mockResolvedValue({ eintraege: [
       ...SB_LISTE,
@@ -166,7 +174,7 @@ describe("ActionBoardView", () => {
 
   it("lässt ein bewusst abgewähltes Kürzel abgewählt, solange kein neues Kürzel hinzukommt", async () => {
     localStorage.setItem("dashboard.aktiveSB", JSON.stringify([]));
-    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "TB"]));
+    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "CO", "TB"]));
     mockOk();
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
     await screen.findByText("Kein Sachbearbeiter ausgewählt");
@@ -184,7 +192,7 @@ describe("ActionBoardView", () => {
 
   it("übernimmt ein während der Sitzung neu hinzugekommenes Kürzel schon beim Aktualisieren-Klick, ohne ein abgewähltes wieder zu aktivieren", async () => {
     localStorage.setItem("dashboard.aktiveSB", JSON.stringify(["AS"]));
-    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "TB"]));
+    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "CO", "TB"]));
     mockOk();
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
     await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
@@ -206,7 +214,7 @@ describe("ActionBoardView", () => {
 
   it("persistiert die um ein neues Kürzel erweiterte Auswahl schon beim ersten Laden (Mount-Pfad)", async () => {
     localStorage.setItem("dashboard.aktiveSB", JSON.stringify(["AS"]));
-    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "TB"]));
+    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "CO", "TB"]));
     mockOk();
     einst.sachbearbeiter.mockResolvedValue({ eintraege: [
       ...SB_LISTE,
@@ -225,7 +233,7 @@ describe("ActionBoardView", () => {
   });
 
   it("überschreibt den bekannten Bestand nicht mit einer leeren Antwort", async () => {
-    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "TB"]));
+    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "CO", "TB"]));
     api.termineHeute.mockResolvedValue({ eintraege: [] });
     api.fristen.mockResolvedValue({ eintraege: [] });
     api.wiedervorlagen.mockResolvedValue({ wv: [], ohne_wv: [] });
@@ -233,12 +241,12 @@ describe("ActionBoardView", () => {
 
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
     await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
-    expect(JSON.parse(localStorage.getItem("dashboard.bekannteSB"))).toEqual(["AS", "TB"]);
+    expect(JSON.parse(localStorage.getItem("dashboard.bekannteSB"))).toEqual(["AS", "CO", "TB"]);
   });
 
   it("fasst weder Auswahl noch Bestand an, wenn die Antwort keine Kürzel enthält (leere Liste, Tabelle leer o. ä.)", async () => {
     localStorage.setItem("dashboard.aktiveSB", JSON.stringify(["AS"]));
-    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "TB"]));
+    localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "CO", "TB"]));
     api.termineHeute.mockResolvedValue({ eintraege: [] });
     api.fristen.mockResolvedValue({ eintraege: [] });
     api.wiedervorlagen.mockResolvedValue({ wv: [], ohne_wv: [] });
@@ -247,7 +255,7 @@ describe("ActionBoardView", () => {
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
     await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
     expect(JSON.parse(localStorage.getItem("dashboard.aktiveSB"))).toEqual(["AS"]);
-    expect(JSON.parse(localStorage.getItem("dashboard.bekannteSB"))).toEqual(["AS", "TB"]);
+    expect(JSON.parse(localStorage.getItem("dashboard.bekannteSB"))).toEqual(["AS", "CO", "TB"]);
 
     einst.sachbearbeiter.mockResolvedValue({ eintraege: SB_LISTE });
     fireEvent.click(screen.getByRole("button", { name: /Aktualisieren/ }));
@@ -272,5 +280,62 @@ describe("ActionBoardView", () => {
     expect(screen.getByRole("button", { name: "TB" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByText("Kein Sachbearbeiter ausgewählt")).toBeNull();
     expect(screen.getByText("Jetzt dran")).toBeInTheDocument();
+  });
+});
+
+describe("ActionBoardView – Kalenderfilter der Termine-Kachel", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
+
+  it("bietet nur Anwaltskalender als Kalender-Chips an", async () => {
+    mockOk({ termine: [TERMIN_AS] });
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    await screen.findByRole("button", { name: "Kalender AS" });
+    expect(screen.getByRole("button", { name: "Kalender CO" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Kalender TB" })).toBeNull();
+  });
+
+  it("blendet einen Termin ohne Akte aus, wenn sein Kalender abgewählt wird", async () => {
+    mockOk({ termine: [TERMIN_OHNE_AKTE, TERMIN_AS] });
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    await screen.findByText(/Sigkeris neue Sache/);
+    fireEvent.click(screen.getByRole("button", { name: "Kalender CO" }));
+    expect(screen.queryByText(/Sigkeris neue Sache/)).toBeNull();
+    expect(screen.getByText(/Herr Kirto Pektas/)).toBeInTheDocument();
+  });
+
+  it("lässt den SB-Filter der Fristen die Termine unberührt", async () => {
+    mockOk({ termine: [TERMIN_AS] });
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    await screen.findByText(/Herr Kirto Pektas/);
+    fireEvent.click(screen.getByRole("button", { name: "AS" }));
+    expect(screen.getByText("Kein Sachbearbeiter ausgewählt")).toBeInTheDocument();
+    expect(screen.getByText(/Herr Kirto Pektas/)).toBeInTheDocument();
+  });
+
+  it("persistiert den Kalenderfilter unter einem eigenen Schlüssel", async () => {
+    mockOk({ termine: [TERMIN_AS] });
+    const { unmount } = render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    await screen.findByRole("button", { name: "Kalender CO" });
+    fireEvent.click(screen.getByRole("button", { name: "Kalender CO" }));
+    expect(JSON.parse(localStorage.getItem("dashboard.aktiveKalenderSB"))).toEqual(["AS"]);
+    expect(JSON.parse(localStorage.getItem("dashboard.aktiveSB"))).toEqual(["AS"]);
+    unmount();
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    await waitFor(() => expect(api.termineHeute).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Kalender CO" })).toHaveAttribute("aria-pressed", "false"));
+  });
+
+  it("zeigt Termine unbekannter Kürzel weiter an (kein stilles Verschlucken)", async () => {
+    mockOk({ termine: [{ az: "500/26XY", sb: "XY", termin_art: "Verhandlungstermin",
+      betreff: "Fremd/Unbekannt", termin_datum: "2026-09-02", uhrzeit: "08:00", tage_bis: 0 }] });
+    render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
+    await screen.findByText(/Fremd\/Unbekannt/);
+    fireEvent.click(screen.getByRole("button", { name: "Kalender AS" }));
+    fireEvent.click(screen.getByRole("button", { name: "Kalender CO" }));
+    expect(screen.getByText("Kein Kalender ausgewählt")).toBeInTheDocument();
   });
 });

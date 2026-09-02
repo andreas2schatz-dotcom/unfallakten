@@ -12,6 +12,11 @@ function baseAz(azVoll) {
 
 const SB_KEY      = "dashboard.aktiveSB";
 const BEKANNT_KEY = "dashboard.bekannteSB";
+// Eigener Filter für die Termine-Kachel: Termine kommen aus den RA-MICRO-
+// Kalendern, und gepflegt sind nur die Anwaltskalender. Fristen und
+// Wiedervorlagen hängen dagegen am Sachbearbeiter der Akte -- beides darf
+// sich nicht gegenseitig mitfiltern.
+const KALENDER_KEY = "dashboard.aktiveKalenderSB";
 
 function sbAusAz(az) {
   const m = (az || "").match(/([A-Z]{2,3})$/);
@@ -87,12 +92,22 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
   const [laedtGerade, setLaedtGerade] = useState(false);
   const [sbListe,     setSbListe]     = useState([]);
   const [aktiveSB,    setAktiveSB]    = useState(null);
+  const [aktiveKalenderSB, setAktiveKalenderSB] = useState(null);
 
   function toggleSB(kuerzel) {
     setAktiveSB((prev) => {
       const next = new Set(prev || []);
       next.has(kuerzel) ? next.delete(kuerzel) : next.add(kuerzel);
       localStorage.setItem(SB_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
+
+  function toggleKalenderSB(kuerzel) {
+    setAktiveKalenderSB((prev) => {
+      const next = new Set(prev || []);
+      next.has(kuerzel) ? next.delete(kuerzel) : next.add(kuerzel);
+      localStorage.setItem(KALENDER_KEY, JSON.stringify([...next]));
       return next;
     });
   }
@@ -160,6 +175,22 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
 
         localStorage.setItem(BEKANNT_KEY, JSON.stringify(aktiveKuerzel));
       }
+
+      // Kalenderfilter: nur Sachbearbeiter mit gepflegtem Kalendernamen.
+      // Ohne gespeicherten Stand sind alle aktiv -- lieber einen Termin zu
+      // viel zeigen als einen Gerichtstermin verschlucken.
+      const kalenderKuerzel = aktive
+        .filter((e) => (e.kalender_name || "").trim())
+        .map((e) => e.kuerzel);
+      if (kalenderKuerzel.length > 0) {
+        const gespeichert = gespeicherteListe(KALENDER_KEY);
+        setAktiveKalenderSB((prev) => {
+          if (prev !== null) return prev;
+          return new Set(gespeichert === null
+            ? kalenderKuerzel
+            : gespeichert.filter((k) => kalenderKuerzel.includes(k)));
+        });
+      }
     }
   }
 
@@ -179,10 +210,24 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
     const sb = sbAusAz(e.az);
     return !sb || !bekannteSB.has(sb) || aktiveSB.has(sb);
   };
+
+  // Termine tragen ihr Kürzel im Feld sb (aus dem Kalendernamen). Es aus dem
+  // Aktenzeichen abzuleiten geht bei Terminen ohne Akte schief -- die
+  // rutschten dann durch jeden Filter.
+  const kalenderSbListe = sbListe.filter((e) => (e.kalender_name || "").trim());
+  const kalenderKuerzel = new Set(kalenderSbListe.map((e) => e.kuerzel));
+  const terminFilter = (e) => {
+    if (!aktiveKalenderSB) return true;
+    const sb = (e.sb || "").trim();
+    return !sb || !kalenderKuerzel.has(sb) || aktiveKalenderSB.has(sb);
+  };
+
   const fristen = daten.fristen.eintraege.filter(sbFilter);
-  const termine = daten.termine.eintraege.filter(sbFilter);
+  const termine = daten.termine.eintraege.filter(terminFilter);
   const wv      = daten.wv.wv.filter(sbFilter);
   const ohneWv  = daten.wv.ohne_wv.filter(sbFilter);
+
+  const keinSbGewaehlt = sbListe.length > 0 && aktiveSB && aktiveSB.size === 0;
 
   return (
     <div style={{ flex: 1, overflow: "auto", background: T.offWhite, padding: "20px 24px 26px" }}>
@@ -228,12 +273,8 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
         </div>
       </div>
 
-      {sbListe.length > 0 && aktiveSB && aktiveSB.size === 0 ? (
-        <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 16px", textAlign: "center", color: T.textMuted, fontSize: T.textSm }}>
-          Kein Sachbearbeiter ausgewählt
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {!keinSbGewaehlt && (
           <JetztDranLeiste
             fristenStatus={daten.fristen.status}
             wvStatus={daten.wv.status}
@@ -241,15 +282,32 @@ export default function ActionBoardView({ onOpenAkte, onOpenWiedervorlage }) {
             wv={wv}
             onOpenAkte={oeffneAkte}
           />
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0,3fr) minmax(0,2fr)", gap: 16, alignItems: "start" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-              <FristenKachel status={daten.fristen.status} eintraege={fristen} onOpenAkte={oeffneAkte} onRetry={laden} retryLaeuft={laedtGerade} />
-              <WiedervorlagenKachel status={daten.wv.status} wv={wv} ohne_wv={ohneWv} onOpenAkte={oeffneAkte} onRetry={laden} onAlleOeffnen={onOpenWiedervorlage} retryLaeuft={laedtGerade} />
-            </div>
-            <TermineKachel status={daten.termine.status} eintraege={termine} onOpenAkte={oeffneAkte} onRetry={laden} retryLaeuft={laedtGerade} />
+        )}
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,3fr) minmax(0,2fr)", gap: 16, alignItems: "start" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+            {keinSbGewaehlt ? (
+              <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 16px", textAlign: "center", color: T.textMuted, fontSize: T.textSm }}>
+                Kein Sachbearbeiter ausgewählt
+              </div>
+            ) : (
+              <>
+                <FristenKachel status={daten.fristen.status} eintraege={fristen} onOpenAkte={oeffneAkte} onRetry={laden} retryLaeuft={laedtGerade} />
+                <WiedervorlagenKachel status={daten.wv.status} wv={wv} ohne_wv={ohneWv} onOpenAkte={oeffneAkte} onRetry={laden} onAlleOeffnen={onOpenWiedervorlage} retryLaeuft={laedtGerade} />
+              </>
+            )}
           </div>
+          <TermineKachel
+            status={daten.termine.status}
+            eintraege={termine}
+            onOpenAkte={oeffneAkte}
+            onRetry={laden}
+            retryLaeuft={laedtGerade}
+            kalenderSbListe={kalenderSbListe}
+            aktiveKalenderSb={aktiveKalenderSB}
+            onToggleKalenderSb={toggleKalenderSB}
+          />
         </div>
-      )}
+      </div>
     </div>
   );
 }

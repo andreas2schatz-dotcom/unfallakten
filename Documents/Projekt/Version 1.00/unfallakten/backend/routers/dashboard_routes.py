@@ -377,11 +377,18 @@ def _lade_termine_heute():
         with get_ramicro_connection() as conn:
             cur = conn.cursor()
 
-            # Primärquelle: raKalender.dbo.Events (alle Kalendertermine)
+            # Primärquelle: raKalender.dbo.Events (alle Kalendertermine).
+            # Subject ist in den echten Daten fast immer leer -- der lesbare
+            # Termintext steht in Summary, Gericht/Saal in Location, Telefon-
+            # nummern und Zusätze in Notes.
             cur.execute("""
                 SELECT TOP 100
+                    e.EventUid,
                     e.StartDateTime,
                     e.Subject,
+                    e.Summary,
+                    e.Location,
+                    e.Notes,
                     e.Aktennummer,
                     e.Aktenkurzbezeichnung,
                     e.IsGerichtstermin,
@@ -395,43 +402,58 @@ def _lade_termine_heute():
                 ORDER BY e.StartDateTime ASC
             """, {"heute": heute_s, "morgen": morgen_s})
             for r in cur.fetchall():
+                cal_name = (r.get("CalendarName") or "").strip()
+                sb = kalender_map.get(cal_name)
+                # Ohne zugeordneten Kalender kein Termin: gepflegt sind nur die
+                # Anwaltskalender, die Angestellten arbeiten mit Wiedervorlagen.
+                if not sb:
+                    continue
+
                 datum_raw = r.get("StartDateTime")
                 datum_iso, tage = _parse_datum(datum_raw, heute_dt)
 
-                # Uhrzeit aus StartDateTime
                 uhrzeit = None
-                if datum_raw and hasattr(datum_raw, "hour"):
+                if datum_raw is not None and hasattr(datum_raw, "strftime"):
                     uhrzeit = datum_raw.strftime("%H:%M")
-                elif datum_raw and hasattr(datum_raw, "date"):
-                    uhrzeit = datum_raw.strftime("%H:%M")
-
-                cal_name = (r.get("CalendarName") or "").strip()
-                sb = kalender_map.get(cal_name)
 
                 ak_nr = (r.get("Aktennummer") or "").strip()
-                az = (ak_nr + sb) if (ak_nr and sb) else ak_nr
+                az = ak_nr + sb if ak_nr else ""
 
-                is_gt = bool(r.get("IsGerichtstermin"))
+                kurz    = (r.get("Aktenkurzbezeichnung") or "").strip()
+                summary = (r.get("Summary") or "").strip()
+                if ak_nr and summary.startswith(ak_nr):
+                    summary = summary[len(ak_nr):].strip()
+
+                is_gt   = bool(r.get("IsGerichtstermin"))
                 subject = (r.get("Subject") or "").strip()
-                termin_art = (
-                    ("Verhandlungstermin" if not subject else subject)
-                    if is_gt else
-                    ("Mandantentermin" if not subject else subject)
-                )
+                if is_gt:
+                    termin_art = subject or "Verhandlungstermin"
+                elif ak_nr or kurz:
+                    termin_art = subject or "Mandantentermin"
+                else:
+                    # Ohne Aktenbezug wäre "Mandantentermin" geraten
+                    # (Lehrgang, Urlaub, Behördengang).
+                    termin_art = subject
 
-                key = (az or cal_name, datum_iso, uhrzeit)
+                notiz = (r.get("Notes") or "").strip()
+
+                key = ("kalender", r.get("EventUid"))
                 if key not in seen_keys:
                     seen_keys.add(key)
                     ergebnis.append({
                         "az":              az,
                         "mandant":         "",
-                        "kurzbezeichnung": (r.get("Aktenkurzbezeichnung") or "").strip(),
+                        "kurzbezeichnung": kurz,
+                        "betreff":         kurz or summary,
                         "termin_art":      termin_art,
                         "termin_datum":    datum_iso,
                         "uhrzeit":         uhrzeit,
                         "tage_bis":        tage,
-                        "sb":              sb or "",
-                        "bemerkung":       "",
+                        "sb":              sb,
+                        "ort":             ((r.get("Location") or "").strip()
+                                            or (r.get("GerichtName") or "").strip()),
+                        "bemerkung":       " · ".join(
+                            z.strip() for z in notiz.splitlines() if z.strip()),
                     })
 
             # Ergänzung: tblAktenWiedervorlagen, Codes laut
@@ -462,18 +484,23 @@ def _lade_termine_heute():
                 m = re.search(r"(\d{1,2}:\d{2})", bemerkung)
                 uhrzeit = m.group(1) if m else None
 
-                key = (az, datum_iso)
+                mandant = (r.get("mandant") or "").strip()
+                kurz    = (r.get("kurzbezeichnung") or "").strip()
+
+                key = ("wiedervorlage", az, datum_iso)
                 if key not in seen_keys:
                     seen_keys.add(key)
                     ergebnis.append({
                         "az":              az,
-                        "mandant":         (r.get("mandant") or "").strip(),
-                        "kurzbezeichnung": (r.get("kurzbezeichnung") or "").strip(),
+                        "mandant":         mandant,
+                        "kurzbezeichnung": kurz,
+                        "betreff":         kurz or mandant,
                         "termin_art":      termin_art,
                         "termin_datum":    datum_iso,
                         "uhrzeit":         uhrzeit,
                         "tage_bis":        tage,
                         "sb":              (r.get("az_sb") or "").strip(),
+                        "ort":             "",
                         "bemerkung":       bemerkung,
                     })
 

@@ -269,8 +269,14 @@ class TestKalenderMapping(unittest.TestCase):
                            f"Erwartet '123/26SK', erhalten '{eintrag['az']}'")
             self.assertEqual(eintrag["sb"], "SK")
 
-    def test_endpoint_termine_heute_nutzt_kalender_mapping_unbekannt(self):
-        """Integration: GET /dashboard/termine-heute mit unbekanntem Kalendernamen."""
+    def test_endpoint_termine_heute_uebergeht_unbekannten_kalender(self):
+        """Ein Kalender ohne Sachbearbeiter-Zuordnung liefert keinen Termin.
+
+        Gepflegt sind nur die Anwaltskalender; die Angestellten arbeiten
+        ausschließlich mit Wiedervorlagen. Termine aus fremden Kalendern
+        (ReferendarIn, Verwalter, Poolkalender) würden sonst jeden
+        SB-Filter der Tagesübersicht ungefiltert passieren.
+        """
         from datetime import datetime
         from unittest.mock import patch, MagicMock
 
@@ -279,15 +285,20 @@ class TestKalenderMapping(unittest.TestCase):
 
         mock_cursor = MagicMock()
         mock_row = {
+            "EventUid": "11111111-2222-3333-4444-555555555555",
             "StartDateTime": heute,
             "Subject": "Termin",
+            "Summary": "456/26 Andere-Akte",
+            "Location": None,
+            "Notes": "",
             "Aktennummer": "456/26",
             "Aktenkurzbezeichnung": "Andere-Akte",
             "IsGerichtstermin": False,
             "GerichtName": None,
             "CalendarName": "Unbekannter Kalendername",
         }
-        mock_cursor.fetchall.return_value = [mock_row]
+        # Erste Abfrage: raKalender.dbo.Events, zweite: tblAktenWiedervorlagen
+        mock_cursor.fetchall.side_effect = [[mock_row], []]
 
         mock_conn = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
@@ -297,12 +308,7 @@ class TestKalenderMapping(unittest.TestCase):
         with patch("backend.routers.dashboard_routes.get_ramicro_connection", return_value=mock_conn):
             resp = self.client.get("/dashboard/termine-heute", headers=headers)
             self.assertEqual(resp.status_code, 200)
-            data = resp.get_json()
-            self.assertGreater(len(data["eintraege"]), 0)
-            eintrag = data["eintraege"][0]
-            self.assertEqual(eintrag["az"], "456/26",
-                           f"Erwartet '456/26', erhalten '{eintrag['az']}'")
-            self.assertEqual(eintrag["sb"], "")
+            self.assertEqual(resp.get_json()["eintraege"], [])
 
 
 class TestSachbearbeiterEndpunkte(unittest.TestCase):
