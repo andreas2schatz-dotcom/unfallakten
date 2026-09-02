@@ -208,7 +208,13 @@ an allen neun Stellen. Das tote „Dokumenttyp"-Dropdown im Upload-Dialog
 geprüft — verwirft `dokumente_routes.py:143-175` den Wert ohnehin, die Klasse
 wird in der Queue vergeben.
 
-### 4.3 Migration 73
+### 4.3 Migrationen 73 und 74
+
+Bewusst **zwei** Migrationen statt einer: 73 füllt nach und ist nicht
+destruktiv, 74 entfernt die Spalte. So bleibt jeder Zwischenstand des Umbaus
+lauffähig — die Leser (4.2) arbeiten bereits auf einer gefüllten Spalte,
+bevor die alte verschwindet. Wäre beides eine Migration, gäbe es einen
+Zwischenstand, in dem die umgestellten Leser auf leere Werte greifen.
 
 Am Datenbestand erprobt (SQLite 3.46.1, Kopie der Produktivdatenbank):
 `ALTER TABLE … DROP COLUMN` genügt, **kein Tabellen-Rebuild**. Der Index muss
@@ -218,7 +224,7 @@ zuerst weg, sonst bricht die Anweisung ab:
 error in index idx_dokumente_typ after drop column: no such column: typ
 ```
 
-Reihenfolge:
+**Migration 73 — nachfüllen (nicht destruktiv):**
 
 1. **Nachfüllen**, solange `typ` noch existiert:
    ```sql
@@ -240,9 +246,7 @@ Reihenfolge:
    - `versicherung` → `sonstiges` (2 Zeilen; ein BGH-Beschluss und ein
      Anschreiben, für die es keine Klasse gibt)
 
-3. `DROP INDEX idx_dokumente_typ`
-4. `ALTER TABLE dokumente DROP COLUMN typ`
-5. `CREATE INDEX IF NOT EXISTS idx_dok_klasse ON dokumente(dokumentenklasse)`
+3. `CREATE INDEX IF NOT EXISTS idx_dok_klasse ON dokumente(dokumentenklasse)`
    — **notwendig, nicht optional.** `schema_manager.py:3721` legt diesen Index
    in Migration 24 an, in der aktiven Datenbank existiert er jedoch nicht
    (geprüft 2026-09-02, `schema_version` = 72; vorhanden sind nur
@@ -250,7 +254,19 @@ Reihenfolge:
    mutmaßlich die bekannte Reloader-Falle. Mit dem Wegfall von
    `idx_dokumente_typ` stünde die Spalte sonst ganz ohne Index da, obwohl
    `belege_routes.py:510-514` und `:970-974` darauf filtern.
+
+**Migration 74 — Spalte entfernen (destruktiv):**
+
+4. `DROP INDEX IF EXISTS idx_dokumente_typ`
+5. `ALTER TABLE dokumente DROP COLUMN typ`
 6. `PRAGMA foreign_key_check` als Nachkontrolle
+
+Beide Migrationen prüfen mit `PRAGMA table_info(dokumente)`, ob `typ` noch
+existiert, und arbeiten sonst ohne diese Spalte. Das ist zwingend: `init_db()`
+ist `create_schema()` + `run_migrations()`, auf einer **frischen** Datenbank
+laufen also alle Migrationen der Reihe nach — und `schema.py` führt die Spalte
+nach dem Umbau nicht mehr. Ohne die Prüfung liefe Migration 73 dort auf
+`no such column: typ`.
 
 Der `CHECK`-Constraint verschwindet mit der Spalte.
 
