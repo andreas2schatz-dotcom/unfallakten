@@ -7,6 +7,26 @@
 
 ## 🔄 In Arbeit
 
+### Dokumentklasse als SSOT — ✅ umgesetzt (2026-09-04, Branch `fragebogen-favoritenliste`), Abnahme offen
+`dokumente.typ` ist entfallen, `dokumentenklasse` ist alleinige Wahrheit. Spec + Plan unter
+`docs/superpowers/`, Protokoll → CHANGELOG. Commits `2c6e8f82`..`dfbcbd95`,
+Backend 2222 grün (69 skipped), Frontend 634 grün. **Offen — Abnahme im Betrieb:**
+- **Freigabe durchspielen:** Dokument in der Review-Queue öffnen, Klasse auf `sv_rechnung`
+  setzen, an eine Akte freigeben. In der DokumenteSection muss **SV-/Gutachterrechnung**
+  stehen, nicht „Sonstiges".
+- **Klassenlisten vergleichen:** Dropdown in der Review-Queue und in der DokumenteSection
+  nebeneinander — dieselben 23 Einträge, dieselben Bezeichnungen.
+- **Belege-Ansicht gegenprüfen:** An einer bekannten Akte mit freigegebenen Rechnungen.
+  Dort erscheinen jetzt Kandidaten und Beträge, die vorher unsichtbar waren — beabsichtigt
+  (das Parse-Ergebnis wandert seit Task 3 mit), verändert aber sichtbar das Bild.
+  Gemeinsam mit RA Schatz prüfen, dass die Beträge stimmen.
+- **Stakeholder-Portal nachziehen:** Der Sync-Payload liefert jetzt `klasse` +
+  `klasse_label` statt `typ`. Die acht anzupassenden Dateien stehen in Spec Abschnitt 6.3;
+  Repo unter `Projekt/Version 1.00/stakeholder-portal`. Portal ist **nicht live**, kein
+  Doppel-Deploy nötig.
+- **Sicherung aufräumen:** `/app/data/bak_vor_migration_74.db` im Dev-Volume löschen,
+  sobald die Abnahme durch ist.
+
 ### Priorisierte Fragebogen-Liste in der Review-Queue — ✅ codeseitig komplett (2026-08-28, Branch `fragebogen-favoritenliste`), Abnahme offen
 Spec + Plan unter `docs/superpowers/`, Protokoll → CHANGELOG. Alle 8 Aufgaben committet (`60e28ef4`..`b15bcd24`), Backend 1994 grün (38 skipped), Frontend 594 grün. **Offen — Abnahme im Betrieb:**
 - **Reparse der acht Altbögen:** In der Review-Queue je Bogen (474, 475, 476, 527, 613, 672, 727, 834) den Reparse-Knopf drücken, rund zehn Sekunden warten. Sie tragen noch `sonstiges`; die Signale entstehen erst beim Pipeline-Lauf neu.
@@ -67,6 +87,7 @@ Spec + Plan unter `docs/superpowers/`, Protokoll → CHANGELOG. Endstand deckung
 - Nacharbeitsliste (geringe Befunde aus den Prüfungen) → `bugfixes.md`.
 
 ### Offene Entscheidungen RA Schatz
+- **Schriftsatz-Zählung fürs RVG (`gebuehren_service._zaehle_schriftsaetze`):** Die Abfrage zählte bisher alles außer Gutachten und Sachstandsanfragen — weil `sonstiges` alle Feinklassen einsammelte, liefen SV-Rechnungen, Mietwagen- und Abschlepprechnungen als „Schriftsatz“ mit. Beim Wegfall von `typ` verhaltensgleich übersetzt (Ausschlussliste). Fachlich wäre vertretbar, Rechnungen künftig **nicht** mehr als Schriftsatz zu zählen — das senkt die Umfangsbewertung. Entscheidung RA Schatz.
 - **I-10 Haftungsquote (Forderungsschreiben):** Brief behauptet bei erfasster Teilhaftung weiterhin Alleinschuld und fordert ungekürzt; FE-Banner quotiert daneben. Braucht juristische Formulierung für den Teilhaftungs-Baustein (+ HQ=0-Konvention, vgl. Inkonsistenz Übersicht/DOCX).
 - **Fehlablage (Kürzungstaxonomie Phase 0):** Dok 41478 + 43429 aus Akten 971/25 / 980/25 löschen? (FEHLABLAGE-Vermerk gesetzt; 852/25 nur in RA-MICRO, 418/28 existiert nirgends.)
 

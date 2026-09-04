@@ -7,6 +7,75 @@
 
 ---
 
+## 2026-09-04 — Dokumentklasse überlebt die Freigabe: `dokumente.typ` entfallen
+
+Branch `fragebogen-favoritenliste`. Meldung RA Schatz: *„Die Klassenzuordnung in der
+ReviewQueue überlebt den Übertrag zur DokumenteSection nicht. Da taucht fast alles
+als *Sonstiges* auf."*
+
+**Ursache.** `dokumente` führte zwei Spalten für dieselbe Tatsache: `typ` (sechs Werte,
+CHECK-Constraint aus dem Ursprungsschema) und `dokumentenklasse` (23 Registry-Klassen,
+Migration 24). Die Review-Freigabe schrieb ausschließlich `typ` — `_map_klasse()` im
+`output_adapter` ließ **17 der 23 Klassen auf `sonstiges` fallen** und `dokumentenklasse`
+ganz leer. Die Anzeige las `d.dokumentenklasse || d.typ || "sonstiges"`, fiel also auf
+den Grobwert zurück. Am selben Punkt gingen `parse_json`, `parse_konfidenz` und
+`parse_status` verloren, weshalb die Belege-Ansicht bei freigegebenen Dokumenten keine
+Beträge fand.
+
+**Umgesetzt** (Spec + Plan unter `docs/superpowers/`, neun Aufgaben, Commits
+`2c6e8f82`..`dfbcbd95`):
+
+- `registriere_dokument()` nimmt `dokumentenklasse` statt `typ` und prüft sie fail-loud
+  gegen die Registry (`pruefe_dokumentenklasse()`); `GUELTIGE_TYPEN` ist entfallen.
+  Alle **14** Schreiber umgestellt — die Erhebung der Spec nannte 12, `word/word_service.py`
+  und `word/gebuehren_word.py` fehlten dort.
+- `_map_klasse()` ersatzlos gestrichen; die Intake-Klasse wird 1:1 übernommen, ebenso
+  Parse-Ergebnis und Konfidenz.
+- **Migration 73** füllt den Altbestand nach: Feinklasse über die `freigaben`-Tabelle aus
+  `intake_dokumente.klasse`, sonst der alte `typ`-Wert; Altwerte `gutachterrechnung`
+  → `sv_rechnung` und `versicherung` → `sonstiges`; Index `idx_dok_klasse`.
+- **Migration 74** entfernt `dokumente.typ` (`DROP INDEX` vor `DROP COLUMN`, kein
+  Tabellen-Rebuild nötig). Der CHECK-Constraint verschwindet mit der Spalte.
+- Alle Leser in Backend und Frontend fußen auf `dokumentenklasse`; der API-Filter heißt
+  `?klasse=` statt `?typ=`, `_dok_dict`/`_dokument_dict` liefern kein `typ` mehr.
+- ReviewQueue zeigt die Registry-**Labels** statt technischer Schlüssel; das tote
+  Upload-Dropdown „Dokumenttyp" in der DokumenteSection ist entfernt (unter
+  `INTAKE_REVIEW_PFLICHT` verwarf das Backend den Wert ohnehin).
+- Portal-Sync liefert `klasse` + `klasse_label` statt `typ` (Vertragsänderung, Spec
+  Abschnitt 6 — Portal ist nicht live und wird separat nachgezogen).
+
+**Wirkung auf den Bestand.** Vorher trugen 756 von 793 Dokumenten `typ='sonstiges'`.
+Nach Migration 73: 144 von 795 mit `dokumentenklasse='sonstiges'`, der Rest verteilt auf
+13 Feinklassen (abrechnungsschreiben 235, gutachten 208, sv_rechnung 132, klage 25,
+abschlepprechnung 12, pruefbericht 12, mietwagenrechnung 6, rechnung 6,
+reparaturrechnung 6, forderungsschreiben 5, sachstandsanfrage 3, mahnschreiben 1).
+0 Zeilen ohne Klasse, 795 Zeilen unverändert, genau die zwei bekannten
+FK-Vorbefunde (`klassifikation_training`→`dokumente`, `aktivitaeten`→`unfallakte`).
+
+**Drei Befunde, die im Plan fehlten und beim Umsetzen auffielen:**
+
+1. `backend/db/schema.py` sollte laut Plan einen Index auf `dokumentenklasse` bekommen —
+   die Spalte gibt es im Basisschema aber nicht (sie kommt aus Migration 24). Das ließ
+   `create_schema()` scheitern und riss **969 Tests** mit. Die Zeile ist ersatzlos weg;
+   Migration 24 legt Spalte und Index an, Migration 73 sichert den Index ab.
+2. `gebuehren_service._zaehle_schriftsaetze()` filterte auf
+   `typ IN ('forderungsschreiben','klage','sonstiges','abrechnungsschreiben')` — vier von
+   sechs Werten, also *alles außer Gutachten und Sachstandsanfragen*. Übersetzt als
+   Ausschlussliste `dokumentenklasse NOT IN ('gutachten','sachstandsanfrage')`, damit die
+   RVG-Bewertung sich nicht als Nebenwirkung ändert. Eine wörtliche Übernahme der vier
+   Namen würde alle Feinklassen aus der Zählung werfen — offene Frage an RA Schatz.
+3. `scripts/backfill_fristen.py` filterte auf `typ = 'forderungsschreiben'`.
+
+**Zwei statische Guards** in `test_dokumente_typ_guard.py`: einer zeilenweise gegen
+`d.typ` / `dokumente.typ` / `registriere_dokument(typ=` / `GUELTIGE_TYPEN`, einer gegen
+ein nacktes `typ` innerhalb einer SQL-Anweisung über `dokumente` — genau so waren
+Befund 2 und 3 durchgerutscht. Beide wurden mit einer eingebauten Verletzung gegengeprüft.
+
+Vollsuiten: Backend **2222 passed / 69 skipped / 0 failed**, Frontend **634 passed**.
+Sicherung vor Migration 74: `/app/data/bak_vor_migration_74.db` im Dev-Volume.
+
+---
+
 ## 2026-09-01 — Wiedervorlagegrund: sieben Auslegungsstellen auf eine Registry vereinheitlicht
 
 Branch `wiedervorlage-registry`. Die Tagesübersicht liest für Fristen- und Wiedervorlagen-Kachel das Feld `iWiedervorlageGrund` aus RA-MICRO. Sieben Stellen legten diesen Code unabhängig voneinander aus: vier Bezeichnungslisten (`RAMICRO_WV_GRUENDE` 40 Einträge, `_RAMICRO_GRUENDE` 16, `_FRIST_LABELS` 7, `_TERMIN_LABELS` 3) und vier Codelisten direkt im SQL — drei davon für die Kachel-Abfragen, eine vierte im Stellungnahme-Filter.
