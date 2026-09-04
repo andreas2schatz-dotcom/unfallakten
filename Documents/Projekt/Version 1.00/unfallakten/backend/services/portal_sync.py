@@ -20,6 +20,21 @@ PORTAL_API_KEY     = os.environ.get("PORTAL_API_KEY", "")
 PORTAL_HMAC_SECRET = os.environ.get("PORTAL_HMAC_SECRET", "")
 
 
+def _klasse_label(klasse):
+    # type: (str) -> str
+    """Anzeigetext der Klasse aus der Registry. Das Portal zeigt den Wert
+    Mandanten und Sachverstaendigen im Klartext -- der technische Schluessel
+    waere dort unverstaendlich."""
+    if not klasse:
+        return "Sonstiges"
+    try:
+        from ..intake.registry_loader import lade_registry, standard_pfad
+        eintrag = lade_registry(standard_pfad()).klassen.get(klasse) or {}
+        return eintrag.get("label") or klasse
+    except Exception:
+        return klasse
+
+
 def _berechne_ampel(conn, akte_id):
     # type: (sqlite3.Connection, str) -> dict
     """Gibt {'status': str, 'farbe': str} zurueck."""
@@ -134,7 +149,7 @@ def _build_payload(conn, akte_id):
     """, (akte_id,)).fetchall()
 
     docs = conn.execute("""
-        SELECT id, typ, dateiname, hochgeladen_am
+        SELECT id, dokumentenklasse, dateiname, hochgeladen_am
         FROM dokumente WHERE akte_id = ? AND portal_sichtbar = 1
     """, (akte_id,)).fetchall()
 
@@ -161,8 +176,9 @@ def _build_payload(conn, akte_id):
             for r in reg_pos
         ],
         "dokumente": [
-            {"id": d["id"], "typ": d["typ"], "dateiname": d["dateiname"],
-             "erstellt_am": d["hochgeladen_am"]}
+            {"id": d["id"], "klasse": d["dokumentenklasse"],
+             "klasse_label": _klasse_label(d["dokumentenklasse"]),
+             "dateiname": d["dateiname"], "erstellt_am": d["hochgeladen_am"]}
             for d in docs
         ],
         "ampel": ampel,

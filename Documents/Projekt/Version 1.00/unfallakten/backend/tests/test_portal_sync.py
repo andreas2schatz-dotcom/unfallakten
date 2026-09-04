@@ -40,7 +40,7 @@ def db():
             schmerzensgeld REAL DEFAULT 0, sonstiges REAL DEFAULT 0
         );
         CREATE TABLE dokumente (
-            id INTEGER PRIMARY KEY, akte_id TEXT, typ TEXT, dateiname TEXT,
+            id INTEGER PRIMARY KEY, akte_id TEXT, dokumentenklasse TEXT, dateiname TEXT,
             hochgeladen_am TEXT, portal_sichtbar INTEGER DEFAULT 0
         );
         CREATE TABLE portal_sync_queue (

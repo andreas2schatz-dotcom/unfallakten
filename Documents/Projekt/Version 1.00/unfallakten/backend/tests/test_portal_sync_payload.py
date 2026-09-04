@@ -40,7 +40,7 @@ def conn():
             abrechnungsschreiben_id INTEGER, position_key TEXT, betrag_reguliert REAL
         );
         CREATE TABLE dokumente (
-            id INTEGER PRIMARY KEY, akte_id TEXT, typ TEXT,
+            id INTEGER PRIMARY KEY, akte_id TEXT, dokumentenklasse TEXT,
             dateiname TEXT, hochgeladen_am TEXT, portal_sichtbar INTEGER DEFAULT 0
         );
     """)
@@ -102,3 +102,15 @@ def test_abgelegte_klageakte_behaelt_klage_kennzeichnung(conn):
     ampel = portal_sync._berechne_ampel(conn, "5/25")
     assert ampel["status"] == "klage_eingereicht"
     assert ampel["farbe"] == "rot"
+
+
+def test_payload_liefert_klasse_und_label_statt_typ(conn):
+    conn.execute("INSERT INTO unfallakte (az) VALUES ('31/21')")
+    conn.execute(
+        "INSERT INTO dokumente (id, akte_id, dokumentenklasse, dateiname, "
+        " hochgeladen_am, portal_sichtbar) "
+        "VALUES (1, '31/21', 'sv_rechnung', 'r.pdf', '2026-08-01', 1)")
+    dok = portal_sync._build_payload(conn, "31/21")["dokumente"][0]
+    assert dok["klasse"] == "sv_rechnung"
+    assert dok["klasse_label"] == "SV-/Gutachterrechnung"
+    assert "typ" not in dok
