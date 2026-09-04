@@ -77,11 +77,20 @@ def schreibe_dokument(intake_dok: Dict[str, Any], akte_az: str,
         dateityp=dateityp,
         dateigroesse=ziel_pfad.stat().st_size if ziel_pfad.exists() else None,
     )
-    if bezeichnung:
+    parse_json = intake_dok.get("parse_json")
+    felder = {
+        "bezeichnung": bezeichnung or None,
+        "parse_json": parse_json,
+        "parse_konfidenz": intake_dok.get("konfidenz"),
+        "parse_status": "erfolgreich" if parse_json else "ausstehend",
+    }
+    gesetzt = {k: v for k, v in felder.items() if v is not None}
+    if gesetzt:
         from ..db.database import get_connection
         with get_connection() as conn:
             conn.execute(
-                "UPDATE dokumente SET bezeichnung=? WHERE id=?",
-                (bezeichnung, dokument.id),
+                "UPDATE dokumente SET %s WHERE id=?"
+                % ", ".join("%s=?" % k for k in gesetzt),
+                (*gesetzt.values(), dokument.id),
             )
     return int(dokument.id)

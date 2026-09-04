@@ -105,6 +105,51 @@ class TestKlasseUeberlebtFreigabe(unittest.TestCase):
                 dateiname="x.pdf", dateipfad="/tmp/x.pdf", bearbeiter_id=1,
             )
 
+    def test_parse_ergebnis_wandert_in_die_akte(self):
+        from backend.ramicro.output_adapter import schreibe_dokument
+        from backend.db.database import get_connection
+
+        did = self._lege_intake_an(
+            "sv_rechnung",
+            parse_json='{"felder": {"bruttobetrag": 992.34}}',
+            konfidenz=0.91,
+        )
+        with get_connection() as conn:
+            intake = dict(conn.execute(
+                "SELECT * FROM intake_dokumente WHERE id=?", (did,)
+            ).fetchone())
+
+        dokument_id = schreibe_dokument(intake, "31/21", freigegeben_von=1)
+
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT parse_json, parse_konfidenz, parse_status "
+                "FROM dokumente WHERE id=?", (dokument_id,)
+            ).fetchone()
+        self.assertIn("bruttobetrag", row["parse_json"])
+        self.assertAlmostEqual(row["parse_konfidenz"], 0.91)
+        self.assertEqual(row["parse_status"], "erfolgreich")
+
+    def test_ohne_parse_json_bleibt_status_ausstehend(self):
+        from backend.ramicro.output_adapter import schreibe_dokument
+        from backend.db.database import get_connection
+
+        did = self._lege_intake_an("sonstiges")
+        with get_connection() as conn:
+            intake = dict(conn.execute(
+                "SELECT * FROM intake_dokumente WHERE id=?", (did,)
+            ).fetchone())
+
+        dokument_id = schreibe_dokument(intake, "31/21", freigegeben_von=1)
+
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT parse_json, parse_status FROM dokumente WHERE id=?",
+                (dokument_id,)
+            ).fetchone()
+        self.assertIsNone(row["parse_json"])
+        self.assertEqual(row["parse_status"], "ausstehend")
+
 
 if __name__ == "__main__":
     unittest.main()
