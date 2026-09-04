@@ -262,7 +262,7 @@ function SchadenSection({ schaden, hq, dispatch, akteId, vorsteuer = false, doku
   const gutachtenDoks = useMemo(() =>
     (dokumente || []).filter(d =>
       d.dateityp === "pdf" &&
-      (d.dokumentenklasse === "gutachten" || d.typ === "gutachten")
+      d.dokumentenklasse === "gutachten"
     ), [dokumente]);
 
   // Vorhandenes PDF parsen (kein Upload)

@@ -3,7 +3,7 @@ import T from "../config/theme.js";
 import Ic from "../config/icons.jsx";
 import { DOK_TYPEN, SCHADEN_F, KLASSE_TO_POS } from "../config/constants.js";
 import { fmtSize, fmtEuro, dokumentAnzeige } from "../config/utils.js";
-import { Card, CardHead, Btn, FieldSelect, Toast } from "../components/common.jsx";
+import { Card, CardHead, Btn, Toast } from "../components/common.jsx";
 import DokumentAktionsmenue from "../components/DokumentAktionsmenue.jsx";
 import IntakePendingListe from "./IntakePendingListe.jsx";
 import {
@@ -20,7 +20,6 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
   const istVerkehrsunfall = akte?.referat == null || akte?.referat === 4;
   const [dragging, setDrag]   = useState(false);
   const [uploading, setUpl]   = useState(false);
-  const [uploadTyp, setTyp]   = useState("gutachten");
   const [toast, setToast]     = useState("");
   const [korrekturLading, setKorrekturLading] = useState(null); // dok_id die gerade korrigiert wird
   const [bezEdit, setBezEdit] = useState(null); // dok_id dessen Bezeichnung gerade editiert wird
@@ -682,7 +681,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
     setUpl(true); setUploadProgress(0);
 
     let dokData = {
-      id: Date.now(), typ: uploadTyp, dateiname: f.name, dateityp: typ,
+      id: Date.now(), dateiname: f.name, dateityp: typ,
       groesse: f.size || Math.floor(Math.random()*900000+100000),
       hochgeladen_am: new Date().toLocaleString("de-DE",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}),
       parse_status: typ==="pdf" ? "erfolgreich" : "ausstehend",
@@ -690,7 +689,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
     };
 
     try {
-      const created = await apiDokumente.hochladen(akteId, f, uploadTyp, pct => setUploadProgress(pct));
+      const created = await apiDokumente.hochladen(akteId, f, "sonstiges", pct => setUploadProgress(pct));
       // API gibt { dokument: {...}, parse_ergebnis: {...}, dispatch: {...} } zurück
       const dok = created?.dokument || created;
       if (dok?.id) dokData = { ...dokData, ...dok };
@@ -795,7 +794,7 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
                   )}
                   <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:3, flexWrap:"wrap" }}>
                     <select
-                      value={d.dokumentenklasse||d.typ||"sonstiges"}
+                      value={d.dokumentenklasse || "sonstiges"}
                       disabled={korrekturLading===d.id}
                       onChange={e => korrigiereKlasse(d.id, e.target.value)}
                       style={{ fontFamily:T.fontBody, fontSize:"0.825rem", background:korrekturLading===d.id?T.accentPale:T.surface, color:T.textMuted, border:`1px solid ${T.border}`, borderRadius:10, padding:"1px 7px", cursor:"pointer", outline:"none", appearance:"none", WebkitAppearance:"none", paddingRight:16, backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23999'/%3E%3C/svg%3E")`, backgroundRepeat:"no-repeat", backgroundPosition:"right 5px center" }}
@@ -1382,9 +1381,6 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
 
           {/* Upload */}
           <Card style={{ flex: istVerkehrsunfall ? 1 : "0 1 50%", minWidth:0, marginLeft: istVerkehrsunfall ? 0 : "auto", padding:"1.25rem 1.4rem" }}>
-          <div style={{ marginBottom:"1rem", maxWidth:250 }}>
-            <FieldSelect label="Dokumenttyp" value={uploadTyp} onChange={setTyp} options={DOK_TYPEN} />
-          </div>
           <div
             onDragOver={e => { e.preventDefault(); setDrag(true); }}
             onDragLeave={() => setDrag(false)}

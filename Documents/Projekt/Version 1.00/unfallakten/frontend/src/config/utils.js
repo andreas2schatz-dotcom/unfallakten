@@ -62,7 +62,7 @@ function dokumentAnzeige(dok) {
   const name = String(dok.dateiname || "").trim();
   if (name && !HASH_DATEINAME.test(name)) return name;
   const nr = dok.id ?? dok.dokument_id ?? dok.dok_id ?? null;
-  const klasse = dok.dokumentenklasse || dok.typ || "";
+  const klasse = dok.dokumentenklasse || "";
   const treffer = klasse && klasse !== "sonstiges"
     ? DOK_TYPEN.find(t => t.value === klasse) : null;
   if (treffer) return nr != null ? `${treffer.label} (Nr. ${nr})` : treffer.label;

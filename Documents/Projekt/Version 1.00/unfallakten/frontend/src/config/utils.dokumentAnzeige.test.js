@@ -23,19 +23,20 @@ describe("dokumentAnzeige – nutzersichtbarer Dokumentname", () => {
     })).toBe("Gutachten (Nr. 42)");
   });
 
-  it("nutzt den Typ, wenn keine Dokumentenklasse gesetzt ist", () => {
-    expect(dokumentAnzeige({
-      id: 43,
-      dateiname: "b19c1c507f9675b2f91fc9b1a25f0d56fc32f4ca0c91bb116003eba31a8c7cef.pdf",
-      typ: "abrechnungsschreiben",
-    })).toBe("Abrechnungsschreiben (Nr. 43)");
+  it("wertet ein veraltetes typ-Feld nicht mehr aus", () => {
+    expect(dokumentAnzeige({ typ: "gutachten", id: 5 })).toBe("Dokument Nr. 5");
+  });
+
+  it("nutzt weiterhin die dokumentenklasse", () => {
+    expect(dokumentAnzeige({ dokumentenklasse: "gutachten", id: 5 }))
+      .toBe("Gutachten (Nr. 5)");
   });
 
   it("zeigt bei Hash ohne jede Klasse wenigstens die Dokumentnummer", () => {
     expect(dokumentAnzeige({
       id: 44,
       dateiname: "048afefc40088c77d5a2134600d5d9701827cca61e4951e0d87fe143d3839285.pdf",
-      typ: "sonstiges",
+      dokumentenklasse: "sonstiges",
     })).toBe("Dokument Nr. 44");
   });
 

@@ -300,11 +300,11 @@ function PdfAuswahlZeile({ dok, akteId, setDn, setPhase, setFehler, setErg, setS
 function PdfImportDialog({ akteId, kuerzungsarten, schaden, onImport, onSavePruefbericht, onCancel, dispatch, dokumente, mandantAdresse }) {
   const vorhandenePdfs = (dokumente || []).filter(d => d.dateityp === "pdf");
   // Gruppiert: Abrechnungsschreiben + Prüfberichte zuerst, dann Rest
-  const abrDoks = vorhandenePdfs.filter(d => d.dokumentenklasse === "abrechnungsschreiben" || d.typ === "abrechnungsschreiben");
-  const pbDoks  = vorhandenePdfs.filter(d => d.dokumentenklasse === "pruefbericht" || d.typ === "pruefbericht");
+  const abrDoks = vorhandenePdfs.filter(d => d.dokumentenklasse === "abrechnungsschreiben");
+  const pbDoks  = vorhandenePdfs.filter(d => d.dokumentenklasse === "pruefbericht");
   const sonstigeDoks = vorhandenePdfs.filter(d =>
-    !(d.dokumentenklasse === "abrechnungsschreiben" || d.typ === "abrechnungsschreiben") &&
-    !(d.dokumentenklasse === "pruefbericht" || d.typ === "pruefbericht"));
+    d.dokumentenklasse !== "abrechnungsschreiben" &&
+    d.dokumentenklasse !== "pruefbericht");
   const startPhase = vorhandenePdfs.length > 0 ? "auswahl" : "upload";
 
   const [phase, setPhase]         = useState(startPhase);
@@ -1985,11 +1985,11 @@ function RegulierungSection({ brutto, hq, regulierungStatus, dispatch, akteId, s
   // Importierte/hochgeladene PDFs nach Klasse (PRD-22b)
   const abrechnungsDoks = React.useMemo(() =>
     (dokumente || []).filter(d => d.dateityp === "pdf" &&
-      (d.dokumentenklasse === "abrechnungsschreiben" || d.typ === "abrechnungsschreiben")),
+      d.dokumentenklasse === "abrechnungsschreiben"),
     [dokumente]);
   const pruefberichtDoks = React.useMemo(() =>
     (dokumente || []).filter(d => d.dateityp === "pdf" &&
-      (d.dokumentenklasse === "pruefbericht" || d.typ === "pruefbericht")),
+      d.dokumentenklasse === "pruefbericht"),
     [dokumente]);
 
   const versicherungDefault = React.useMemo(() => {
