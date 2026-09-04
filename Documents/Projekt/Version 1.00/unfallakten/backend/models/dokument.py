@@ -77,12 +77,26 @@ def hole_aktivitaeten(akte_id: Optional[int] = None,
 # DOKUMENTE
 # ══════════════════════════════════════════════════════════════════════════════
 
-GUELTIGE_TYPEN = (
-    "gutachten", "abrechnungsschreiben", "forderungsschreiben",
-    "sachstandsanfrage", "klage", "sonstiges"
-)
 GUELTIGE_DATEITYPEN = ("pdf", "docx", "jpg", "png", "sonstiges")
 GUELTIGE_PARSE_STATUS = ("ausstehend", "erfolgreich", "fehler", "manuell_korrigiert")
+
+
+def pruefe_dokumentenklasse(klasse: str) -> str:
+    """Prueft eine Dokumentklasse gegen die Registry (SSOT).
+
+    Fail-loud: eine unbekannte Klasse ist ein Programmierfehler, kein
+    Anwenderfehler -- sie wuerde sonst still als nicht auffindbares
+    Dokument in der Akte landen.
+    """
+    from ..intake.registry_loader import lade_registry, standard_pfad
+    erlaubt = lade_registry(standard_pfad()).klassen
+    if klasse not in erlaubt:
+        raise ValueError(
+            "Unbekannte Dokumentklasse %r. Erlaubt sind die Klassen aus "
+            "backend/registry/klassen/: %s"
+            % (klasse, ", ".join(sorted(erlaubt)))
+        )
+    return klasse
 
 
 @dataclass
@@ -111,25 +125,32 @@ class Dokument:
                       if k in cls.__dataclass_fields__})
 
 
-def registriere_dokument(akte_id: int, typ: str, dateiname: str,
+# Uebergangsweise: dokumente.typ faellt in Migration 74. Bis dahin wird die
+# Spalte aus der Klasse abgeleitet, damit die verbliebenen Leser weiterlaufen.
+_ALT_TYP_WERTE = ("gutachten", "abrechnungsschreiben", "forderungsschreiben",
+                  "sachstandsanfrage", "klage", "sonstiges")
+
+
+def registriere_dokument(akte_id: int, dokumentenklasse: str, dateiname: str,
                           dateipfad: str, bearbeiter_id: Optional[int] = None,
                           dateityp: str = "pdf",
                           dateigroesse: Optional[int] = None) -> Dokument:
     """Registriert ein hochgeladenes Dokument in der Datenbank."""
-    if typ not in GUELTIGE_TYPEN:
-        raise ValueError(f"Ungültiger Dokumenttyp: {typ!r}")
+    pruefe_dokumentenklasse(dokumentenklasse)
     if dateityp not in GUELTIGE_DATEITYPEN:
         raise ValueError(f"Ungültiger Dateityp: {dateityp!r}")
+
+    typ = dokumentenklasse if dokumentenklasse in _ALT_TYP_WERTE else "sonstiges"
 
     with get_connection() as conn:
         cursor = conn.execute(
             """
             INSERT INTO dokumente
-                (akte_id, typ, dateiname, dateipfad, dateityp,
-                 dateigroesse, hochgeladen_von)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                (akte_id, typ, dokumentenklasse, dateiname, dateipfad,
+                 dateityp, dateigroesse, hochgeladen_von)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (akte_id, typ, dateiname, dateipfad, dateityp,
+            (akte_id, typ, dokumentenklasse, dateiname, dateipfad, dateityp,
              dateigroesse, bearbeiter_id)
         )
         doc_id = cursor.lastrowid
@@ -143,7 +164,8 @@ def registriere_dokument(akte_id: int, typ: str, dateiname: str,
                 VALUES (?, ?, 'dokument_hochgeladen', ?, 'dokumente', ?)
                 """,
                 (akte_id, bearbeiter_id,
-                 f"Dokument hochgeladen: {dateiname} ({typ})", doc_id)
+                 f"Dokument hochgeladen: {dateiname} ({dokumentenklasse})",
+                 doc_id)
             )
         except Exception as log_err:
             logger.warning("Aktivitäts-Log für Dokument %d fehlgeschlagen: %s",
@@ -156,6 +178,7 @@ def registriere_dokument(akte_id: int, typ: str, dateiname: str,
         id=doc_id,
         akte_id=akte_id,
         typ=typ,
+        dokumentenklasse=dokumentenklasse,
         dateiname=dateiname,
         dateipfad=dateipfad,
         dateityp=dateityp,

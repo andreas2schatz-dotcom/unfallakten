@@ -19,7 +19,7 @@ from flask import Blueprint, request, jsonify, g, send_file
 from ..auth.middleware import login_erforderlich
 from ._helpers import pruefe_akte as _pruefe_akte
 from ..models.dokument import (
-    hole_dokumente_by_akte, GUELTIGE_TYPEN,
+    hole_dokumente_by_akte,
     aktualisiere_parse_status
 )
 from ..pdf.upload_service import (

@@ -94,7 +94,7 @@ def seed():
         kuerz_begruendung="Wertminderung abgelehnt, SV-Kosten gekürzt um 40,50 €"
     )
     registriere_dokument(
-        akte_id=akte1.id, typ="gutachten",
+        akte_id=akte1.id, dokumentenklasse="gutachten",
         dateiname="Gutachten_Dekra_42-25.pdf",
         dateipfad="uploads/42-25/Gutachten_Dekra_42-25.pdf",
         bearbeiter_id=admin.id, dateigroesse=2_450_000

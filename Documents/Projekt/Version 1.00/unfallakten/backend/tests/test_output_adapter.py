@@ -90,16 +90,16 @@ class TestOutputAdapterSchreibeDokument(unittest.TestCase):
         self.assertGreater(dokument_id, 0)
         with get_connection() as conn:
             row = conn.execute(
-                "SELECT akte_id, typ, dateipfad, dateiname "
+                "SELECT akte_id, dokumentenklasse, dateipfad, dateiname "
                 "FROM dokumente WHERE id=?", (dokument_id,)
             ).fetchone()
         self.assertIsNotNone(row)
         self.assertEqual(row["akte_id"], "31/21")
-        self.assertEqual(row["typ"], "abrechnungsschreiben")
+        self.assertEqual(row["dokumentenklasse"], "abrechnungsschreiben")
         self.assertTrue(row["dateipfad"])
         self.assertTrue(row["dateiname"])
 
-    def test_unbekannte_klasse_mappt_auf_sonstiges(self):
+    def test_feinklasse_faellt_nicht_mehr_auf_sonstiges(self):
         from backend.ramicro.output_adapter import schreibe_dokument
         from backend.db.database import get_connection
 
@@ -113,9 +113,10 @@ class TestOutputAdapterSchreibeDokument(unittest.TestCase):
 
         with get_connection() as conn:
             row = conn.execute(
-                "SELECT typ FROM dokumente WHERE id=?", (dokument_id,)
+                "SELECT dokumentenklasse FROM dokumente WHERE id=?",
+                (dokument_id,)
             ).fetchone()
-        self.assertEqual(row["typ"], "sonstiges")
+        self.assertEqual(row["dokumentenklasse"], "pruefbericht")
 
     def test_gutachten_klasse_wird_uebernommen(self):
         from backend.ramicro.output_adapter import schreibe_dokument
@@ -131,9 +132,10 @@ class TestOutputAdapterSchreibeDokument(unittest.TestCase):
 
         with get_connection() as conn:
             row = conn.execute(
-                "SELECT typ FROM dokumente WHERE id=?", (dokument_id,)
+                "SELECT dokumentenklasse FROM dokumente WHERE id=?",
+                (dokument_id,)
             ).fetchone()
-        self.assertEqual(row["typ"], "gutachten")
+        self.assertEqual(row["dokumentenklasse"], "gutachten")
 
     def test_dateipfad_ist_ohne_upload_dir_praefix_lesbar(self):
         # Bug: schreibe_dokument() speicherte dateipfad relativ zu UPLOAD_DIR

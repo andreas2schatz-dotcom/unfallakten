@@ -183,12 +183,12 @@ def generiere_und_speichere(
         pfad = upload_dir / f"{uuid.uuid4().hex}_{dateiname}"
         pfad.write_bytes(doc_bytes)
 
-        # DB-Typ: 'forderungsschreiben' oder 'sonstiges' für die anderen
+        # Dokumentklasse: 'forderungsschreiben'/'klage' oder 'sonstiges'
         db_typ = dok_typ if dok_typ in ("forderungsschreiben", "klage") else "sonstiges"
         try:
             dok = registriere_dokument(
                 akte_id=akte_id,
-                typ=db_typ,
+                dokumentenklasse=db_typ,
                 dateiname=dateiname,
                 dateipfad=str(pfad),
                 bearbeiter_id=bearbeiter_id,

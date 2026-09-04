@@ -429,11 +429,11 @@ class TestDokumenteUndAktivitaeten(unittest.TestCase):
         self.assertEqual(upd.parse_status, "erfolgreich")
         self.assertAlmostEqual(upd.parse_konfidenz, 0.92)
 
-    def test_ungueltiger_typ_fehler(self):
+    def test_unbekannte_klasse_fehler(self):
         f = _ns("dok_invtyp")
         a = f.erstelle_akte("AZ", "2025-01-01")
         with self.assertRaises(ValueError):
-            f.registriere_dokument(a.id, "rechnung", "X.pdf", "X.pdf")
+            f.registriere_dokument(a.id, "gibt_es_nicht", "X.pdf", "X.pdf")
 
     def test_filter_nach_typ(self):
         f = _ns("dok_filt")

@@ -36,7 +36,7 @@ class TestDokumentBezeichnungAkte(unittest.TestCase):
         from backend.models.akte import erstelle_oder_hole_akte
         from backend.models.dokument import registriere_dokument
         erstelle_oder_hole_akte("90/26", bearbeiter_id=None)
-        dok = registriere_dokument(akte_id="90/26", typ="sonstiges",
+        dok = registriere_dokument(akte_id="90/26", dokumentenklasse="sonstiges",
                                    dateiname="scan_1.pdf", dateipfad="90_26/scan_1.pdf")
         r = client.patch(f"/akten/90/26/dokumente/{dok.id}/bezeichnung",
                          headers=h, json={"bezeichnung": "Anwaltsschreiben"})

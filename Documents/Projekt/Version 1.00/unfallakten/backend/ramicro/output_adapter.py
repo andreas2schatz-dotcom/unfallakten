@@ -9,11 +9,8 @@ Stufe-1-Implementierung schreibt lokal ueber ``registriere_dokument``
 hinter dasselbe Interface -- ``schreibe_dokument(intake_dok, akte_az,
 freigegeben_von) -> dokument_id``.
 
-Die Klasse aus dem Intake wird auf die zulaessigen ``dokumente.typ``-Werte
-gemappt. Nicht direkt darstellbare Klassen (pruefbericht, rechnung,
-sv_rechnung, sonstiges, abschlepprechnung, standkostenrechnung) landen
-als ``sonstiges`` -- die Feinklassifikation bleibt weiterhin in
-``intake_dokumente.klasse`` erhalten.
+Die im Intake vergebene Klasse wird unveraendert nach
+``dokumente.dokumentenklasse`` uebernommen.
 """
 from __future__ import annotations
 
@@ -22,14 +19,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from ..models.dokument import GUELTIGE_TYPEN, registriere_dokument
-
-
-def _map_klasse(klasse: Optional[str]) -> str:
-    """Mapt intake_dokumente.klasse -> dokumente.typ (CHECK-constraint)."""
-    if klasse and klasse in GUELTIGE_TYPEN:
-        return klasse
-    return "sonstiges"
+from ..models.dokument import registriere_dokument
 
 
 def _upload_verzeichnis() -> Path:
@@ -61,8 +51,6 @@ def schreibe_dokument(intake_dok: Dict[str, Any], akte_az: str,
             f"Arbeitskopie fehlt: {arbeitskopie!r}"
         )
 
-    typ = _map_klasse(intake_dok.get("klasse"))
-
     # Datei in Upload-Ordner kopieren, damit die Akte einen stabilen Pfad
     # hat -- die Intake-Arbeitskopie kann per TSV-/Artefakt-Lifecycle
     # (Stufe 2) spaeter geloescht werden.
@@ -82,7 +70,7 @@ def schreibe_dokument(intake_dok: Dict[str, Any], akte_az: str,
 
     dokument = registriere_dokument(
         akte_id=akte_az,
-        typ=typ,
+        dokumentenklasse=intake_dok.get("klasse") or "sonstiges",
         dateiname=ziel_pfad.name,
         dateipfad=str(ziel_pfad),
         bearbeiter_id=freigegeben_von,

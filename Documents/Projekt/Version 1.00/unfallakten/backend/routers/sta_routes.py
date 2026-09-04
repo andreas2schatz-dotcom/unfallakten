@@ -141,7 +141,7 @@ def sta_generieren(az: str):
     try:
         dok = registriere_dokument(
             akte_id=az,
-            typ="sachstandsanfrage",
+            dokumentenklasse="sachstandsanfrage",
             dateiname=dateiname,
             dateipfad=str(pfad),
             bearbeiter_id=benutzer_id,

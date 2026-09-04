@@ -125,7 +125,7 @@ def generiere(akte_id: str):
         _pfad.write_bytes(docx_bytes)
         _bearbeiter = getattr(_g, "benutzer_id", None)
         _dok = _reg_dok(
-            akte_id=az, typ="sonstiges",
+            akte_id=az, dokumentenklasse="sonstiges",
             dateiname=dateiname, dateipfad=str(_pfad),
             bearbeiter_id=_bearbeiter,
             dateityp="docx", dateigroesse=len(docx_bytes),

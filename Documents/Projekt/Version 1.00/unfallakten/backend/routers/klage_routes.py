@@ -1506,7 +1506,7 @@ def generiere_klage(akte_id: str):
         pfad.write_bytes(doc_bytes)
         try:
             dok = registriere_dokument(
-                akte_id=az, typ="klage",
+                akte_id=az, dokumentenklasse="klage",
                 dateiname=dateiname, dateipfad=str(pfad),
                 bearbeiter_id=g.benutzer_id,
                 dateityp="docx", dateigroesse=len(doc_bytes),

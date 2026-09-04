@@ -210,7 +210,7 @@ def generiere_kostennote(akte_id, gb_row):
     dok_id = None
     try:
         dok = registriere_dokument(
-            akte_id=akte_id, typ="sonstiges",
+            akte_id=akte_id, dokumentenklasse="sonstiges",
             dateiname=dateiname, dateipfad=str(pfad),
             bearbeiter_id=None,
             dateityp="docx", dateigroesse=len(doc_bytes),

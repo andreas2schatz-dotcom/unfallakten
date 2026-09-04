@@ -752,7 +752,7 @@ def kandidaten(akte_id):
                         dateigroesse = len(_datei_bytes)
                         db_dok = registriere_dokument(
                             akte_id=akte_id,
-                            typ="sonstiges",
+                            dokumentenklasse="sonstiges",
                             dateiname=(
                                 dok.get("bemerkung") or dok.get("orgdatei")
                                 or dok.get("anzeigename")

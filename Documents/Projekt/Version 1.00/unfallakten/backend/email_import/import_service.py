@@ -323,7 +323,7 @@ def _verarbeite_eine(uid, roh_bytes, imap, bericht, up_dir, bearbeiter_id, konto
             try:
                 dok = registriere_dokument(
                     akte_id      = akte_az,
-                    typ          = "sonstiges",
+                    dokumentenklasse = "sonstiges",
                     dateiname    = gespeichert["dateiname"],
                     dateipfad    = gespeichert["pfad"],
                     bearbeiter_id= bearbeiter_id,
@@ -783,7 +783,7 @@ def importiere_in_akte(
                 try:
                     dok = registriere_dokument(
                         akte_id      = akte_id,
-                        typ          = "gutachten" if "gutachten" in fn.lower() else "sonstiges",
+                        dokumentenklasse = "sonstiges",
                         dateiname    = sicherer_name,
                         dateipfad    = str(ziel_pfad),
                         bearbeiter_id= bearbeiter_id,
@@ -813,7 +813,7 @@ def importiere_in_akte(
             eml_dateiname = f"{safe}.eml"
             dok = registriere_dokument(
                 akte_id      = akte_id,
-                typ          = "sonstiges",
+                dokumentenklasse = "sonstiges",
                 dateiname    = eml_dateiname,
                 dateipfad    = eml_pfad,
                 bearbeiter_id= bearbeiter_id,
@@ -1190,7 +1190,7 @@ def _speichere_fragebogen_json(akte_az: str, roh_dict: dict,
         )
         registriere_dokument(
             akte_id       = akte_az,
-            typ           = "sonstiges",
+            dokumentenklasse = "sonstiges",
             dateiname     = dateiname,
             dateipfad     = str(pfad),
             bearbeiter_id = bearbeiter_id,

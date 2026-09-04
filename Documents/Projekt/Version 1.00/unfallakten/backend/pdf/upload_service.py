@@ -28,7 +28,7 @@ from typing import Optional
 
 from ..models.dokument import (
     registriere_dokument, aktualisiere_parse_status,
-    hole_dokumente_by_akte, loesche_dokument, Dokument, GUELTIGE_TYPEN
+    hole_dokumente_by_akte, loesche_dokument, Dokument
 )
 from ..models.schaden import setze_schadenpositionen
 from ..models.akte import hole_akte_by_id
@@ -147,12 +147,12 @@ def verarbeite_upload(
     if not akte:
         raise UploadFehler(f"Akte {akte_id} nicht gefunden.", 404)
 
-    # 2. Dokumenttyp prüfen
-    if typ not in GUELTIGE_TYPEN:
-        raise UploadFehler(
-            f"Ungültiger Dokumenttyp '{typ}'. "
-            f"Erlaubt: {', '.join(GUELTIGE_TYPEN)}"
-        )
+    # 2. Dokumentklasse prüfen
+    from ..models.dokument import pruefe_dokumentenklasse
+    try:
+        pruefe_dokumentenklasse(typ)
+    except ValueError as e:
+        raise UploadFehler(str(e))
 
     # 3. Datei validieren
     _validiere_datei(dateiname, datei_bytes)
@@ -170,7 +170,7 @@ def verarbeite_upload(
     # 5. In Datenbank registrieren
     dok = registriere_dokument(
         akte_id=akte_id,
-        typ=typ,
+        dokumentenklasse=typ,
         dateiname=dateiname,
         dateipfad=str(ziel_pfad),
         bearbeiter_id=bearbeiter_id,
