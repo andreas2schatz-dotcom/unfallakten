@@ -251,13 +251,16 @@ class TestIntakeKlassen(unittest.TestCase):
         r = self.client.get("/intake/klassen")
         self.assertEqual(r.status_code, 401)
 
-    def test_klassen_liefert_registry_klassen(self):
+    def test_klassen_liefert_wert_und_label(self):
         r = self.client.get("/intake/klassen", headers=self.headers)
         self.assertEqual(r.status_code, 200)
         klassen = r.get_json()["klassen"]
-        self.assertIn("gutachten", klassen)
-        self.assertIn("abrechnungsschreiben", klassen)
-        self.assertIn("sonstiges", klassen)
+        self.assertTrue(klassen)
+        eintrag = {k["wert"]: k["label"] for k in klassen}
+        self.assertEqual(eintrag["sv_rechnung"], "SV-/Gutachterrechnung")
+        self.assertEqual(eintrag["fragebogen"], "Unfallfragebogen")
+        self.assertEqual([k["wert"] for k in klassen],
+                         sorted(k["wert"] for k in klassen))
 
 
 class TestIntakeDetail(unittest.TestCase):

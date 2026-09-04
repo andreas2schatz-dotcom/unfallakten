@@ -19,18 +19,10 @@ import SplitDialog from "./SplitDialog.jsx";
 import { istAufteilbar } from "./splitLogik.js";
 import AktenanlageDialog, { baueVorbefuellung } from "../components/AktenanlageDialog.jsx";
 
-// Fallback nur fuer den Fehlerfall des Klassen-Endpoints (BUG-26): im
-// Normalbetrieb laedt die View die Klassen dynamisch aus der Registry.
-const KLASSEN_FALLBACK = [
-  "gutachten",
-  "abrechnungsschreiben",
-  "pruefbericht",
-  "rechnung",
-  "sv_rechnung",
-  "abschlepprechnung",
-  "standkostenrechnung",
-  "sonstiges",
-];
+function klasseLabel(klassen, wert) {
+  if (!wert) return "unbekannt";
+  return (klassen || []).find(k => k.wert === wert)?.label || wert;
+}
 
 const GRUND_LABELS = {
   rauschen: "Rauschen",
@@ -463,7 +455,7 @@ function KonfidenzChip({ wert }) {
   );
 }
 
-function QueueEintrag({ item, aktiv, onClick, onVerwerfen, eingerueckt, vorgang }) {
+function QueueEintrag({ item, aktiv, onClick, onVerwerfen, eingerueckt, vorgang, klassen }) {
   const kandidat = item.akte_kandidat_top;
   return (
     <div onClick={onClick}
@@ -509,7 +501,7 @@ function QueueEintrag({ item, aktiv, onClick, onVerwerfen, eingerueckt, vorgang 
       <div style={{ fontSize: T.textSm, fontFamily: T.fontBody, color: T.text }}>
         {eingerueckt && <span title="Anhang">📎 </span>}
         {item.payload_typ === "text" && <span title="E-Mail">📧 </span>}
-        <strong>{item.klasse || "unbekannt"}</strong>
+        <strong>{klasseLabel(klassen, item.klasse)}</strong>
       </div>
       {item.payload_typ === "text" && (item.absender || item.betreff) && (
         <div style={{ fontSize: T.textXs, color: T.textMuted, marginTop: 2 }}>
@@ -533,14 +525,14 @@ function QueueEintrag({ item, aktiv, onClick, onVerwerfen, eingerueckt, vorgang 
   );
 }
 
-function KindZeile({ item, aktiv, onClick, onVerwerfen, onAktenanlage, vorgang }) {
+function KindZeile({ item, aktiv, onClick, onVerwerfen, onAktenanlage, vorgang, klassen }) {
   if (item.ist_fragebogen) {
     return <FragebogenEintrag item={item} aktiv={aktiv} onClick={onClick}
       onVerwerfen={onVerwerfen} onAktenanlage={onAktenanlage}
       eingerueckt vorgang={vorgang} />;
   }
   return <QueueEintrag item={item} aktiv={aktiv} onClick={onClick}
-    onVerwerfen={onVerwerfen} eingerueckt vorgang={vorgang} />;
+    onVerwerfen={onVerwerfen} eingerueckt vorgang={vorgang} klassen={klassen} />;
 }
 
 const VERWERFEN_GRUENDE = [
@@ -1155,7 +1147,7 @@ export function FragebogenUebernahme({ abschnitte, state, onToggle, onFeld, onAd
 }
 
 function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
-                          ereignistypen, onEreignisChange,
+                          ereignistypen, klassen, onEreignisChange,
                           onErsetztChange, onEreignisAdd, onEreignisDel,
                           onConfirm, onCancel, laeuft,
                           fbVorschau, fbState, onFbToggle, onFbFeld, onFbAdopt }) {
@@ -1181,7 +1173,7 @@ function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
           Freigabe an Akte
         </h3>
         <div style={{ color: T.textMuted, marginBottom: 16, fontSize: T.textSm }}>
-          Dokument #{dokument.id} wird als <strong>{dokument.klasse}</strong> in
+          Dokument #{dokument.id} wird als <strong>{klasseLabel(klassen, dokument.klasse)}</strong> in
           Akte <code>{akteAz}</code> uebernommen.
         </div>
 
@@ -1287,8 +1279,8 @@ function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
 }
 
 function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
-                       ereignistypen, klassen, item, vorgang, onAktenanlage,
-                       uebernahmeAz }) {
+                       ereignistypen, klassen, klassenFehler, item, vorgang,
+                       onAktenanlage, uebernahmeAz }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState(null);
   const [meldung, setMeldung] = useState("");
@@ -1662,8 +1654,8 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
                 fontSize: T.textSm, background: T.cardBg,
               }}>
               <option value="">— unbekannt —</option>
-              {(klassen && klassen.length ? klassen : KLASSEN_FALLBACK)
-                .map(k => <option key={k} value={k}>{k}</option>)}
+              {(klassen || []).map(k =>
+                <option key={k.wert} value={k.wert}>{k.label}</option>)}
             </select>
             <KonfidenzChip wert={detail.konfidenz} />
             <button
@@ -1680,6 +1672,11 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
               }}
             >🔄 Erneut parsen</button>
           </div>
+          {klassenFehler && (
+            <div style={{ color: T.redText, fontSize: T.textXs, marginTop: 4 }}>
+              Klassenliste konnte nicht geladen werden — bitte Seite neu laden.
+            </div>
+          )}
           {detail.parse.klassifikation?.hinweise?.length ? (
             <ul style={{ margin: "6px 0 0", padding: 0, listStyle: "none", fontSize: T.textXs, color: T.textMuted }}>
               {detail.parse.klassifikation.hinweise.map((h, i) => (
@@ -1842,6 +1839,7 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
             ereignisse={ereignisse}
             ersetztIds={ersetztIds}
             ereignistypen={ereignistypen}
+            klassen={klassen}
             fbVorschau={fbVorschau}
             fbState={fbState}
             onFbToggle={(key, art) => setFbState(s => {
@@ -1903,6 +1901,7 @@ export default function ReviewQueueView({ onOpenAkte, initialIntakeId = null, on
   const [verwerfenLaeuft, setVerwerfenLaeuft] = useState(false);
   const [ereignistypen, setEreignistypen] = useState([]);
   const [klassen, setKlassen] = useState([]);
+  const [klassenFehler, setKlassenFehler] = useState(false);
   const [ansicht, setAnsicht] = useState("queue");  // "queue" | "papierkorb"
   const [papierkorb, setPapierkorb] = useState([]);
   const [sortAbsteigend, setSortAbsteigend] = useState(
@@ -1924,7 +1923,7 @@ export default function ReviewQueueView({ onOpenAkte, initialIntakeId = null, on
   useEffect(() => {
     apiIntake.klassen()
       .then(d => setKlassen(d.klassen || []))
-      .catch(() => setKlassen([]));  // Fallback: KLASSEN_FALLBACK im Dropdown
+      .catch(() => setKlassenFehler(true));
   }, []);
 
   const laden = useCallback(async () => {
@@ -2118,6 +2117,7 @@ export default function ReviewQueueView({ onOpenAkte, initialIntakeId = null, on
                           onClick={() => setAktivId(k.id)}
                           onVerwerfen={setVerwerfenDok}
                           onAktenanlage={it => setAnlageDialog({ item: it })}
+                          klassen={klassen}
                           vorgang={vorgangFuerEintrag(k, vorgaenge, queue)} />
                       ))}
                     </React.Fragment>
@@ -2139,12 +2139,14 @@ export default function ReviewQueueView({ onOpenAkte, initialIntakeId = null, on
                     aktiv={aktivId === gruppe.eintrag.id}
                     onClick={() => setAktivId(gruppe.eintrag.id)}
                     onVerwerfen={setVerwerfenDok}
+                    klassen={klassen}
                     vorgang={vorgangFuerEintrag(gruppe.eintrag, vorgaenge, queue)} />
                   {gruppe.kinder.map(k => (
                     <KindZeile key={k.id} item={k} aktiv={aktivId === k.id}
                       onClick={() => setAktivId(k.id)}
                       onVerwerfen={setVerwerfenDok}
                       onAktenanlage={it => setAnlageDialog({ item: it })}
+                      klassen={klassen}
                       vorgang={vorgangFuerEintrag(k, vorgaenge, queue)} />
                   ))}
                 </React.Fragment>
@@ -2175,7 +2177,7 @@ export default function ReviewQueueView({ onOpenAkte, initialIntakeId = null, on
               </div>
               <div style={{ fontSize: T.textSm, color: T.text }}>
                 {item.payload_typ === "text" && <span title="E-Mail">📧 </span>}
-                <strong>{item.klasse || "unbekannt"}</strong>
+                <strong>{klasseLabel(klassen, item.klasse)}</strong>
               </div>
               {(item.absender || item.betreff) && (
                 <div style={{ fontSize: T.textXs, color: T.textMuted, marginTop: 2 }}>
@@ -2197,6 +2199,7 @@ export default function ReviewQueueView({ onOpenAkte, initialIntakeId = null, on
                     onFreigegeben={onFreigegeben} onOpenAkte={onOpenAkte}
                     onVerwerfen={setVerwerfenDok}
                     ereignistypen={ereignistypen} klassen={klassen}
+                    klassenFehler={klassenFehler}
                     item={aktuellerEintrag}
                     vorgang={vorgangFuerEintrag(aktuellerEintrag, vorgaenge, queue)}
                     onAktenanlage={() => aktuellerEintrag && setAnlageDialog({ item: aktuellerEintrag })}

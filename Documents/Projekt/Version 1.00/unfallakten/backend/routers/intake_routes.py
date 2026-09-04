@@ -604,11 +604,14 @@ def hole_klassen():
     Reklassifikations-Dropdown, damit das Frontend die Klassenliste nicht
     hartcodieren muss (eine neue klassen/*.yaml erscheint automatisch).
 
-    Response: { "klassen": ["abrechnungsschreiben", "gutachten", ...] }
+    Response: { "klassen": [{"wert": "gutachten", "label": "Gutachten"}, ...] }
     """
     from ..intake.registry_loader import lade_registry, standard_pfad
     reg = lade_registry(standard_pfad())
-    return _j({"klassen": sorted(reg.klassen.keys())})
+    return _j({"klassen": [
+        {"wert": k, "label": d.get("label", k)}
+        for k, d in sorted(reg.klassen.items())
+    ]})
 
 
 # ─── PATCH /intake/dokument/<id>/felder ───────────────────────────────────────
