@@ -225,7 +225,7 @@ class TestTypVorschlaegeEndpoint(_RouteBasis):
         with get_connection() as conn:
             conn.execute("PRAGMA foreign_keys = OFF")
             cur = conn.execute(
-                "INSERT INTO dokumente (typ, dateiname, dateipfad, akte_id) "
+                "INSERT INTO dokumente (dokumentenklasse, dateiname, dateipfad, akte_id) "
                 "VALUES ('sonstiges', 'pb.pdf', '/nicht/vorhanden/pb.pdf', '971/25')")
             self.dok_id = cur.lastrowid
             conn.execute(

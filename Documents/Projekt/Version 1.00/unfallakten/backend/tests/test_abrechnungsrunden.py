@@ -26,7 +26,7 @@ class TestRundenVergleich(_DBBasis):
             conn.execute("PRAGMA foreign_keys = OFF")
             for dok_id in (101, 102):
                 conn.execute(
-                    "INSERT INTO dokumente (id, typ, dateiname, dateipfad, akte_id) "
+                    "INSERT INTO dokumente (id, dokumentenklasse, dateiname, dateipfad, akte_id) "
                     "VALUES (?, 'sonstiges', 'ab.pdf', '/nicht/vorhanden/ab.pdf', "
                     "'971/25')", (dok_id,))
 
@@ -127,7 +127,7 @@ class TestRundenEndpoint(_RouteBasis):
             conn.execute("INSERT INTO unfallakte (az) VALUES ('971/25')")
             for dok_id in (101, 102):
                 conn.execute(
-                    "INSERT INTO dokumente (id, typ, dateiname, dateipfad, akte_id) "
+                    "INSERT INTO dokumente (id, dokumentenklasse, dateiname, dateipfad, akte_id) "
                     "VALUES (?, 'sonstiges', 'ab.pdf', '/nicht/vorhanden/ab.pdf', "
                     "'971/25')", (dok_id,))
         from backend.services.ereignis_service import schreibe_ereignis

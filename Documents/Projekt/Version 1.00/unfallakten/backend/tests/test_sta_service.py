@@ -143,13 +143,13 @@ class TestGeneriereStaText(_DbFixture):
 
 # ── Aktenanalyse ───────────────────────────────────────────────────────────────
 
-def _insert_dok(conn, *, typ, tage_alt, akte_az="44/22"):
+def _insert_dok(conn, *, klasse, tage_alt, akte_az="44/22"):
     datum = (date.today() - timedelta(days=tage_alt)).strftime("%Y-%m-%d %H:%M:%S")
     cur = conn.execute(
-        "INSERT INTO dokumente (akte_id, typ, dokumentenklasse, dateiname, "
+        "INSERT INTO dokumente (akte_id, dokumentenklasse, dateiname, "
         "dateipfad, dateityp, hochgeladen_am) "
-        "VALUES (?, ?, ?, 'x.docx', 'x/x.docx', 'docx', ?)",
-        (akte_az, typ, typ, datum),
+        "VALUES (?, ?, 'x.docx', 'x/x.docx', 'docx', ?)",
+        (akte_az, klasse, datum),
     )
     return int(cur.lastrowid)
 
@@ -162,7 +162,7 @@ class TestAnalysiereRegulierung(_DbFixture):
     def test_fallback_neuestes_ausgehendes_dokument(self):
         from backend.db.database import get_connection
         with get_connection() as conn:
-            _insert_dok(conn, typ="forderungsschreiben", tage_alt=30)
+            _insert_dok(conn, klasse="forderungsschreiben", tage_alt=30)
             conn.execute(
                 "INSERT INTO beteiligte (akte_id, rolle, name, vorname, "
                 "versicherung, schaden_nr) "
@@ -181,8 +181,8 @@ class TestAnalysiereRegulierung(_DbFixture):
     def test_offenes_antwort_todo_hat_vorrang_vor_fallback(self):
         from backend.db.database import get_connection
         with get_connection() as conn:
-            fs_id = _insert_dok(conn, typ="forderungsschreiben", tage_alt=40)
-            _insert_dok(conn, typ="sachstandsanfrage", tage_alt=5)
+            fs_id = _insert_dok(conn, klasse="forderungsschreiben", tage_alt=40)
+            _insert_dok(conn, klasse="sachstandsanfrage", tage_alt=5)
             conn.execute(
                 "INSERT INTO todos (akte_az, text, faellig_am, frist_typ, "
                 "erledigt, quelle, dok_id, regel_key) "
@@ -202,9 +202,9 @@ class TestAnalysiereRegulierung(_DbFixture):
         from backend.db.database import get_connection
         with get_connection() as conn:
             conn.execute(
-                "INSERT INTO dokumente (akte_id, typ, dokumentenklasse, "
+                "INSERT INTO dokumente (akte_id, dokumentenklasse, "
                 " dateiname, dateipfad) "
-                "VALUES (?, 'sonstiges', 'sachstandsanfrage', 's.docx', '/tmp/s')",
+                "VALUES (?, 'sachstandsanfrage', 's.docx', '/tmp/s')",
                 ("44/22",))
             conn.commit()
         ergebnis = self._analyse()

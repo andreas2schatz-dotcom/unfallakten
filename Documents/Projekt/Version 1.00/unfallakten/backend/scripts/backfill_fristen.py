@@ -48,7 +48,7 @@ def backfill_pflvg():
             """
             SELECT DISTINCT akte_id
             FROM dokumente
-            WHERE typ = 'forderungsschreiben'
+            WHERE dokumentenklasse = 'forderungsschreiben'
               AND akte_id IS NOT NULL
             """
         ).fetchall()

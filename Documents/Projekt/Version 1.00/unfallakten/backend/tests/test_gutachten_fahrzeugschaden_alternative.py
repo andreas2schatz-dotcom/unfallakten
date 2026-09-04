@@ -35,8 +35,8 @@ class _Basis(unittest.TestCase):
                 "VALUES ('589/26', '2026-06-11', 'offen')")
             conn.execute(
                 "INSERT INTO dokumente (akte_id, dateiname, dateipfad, "
-                "dateityp, typ) VALUES ('589/26', 'g.pdf', 'x', 'pdf', "
-                "'gutachten')")
+                "dateityp, dokumentenklasse) "
+                "VALUES ('589/26', 'g.pdf', 'x', 'pdf', 'gutachten')")
             conn.commit()
 
     def tearDown(self):

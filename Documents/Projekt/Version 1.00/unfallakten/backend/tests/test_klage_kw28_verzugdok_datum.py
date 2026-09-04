@@ -113,9 +113,9 @@ class TestVerzugDokDatum(unittest.TestCase):
         with get_connection() as conn:
             conn.execute(
                 "INSERT INTO dokumente (id, akte_id, dateiname, dateipfad, "
-                " typ, dokumentenklasse, hochgeladen_am) "
+                " dokumentenklasse, hochgeladen_am) "
                 "VALUES (42, '61/26', 'forderung.docx', '/tmp/forderung.docx', "
-                " 'forderungsschreiben', 'forderungsschreiben', '2026-06-15 09:30:00')"
+                " 'forderungsschreiben', '2026-06-15 09:30:00')"
             )
             conn.execute(
                 "INSERT INTO forderung_positionen "
@@ -132,9 +132,9 @@ class TestVerzugDokDatum(unittest.TestCase):
         with get_connection() as conn:
             conn.execute(
                 "INSERT INTO dokumente (id, akte_id, dateiname, dateipfad, "
-                " typ, dokumentenklasse, hochgeladen_am) "
+                " dokumentenklasse, hochgeladen_am) "
                 "VALUES (43, '61/26', 'forderung2.docx', '/tmp/forderung2.docx', "
-                " 'forderungsschreiben', 'forderungsschreiben', '2026-06-20 09:30:00')"
+                " 'forderungsschreiben', '2026-06-20 09:30:00')"
             )
             conn.execute(
                 "INSERT INTO forderung_positionen "
@@ -155,9 +155,9 @@ class TestVerzugDokDatum(unittest.TestCase):
         with get_connection() as conn:
             conn.execute(
                 "INSERT INTO dokumente (id, akte_id, dateiname, dateipfad, "
-                " typ, dokumentenklasse, hochgeladen_am) "
+                " dokumentenklasse, hochgeladen_am) "
                 "VALUES (44, '61/26', 'mahnschreiben_scan.pdf', '/tmp/mahn.pdf', "
-                " 'sonstiges', 'mahnschreiben', '2026-06-20 09:30:00')"
+                " 'mahnschreiben', '2026-06-20 09:30:00')"
             )
 
         vdok = self._verzug_dok_by_id(44)

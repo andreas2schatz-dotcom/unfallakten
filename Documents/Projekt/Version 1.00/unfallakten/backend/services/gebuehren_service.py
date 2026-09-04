@@ -531,12 +531,22 @@ def _berechne_regulierungsdauer(az, unfalldatum, conn):
 
 def _zaehle_schriftsaetze(az, conn):
     # type: (str, object) -> int
-    """Zählt Schriftsätze/Dokumente (Forderungsschreiben, Sonstiges, Klage)."""
+    """Zaehlt Schriftsaetze/Dokumente als Umfangskriterium.
+
+    Frueher: typ IN (forderungsschreiben, klage, sonstiges,
+    abrechnungsschreiben) -- das waren vier der sechs typ-Werte, die
+    Abfrage zaehlte also alles ausser Gutachten und Sachstandsanfragen.
+    Mit dem Wegfall von typ (Migration 74) ist die Ausschlussliste die
+    verhaltensgleiche Uebersetzung: eine woertliche Uebernahme der vier
+    Namen wuerde alle Feinklassen (sv_rechnung, mietwagenrechnung ...)
+    stillschweigend aus der Zaehlung werfen und damit die RVG-Bewertung
+    veraendern.
+    """
     row = conn.execute(
         """
         SELECT COUNT(*) as cnt FROM dokumente
         WHERE akte_id = ?
-          AND typ IN ('forderungsschreiben', 'klage', 'sonstiges', 'abrechnungsschreiben')
+          AND dokumentenklasse NOT IN ('gutachten', 'sachstandsanfrage')
         """,
         (az,)
     ).fetchone()

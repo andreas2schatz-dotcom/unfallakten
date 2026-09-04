@@ -29,7 +29,7 @@ class _BelegTestBasis(unittest.TestCase):
             )
             conn.execute(
                 "INSERT INTO dokumente "
-                "(akte_id, dateiname, dateipfad, dateityp, typ) "
+                "(akte_id, dateiname, dateipfad, dateityp, dokumentenklasse) "
                 "VALUES ('44/22', 'rechnung.pdf', 'x', 'pdf', 'sonstiges')"
             )
 

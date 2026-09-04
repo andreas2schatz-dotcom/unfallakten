@@ -159,13 +159,12 @@ Trigger: `unfallakte_geaendert` → setzt `geaendert_am = datetime('now','localt
 ---
 
 ### dokumente
-*Erstellt: Basisschema · Erweiterungen: Migration 24, 26, 38*
+*Erstellt: Basisschema · Erweiterungen: Migration 24, 26, 38, 73, 74*
 
 | Spalte | Typ | Constraint / Herkunft |
 |---|---|---|
 | `id` | INTEGER | **PK AUTOINCREMENT** |
 | `akte_id` | TEXT | NOT NULL FK unfallakte(az) ON DELETE CASCADE |
-| `typ` | TEXT | NOT NULL · CHECK IN ('gutachten','abrechnungsschreiben','forderungsschreiben','sachstandsanfrage','klage','sonstiges') |
 | `dateiname` | TEXT | NOT NULL |
 | `dateipfad` | TEXT | NOT NULL · relativer Pfad ab /uploads/ |
 | `dateityp` | TEXT | NOT NULL DEFAULT 'pdf' · CHECK IN ('pdf','docx','jpg','png') |
@@ -177,7 +176,7 @@ Trigger: `unfallakte_geaendert` → setzt `geaendert_am = datetime('now','localt
 | `parse_json` | TEXT | nullable · Rohes Parse-Ergebnis als JSON |
 | `parse_fehler` | TEXT | nullable |
 | `notizen` | TEXT | nullable |
-| `dokumentenklasse` | TEXT | nullable · *Mig 24* · z.B. 'gutachten','rechnung','regulierungsschreiben' |
+| `dokumentenklasse` | TEXT | nullable · *Mig 24* · ab Migration 74 alleinige Klassenquelle, Wertebereich = backend/registry/klassen/*.yaml (kein CHECK, damit neue Klassen ohne Migration auskommen) |
 | `pdf_hash` | TEXT | nullable · *Mig 24* · SHA-256 für Dedup |
 | `eakte_nr` | INTEGER | nullable · *Mig 26* · PK aus raEloakte.tblElo_AktenArchiv |
 | `eakte_pfad` | TEXT | nullable · *Mig 26* · Datei-Pfad im E-Akte-DMS |

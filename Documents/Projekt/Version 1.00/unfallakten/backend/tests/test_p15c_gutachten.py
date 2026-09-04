@@ -40,13 +40,13 @@ class _GutachtenTestBasis(unittest.TestCase):
             # Erstgutachten Dokumentzeile
             conn.execute(
                 "INSERT INTO dokumente "
-                "(akte_id, dateiname, dateipfad, dateityp, typ) "
+                "(akte_id, dateiname, dateipfad, dateityp, dokumentenklasse) "
                 "VALUES ('44/22', 'gutachten1.pdf', 'x', 'pdf', 'gutachten')"
             )
             # Ergaenzungsgutachten Dokumentzeile (andere id)
             conn.execute(
                 "INSERT INTO dokumente "
-                "(akte_id, dateiname, dateipfad, dateityp, typ) "
+                "(akte_id, dateiname, dateipfad, dateityp, dokumentenklasse) "
                 "VALUES ('44/22', 'gutachten2.pdf', 'y', 'pdf', 'gutachten')"
             )
 

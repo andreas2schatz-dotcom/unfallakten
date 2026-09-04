@@ -103,7 +103,6 @@ def pruefe_dokumentenklasse(klasse: str) -> str:
 class Dokument:
     id: Optional[int]
     akte_id: int
-    typ: str
     dateiname: str
     dateipfad: str
     dateityp: str = "pdf"
@@ -125,12 +124,6 @@ class Dokument:
                       if k in cls.__dataclass_fields__})
 
 
-# Uebergangsweise: dokumente.typ faellt in Migration 74. Bis dahin wird die
-# Spalte aus der Klasse abgeleitet, damit die verbliebenen Leser weiterlaufen.
-_ALT_TYP_WERTE = ("gutachten", "abrechnungsschreiben", "forderungsschreiben",
-                  "sachstandsanfrage", "klage", "sonstiges")
-
-
 def registriere_dokument(akte_id: int, dokumentenklasse: str, dateiname: str,
                           dateipfad: str, bearbeiter_id: Optional[int] = None,
                           dateityp: str = "pdf",
@@ -140,17 +133,15 @@ def registriere_dokument(akte_id: int, dokumentenklasse: str, dateiname: str,
     if dateityp not in GUELTIGE_DATEITYPEN:
         raise ValueError(f"Ungültiger Dateityp: {dateityp!r}")
 
-    typ = dokumentenklasse if dokumentenklasse in _ALT_TYP_WERTE else "sonstiges"
-
     with get_connection() as conn:
         cursor = conn.execute(
             """
             INSERT INTO dokumente
-                (akte_id, typ, dokumentenklasse, dateiname, dateipfad,
+                (akte_id, dokumentenklasse, dateiname, dateipfad,
                  dateityp, dateigroesse, hochgeladen_von)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (akte_id, typ, dokumentenklasse, dateiname, dateipfad, dateityp,
+            (akte_id, dokumentenklasse, dateiname, dateipfad, dateityp,
              dateigroesse, bearbeiter_id)
         )
         doc_id = cursor.lastrowid
@@ -177,7 +168,6 @@ def registriere_dokument(akte_id: int, dokumentenklasse: str, dateiname: str,
     return Dokument(
         id=doc_id,
         akte_id=akte_id,
-        typ=typ,
         dokumentenklasse=dokumentenklasse,
         dateiname=dateiname,
         dateipfad=dateipfad,

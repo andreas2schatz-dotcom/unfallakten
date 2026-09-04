@@ -210,10 +210,6 @@ GROUP BY a.az;
 CREATE TABLE IF NOT EXISTS dokumente (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     akte_id         TEXT    NOT NULL REFERENCES unfallakte(az) ON DELETE CASCADE,
-    typ             TEXT    NOT NULL
-                    CHECK(typ IN ('gutachten', 'abrechnungsschreiben',
-                                  'forderungsschreiben', 'sachstandsanfrage',
-                                  'klage', 'sonstiges')),
     dateiname       TEXT    NOT NULL,
     dateipfad       TEXT    NOT NULL,   -- Relativer Pfad ab /uploads/
     dateityp        TEXT    NOT NULL DEFAULT 'pdf'
@@ -232,7 +228,6 @@ CREATE TABLE IF NOT EXISTS dokumente (
 );
 
 CREATE INDEX IF NOT EXISTS idx_dokumente_akte_id ON dokumente(akte_id);
-CREATE INDEX IF NOT EXISTS idx_dokumente_typ     ON dokumente(typ);
 
 -- ============================================================
 -- 7. AKTIVITAETEN (Audit-Log)

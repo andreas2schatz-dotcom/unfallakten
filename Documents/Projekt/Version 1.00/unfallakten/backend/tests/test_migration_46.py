@@ -44,8 +44,9 @@ def _fresh_db(test_id: str):
 
 
 def _insert_dokument(conn, akte_az, dokument_id, pdf_hash=None, dateiname="test.pdf",
-                     dateipfad="test/test.pdf", typ="sonstiges", dateityp="pdf",
-                     parse_json=None, parse_konfidenz=None, dokumentenklasse=None):
+                     dateipfad="test/test.pdf", dateityp="pdf",
+                     parse_json=None, parse_konfidenz=None,
+                     dokumentenklasse="sonstiges"):
     """Fuegt eine Zeile in dokumente ein (fuer Backfill-Tests)."""
     # akte_id existiert erst nach Migration 5 als TEXT; unfallakte-Zeile anlegen
     conn.execute(
@@ -55,12 +56,12 @@ def _insert_dokument(conn, akte_az, dokument_id, pdf_hash=None, dateiname="test.
     conn.execute(
         """
         INSERT INTO dokumente
-            (id, akte_id, typ, dateiname, dateipfad, dateityp,
+            (id, akte_id, dateiname, dateipfad, dateityp,
              parse_status, parse_konfidenz, parse_json,
              pdf_hash, dokumentenklasse)
-        VALUES (?, ?, ?, ?, ?, ?, 'erfolgreich', ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, 'erfolgreich', ?, ?, ?, ?)
         """,
-        (dokument_id, akte_az, typ, dateiname, dateipfad, dateityp,
+        (dokument_id, akte_az, dateiname, dateipfad, dateityp,
          parse_konfidenz, parse_json, pdf_hash, dokumentenklasse),
     )
 
@@ -320,8 +321,9 @@ class TestMigration46LegacyDokumenteTabelle(unittest.TestCase):
                 "INSERT OR IGNORE INTO unfallakte (az, unfalldatum, status) VALUES ('99/26', '', 'offen')"
             )
             conn.execute(
-                "INSERT INTO dokumente (id, akte_id, typ, dateiname, dateipfad, dateityp, "
-                "parse_status, pdf_hash) VALUES (7001, '99/26', 'sonstiges', 'x.pdf', "
+                "INSERT INTO dokumente (id, akte_id, dokumentenklasse, dateiname, "
+                "dateipfad, dateityp, parse_status, pdf_hash) "
+                "VALUES (7001, '99/26', 'sonstiges', 'x.pdf', "
                 "'a/x.pdf', 'pdf', 'erfolgreich', ?)",
                 ("9" * 64,),
             )

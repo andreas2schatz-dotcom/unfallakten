@@ -61,9 +61,9 @@ def _seed(az="44/22", klasse="sv_rechnung",
         )
         cur = conn.execute(
             "INSERT INTO dokumente "
-            "(akte_id, dateiname, dateipfad, dateityp, typ, "
+            "(akte_id, dateiname, dateipfad, dateityp, "
             " dokumentenklasse, bezeichnung) "
-            "VALUES (?, ?, 'x', 'pdf', 'sonstiges', ?, ?)",
+            "VALUES (?, ?, 'x', 'pdf', ?, ?)",
             (az, _HASH_NAME, klasse, bezeichnung),
         )
         conn.commit()

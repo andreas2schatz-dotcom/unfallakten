@@ -27,7 +27,8 @@ class _HelperBasis(unittest.TestCase):
             )
             conn.execute(
                 "INSERT INTO dokumente (akte_id, dateiname, dateipfad, "
-                "dateityp, typ) VALUES ('44/22', 'd.pdf', 'x', 'pdf', 'gutachten')"
+                "dateityp, dokumentenklasse) "
+                "VALUES ('44/22', 'd.pdf', 'x', 'pdf', 'gutachten')"
             )
 
     def tearDown(self):

@@ -49,7 +49,7 @@ class _RegulierungTestBasis(unittest.TestCase):
             # waere -- fuer den Test genuegt ein Direktinsert).
             conn.execute(
                 "INSERT INTO dokumente "
-                "(akte_id, dateiname, dateipfad, dateityp, typ) "
+                "(akte_id, dateiname, dateipfad, dateityp, dokumentenklasse) "
                 "VALUES ('44/22', 'abrechnung.pdf', 'x', 'pdf', "
                 " 'abrechnungsschreiben')"
             )
@@ -72,7 +72,7 @@ class TestErzeugeAusRegulierung(_RegulierungTestBasis):
         with get_connection() as conn:
             return conn.execute(
                 "SELECT id FROM dokumente WHERE akte_id='44/22' "
-                "AND typ='abrechnungsschreiben'"
+                "AND dokumentenklasse='abrechnungsschreiben'"
             ).fetchone()["id"]
 
     def test_erzeugt_ereignis_mit_positionen_und_wirkungen(self):

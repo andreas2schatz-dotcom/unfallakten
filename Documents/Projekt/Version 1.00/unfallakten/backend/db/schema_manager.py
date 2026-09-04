@@ -328,6 +328,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     71: "-- migration_71_klasse_quelle_fragebogen",  # Handled by _run_migration_71
     72: "-- migration_72_klasse_quelle_nachholung",  # Handled by _run_migration_72
     73: "-- migration_73_dokumentenklasse_nachfuellen",  # Handled by _run_migration_73
+    74: "-- migration_74_dokumente_typ_entfernen",  # Handled by _run_migration_74
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -1676,6 +1677,36 @@ def _run_migration_73(conn: sqlite3.Connection) -> None:
     logger.info("Migration 73 abgeschlossen.")
 
 
+def _run_migration_74(conn: sqlite3.Connection) -> None:
+    """
+    Migration 74: dokumente.typ ersatzlos entfernen.
+
+    Die Spalte fuehrte dieselbe Tatsache wie dokumentenklasse, aber nur in
+    sechs Grobwerten -- 17 der 23 Registry-Klassen fielen darin auf
+    'sonstiges'. Massgeblich ist ab jetzt allein dokumentenklasse.
+
+    Der Index muss vor DROP COLUMN weg, sonst bricht SQLite ab mit
+    "error in index idx_dokumente_typ after drop column: no such column: typ".
+    Ein Tabellen-Rebuild ist nicht noetig (an SQLite 3.46.1 erprobt); der
+    CHECK-Constraint verschwindet mit der Spalte.
+    """
+    conn.commit()
+    spalten = {r[1] for r in conn.execute(
+        "PRAGMA table_info(dokumente)").fetchall()}
+    if "typ" in spalten:
+        conn.execute("DROP INDEX IF EXISTS idx_dokumente_typ")
+        conn.execute("ALTER TABLE dokumente DROP COLUMN typ")
+        conn.commit()
+        logger.info("Migration 74: dokumente.typ entfernt.")
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (74, 'dokumente.typ entfernt -- dokumentenklasse ist SSOT')"
+    )
+    conn.commit()
+    logger.info("Migration 74 abgeschlossen.")
+
+
 def _migration_69_fk_reparatur(conn: sqlite3.Connection) -> None:
     """
     Baut forderung_positionen und abrechnungsschreiben neu auf, wenn ihr
@@ -2377,6 +2408,8 @@ def run_migrations() -> None:
                 _run_migration_72(conn)
             elif version == 73:
                 _run_migration_73(conn)
+            elif version == 74:
+                _run_migration_74(conn)
             else:
                 if _ist_reiner_kommentar_platzhalter(pending[version]):
                     raise RuntimeError(

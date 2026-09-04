@@ -121,9 +121,9 @@ class TestFristablaufService(unittest.TestCase):
         with get_connection() as conn:
             conn.execute(
                 "INSERT INTO dokumente (id, akte_id, dateiname, dateipfad, "
-                " typ, dokumentenklasse, hochgeladen_am) "
+                " dokumentenklasse, hochgeladen_am) "
                 "VALUES (42, '44/22', 'fs.docx', '/tmp/fs.docx', "
-                " 'forderungsschreiben', 'forderungsschreiben', '2026-05-01')"
+                " 'forderungsschreiben', '2026-05-01')"
             )
         forderung_id = erzeuge(
             akte_az="44/22",
@@ -257,9 +257,9 @@ class TestFristablaufService(unittest.TestCase):
         with get_connection() as conn:
             conn.execute(
                 "INSERT INTO dokumente (id, akte_id, dateiname, dateipfad, "
-                " typ, dokumentenklasse, hochgeladen_am) "
+                " dokumentenklasse, hochgeladen_am) "
                 "VALUES (99, '44/22', 'x.docx', '/tmp/x.docx', "
-                " 'forderungsschreiben', 'forderungsschreiben', '2026-05-01')"
+                " 'forderungsschreiben', '2026-05-01')"
             )
 
         gestern = (date.today() - timedelta(days=1)).isoformat()
