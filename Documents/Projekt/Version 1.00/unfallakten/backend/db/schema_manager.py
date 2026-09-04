@@ -327,6 +327,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     70: "-- migration_70_kostennb_netto",  # Handled by _run_migration_70
     71: "-- migration_71_klasse_quelle_fragebogen",  # Handled by _run_migration_71
     72: "-- migration_72_klasse_quelle_nachholung",  # Handled by _run_migration_72
+    73: "-- migration_73_dokumentenklasse_nachfuellen",  # Handled by _run_migration_73
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -1619,6 +1620,62 @@ def _run_migration_72(conn: sqlite3.Connection) -> None:
     logger.info("Migration 72 abgeschlossen.")
 
 
+def _run_migration_73(conn: sqlite3.Connection) -> None:
+    """
+    Migration 73: dokumente.dokumentenklasse fuer den Altbestand nachfuellen.
+
+    Bis 2026-09-02 schrieb die Review-Freigabe nur dokumente.typ (sechs
+    Grobwerte) und liess dokumentenklasse leer. Die Feinklasse steht in
+    intake_dokumente.klasse und wird ueber die freigaben-Tabelle
+    zurueckgeholt; ohne Freigabe dient der alte typ-Wert als Rueckfall.
+
+    Der typ-Zugriff ist bewusst abgesichert: Migration 74 entfernt die
+    Spalte, und auf einer Frisch-Datenbank laufen alle Migrationen der
+    Reihe nach -- dort existiert typ dann nicht mehr.
+    """
+    conn.commit()
+    spalten = {r[1] for r in conn.execute(
+        "PRAGMA table_info(dokumente)").fetchall()}
+
+    if "typ" in spalten:
+        conn.execute("""
+            UPDATE dokumente SET dokumentenklasse = COALESCE(
+                dokumentenklasse,
+                (SELECT i.klasse FROM freigaben f
+                   JOIN intake_dokumente i ON i.id = f.intake_dokument_id
+                  WHERE f.dokument_id = dokumente.id
+                  ORDER BY f.id ASC LIMIT 1),
+                typ)
+            WHERE dokumentenklasse IS NULL
+        """)
+    else:
+        conn.execute("""
+            UPDATE dokumente SET dokumentenklasse = COALESCE(
+                dokumentenklasse,
+                (SELECT i.klasse FROM freigaben f
+                   JOIN intake_dokumente i ON i.id = f.intake_dokument_id
+                  WHERE f.dokument_id = dokumente.id
+                  ORDER BY f.id ASC LIMIT 1),
+                'sonstiges')
+            WHERE dokumentenklasse IS NULL
+        """)
+
+    conn.execute("UPDATE dokumente SET dokumentenklasse='sv_rechnung' "
+                 "WHERE dokumentenklasse='gutachterrechnung'")
+    conn.execute("UPDATE dokumente SET dokumentenklasse='sonstiges' "
+                 "WHERE dokumentenklasse='versicherung'")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_dok_klasse "
+                 "ON dokumente(dokumentenklasse)")
+    conn.commit()
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (73, 'dokumentenklasse fuer Altbestand nachgefuellt')"
+    )
+    conn.commit()
+    logger.info("Migration 73 abgeschlossen.")
+
+
 def _migration_69_fk_reparatur(conn: sqlite3.Connection) -> None:
     """
     Baut forderung_positionen und abrechnungsschreiben neu auf, wenn ihr
@@ -2318,6 +2375,8 @@ def run_migrations() -> None:
                 _run_migration_71(conn)
             elif version == 72:
                 _run_migration_72(conn)
+            elif version == 73:
+                _run_migration_73(conn)
             else:
                 if _ist_reiner_kommentar_platzhalter(pending[version]):
                     raise RuntimeError(
