@@ -364,7 +364,6 @@ def _dok_dict(dok: Dokument) -> dict:
     return {
         "id":               dok.id,
         "akte_id":          dok.akte_id,
-        "typ":              dok.typ,
         "dokumentenklasse": getattr(dok, "dokumentenklasse", None),
         "bezeichnung":      getattr(dok, "bezeichnung", None),
         "dateiname":        dok.dateiname,

@@ -408,7 +408,7 @@ class TestFreigabe(unittest.TestCase):
 
         with get_connection() as conn:
             dok = conn.execute(
-                "SELECT akte_id, typ FROM dokumente WHERE id=?",
+                "SELECT akte_id, dokumentenklasse FROM dokumente WHERE id=?",
                 (data["dokument_id"],)
             ).fetchone()
             frg = conn.execute(
@@ -422,7 +422,7 @@ class TestFreigabe(unittest.TestCase):
 
         self.assertIsNotNone(dok)
         self.assertEqual(dok["akte_id"], "44/22")
-        self.assertEqual(dok["typ"], "abrechnungsschreiben")
+        self.assertEqual(dok["dokumentenklasse"], "abrechnungsschreiben")
         self.assertEqual(frg["intake_dokument_id"], did)
         self.assertEqual(frg["akte_az"], "44/22")
         self.assertEqual(frg["dokument_id"], data["dokument_id"])

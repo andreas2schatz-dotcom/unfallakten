@@ -146,9 +146,10 @@ class TestGeneriereStaText(_DbFixture):
 def _insert_dok(conn, *, typ, tage_alt, akte_az="44/22"):
     datum = (date.today() - timedelta(days=tage_alt)).strftime("%Y-%m-%d %H:%M:%S")
     cur = conn.execute(
-        "INSERT INTO dokumente (akte_id, typ, dateiname, dateipfad, dateityp, "
-        "hochgeladen_am) VALUES (?, ?, 'x.docx', 'x/x.docx', 'docx', ?)",
-        (akte_az, typ, datum),
+        "INSERT INTO dokumente (akte_id, typ, dokumentenklasse, dateiname, "
+        "dateipfad, dateityp, hochgeladen_am) "
+        "VALUES (?, ?, ?, 'x.docx', 'x/x.docx', 'docx', ?)",
+        (akte_az, typ, typ, datum),
     )
     return int(cur.lastrowid)
 
@@ -195,6 +196,19 @@ class TestAnalysiereRegulierung(_DbFixture):
         self.assertEqual(k["letztes_schreiben"]["dok_id"], fs_id)
         self.assertEqual(k["tage_ohne_antwort"], 40)
         self.assertEqual(k["sta_anzahl"], 1)
+
+    def test_zaehlt_sachstandsanfragen_ueber_die_klasse(self):
+        # dokumente.typ ist entfallen; massgeblich ist dokumentenklasse
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            conn.execute(
+                "INSERT INTO dokumente (akte_id, typ, dokumentenklasse, "
+                " dateiname, dateipfad) "
+                "VALUES (?, 'sonstiges', 'sachstandsanfrage', 's.docx', '/tmp/s')",
+                ("44/22",))
+            conn.commit()
+        ergebnis = self._analyse()
+        self.assertGreaterEqual(ergebnis["sta_anzahl"], 1)
 
     def test_leere_akte_liefert_stufe_1_ohne_schreiben(self):
         k = self._analyse()

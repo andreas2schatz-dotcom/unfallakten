@@ -90,7 +90,7 @@ def analysiere_regulierung(az):
         # Letztes unbeantwortetes Schreiben: offenes antwort_2w-Todo → dok
         unbeantwortet = conn.execute(
             """
-            SELECT t.dok_id, d.typ, d.hochgeladen_am
+            SELECT t.dok_id, d.dokumentenklasse, d.hochgeladen_am
             FROM todos t
             JOIN dokumente d ON d.id = t.dok_id
             WHERE t.akte_az      = ?
@@ -107,10 +107,10 @@ def analysiere_regulierung(az):
         if not unbeantwortet:
             unbeantwortet = conn.execute(
                 """
-                SELECT id AS dok_id, typ, hochgeladen_am
+                SELECT id AS dok_id, dokumentenklasse, hochgeladen_am
                 FROM dokumente
                 WHERE akte_id = ?
-                  AND typ IN ('forderungsschreiben', 'sachstandsanfrage', 'stellungnahme')
+                  AND dokumentenklasse IN ('forderungsschreiben', 'sachstandsanfrage')
                 ORDER BY hochgeladen_am DESC
                 LIMIT 1
                 """,
@@ -118,7 +118,8 @@ def analysiere_regulierung(az):
             ).fetchone()
 
         sta_anzahl = conn.execute(
-            "SELECT COUNT(*) FROM dokumente WHERE akte_id = ? AND typ = 'sachstandsanfrage'",
+            "SELECT COUNT(*) FROM dokumente WHERE akte_id = ? "
+            "AND dokumentenklasse = 'sachstandsanfrage'",
             (az,)
         ).fetchone()[0]
 
@@ -145,7 +146,7 @@ def analysiere_regulierung(az):
             datum_fmt = datum_str
             tage_ohne_antwort = 0
 
-        typ = unbeantwortet["typ"]
+        typ = unbeantwortet["dokumentenklasse"]
         letztes_schreiben = {
             "typ":       typ,
             "typ_label": TYP_LABEL.get(typ, typ),

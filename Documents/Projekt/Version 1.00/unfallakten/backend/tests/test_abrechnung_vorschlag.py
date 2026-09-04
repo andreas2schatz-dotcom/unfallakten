@@ -108,9 +108,10 @@ def _seed_abrechnungsdokument(az, sha, felder, bezeichnung,
     with get_connection() as conn:
         cur = conn.execute(
             "INSERT INTO dokumente "
-            "(akte_id, dateiname, dateipfad, dateityp, typ, bezeichnung, "
-            " parse_json) VALUES (?, ?, 'x', 'pdf', 'abrechnungsschreiben', "
-            "?, ?)",
+            "(akte_id, dateiname, dateipfad, dateityp, typ, dokumentenklasse, "
+            " bezeichnung, parse_json) "
+            "VALUES (?, ?, 'x', 'pdf', 'abrechnungsschreiben', "
+            "'abrechnungsschreiben', ?, ?)",
             (az, sha + ".pdf", bezeichnung,
              None if in_intake else parse_json),
         )

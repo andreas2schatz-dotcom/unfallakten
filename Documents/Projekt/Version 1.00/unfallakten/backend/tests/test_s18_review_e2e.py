@@ -187,7 +187,7 @@ class TestS18ReviewE2E(unittest.TestCase):
         #    enthaelt die Feldaenderung.
         with get_connection() as conn:
             dok = conn.execute(
-                "SELECT akte_id, typ, dateiname FROM dokumente WHERE id=?",
+                "SELECT akte_id, dokumentenklasse, dateiname FROM dokumente WHERE id=?",
                 (freigabe["dokument_id"],)
             ).fetchone()
             frg = conn.execute(
@@ -205,7 +205,7 @@ class TestS18ReviewE2E(unittest.TestCase):
 
         self.assertIsNotNone(dok)
         self.assertEqual(dok["akte_id"], "44/22")
-        self.assertEqual(dok["typ"], "abrechnungsschreiben")
+        self.assertEqual(dok["dokumentenklasse"], "abrechnungsschreiben")
         self.assertEqual(frg["intake_dokument_id"], did)
         self.assertEqual(frg["akte_az"], "44/22")
         self.assertEqual(frg["dokument_id"], freigabe["dokument_id"])

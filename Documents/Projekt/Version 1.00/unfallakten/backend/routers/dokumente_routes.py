@@ -88,13 +88,13 @@ def liste(akte_id: str):
     Listet alle Dokumente einer Akte auf.
 
     Query-Parameter:
-      typ   Filter nach Dokumenttyp
+      klasse  Filter nach Dokumentklasse
     """
     if not _pruefe_akte(akte_id):
         return _err(f"Akte {akte_id} nicht gefunden.", 404)
 
-    typ = request.args.get("typ")
-    dokumente = hole_dokumente_by_akte(akte_id, typ=typ)
+    klasse = request.args.get("klasse")
+    dokumente = hole_dokumente_by_akte(akte_id, klasse=klasse)
     return _j({"dokumente": [_dok_dict(d) for d in dokumente]})
 
 
@@ -393,7 +393,7 @@ def manuelle_korrektur(akte_id: str, dokument_id: int):
     # ``ersetzt_positions_ids`` optional im Body: Liste von
     # ereignis_positionen.id aus einem Erstgutachten, die durch dieses
     # Ergaenzungsgutachten positionsscharf abgeloest werden (K-M2a).
-    if (row["typ"] or "").lower() == "gutachten":
+    if (row["dokumentenklasse"] or "").lower() == "gutachten":
         try:
             from ..services.eingehende_ereignisse import erzeuge_aus_gutachten
             ersetzt_ids = korrigiert.get("ersetzt_positions_ids")

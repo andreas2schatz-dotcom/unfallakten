@@ -214,12 +214,12 @@ def aktualisiere_parse_status(dokument_id: int, parse_status: str,
 
 
 def hole_dokumente_by_akte(akte_id: int,
-                            typ: Optional[str] = None) -> list[Dokument]:
+                            klasse: Optional[str] = None) -> list[Dokument]:
     sql = "SELECT * FROM dokumente WHERE akte_id = ?"
     params: list = [akte_id]
-    if typ:
-        sql += " AND typ = ?"
-        params.append(typ)
+    if klasse:
+        sql += " AND dokumentenklasse = ?"
+        params.append(klasse)
     sql += " ORDER BY hochgeladen_am DESC"
 
     with get_connection() as conn:

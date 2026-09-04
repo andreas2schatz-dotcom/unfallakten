@@ -435,12 +435,12 @@ class TestDokumenteUndAktivitaeten(unittest.TestCase):
         with self.assertRaises(ValueError):
             f.registriere_dokument(a.id, "gibt_es_nicht", "X.pdf", "X.pdf")
 
-    def test_filter_nach_typ(self):
+    def test_filter_nach_klasse(self):
         f = _ns("dok_filt")
         a = f.erstelle_akte("AZ", "2025-01-01")
         f.registriere_dokument(a.id, "gutachten", "G.pdf", "g.pdf")
         f.registriere_dokument(a.id, "klage", "K.docx", "k.docx", dateityp="docx")
-        self.assertEqual(len(f.hole_dokumente_by_akte(a.id, typ="gutachten")), 1)
+        self.assertEqual(len(f.hole_dokumente_by_akte(a.id, klasse="gutachten")), 1)
 
     def test_aktivitaet_loggen(self):
         f = _ns("dok_akt")

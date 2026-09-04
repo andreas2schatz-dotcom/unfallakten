@@ -160,7 +160,7 @@ def _schaden_dict(s) -> dict:
 
 def _dokument_dict(d) -> dict:
     return {
-        "id": d.id, "akte_id": d.akte_id, "typ": d.typ,
+        "id": d.id, "akte_id": d.akte_id,
         "dateiname": d.dateiname, "dateityp": d.dateityp,
         "dateigroesse": d.dateigroesse,
         "hochgeladen_am": d.hochgeladen_am,

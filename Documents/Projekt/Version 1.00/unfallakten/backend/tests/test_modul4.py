@@ -475,7 +475,7 @@ class TestUploadService(unittest.TestCase):
         self.assertIn("dokument", ergebnis)
         dok = ergebnis["dokument"]
         self.assertEqual(dok["dateiname"], "gutachten_test.pdf")
-        self.assertEqual(dok["typ"], "gutachten")
+        self.assertEqual(dok["dokumentenklasse"], "gutachten")
         self.assertGreater(dok["dateigroesse"], 0)
 
     def test_upload_parst_pdf(self):
@@ -581,13 +581,13 @@ class TestDokumenteRouten(unittest.TestCase):
         r = self.client.get(self._url(), headers=self.h)
         self.assertEqual(len(r.get_json()["dokumente"]), 1)
 
-    def test_liste_filter_typ(self):
+    def test_liste_filter_klasse(self):
         self._upload_gutachten()
         self._upload_gutachten(typ="abrechnungsschreiben", dateiname="abr.pdf")
-        r = self.client.get(self._url() + "?typ=gutachten", headers=self.h)
+        r = self.client.get(self._url() + "?klasse=gutachten", headers=self.h)
         doks = r.get_json()["dokumente"]
         self.assertEqual(len(doks), 1)
-        self.assertEqual(doks[0]["typ"], "gutachten")
+        self.assertEqual(doks[0]["dokumentenklasse"], "gutachten")
 
     # ── Upload ────────────────────────────────────────────────────────────────
 
@@ -649,7 +649,7 @@ class TestDokumenteRouten(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         meta = r.get_json()
         self.assertEqual(meta["id"], dok_id)
-        self.assertEqual(meta["typ"], "gutachten")
+        self.assertEqual(meta["dokumentenklasse"], "gutachten")
 
     def test_metadaten_nicht_vorhanden_404(self):
         r = self.client.get(self._url("/99999"), headers=self.h)
