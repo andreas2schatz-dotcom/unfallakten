@@ -9,7 +9,8 @@
 
 ### Dokumentklasse als SSOT — ✅ umgesetzt (2026-09-04, Branch `fragebogen-favoritenliste`), Abnahme offen
 `dokumente.typ` ist entfallen, `dokumentenklasse` ist alleinige Wahrheit. Spec + Plan unter
-`docs/superpowers/`, Protokoll → CHANGELOG. Commits `2c6e8f82`..`dfbcbd95`,
+`docs/superpowers/`, Protokoll → CHANGELOG, Begründungen → DECISIONS, Deploy → STATE Abschnitt 0.
+Commits `2c6e8f82`..`22e184d8`,
 Backend 2222 grün (69 skipped), Frontend 634 grün. **Offen — Abnahme im Betrieb:**
 - **Freigabe durchspielen:** Dokument in der Review-Queue öffnen, Klasse auf `sv_rechnung`
   setzen, an eine Akte freigeben. In der DokumenteSection muss **SV-/Gutachterrechnung**

@@ -1,13 +1,38 @@
 # Projektstatus – Momentaufnahme
 
-**Generiert:** 2026-05-02 · **Zuletzt aktualisiert:** 2026-08-12  
-**Schema-Version:** 67 (Migrationen laufend, siehe Deploy-Warnungen)
+**Generiert:** 2026-05-02 · **Zuletzt aktualisiert:** 2026-09-04  
+**Schema-Version:** 74 (Migrationen laufend, siehe Deploy-Warnungen)
 
 > ⚠️ **Abschnitte 1–3 unten sind Stand 2026-06-12 (Schema 42) und veraltet** — nur als grobe Modul-Übersicht lesen. Aktuelle Arbeit: `docs/TODO.md` · Umsetzungs-Historie: `docs/CHANGELOG.md` · Entscheidungen: `docs/DECISIONS.md`.
 
 ---
 
-## 0. Betrieb & Deploy-Warnungen (aktuell, 2026-08-12)
+## 0. Betrieb & Deploy-Warnungen (aktuell, 2026-09-04)
+
+### ✅ Migration 73 + 74 gelaufen (2026-09-04): `dokumente.typ` ist weg
+Dev-DB steht auf **Schema 74**. Migration 73 füllte `dokumentenklasse` nach (795 Zeilen,
+**0 ohne Klasse**), Migration 74 entfernte `dokumente.typ` samt CHECK-Constraint und
+`idx_dokumente_typ`; `idx_dok_klasse` ist vorhanden. Nachkontrolle `PRAGMA
+foreign_key_check`: **genau 2** Verletzungen — die bekannten Vorbefunde
+(`klassifikation_training`→`dokumente`, `aktivitaeten`→`unfallakte`). **Null wäre hier
+verdächtig**, nicht beruhigend.
+
+**Vor dem Prod-Rollout:** Beide Migrationen laufen auf Bestands-DBs automatisch beim
+Start, aber es gilt wie immer „Migration vor App-Code" (Gunicorn: einmal vorab, sonst
+Worker-Race). Migration 74 ist **destruktiv** — Volume-Backup zuerst. Die Dev-Sicherung
+liegt als `/app/data/bak_vor_migration_74.db` auf dem `dev-data`-Volume (18 MB) und kann
+nach der Betriebsabnahme gelöscht werden.
+
+**Achtung bei eigenen Abfragen und Skripten:** `dokumente.typ` existiert nicht mehr.
+Jedes SQL, das noch darauf filtert, wirft `no such column: typ`. Zwei Guards in
+`backend/tests/test_dokumente_typ_guard.py` halten den Quellcode frei — der zweite
+findet auch nacktes `typ` innerhalb einer `dokumente`-Abfrage ohne Tabellen-Präfix.
+Genau so waren `gebuehren_service` und `scripts/backfill_fristen.py` durchgerutscht.
+
+**Falle für künftige Schema-Änderungen:** Ein Index auf `dokumentenklasse` gehört
+**nicht** in die Basis-DDL von `backend/db/schema.py` — die Spalte kommt erst aus
+Migration 24. Dort eingetragen scheitert `create_schema()`, und weil jede Test-Fixture
+mit `init_db()` beginnt, fallen dabei ~970 Tests um.
 
 ### ⚠️ Migration 68 (`sachbearbeiter`) vor App-Code anwenden
 Die Tabelle existiert nur per Migration. Startet der neue Code auf einer Bestands-DB ohne Migration 68, fällt das Lesen auf die eingebaute Liste zurück (Namen stimmen, aber CS/JH fehlen), und der Einstellungen-Reiter meldet beim Speichern einen Fehler. Bei Gunicorn wie immer einmal vorab migrieren.

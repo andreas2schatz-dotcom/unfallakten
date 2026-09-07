@@ -5,6 +5,104 @@ Format: Entscheidung → Grund → Alternative → Konsequenz.
 
 ---
 
+## Dokumentklasse ist die alleinige Wahrheit — `dokumente.typ` entfällt (2026-09-04)
+
+### Zwei Spalten für dieselbe Tatsache werden auf eine reduziert
+
+**Entscheidung:** `dokumente.typ` wird per Migration 74 ersatzlos entfernt.
+`dokumente.dokumentenklasse` ist die alleinige Klassenquelle.
+
+**Grund:** Die Tabelle führte die Dokumentklasse doppelt — `typ` aus dem
+Ursprungsschema (sechs Werte, CHECK-Constraint) und `dokumentenklasse` aus
+Migration 24 (23 Registry-Klassen). Zwei Spalten für eine Tatsache laufen
+zwangsläufig auseinander, und genau das war passiert: Die Review-Freigabe schrieb
+nur `typ`, `_map_klasse()` liess dabei 17 der 23 Klassen auf `sonstiges` fallen,
+`dokumentenklasse` blieb leer. In der Akte erschien fast alles als „Sonstiges".
+Derselbe Weg verlor `parse_json`, `parse_konfidenz` und `parse_status`, weshalb die
+Belege-Ansicht bei freigegebenen Dokumenten keine Beträge fand.
+
+**Alternative:** Beide Spalten behalten und synchron halten — verworfen. Genau diese
+Synchronisation war die Fehlerquelle. Entspricht dem Vorgehen bei der
+Dokumentenklassen-Registry (fünf Quellen → eine).
+
+**Konsequenz:** `registriere_dokument()` nimmt `dokumentenklasse` statt `typ`;
+`GUELTIGE_TYPEN` ist entfallen. Der API-Filter heisst `?klasse=` statt `?typ=`.
+Der Portal-Sync-Payload liefert `klasse` + `klasse_label` statt `typ` — eine
+Vertragsänderung, die das Portal separat nachzieht (es ist nicht live).
+
+### Kein CHECK-Constraint auf `dokumentenklasse`
+
+**Entscheidung:** Der Wertebereich wird beim Schreiben gegen die Registry geprüft
+(`pruefe_dokumentenklasse()`), nicht per Datenbank-Constraint.
+
+**Grund:** Ein CHECK erzwänge für jede neue Dokumentklasse eine Migration und bräche
+damit die bestehende Regel „neue Klasse = eine YAML + Generator".
+
+**Alternative:** CHECK-Constraint wie beim alten `typ` — verworfen: Er war der Grund,
+warum `_map_klasse()` überhaupt existierte und Klassen wegwarf.
+
+**Konsequenz:** Eine unbekannte Klasse wirft beim Schreiben `ValueError` (fail-loud) —
+sie würde sonst still als nicht auffindbares Dokument in der Akte landen.
+
+### Zwei Migrationen statt einer
+
+**Entscheidung:** Migration 73 füllt nach (nicht destruktiv), Migration 74 entfernt
+die Spalte.
+
+**Grund:** So bleibt jeder Zwischenstand des Umbaus lauffähig. Die umgestellten Leser
+arbeiten bereits auf einer gefüllten Spalte, bevor die alte verschwindet. Bei einer
+einzigen Migration gäbe es einen Zwischenstand, in dem die Leser auf leere Werte
+greifen.
+
+**Konsequenz:** Migration 73 holt die Feinklasse über die `freigaben`-Tabelle aus
+`intake_dokumente.klasse` zurück, sonst dient der alte `typ`-Wert als Rückfall;
+Altwerte ohne Registry-Entsprechung werden bereinigt (`gutachterrechnung` →
+`sv_rechnung`, `versicherung` → `sonstiges`). Beide Migrationen prüfen per
+`PRAGMA table_info`, ob `typ` überhaupt noch existiert — zwingend, weil auf einer
+Frisch-Datenbank alle Migrationen der Reihe nach laufen und `schema.py` die Spalte
+nicht mehr führt.
+
+### Schriftsatz-Zählung fürs RVG bleibt verhaltensgleich — vorerst
+
+**Entscheidung:** `gebuehren_service._zaehle_schriftsaetze()` filtert nach dem Umbau
+mit einer **Ausschlussliste** (`dokumentenklasse NOT IN ('gutachten',
+'sachstandsanfrage')`) statt mit der wörtlichen Übernahme der vier alten `typ`-Werte.
+
+**Grund:** Die alte Abfrage lautete `typ IN ('forderungsschreiben', 'klage',
+'sonstiges', 'abrechnungsschreiben')` — vier von sechs Werten, sie zählte also alles
+ausser Gutachten und Sachstandsanfragen. Weil `sonstiges` alle Feinklassen einsammelte,
+liefen SV-Rechnungen, Mietwagen- und Abschlepprechnungen als „Schriftsatz" mit. Eine
+wörtliche Übernahme der vier Namen würde sie stillschweigend aus der Zählung werfen
+und damit die RVG-Umfangsbewertung ändern — als Nebenwirkung eines Refactorings, das
+`typ` abschaffen und nicht Gebührenkriterien verschieben sollte.
+
+**Alternative:** Wörtliche Übernahme — fachlich vertretbar (eine Rechnung ist kein
+Schriftsatz) und möglicherweise die richtigere Bewertung, aber eine Entscheidung
+über Gebührenhöhe und damit Sache von RA Schatz.
+
+**Konsequenz:** Offener Punkt in `docs/TODO.md` unter „Offene Entscheidungen".
+
+### Zwei statische Guards, weil einer nicht reichte
+
+**Entscheidung:** `test_dokumente_typ_guard.py` prüft zeilenweise (`d.typ`,
+`dokumente.typ`, `registriere_dokument(typ=`, `GUELTIGE_TYPEN`) **und** zusätzlich
+SQL-Anweisungen über `dokumente` als Ganzes auf ein nacktes `typ` ohne
+Tabellen-Präfix.
+
+**Grund:** Der zweite Guard entstand aus einem Fehlschlag: `gebuehren_service` und
+`scripts/backfill_fristen.py` filterten mit bare `typ` und rutschten durch das
+zeilenweise Raster — beide fehlten auch in der Erhebung der Spec. Gefunden hat sie
+erst die Vollsuite.
+
+**Konsequenz:** In `schema_manager.py` ist das Prosa-Muster (`dokumente.typ`)
+ausgesetzt, weil die Migration die Spalte in Docstring, Logmeldung und
+Versionsbeschreibung zwangsläufig benennt; die Zugriffsmuster bleiben auch dort scharf.
+Tests, die den Zustand **vor** Migration 74 nachbilden (`test_migration_73_74.py`),
+holen sich die Spalte in `setUp` per `ALTER TABLE ... ADD COLUMN typ TEXT` selbst
+zurück und sind vom Guard ausgenommen.
+
+---
+
 ## Wiedervorlagegrund: Freitext ist die Quelle, die Nummer nur der Notnagel (2026-09-01)
 
 RA-MICRO speichert den Wiedervorlagegrund in zwei Regimen: eingebaute Codes 5–99 ohne Text (958 von 1.610 Zeilen) und laufende IDs ab 63912 mit Freitext. Der Katalogtext der eingebauten Gründe steht in keiner der acht Serverdatenbanken. Deshalb: `sWiedervorlagegrund` hat immer Vorrang, `backend/registry/wiedervorlage_codes.yaml` springt nur bei leerem Text ein. Die Registry wird nicht gepflegt — neue Gründe der Kanzlei bekommen eine Nummer ab 63912 und bringen ihren Text mit.
