@@ -5,6 +5,100 @@ Format: Entscheidung → Grund → Alternative → Konsequenz.
 
 ---
 
+## Die Fristen-Kachel liest den Kalenderbaum, nicht die Datenbank (2026-09-07)
+
+### Eine Dateiquelle wird zur Produktivquelle einer Dashboard-Kachel
+
+**Entscheidung:** `/dashboard/fristen` liest `Z:\RA\Kalender\GT\<MM>M\<TT>` über den
+E-Akte-Mount. Fenster: 14 Tage Rückschau auf Unerledigtes plus drei Werktage Vorschau.
+Ist die Quelle nicht lesbar, antwortet der Endpunkt mit **503** statt mit einer leeren
+Liste.
+
+**Grund:** Echte Fristen stehen in keiner der acht SQL-Datenbanken — nachgewiesen mit
+einer Testfrist, die keine der 141 Tabellen wachsen ließ und in keiner der 119
+Datumsspalten auftauchte, während zwei Dateien im Kalenderbaum geschrieben wurden. Die
+Alternative wäre gewesen, weiter Wiedervorlagen als Fristen auszugeben; genau das war der
+Fehler, den die Kanzlei gemeldet hat. Die Datei ist unbequem, aber sie ist die Wahrheit.
+
+**Alternative 1:** RA-MICRO-Support um eine SQL-Synchronisation bitten
+(`raKalender.Deadlist` existiert leer) — nicht verworfen, nur nicht abgewartet. Der
+Leser ist klein genug, um ihn später gegen eine Tabelle zu tauschen.
+
+**Alternative 2:** Die Kachel weglassen, bis eine saubere Quelle da ist — von RA Schatz
+ausdrücklich abgelehnt: *„die fristenkachel sollte schon angezeigt werden also gleich
+richtig aufbauen."*
+
+**Konsequenz — der Ausfall muss laut sein.** Der Mount fällt nach jedem Docker- oder
+PC-Neustart weg. Ein Leser, der dann eine leere Liste zurückgibt, meldet der Kanzlei
+„keine Fristen" — die gefährlichste mögliche Falschaussage in einer Anwaltssoftware.
+Deshalb wirft `lade_fristen()` `FristenQuelleNichtErreichbar`, der Endpunkt macht daraus
+503, und die Kachel zeigt „Fristenkalender nicht erreichbar (E-Akte-Mount)" mit Retry.
+Ein Test hält das fest.
+
+**Konsequenz — RA-MICRO ist nur noch Beiwerk.** Für die Kachel wird der SQL-Server allein
+für den Akten-Sachbearbeiter befragt (der Frist-SB weicht bei 5 von 178 Fristen ab und
+ergäbe ein nicht öffnbares Aktenzeichen). Fällt RA-MICRO aus, springt der Frist-SB ein
+und die Kachel bleibt benutzbar — anders als früher, wo ohne SQL-Server nichts kam.
+
+**Konsequenz — Vorfristen sind keine Fristen.** Sie erscheinen in der Kachel, aber ohne
+Dringlichkeits-Badge und getrennt gezählt, und sie bleiben aus der „Jetzt dran"-Leiste
+draußen: überfällige Vorfristen sind im Bestand in der Überzahl und hätten deren drei
+Plätze dauerhaft belegt.
+
+---
+
+## Wiedervorlagegründe kommen aus der RA-MICRO-Maske, nicht aus Vermutungen (2026-09-07)
+
+### Eine geratene Übersetzungstabelle wird durch die Datei ersetzt, die RA-MICRO selbst liest
+
+**Entscheidung:** `backend/registry/wiedervorlage_codes.yaml` wird aus
+`Z:\RA\Mas\TextWV.msk` erzeugt (`tools/gen_wiedervorlage_codes.py`) und nicht mehr von
+Hand gepflegt. Alle 99 Gründe gelten als `art: wiedervorlage`; keine Wiedervorlage speist
+mehr die Fristen- oder Termine-Kachel.
+
+**Grund:** Die bisherigen Bezeichnungen stammten aus einer Vorsession und waren nie
+belegt („RA-Micro Handbuch / empirisch ermittelt", überall `verifiziert: false`). Von 41
+tatsächlich verwendeten Codes war genau einer richtig. Die Maske dagegen ist die Datei,
+aus der RA-MICRO selbst das Auswahlfeld füllt; ihre Kopfzeile trägt
+`NotMove=1;NotDel=1;NotInsert=1` — die Zeilennummer ist der Code und darf sich nie
+verschieben. Genau deshalb steht der Text in keiner der acht SQL-Datenbanken. Ein
+unabhängiger Gegencheck über 81 Zeilen aus den gedruckten Wiedervorlagenlisten
+(`Z:\RA\Text\*wvsik.rtf`) bestätigt 12 von 12 daraus ableitbaren Codes.
+
+**Alternative 1:** Die Bezeichnungen aus RA-MICRO abtippen — verworfen. Dasselbe Ergebnis,
+aber es läuft wieder auseinander, sobald die Kanzlei einen Grund umbenennt. Der Generator
+liest die Wahrheit jedes Mal neu; ein Guard-Test schlägt an, wenn YAML und Maske
+auseinanderlaufen.
+
+**Alternative 2:** Gar keine Bezeichnungen mehr anzeigen und nur „Wiedervorlage (Grund 55)"
+schreiben — verworfen, sobald die Maske gefunden war. Ehrlich, aber nutzlos: die Kachel
+soll sagen, was zu tun ist.
+
+**Alternative 3:** `Z:\RA\Pr\wvgrund` als Katalogquelle — verworfen. Die Datei enthält die
+selbst angelegten Freitexte (feste 40-Zeichen-Sätze, SQL-ID = Satznummer + 100), nicht die
+eingebauten Gründe. Ihre Sätze 1..99 sind zufällig gleich nummeriert und hätten eine
+zweite falsche Zuordnung ergeben. Freitexte liefert RA-MICRO ohnehin im Klartext mit und
+werden unverändert übernommen (Entscheidung RA Schatz).
+
+**Konsequenz:** Die Fristen- und Termine-Kachel verlieren ihre Wiedervorlage-Quelle. Die
+drei „Termin"-Codes hießen in Wahrheit „SV-Gutachten?", „Unterlagen von Mdt. da?" und
+„Entscheidung Gericht!?"; Termine kommen vollständig aus `raKalender.dbo.Events`. Die
+sieben „Frist"-Codes hießen „Akte schließen", „Akte RA vorlegen", „Klage entwerfen" usw.
+`/dashboard/fristen` wurde deshalb noch am selben Tag auf den Kalenderbaum umgestellt
+(eigener Eintrag darüber). Damit ist auch die Dopplung zwischen Frist- und
+Wiedervorlagen-Kachel weg, die RA Schatz gestört hat. Wer wieder Codes einer Kachel
+zuordnet, muss vorher `codes_fuer_art()` prüfen — `sql_codeliste()` bricht bei leerer
+Liste bewusst hart ab, damit niemand ein `IN ()` ins SQL schreibt.
+
+**Belegt, nicht vermutet:** Echte Fristen liegen in keiner SQL-Datenbank, sondern als
+Klartextdateien unter `Z:\RA\Kalender\GT\<MM>M\<TT>` (Kennung `#Frist`, Fristengrund aus
+`Mas\FRIV.MSK`). Nachgewiesen mit einer Testfrist zum 10.01.2030: keine der 141 Tabellen
+wuchs, keine der 119 Datumsspalten enthielt das Datum, aber die Tagesdatei und ihr Index
+wurden geschrieben. Das ersetzt die frühere Vermutung „Dashboard-Fristen sind in Wahrheit
+Wiedervorlagen" durch einen Fundort.
+
+---
+
 ## Dokumentklasse ist die alleinige Wahrheit — `dokumente.typ` entfällt (2026-09-04)
 
 ### Zwei Spalten für dieselbe Tatsache werden auf eine reduziert

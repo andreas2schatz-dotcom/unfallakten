@@ -7,6 +7,156 @@
 
 ---
 
+## 2026-09-07 — Fristen-Kachel zeigt echte Fristen aus dem RA-MICRO-Kalenderbaum
+
+Branch `fragebogen-favoritenliste`. Direkt im Anschluss an den Registry-Umbau (Eintrag
+darunter), der die Fristen-Kachel geleert hatte. Auftrag RA Schatz: *„die fristenkachel
+sollte schon angezeigt werden also gleich richtig aufbauen. am besten die fristen der
+nächsten drei tage (bei wochenende das miteinberechnen) anzeigen. und fehlender e-akte
+mount sollte immer sichtbar sein."*
+
+**Quelle.** `Z:\RA\Kalender\GT\<MM>M\<TT>` — ein Ordner je Monat, eine Datei je Tag,
+benannt nach dem **Fristende**. CP437, CRLF, ein Feld je Zeile:
+
+```
+[274/25]                    Aktennummer, beginnt den Satz
+10.01.30                    Fristende
+                            Uhrzeit (bei Fristen fast immer leer/00:00)
+#Frist                      Kennung; ohne sie ist der Satz ein Termin
+31.12.29                    Fristbeginn
+ZZTESTFRIST0907             Freitext
+AS                          Sachbearbeiter der Frist
+Schatz/OWi                  Aktenkurzbezeichnung
+Berufung                    Fristengrund, aus Mas\FRIV.MSK (19 Gründe)
+AZ: 5 OWi 2871 Js 26177/2   Gerichtsaktenzeichen (optional)
+03.09.26                    Erledigt am (optional)
+PK                          Erledigt von (optional)
+```
+
+**Zwei Befunde, ohne die die Kachel falsch gewesen wäre:**
+
+- **Der Erledigt-Vermerk** steckt in den beiden optionalen Schlussfeldern. Statistisch
+  erkannt: 3.010 der 4.293 vergangenen Fristen tragen ihn, aber nur 2 der zukünftigen.
+  Ohne diesen Filter stünde eine am 31.07. abgehakte Frist heute noch in der Kachel.
+- **Vorfristen heißen auf drei Arten:** „Vorfrist Replik" (1.472×), „Berufungsvorfrist"
+  (53×) und die von RA-MICRO erzeugte Kurzform „Berufung VF Berufung" (239×). Nur auf den
+  Wortanfang zu prüfen hätte 292 Vorfristen wie echte Fristabläufe aussehen lassen.
+
+**Umgesetzt:**
+
+- Neuer Leser `backend/services/fristen_gt.py`. Liest nur die Tagesdateien im Zeitfenster
+  (~18 statt 372). Weil eine Tagesdatei alle Jahrgänge seit 2003 sammelt, filtert der
+  Jahresvergleich, nicht der Dateiname. Ist der Baum nicht lesbar, wirft er
+  `FristenQuelleNichtErreichbar` — **nie** eine leere Liste.
+- `/dashboard/fristen` liefert das Fenster **14 Tage Rückschau bis 3 Werktage Vorschau**
+  (Wochenenden werden übersprungen, liegen aber im Zeitraum: von Freitag aus ist der
+  dritte Werktag der folgende Mittwoch). Ist die Quelle weg, antwortet der Endpunkt mit
+  **503**, und die Kachel zeigt „Fristenkalender nicht erreichbar (E-Akte-Mount)" mit
+  Retry statt „keine Fristen".
+- Der Sachbearbeiter im Fristsatz ist der, dem die Frist gehört — bei **5 von 178** Fristen
+  der letzten zwei Jahre ein anderer als der Akten-SB. Für ein öffnbares Aktenzeichen und
+  den SB-Filter holt `_akten_sachbearbeiter()` den Akten-SB aus RA-MICRO; fällt der
+  SQL-Server aus, springt der Frist-SB ein und die Kachel bleibt benutzbar.
+- Vorfristen erscheinen ohne Dringlichkeits-Badge, als „Vorfrist · −7 T" gekennzeichnet,
+  und zählen in der Kopfzeile getrennt („1 überfällig · 2 heute · 1 Vorfrist").
+- **Jetzt-dran-Leiste:** Vorfristen bleiben draußen. Überfällige Vorfristen sind im
+  Bestand deutlich in der Überzahl und hätten die drei Plätze dauerhaft belegt, während
+  die echten Fristabläufe dahinterrutschen.
+
+**Stand im Betrieb** (07.09.2026, Montag, Fenster 24.08.–10.09.): 20 Einträge, davon 5
+echte Fristen und 15 Vorfristen; eine bereits erledigte Frist wurde korrekt herausgefiltert.
+
+**Tests:** `test_fristen_gt.py` (28, gegen Fixture-Dateien — läuft ohne E-Akte-Mount),
+`test_dashboard_fristen.py` (7), `FristenKachel.test.jsx` (11), `JetztDranLeiste.test.jsx`.
+Backend 2259 grün (71 übersprungen), Frontend 639 grün.
+
+---
+
+## 2026-09-07 — Wiedervorlagegründe: geratene Liste durch die RA-MICRO-Maske ersetzt
+
+Branch `fragebogen-favoritenliste`. Meldung RA Schatz: *„Jede Frist oder bei ‚jetzt dran'
+hat ‚Einspruch' oder ‚Klage' oder ‚Beschwerde' als Eintrag. Wieso? Woher kommt der?
+Er stimmt auch nicht."*
+
+**Ursache.** RA-MICRO schreibt für die eingebauten Wiedervorlagegründe (Codes 1..99) den
+Text **nicht** nach `sWiedervorlagegrund` — geprüft an allen 43 damals angezeigten Zeilen,
+ausnahmslos leer. Am 2026-05-01 (`1bf72bf1`) wurde deshalb eine Übersetzungstabelle in
+`dashboard_routes.py` hartcodiert, Herkunft laut Kommentar „RA-Micro Handbuch / empirisch
+ermittelt". Am 2026-09-01 (`ef1a4729`) zog sie unverändert in
+`backend/registry/wiedervorlage_codes.yaml` um, jeder Eintrag mit `verifiziert: false`.
+**Von 41 tatsächlich verwendeten Codes war genau einer richtig** (16). Dass in der
+Fristen-Kachel immer nur drei Wörter standen, lag an ihrer Definition: sie war auf sieben
+Codes gefiltert, von denen vier vorkamen.
+
+**Die echte Quelle** liegt auf dem Server: `Z:\RA\Mas\TextWV.msk`, Kopfzeile
+`Name=Wiedervorlagegründe;MaxRows=99;NotMove=1;NotDel=1;NotInsert=1`. Die Sperren erklären,
+warum der Text nirgends in den acht SQL-Datenbanken steht: die Zeilennummer **ist** der
+Code und darf sich nie verschieben.
+
+**Unabhängig verifiziert.** Aus den gedruckten Wiedervorlagenlisten `Z:\RA\Text\*wvsik.rtf`
+(Klartextspalte „Grund", zwei Ausdruckformate: Tabulatoren und RTF-Tabelle) wurden 81
+Einträge über (Aktennummer, Datum) gegen `tblAktenWiedervorlagen` gejoint. Alle **12**
+daraus ableitbaren Codes stimmen mit der Maske überein: 10, 11, 12, 16, 17, 20, 23, 28,
+32, 34, 63, 93. Die Stichproben von RA Schatz — 92 „Attest da?", 93 „Unterlagen da?" —
+ebenfalls.
+
+**Die auffälligsten Korrekturen** (Nutzung im Bestand):
+
+| Code | Nutzung | bisher | wahr |
+|---:|---:|---|---|
+| 12 | 167× | Zahlung Gegner | **Mandant gemeldet?** |
+| 32 | 69× | Vollstreckung | **Ermittlungsakte da?** |
+| 19 | 46× | Sachstand | **Entscheidung/Gericht?** |
+| 10 | 39× | Ermittlungsakte | **Mandant gezahlt?** |
+| 55 | 36× | Beschwerde *(Frist)* | **Akte schließen** |
+| 36 | 36× | Zwangsvollstreckung | **Vor Gerichtstermin** |
+| 91 | 34× | Abrechnung | **SV gemeldet?** |
+| 21 | 19× | Klage *(Frist)* | **Akte RA vorlegen** |
+| 58 | 17× | Verhandlungstermin *(Termin)* | **Unterlagen von Mdt. da?** |
+| 51 | 9× | Einspruch *(Frist)* | **Klage entwerfen** |
+| 75 | 3× | Fristablauf *(Frist)* | **Reaktion GVZ?** |
+
+**Umgesetzt:**
+
+- `tools/gen_wiedervorlage_codes.py` erzeugt die YAML aus der Maske (fail-loud bei
+  abweichender Kopfzeile oder Platzzahl ungleich 99). `--pruefen` vergleicht nur; ein
+  Guard-Test ruft das auf und überspringt, wenn der E-Akte-Mount fehlt.
+- `wiedervorlage_codes.yaml` neu erzeugt: 99 Einträge, alle `verifiziert: true`,
+  alle `art: wiedervorlage`. `freitext_ab: 100` statt 1000 — die Grenze ist exakt belegt.
+- `stellungnahme: true` folgt jetzt der Bezeichnung („nahme"), also 11/16/99 statt 5/6/11/16.
+  5 und 6 heißen in Wahrheit „Rechtsschutz bewilligt?/gezahlt?".
+- **Fristen-Kachel:** `/dashboard/fristen` liefert eine leere Liste und fragt RA-MICRO gar
+  nicht mehr; die Kachel wird im Action Board ausgeblendet, solange sie leer ist (bei
+  Ladefehler erscheint sie weiterhin mit Retry).
+- **Termine-Kachel:** die Ergänzungsabfrage aus `tblAktenWiedervorlagen` (Codes 9/58/60)
+  ist entfallen — 41 Zeilen. Termine kommen vollständig aus `raKalender.dbo.Events`.
+- `_lade_wiedervorlagen()` schließt nichts mehr aus: ohne Frist- und Termin-Codes gehört
+  jede Wiedervorlage in die Kachel.
+
+**Freitexte** (IDs ab 100) bleiben unverändert: RA-MICRO liefert deren Text in der
+SQL-Spalte mit. Ihr Speicher ist `Z:\RA\Pr\wvgrund`, feste 40-Zeichen-Sätze,
+**SQL-ID = Satznummer + 100** (an drei Stichproben belegt). Nur 4 von 646 Freitext-Zeilen
+haben keinen Text in SQL; die könnten daraus nachgezogen werden.
+
+**Nebenbefund — wo Fristen wirklich liegen.** Testfrist zum 31.12.2029 in RA-MICRO
+eingetragen, davor Zeilenzahlen aller 141 Tabellen gesichert: keine Tabelle wuchs,
+und das Datum taucht in keiner der 119 Datumsspalten auf. Geändert haben sich zwei
+Dateien: `Z:\RA\Kalender\GT\01M\10` und `Z:\RA\Kalender\GT\NDX\74X`. Format ist Klartext,
+ein Feld je Zeile: Aktenzeichen, **Fristende**, Uhrzeit, `#Frist`, **Fristbeginn**, Text,
+Sachbearbeiter, Aktenkurzbezeichnung, Fristengrund (aus `Mas\FRIV.MSK`, 19 Gründe),
+Gerichtsaktenzeichen. Ein Ordner je Monat, eine Datei je Tag. 4.329 Fristen seit 2003,
+**36 davon offen**. Die Feldbedeutung hat RA Schatz am Testeintrag bestaetigt:
+31.12.2029 als Fristbeginn, 10.01.2030 als Fristende eingetragen — der Dateipfad folgt
+dem Fristende. Vorfristen stehen als eigene Eintraege und sind im Grund als solche benannt.
+Damit ließe sich eine echte Fristen-Kachel bauen — offen, siehe TODO.
+
+**Tests:** Backend `test_wiedervorlage_codes.py` (34), `test_dashboard_wv_registry.py` (9),
+`test_wiedervorlage_service_registry.py`; Frontend 634 grün. In `ActionBoardView.test.jsx`
+war „Keine Fristen in den nächsten 14 Tagen" an acht Stellen der Warteanker für „geladen"
+— ersetzt durch „Alle Wiedervorlagen erledigt".
+
+---
+
 ## 2026-09-04 — Dokumentklasse überlebt die Freigabe: `dokumente.typ` entfallen
 
 Branch `fragebogen-favoritenliste`. Meldung RA Schatz: *„Die Klassenzuordnung in der

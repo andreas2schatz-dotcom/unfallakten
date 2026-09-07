@@ -56,18 +56,18 @@ describe("ActionBoardView", () => {
     mockOk();
     api.fristen.mockRejectedValue(new Error("kaputt"));
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
-    await screen.findByText("Fristen konnten nicht geladen werden");
+    await screen.findByText("Fristenkalender nicht erreichbar (E-Akte-Mount)");
     expect(screen.queryByText(/Keine Fristen in den nächsten/)).toBeNull();
     api.fristen.mockResolvedValue({ eintraege: [] });
     fireEvent.click(screen.getByRole("button", { name: "Erneut laden" }));
-    await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
+    await screen.findByText("Keine Fristen in den nächsten drei Werktagen");
     expect(api.fristen).toHaveBeenCalledTimes(2);
   });
 
   it("zeigt keinen Posteingang mehr", async () => {
     mockOk();
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
-    await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
+    await screen.findByText("Alle Wiedervorlagen erledigt");
     expect(screen.queryByText(/Posteingang/i)).toBeNull();
   });
 
@@ -83,7 +83,7 @@ describe("ActionBoardView", () => {
   it("persistiert den SB-Filter in localStorage und stellt ihn wieder her", async () => {
     mockOk();
     const { unmount } = render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
-    await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
+    await screen.findByText("Alle Wiedervorlagen erledigt");
     fireEvent.click(screen.getByRole("button", { name: "TB" }));
     expect(JSON.parse(localStorage.getItem("dashboard.aktiveSB"))).toContain("TB");
     unmount();
@@ -95,7 +95,7 @@ describe("ActionBoardView", () => {
   it("zeigt bei komplett abgewähltem SB-Filter einen Hinweis statt leerer Kacheln", async () => {
     mockOk();
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
-    await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
+    await screen.findByText("Alle Wiedervorlagen erledigt");
     fireEvent.click(screen.getByRole("button", { name: "AS" }));
     expect(screen.getByText("Kein Sachbearbeiter ausgewählt")).toBeInTheDocument();
     expect(screen.queryByText(/Keine Fristen in den nächsten/)).toBeNull();
@@ -104,7 +104,7 @@ describe("ActionBoardView", () => {
   it("markiert aktive SB-Chips per aria-pressed", async () => {
     mockOk();
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
-    await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
+    await screen.findByText("Alle Wiedervorlagen erledigt");
     expect(screen.getByRole("button", { name: "AS" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "TB" })).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(screen.getByRole("button", { name: "TB" }));
@@ -115,7 +115,7 @@ describe("ActionBoardView", () => {
     mockOk();
     api.fristen.mockRejectedValue(new Error("kaputt"));
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
-    await screen.findByText("Fristen konnten nicht geladen werden");
+    await screen.findByText("Fristenkalender nicht erreichbar (E-Akte-Mount)");
     api.fristen.mockReturnValue(new Promise(() => {}));
     fireEvent.click(screen.getByRole("button", { name: "Erneut laden" }));
     await waitFor(() => expect(within(screen.getByRole("alert")).getByRole("button")).toBeDisabled());
@@ -185,7 +185,7 @@ describe("ActionBoardView", () => {
   it("wählt beim allerersten Öffnen ohne gespeicherten Stand nur die Vorauswahl, nicht alle", async () => {
     mockOk();
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
-    await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
+    await screen.findByText("Alle Wiedervorlagen erledigt");
     expect(screen.getByRole("button", { name: "AS" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "TB" })).toHaveAttribute("aria-pressed", "false");
   });
@@ -195,7 +195,7 @@ describe("ActionBoardView", () => {
     localStorage.setItem("dashboard.bekannteSB", JSON.stringify(["AS", "CO", "TB"]));
     mockOk();
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
-    await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
+    await screen.findByText("Alle Wiedervorlagen erledigt");
     expect(screen.getByRole("button", { name: "AS" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "TB" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.queryByRole("button", { name: "CS" })).toBeNull();
@@ -240,7 +240,7 @@ describe("ActionBoardView", () => {
     einst.sachbearbeiter.mockResolvedValue({ eintraege: [] });
 
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
-    await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
+    await screen.findByText("Alle Wiedervorlagen erledigt");
     expect(JSON.parse(localStorage.getItem("dashboard.bekannteSB"))).toEqual(["AS", "CO", "TB"]);
   });
 
@@ -253,7 +253,7 @@ describe("ActionBoardView", () => {
     einst.sachbearbeiter.mockResolvedValue({ eintraege: [] });
 
     render(<ActionBoardView onOpenAkte={() => {}} onOpenWiedervorlage={() => {}} />);
-    await screen.findByText("Keine Fristen in den nächsten 14 Tagen");
+    await screen.findByText("Alle Wiedervorlagen erledigt");
     expect(JSON.parse(localStorage.getItem("dashboard.aktiveSB"))).toEqual(["AS"]);
     expect(JSON.parse(localStorage.getItem("dashboard.bekannteSB"))).toEqual(["AS", "CO", "TB"]);
 

@@ -66,3 +66,17 @@ describe("JetztDranLeiste – eindeutige Keys", () => {
     expect(keyWarnungen).toEqual([]);
   });
 });
+
+describe("jetztDranEintraege – Vorfristen", () => {
+  it("lässt Vorfristen draußen, damit echte Fristabläufe sichtbar bleiben", () => {
+    const erg = jetztDranEintraege(
+      [
+        { az: "205/21PK", tage_bis: -14, frist_art: "Vorfrist Schriftsatzschluss", ist_vorfrist: true },
+        { az: "322/26PK", tage_bis: -7, frist_art: "Vorfrist Klageerwiderung", ist_vorfrist: true },
+        { az: "350/26PK", tage_bis: -7, frist_art: "Schriftsatzschluss", ist_vorfrist: false },
+      ],
+      []
+    );
+    expect(erg.map((e) => e.az)).toEqual(["350/26PK"]);
+  });
+});

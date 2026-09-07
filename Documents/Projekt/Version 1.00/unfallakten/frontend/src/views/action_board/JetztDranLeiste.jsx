@@ -3,7 +3,11 @@ import T from "../../config/theme";
 import { Kachel, KachelInhalt, Zeile, ZeileText, StufenBadge, ZeilenListe } from "./boardUi";
 
 export function jetztDranEintraege(fristen, wv) {
-  const f = (fristen || []).filter((e) => e.tage_bis <= 0).map((e) => ({
+  // Vorfristen bleiben draussen: sie sind eine Vorwarnung auf eine Frist, die
+  // selbst noch kommt. Ueberfaellige Vorfristen sind im Bestand deutlich in der
+  // Ueberzahl und wuerden diese Leiste sonst dauerhaft belegen -- die echten
+  // Fristablaeufe rutschten dahinter.
+  const f = (fristen || []).filter((e) => e.tage_bis <= 0 && !e.ist_vorfrist).map((e) => ({
     az: e.az, tage: e.tage_bis, prio: 0,
     titel: e.kurzbezeichnung || e.mandant || e.az,
     art: e.frist_art,

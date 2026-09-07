@@ -7,6 +7,37 @@
 
 ## 🔄 In Arbeit
 
+### Fristen-Kachel aus dem RA-MICRO-Kalenderbaum — ✅ umgesetzt (2026-09-07, Branch `fragebogen-favoritenliste`), Abnahme offen
+Echte Fristen aus `Z:\RA\Kalender\GT`, Fenster 14 Tage zurück bis 3 Werktage voraus.
+Erledigte werden am Schlussfeld-Vermerk erkannt und ausgefiltert, Vorfristen gekennzeichnet.
+Leser `backend/services/fristen_gt.py`, Protokoll → CHANGELOG.
+**Kachel im Betrieb bestätigt** (RA Schatz, 07.09.2026: „funktioniert genau richtig").
+**Offen:**
+- **Testfrist löschen:** `ZZTESTFRIST0907` in Akte 274/25 (Beginn 31.12.2029, Ende 10.01.2030).
+  Danach verschwindet sie automatisch aus dem Bestand — sie liegt ohnehin außerhalb des Fensters.
+- **Kachel gegenlesen:** Die 5 echten Fristen und 15 Vorfristen mit RA-MICRO vergleichen.
+  Stimmen Grund, Datum und Sachbearbeiter?
+- **Mount-Ausfall prüfen:** `wsl -d docker-desktop -- umount /mnt/eakte` und die Übersicht
+  neu laden — die Kachel muss „Fristenkalender nicht erreichbar (E-Akte-Mount)" zeigen,
+  nicht „keine Fristen". Danach `tools/eakte_mount.ps1`.
+- **Entscheidung offen:** Überfällige **Vorfristen** machen aktuell 13 der 20 Einträge aus
+  (älteste −14 Tage). Eine Vorfrist, deren echte Frist schon vorbei oder in Sicht ist, hat
+  ihren Zweck erfüllt. Falls die Kachel zu voll wirkt: Vorfristen nur in der Vorschau
+  zeigen, nicht in der Rückschau.
+
+### Wiedervorlagegründe aus der RA-MICRO-Maske — ✅ umgesetzt (2026-09-07, Branch `fragebogen-favoritenliste`), Abnahme offen
+Die geratenen Bezeichnungen sind durch `Z:\RA\Mas\TextWV.msk` ersetzt (99 Gründe, alle
+verifiziert; von 41 verwendeten Codes war vorher genau einer richtig). Erzeugt per
+`py tools/gen_wiedervorlage_codes.py`. Protokoll → CHANGELOG, Begründung → DECISIONS.
+**Offen — Sichtkontrolle im Betrieb:**
+- **Wiedervorlagen-Kachel ansehen:** Statt „Zahlung Gegner"/„Vollstreckung"/„Sachstand"
+  muss dort jetzt „Mandant gemeldet?", „Ermittlungsakte da?", „Entscheidung/Gericht?"
+  stehen. RA Schatz prüft, ob die Gründe zu den Akten passen.
+- **Fristen-Kachel ist verschwunden** — beabsichtigt, siehe unten. Falls sie vermisst
+  wird, ist das der Auftrag für die echte Fristen-Kachel.
+- **Stellungnahme-Filter:** `hole_faellige_wiedervorlagen(nur_stellungnahme=True)` filtert
+  jetzt auf 11/16/99 statt 5/6/11/16. Prüfen, ob die Liste vollständig wirkt.
+
 ### Dokumentklasse als SSOT — ✅ umgesetzt (2026-09-04, Branch `fragebogen-favoritenliste`), Abnahme offen
 `dokumente.typ` ist entfallen, `dokumentenklasse` ist alleinige Wahrheit. Spec + Plan unter
 `docs/superpowers/`, Protokoll → CHANGELOG, Begründungen → DECISIONS, Deploy → STATE Abschnitt 0.

@@ -1,4 +1,4 @@
-"""
+r"""
 Dashboard-Router – PRD-25b
 ===========================
 Endpunkte für das Action-Dashboard.
@@ -6,13 +6,12 @@ Endpunkte für das Action-Dashboard.
 Endpunkte:
   GET  /dashboard/action-items    Priorisierte Arbeitsliste für den Tag
   GET  /dashboard/termine-heute   Heutige + morgige Gerichtstermine aus RA-MICRO
-  GET  /dashboard/fristen         Harte Fristen aus RA-MICRO (Codes laut backend/registry/wiedervorlage_codes.yaml, art: frist), überfällig bis +14 Tage
+  GET  /dashboard/fristen         Echte Fristen aus dem RA-MICRO-Kalenderbaum (Z:\RA\Kalender\GT), 14 Tage zurück bis 3 Werktage voraus
   GET  /dashboard/wiedervorlagen  WV überfällig+heute aus RA-MICRO + lokale Akten ohne aktive WV
 
 Python 3.9 kompatibel.
 """
 
-import re
 import logging
 from datetime import date, timedelta
 from flask import Blueprint, jsonify, g
@@ -23,7 +22,12 @@ from ..ramicro.connector import (
     get_ramicro_connection, RaMicroNichtAktiv, RaMicroVerbindungsFehler
 )
 from ..ramicro.sachbearbeiter import kalender_zu_kuerzel
-from ..services.wiedervorlage_code_registry import loese_wv_grund, sql_codeliste
+from ..services.wiedervorlage_code_registry import (
+    codes_fuer_art, loese_wv_grund, sql_codeliste
+)
+from ..services.fristen_gt import (
+    FristenQuelleNichtErreichbar, lade_fristen, standard_fenster
+)
 
 logger = logging.getLogger(__name__)
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
@@ -369,7 +373,6 @@ def _lade_termine_heute():
 
     ergebnis  = []
     seen_keys = set()  # Dedup: (az, datum_iso)
-    codes_termin = sql_codeliste("termin")
 
     try:
         kalender_map = kalender_zu_kuerzel()
@@ -456,53 +459,12 @@ def _lade_termine_heute():
                             z.strip() for z in notiz.splitlines() if z.strip()),
                     })
 
-            # Ergänzung: tblAktenWiedervorlagen, Codes laut
-            # backend/registry/wiedervorlage_codes.yaml (art: termin) -- Gerichtstermine als WV
-            cur.execute(f"""
-                SELECT TOP 30
-                    a.sAktenNummer          AS az_roh,
-                    a.sAktenSachbearbeiter  AS az_sb,
-                    a.sMandant              AS mandant,
-                    a.sAktenKurzBezeichnung AS kurzbezeichnung,
-                    w.dtWiedervorlage       AS termin_datum,
-                    w.iWiedervorlageGrund   AS grund_code,
-                    w.sWiedervorlagegrund   AS grund_text,
-                    w.sBemerkung            AS bemerkung
-                FROM tblAktenWiedervorlagen w
-                INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
-                WHERE w.iWiedervorlageGrund IN ({codes_termin})
-                  AND CAST(w.dtWiedervorlage AS DATE) BETWEEN %(heute)s AND %(morgen)s
-                  AND (a.dtAblage IS NULL
-                       OR CAST(a.dtAblage AS DATE) = '1899-12-30')
-                ORDER BY w.dtWiedervorlage ASC
-            """, {"heute": heute_s, "morgen": morgen_s})
-            for r in cur.fetchall():
-                az = _bilde_az(r)
-                datum_iso, tage = _parse_datum(r.get("termin_datum"), heute_dt)
-                termin_art = loese_wv_grund(r.get("grund_text"), r.get("grund_code")).text
-                bemerkung = (r.get("bemerkung") or "").strip()
-                m = re.search(r"(\d{1,2}:\d{2})", bemerkung)
-                uhrzeit = m.group(1) if m else None
-
-                mandant = (r.get("mandant") or "").strip()
-                kurz    = (r.get("kurzbezeichnung") or "").strip()
-
-                key = ("wiedervorlage", az, datum_iso)
-                if key not in seen_keys:
-                    seen_keys.add(key)
-                    ergebnis.append({
-                        "az":              az,
-                        "mandant":         mandant,
-                        "kurzbezeichnung": kurz,
-                        "betreff":         kurz or mandant,
-                        "termin_art":      termin_art,
-                        "termin_datum":    datum_iso,
-                        "uhrzeit":         uhrzeit,
-                        "tage_bis":        tage,
-                        "sb":              (r.get("az_sb") or "").strip(),
-                        "ort":             "",
-                        "bemerkung":       bemerkung,
-                    })
+            # Bis 2026-09-07 wurden hier zusaetzlich Wiedervorlagen mit
+            # art: termin als Gerichtstermine ausgegeben. Die drei Codes (9,
+            # 58, 60) heissen laut RA-MICRO-Maske Mas\TextWV.msk in Wahrheit
+            # "SV-Gutachten?", "Unterlagen von Mdt. da?" und "Entscheidung
+            # Gericht!?" -- keiner davon ist ein Termin. Termine stehen
+            # vollstaendig in raKalender.dbo.Events.
 
     except (RaMicroNichtAktiv, RaMicroVerbindungsFehler):
         return []
@@ -521,68 +483,95 @@ def termine_heute():
     return _j({"eintraege": _lade_termine_heute()})
 
 
-def _lade_ramicro_fristen_hart():
-    # type: () -> list
-    heute_dt    = date.today()
-    plus14_dt   = heute_dt + timedelta(days=14)
-    plus14_s    = plus14_dt.isoformat()
-    minus365_dt = heute_dt - timedelta(days=365)
-    minus365_s  = minus365_dt.isoformat()
-    codes_frist = sql_codeliste("frist")
+def _akten_sachbearbeiter(nummern):
+    # type: (list) -> dict
+    """Akten-SB je Aktennummer aus RA-MICRO.
 
+    Der Sachbearbeiter im Fristsatz ist der, dem die Frist gehoert -- bei 5 von
+    178 Fristen der letzten zwei Jahre ist das ein anderer als der Akten-SB.
+    Fuer ein oeffnbares Aktenzeichen und den SB-Filter zaehlt der Akten-SB.
+
+    Ist RA-MICRO nicht erreichbar, kommt ein leeres Verzeichnis zurueck und der
+    Aufrufer faellt auf den Frist-SB zurueck. Die Fristen selbst stehen nicht in
+    RA-MICRO, die Kachel bleibt also auch ohne SQL-Server benutzbar.
+    """
+    if not nummern:
+        return {}
     try:
         with get_ramicro_connection() as conn:
             cur = conn.cursor()
-            cur.execute(f"""
-                SELECT TOP 50
-                    a.sAktenNummer          AS az_roh,
-                    a.sAktenSachbearbeiter  AS az_sb,
-                    a.sMandant              AS mandant,
-                    a.sAktenKurzBezeichnung AS kurzbezeichnung,
-                    w.dtWiedervorlage       AS frist_datum,
-                    w.iWiedervorlageGrund   AS grund_code,
-                    w.sWiedervorlagegrund   AS grund_text,
-                    w.sBemerkung            AS bemerkung
-                FROM tblAktenWiedervorlagen w
-                INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
-                WHERE w.iWiedervorlageGrund IN ({codes_frist})
-                  AND CAST(w.dtWiedervorlage AS DATE) BETWEEN %(minus365)s AND %(plus14)s
-                  AND (a.dtAblage IS NULL
-                       OR CAST(a.dtAblage AS DATE) = '1899-12-30')
-                ORDER BY w.dtWiedervorlage ASC
-            """, {"plus14": plus14_s, "minus365": minus365_s})
-            rows = cur.fetchall()
-
-        ergebnis = []
-        for r in rows:
-            az = _bilde_az(r)
-            frist_iso, tage = _parse_datum(r.get("frist_datum"), heute_dt)
-
-            ergebnis.append({
-                "az":              az,
-                "mandant":         (r.get("mandant") or "").strip(),
-                "kurzbezeichnung": (r.get("kurzbezeichnung") or "").strip(),
-                "frist_art":       loese_wv_grund(r.get("grund_text"),
-                                                  r.get("grund_code")).text,
-                "frist_datum":     frist_iso,
-                "tage_bis":        tage,
-                "bemerkung":       (r.get("bemerkung") or "").strip(),
-            })
-        return ergebnis
-
+            platzhalter = ", ".join("%%(a%d)s" % i for i in range(len(nummern)))
+            cur.execute(
+                "SELECT sAktenNummer AS nr, sAktenSachbearbeiter AS sb, "
+                "       sMandant AS mandant "
+                "FROM tblAkten WHERE sAktenNummer IN (%s)" % platzhalter,
+                {("a%d" % i): n for i, n in enumerate(nummern)})
+            return {
+                (r.get("nr") or "").strip(): {
+                    "sb":      (r.get("sb") or "").strip(),
+                    "mandant": (r.get("mandant") or "").strip(),
+                }
+                for r in cur.fetchall()
+            }
     except (RaMicroNichtAktiv, RaMicroVerbindungsFehler):
-        return []
+        return {}
     except Exception as e:
-        logger.warning("fristen Fehler: %s", e)
-        return []
+        logger.warning("Akten-SB fuer Fristen nicht ermittelbar: %s", e)
+        return {}
+
+
+def _lade_fristen_aus_dem_kalender():
+    # type: () -> list
+    """Unerledigte Fristen aus Z:\\RA\\Kalender\\GT.
+
+    Wirft FristenQuelleNichtErreichbar, wenn der Kalenderbaum nicht lesbar ist.
+    Das MUSS durchschlagen: eine leere Liste saehe aus wie "keine Fristen".
+    """
+    heute_dt = date.today()
+    von, bis = standard_fenster(heute_dt)
+    roh = lade_fristen(von, bis)
+
+    akten = _akten_sachbearbeiter(sorted({e["aktennummer"] for e in roh}))
+
+    ergebnis = []
+    for e in roh:
+        akte = akten.get(e["aktennummer"], {})
+        sb = akte.get("sb") or e["sb"]
+        ergebnis.append({
+            "az":              e["aktennummer"] + sb,
+            "mandant":         akte.get("mandant", ""),
+            "kurzbezeichnung": e["kurzbezeichnung"],
+            "frist_art":       e["frist_art"],
+            "frist_datum":     e["frist_datum"],
+            "tage_bis":        (date.fromisoformat(e["frist_datum"]) - heute_dt).days,
+            "bemerkung":       e["bemerkung"],
+            "sb":              sb,
+            "ist_vorfrist":    e["ist_vorfrist"],
+        })
+    return ergebnis
 
 
 @dashboard_bp.route("/fristen", methods=["GET"])
 @login_erforderlich
 def fristen():
-    """Fristen aus RA-MICRO: Codes laut backend/registry/wiedervorlage_codes.yaml
-    (art: frist) — überfällig bis +14 Tage."""
-    return _j({"eintraege": _lade_ramicro_fristen_hart()})
+    """Echte RA-MICRO-Fristen aus dem Kalenderbaum Z:\\RA\\Kalender\\GT.
+
+    Zeitraum: 14 Tage Rueckschau auf Unerledigtes plus drei Werktage Vorschau
+    (Wochenenden werden uebersprungen, liegen aber im Zeitraum).
+
+    Bis 2026-09-07 kamen hier ausgewaehlte Wiedervorlagen heraus, die faelsch-
+    lich als Fristen gefuehrt wurden. Ist die Quelle nicht lesbar -- in der
+    Regel ein weggefallener E-Akte-Mount -- antwortet der Endpunkt mit 503,
+    damit die Kachel den Ausfall zeigt statt "keine Fristen".
+    """
+    try:
+        return _j({"eintraege": _lade_fristen_aus_dem_kalender()})
+    except FristenQuelleNichtErreichbar as e:
+        logger.warning("Fristenkalender nicht lesbar: %s", e)
+        return _j({
+            "eintraege": [],
+            "fehler": "Fristenkalender nicht erreichbar (E-Akte-Mount)",
+        }, 503)
 
 
 def _lade_wiedervorlagen():
@@ -594,7 +583,13 @@ def _lade_wiedervorlagen():
     wv_eintraege       = []
     az_mit_aktiver_wv  = set()
     ramicro_erreichbar = True
-    codes_frist_termin = sql_codeliste("frist", "termin")
+
+    # Solange Frist- und Termin-Kachel keine eigenen Codes haben, gehoert jede
+    # Wiedervorlage hierher -- der Ausschluss entfaellt dann ganz.
+    ausgeschlossen = codes_fuer_art("frist", "termin")
+    wo_ausschluss = (
+        f"w.iWiedervorlageGrund NOT IN ({sql_codeliste('frist', 'termin')})"
+        if ausgeschlossen else "1 = 1")
 
     try:
         with get_ramicro_connection() as conn:
@@ -612,7 +607,7 @@ def _lade_wiedervorlagen():
                     w.sBemerkung            AS bemerkung
                 FROM tblAktenWiedervorlagen w
                 INNER JOIN tblAkten a ON a.GUIDAkte = w.GUIDAkte
-                WHERE w.iWiedervorlageGrund NOT IN ({codes_frist_termin})
+                WHERE {wo_ausschluss}
                   AND CAST(w.dtWiedervorlage AS DATE) BETWEEN %(minus90)s AND %(heute)s
                   AND (a.dtAblage IS NULL
                        OR CAST(a.dtAblage AS DATE) = '1899-12-30')
