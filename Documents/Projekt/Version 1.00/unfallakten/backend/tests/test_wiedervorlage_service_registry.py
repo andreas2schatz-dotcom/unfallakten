@@ -11,5 +11,9 @@ def test_alte_liste_und_helfer_sind_verschwunden():
 
 
 def test_stellungnahme_filter_kommt_aus_der_registry():
+    """11 'Stellungnahme Mandant?', 16 'Stellungnahme Gegner?',
+    99 'Stellungnahmefrist' -- dieselbe Regel wie das LIKE '%nahme%'
+    auf den Freitext. Vorher standen hier 5 und 6, die laut
+    RA-MICRO-Maske 'Rechtsschutz bewilligt?/gezahlt?' heissen."""
     sql = wiedervorlage_service._stellungnahme_sql()
-    assert "IN (5, 6, 11, 16)" in sql
+    assert "IN (11, 16, 99)" in sql

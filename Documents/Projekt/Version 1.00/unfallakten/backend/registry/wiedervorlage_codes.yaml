@@ -1,88 +1,131 @@
-# RA-MICRO-Wiedervorlagecodes -- Uebersetzungshilfe, KEIN Katalog
-# ================================================================
+# GENERIERT von tools/gen_wiedervorlage_codes.py — NICHT von Hand editieren.
+# ============================================================================
 #
-# Der Wiedervorlagegrund ist in RA-MICRO ein freier Text und die einzige
-# massgebliche Angabe. Diese Datei deutet ihn NICHT und vereinheitlicht ihn
-# NICHT -- sie springt nur dort ein, wo RA-MICRO den Text nicht in die
-# SQL-Datenbank schreibt.
+# Quelle: RA-MICRO-Auswahlmaske Z:\RA\Mas\TextWV.msk
+#   Kopfzeile: Name=Wiedervorlagegründe;MaxRows=99;NotMove=1;NotDel=1;NotInsert=1
+#   NotMove/NotDel/NotInsert heisst: die Zeilennummer ist der Code und darf
+#   sich nie verschieben. Genau deshalb steht der Text in keiner SQL-Tabelle.
 #
-# Datenbefund 2026-09-01, alle 1.610 Zeilen tblAktenWiedervorlagen:
-#   Codes 5..99      958 Zeilen  sWiedervorlagegrund AUSNAHMSLOS leer
-#   Codes ab 63912   652 Zeilen  sWiedervorlagegrund gefuellt (648 von 652)
-# Der Katalogtext der eingebauten Gruende steht in KEINER der acht
-# Datenbanken auf dem Server (rund 500 Textspalten durchsucht).
+# Verifikation (2026-09-07): Aus den gedruckten Wiedervorlagenlisten
+# Z:\RA\Text\*wvsik.rtf wurden 81 Eintraege ueber (Aktennummer, Datum) gegen
+# tblAktenWiedervorlagen gejoint. Alle 12 daraus ableitbaren Codes stimmen mit
+# dieser Maske ueberein (10, 11, 12, 16, 17, 20, 23, 28, 32, 34, 63, 93).
 #
-# PFLEGE: keine. Legt die Kanzlei einen neuen Grund an, bekommt er eine
-# Nummer ab 63912 und immer den Text dazu -- er landet nie hier.
+# art: Alle 99 Gruende sind Wiedervorlagen. Echte Fristen fuehrt RA-MICRO in
+# einer eigenen Verwaltung (Maske Mas\FRIV.MSK, 'Fristengrund') und legt sie
+# in KEINER der acht SQL-Datenbanken ab -- eine Frist-Kachel aus diesen Codes
+# zu speisen war der Fehler, den diese Datei ersetzt.
 #
-# Die Bezeichnungen sind aus einer frueheren Session uebernommen und NICHT
-# belegt ("RA-Micro Handbuch / empirisch ermittelt"), deshalb ueberall
-# verifiziert: false. Die Haeufigkeit im Kommentar ist der Realitaetstest.
-# verifiziert steuert die Anzeige NICHT -- es dokumentiert den Pruefstand
-# und wird vom Guard-Test gezaehlt.
+# stellungnahme: true dort, wo die Bezeichnung 'nahme' enthaelt -- dieselbe
+# Regel, die _stellungnahme_sql() per LIKE '%nahme%' auf den Freitext anwendet.
 
-version: "1.0-unverifiziert"
+version: "2.0-textwv"
 
-# Ab hier ist die Zahl eine laufende ID, kein eingebauter Grund.
-# Zwischen 99 und 63912 klafft eine Luecke; 1000 liegt sicher darin.
-freitext_ab: 1000
+# Darunter Katalogcodes aus der Maske, darueber laufende IDs aus
+# Z:\RA\Pr\wvgrund (Satznummer + 100). Fuer die schreibt RA-MICRO den Text
+# zusaetzlich nach sWiedervorlagegrund -- sie werden unveraendert uebernommen.
+freitext_ab: 100
 
-# art steuert allein die Kachel-Zuordnung der Tagesuebersicht.
-# stellungnahme: true ersetzt die Codeliste im Stellungnahme-Filter
-# von hole_faellige_wiedervorlagen().
 codes:
-# ── Fristen-Kachel ────────────────────────────────────────────────────
-  21: {bezeichnung: "Klage",                 art: frist, verifiziert: false}  #  20x
-  22: {bezeichnung: "Urteil",                art: frist, verifiziert: false}  #   0x
-  31: {bezeichnung: "Mahnbescheid",          art: frist, verifiziert: false}  #   1x
-  46: {bezeichnung: "Berufung",              art: frist, verifiziert: false}  #   0x
-  51: {bezeichnung: "Einspruch",             art: frist, verifiziert: false}  #  10x
-  55: {bezeichnung: "Beschwerde",            art: frist, verifiziert: false}  #  38x
-  75: {bezeichnung: "Fristablauf",           art: frist, verifiziert: false}  #   3x
-# ── Termine-Kachel ────────────────────────────────────────────────────
-  9: {bezeichnung: "Entscheidung/Gericht",  art: termin, verifiziert: false}  #   1x
-  58: {bezeichnung: "Verhandlungstermin",    art: termin, verifiziert: false}  #  14x
-  60: {bezeichnung: "Anhörungstermin",       art: termin, verifiziert: false}  #   4x
-# ── Wiedervorlagen-Kachel ─────────────────────────────────────────────
-  5: {bezeichnung: "Stellungnahme Gegner",  art: wiedervorlage, verifiziert: false, stellungnahme: true}  #   5x
-  6: {bezeichnung: "Stellungnahme Mandant", art: wiedervorlage, verifiziert: false, stellungnahme: true}  #   7x
-  10: {bezeichnung: "Ermittlungsakte",       art: wiedervorlage, verifiziert: false}  #  44x
-  11: {bezeichnung: "Stellungnahme Mandant", art: wiedervorlage, verifiziert: false, stellungnahme: true}  #  80x
-  12: {bezeichnung: "Zahlung Gegner",        art: wiedervorlage, verifiziert: false}  # 169x
-  16: {bezeichnung: "Stellungnahme Gegner?", art: wiedervorlage, verifiziert: false, stellungnahme: true}  # 217x
-  17: {bezeichnung: "Reaktion Rechtsschutz", art: wiedervorlage, verifiziert: false}  #  19x
-  18: {bezeichnung: "Deckungszusage",        art: wiedervorlage, verifiziert: false}  #  10x
-  19: {bezeichnung: "Sachstand",             art: wiedervorlage, verifiziert: false}  #  44x
-  20: {bezeichnung: "Fristverlängerung",     art: wiedervorlage, verifiziert: false}  #   5x
-  23: {bezeichnung: "Vergleich",             art: wiedervorlage, verifiziert: false}  #   4x
-  26: {bezeichnung: "Gutachten",             art: wiedervorlage, verifiziert: false}  #   5x
-  28: {bezeichnung: "Sachverständiger",      art: wiedervorlage, verifiziert: false}  #   9x
-  32: {bezeichnung: "Vollstreckung",         art: wiedervorlage, verifiziert: false}  #  69x
-  34: {bezeichnung: "Erneute EV möglich",    art: wiedervorlage, verifiziert: false}  #  10x
-  35: {bezeichnung: "Insolvenzverfahren",    art: wiedervorlage, verifiziert: false}  #  49x
-  36: {bezeichnung: "Zwangsvollstreckung",   art: wiedervorlage, verifiziert: false}  #  37x
-  38: {bezeichnung: "Kostenantrag",          art: wiedervorlage, verifiziert: false}  #   0x
-  39: {bezeichnung: "Honorar",               art: wiedervorlage, verifiziert: false}  #   2x
-  43: {bezeichnung: "Akteneinsicht",         art: wiedervorlage, verifiziert: false}  #   8x
-  49: {bezeichnung: "Revision",              art: wiedervorlage, verifiziert: false}  #   2x
-  54: {bezeichnung: "Widerspruch",           art: wiedervorlage, verifiziert: false}  #   8x
-  62: {bezeichnung: "Schriftsatz",           art: wiedervorlage, verifiziert: false}  #   2x
-  69: {bezeichnung: "Post",                  art: wiedervorlage, verifiziert: false}  #  17x
-  71: {bezeichnung: "Telefonat",             art: wiedervorlage, verifiziert: false}  #   1x
-  81: {bezeichnung: "Rückruf",               art: wiedervorlage, verifiziert: false}  #   2x
-  88: {bezeichnung: "Besprechung",           art: wiedervorlage, verifiziert: false}  #   0x
-  91: {bezeichnung: "Abrechnung",            art: wiedervorlage, verifiziert: false}  #  32x
-  94: {bezeichnung: "Akte schließen",        art: wiedervorlage, verifiziert: false}  #   0x
-  99: {bezeichnung: "Sonstiges",             art: wiedervorlage, verifiziert: false}  #   1x
-# ── kommen im Bestand vor, standen aber in KEINER alten Liste ─────────
-  # Bezeichnung offen -- siehe Task 0. offen: true erlaubt die leere
-  # bezeichnung; angezeigt wird solange "Unbekannter Grund (<code>)".
-  25: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}  #  1x
-  61: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}  #  1x
-  63: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}  #  3x
-  78: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}  #  2x
-  93: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}  #  1x
-  98: {bezeichnung: "", art: wiedervorlage, verifiziert: false, offen: true}  #  1x
+  1:  {bezeichnung: "Rechtsmittelfrist läuft"           , art: wiedervorlage, verifiziert: true}
+  2:  {bezeichnung: "Prozessfrist läuft"                , art: wiedervorlage, verifiziert: true}
+  3:  {bezeichnung: "Verjährungsfrist läuft"            , art: wiedervorlage, verifiziert: true}
+  4:  {bezeichnung: "Allgemeine Wiedervorlage"          , art: wiedervorlage, verifiziert: true}
+  5:  {bezeichnung: "Rechtsschutz bewilligt?"           , art: wiedervorlage, verifiziert: true}
+  6:  {bezeichnung: "Rechtsschutz gezahlt?"             , art: wiedervorlage, verifiziert: true}
+  7:  {bezeichnung: "PKH bewilligt?"                    , art: wiedervorlage, verifiziert: true}
+  8:  {bezeichnung: "Klage raus?"                       , art: wiedervorlage, verifiziert: true}
+  9:  {bezeichnung: "SV-Gutachten?"                     , art: wiedervorlage, verifiziert: true}
+  10: {bezeichnung: "Mandant gezahlt?"                  , art: wiedervorlage, verifiziert: true}
+  11: {bezeichnung: "Stellungnahme Mandant?"            , art: wiedervorlage, verifiziert: true, stellungnahme: true}
+  12: {bezeichnung: "Mandant gemeldet?"                 , art: wiedervorlage, verifiziert: true}
+  13: {bezeichnung: "EMA/AnschrPrüf. da?"               , art: wiedervorlage, verifiziert: true}
+  14: {bezeichnung: "Halterauskunft da?"                , art: wiedervorlage, verifiziert: true}
+  15: {bezeichnung: "siehe Aktenvermerk!"               , art: wiedervorlage, verifiziert: true}
+  16: {bezeichnung: "Stellungnahme Gegner?"             , art: wiedervorlage, verifiziert: true, stellungnahme: true}
+  17: {bezeichnung: "Gegner gezahlt?"                   , art: wiedervorlage, verifiziert: true}
+  18: {bezeichnung: "KFB da?"                           , art: wiedervorlage, verifiziert: true}
+  19: {bezeichnung: "Entscheidung/Gericht?"             , art: wiedervorlage, verifiziert: true}
+  20: {bezeichnung: "ZV-Sachstand"                      , art: wiedervorlage, verifiziert: true}
+  21: {bezeichnung: "Akte RA vorlegen"                  , art: wiedervorlage, verifiziert: true}
+  22: {bezeichnung: "MB erstellen!"                     , art: wiedervorlage, verifiziert: true}
+  23: {bezeichnung: "MB erlassen?"                      , art: wiedervorlage, verifiziert: true}
+  24: {bezeichnung: "VB erstellen!"                     , art: wiedervorlage, verifiziert: true}
+  25: {bezeichnung: "VB erlassen?"                      , art: wiedervorlage, verifiziert: true}
+  26: {bezeichnung: "Mandant anrufen"                   , art: wiedervorlage, verifiziert: true}
+  27: {bezeichnung: "SS eingegangen?"                   , art: wiedervorlage, verifiziert: true}
+  28: {bezeichnung: "Rate gezahlt?"                     , art: wiedervorlage, verifiziert: true}
+  29: {bezeichnung: "Vollstreckungsauftrag da?"         , art: wiedervorlage, verifiziert: true}
+  30: {bezeichnung: "Kostenvorschuss an G/GVZ gezahlt?" , art: wiedervorlage, verifiziert: true}
+  31: {bezeichnung: "Zustellung erfolgt?"               , art: wiedervorlage, verifiziert: true}
+  32: {bezeichnung: "Ermittlungsakte da?"               , art: wiedervorlage, verifiziert: true}
+  33: {bezeichnung: "kein Handlungsbedarf"              , art: wiedervorlage, verifiziert: true}
+  34: {bezeichnung: "Erneute EV möglich!"               , art: wiedervorlage, verifiziert: true}
+  35: {bezeichnung: "Abrechnen!"                        , art: wiedervorlage, verifiziert: true}
+  36: {bezeichnung: "Vor Gerichtstermin"                , art: wiedervorlage, verifiziert: true}
+  37: {bezeichnung: "Gegner gezahlt? Klagen"            , art: wiedervorlage, verifiziert: true}
+  38: {bezeichnung: "Vollmacht da?"                     , art: wiedervorlage, verifiziert: true}
+  39: {bezeichnung: "Urteil da?"                        , art: wiedervorlage, verifiziert: true}
+  40: {bezeichnung: "Geldausgang?"                      , art: wiedervorlage, verifiziert: true}
+  41: {bezeichnung: "Wohnung versteigert?"              , art: wiedervorlage, verifiziert: true}
+  42: {bezeichnung: "Was macht Gegner?"                 , art: wiedervorlage, verifiziert: true}
+  43: {bezeichnung: "Reaktion Staatsanwaltschaft?"      , art: wiedervorlage, verifiziert: true}
+  44: {bezeichnung: "Gericht anrufen:Termin aufgehoben?", art: wiedervorlage, verifiziert: true}
+  45: {bezeichnung: "ZV-Termin?"                        , art: wiedervorlage, verifiziert: true}
+  46: {bezeichnung: "Abgabe erfolgt?"                   , art: wiedervorlage, verifiziert: true}
+  47: {bezeichnung: "zahlen!"                           , art: wiedervorlage, verifiziert: true}
+  48: {bezeichnung: "neuer Zwauf"                       , art: wiedervorlage, verifiziert: true}
+  49: {bezeichnung: "PKH-Unterlagen da?"                , art: wiedervorlage, verifiziert: true}
+  50: {bezeichnung: "Gewerberegisterauskunft da?"       , art: wiedervorlage, verifiziert: true}
+  51: {bezeichnung: "Klage entwerfen"                   , art: wiedervorlage, verifiziert: true}
+  52: {bezeichnung: "Gerichtsvollzieher Reaktion?"      , art: wiedervorlage, verifiziert: true}
+  53: {bezeichnung: "Deckungsklage"                     , art: wiedervorlage, verifiziert: true}
+  54: {bezeichnung: "Mandant hat Termin"                , art: wiedervorlage, verifiziert: true}
+  55: {bezeichnung: "Akte schließen"                    , art: wiedervorlage, verifiziert: true}
+  56: {bezeichnung: "Staatskasse gezahlt?"              , art: wiedervorlage, verifiziert: true}
+  57: {bezeichnung: "Mandant Unterlagen abgeholt?"      , art: wiedervorlage, verifiziert: true}
+  58: {bezeichnung: "Unterlagen von Mdt. da?"           , art: wiedervorlage, verifiziert: true}
+  59: {bezeichnung: "Vollmacht da?"                     , art: wiedervorlage, verifiziert: true}
+  60: {bezeichnung: "Entscheidung Gericht!?"            , art: wiedervorlage, verifiziert: true}
+  61: {bezeichnung: "Handlungsbedarf? Abrechnen!"       , art: wiedervorlage, verifiziert: true}
+  62: {bezeichnung: "Koll. zur Kenntnis"                , art: wiedervorlage, verifiziert: true}
+  63: {bezeichnung: "Polizei gemeldet?"                 , art: wiedervorlage, verifiziert: true}
+  64: {bezeichnung: "LG nach Sachstand fragen"          , art: wiedervorlage, verifiziert: true}
+  65: {bezeichnung: "Geldeingang Drittschuldner?"       , art: wiedervorlage, verifiziert: true}
+  66: {bezeichnung: "Was ist mit MV?"                   , art: wiedervorlage, verifiziert: true}
+  67: {bezeichnung: "VB-Antrag da?"                     , art: wiedervorlage, verifiziert: true}
+  68: {bezeichnung: "GewR-Auskunft da?"                 , art: wiedervorlage, verifiziert: true}
+  69: {bezeichnung: "Gutachten da?"                     , art: wiedervorlage, verifiziert: true}
+  70: {bezeichnung: "Kein Handlungsbedarf ohne Mandant" , art: wiedervorlage, verifiziert: true}
+  71: {bezeichnung: "Klageauftrag?"                     , art: wiedervorlage, verifiziert: true}
+  72: {bezeichnung: "Besprechung mit jochen!"           , art: wiedervorlage, verifiziert: true}
+  73: {bezeichnung: "Erneute ZV nach 3 J.Wartezeit"     , art: wiedervorlage, verifiziert: true}
+  74: {bezeichnung: "ZV-Sachstand, GVZ erinnern"        , art: wiedervorlage, verifiziert: true}
+  75: {bezeichnung: "Reaktion GVZ?"                     , art: wiedervorlage, verifiziert: true}
+  76: {bezeichnung: "Klärung Rechtsschutzversicherung"  , art: wiedervorlage, verifiziert: true}
+  77: {bezeichnung: "Geld raus? Akte zu!"               , art: wiedervorlage, verifiziert: true}
+  78: {bezeichnung: "Gutachten da?"                     , art: wiedervorlage, verifiziert: true}
+  79: {bezeichnung: "Vollstreckbare Ausfertigung da?"   , art: wiedervorlage, verifiziert: true}
+  80: {bezeichnung: "GK Rückfluss?"                     , art: wiedervorlage, verifiziert: true}
+  81: {bezeichnung: "vor Gerichtstermin"                , art: wiedervorlage, verifiziert: true}
+  82: {bezeichnung: "Schuldner e.V. abgegeben?"         , art: wiedervorlage, verifiziert: true}
+  83: {bezeichnung: "Pfüb erlassen?"                    , art: wiedervorlage, verifiziert: true}
+  84: {bezeichnung: "HR-Auszug da?"                     , art: wiedervorlage, verifiziert: true}
+  85: {bezeichnung: "Versäumnisurteil gehalten?"        , art: wiedervorlage, verifiziert: true}
+  86: {bezeichnung: "VS-Unterlagen zusammenstellen"     , art: wiedervorlage, verifiziert: true}
+  87: {bezeichnung: "Eingang monatl. Zahlung?"          , art: wiedervorlage, verifiziert: true}
+  88: {bezeichnung: "Schriftsatz fertigen!"             , art: wiedervorlage, verifiziert: true}
+  89: {bezeichnung: "Prozesskostenhilfeunterlagen da?"  , art: wiedervorlage, verifiziert: true}
+  90: {bezeichnung: "nochmals erinnern!"                , art: wiedervorlage, verifiziert: true}
+  91: {bezeichnung: "SV gemeldet?"                      , art: wiedervorlage, verifiziert: true}
+  92: {bezeichnung: "Attest da?"                        , art: wiedervorlage, verifiziert: true}
+  93: {bezeichnung: "Unterlagen da?"                    , art: wiedervorlage, verifiziert: true}
+  94: {bezeichnung: "Geld da?"                          , art: wiedervorlage, verifiziert: true}
+  95: {bezeichnung: "Haftbefehl da?"                    , art: wiedervorlage, verifiziert: true}
+  96: {bezeichnung: "EB von RAe. zurück?"               , art: wiedervorlage, verifiziert: true}
+  97: {bezeichnung: "Mandat niederlegen"                , art: wiedervorlage, verifiziert: true}
+  98: {bezeichnung: "Insolvenzverwalter gemeldet?"      , art: wiedervorlage, verifiziert: true}
+  99: {bezeichnung: "Stellungnahmefrist"                , art: wiedervorlage, verifiziert: true, stellungnahme: true}
 
 standard:
   text_und_code_leer: "ohne Angabe"
