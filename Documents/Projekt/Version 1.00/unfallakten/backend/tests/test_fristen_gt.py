@@ -240,3 +240,26 @@ class TestVorfristErkennung:
         (e,) = lade_fristen(datetime.date(2026, 9, 17), datetime.date(2026, 9, 17),
                             wurzel=str(wurzel))
         assert e["ist_vorfrist"] is False
+
+
+class TestMehrjahresfenster:
+    """Der Ordnername kennt kein Jahr: 09M/17 enthaelt den 17. September aller
+    Jahrgaenge. Wer ueber die Datumswerte iteriert statt ueber die Dateien,
+    liest dieselbe Datei je Jahr erneut und zaehlt ihre Saetze mehrfach."""
+
+    def test_jede_tagesdatei_wird_nur_einmal_gelesen(self, wurzel):
+        satz2004 = list(OFFEN)
+        satz2004[0], satz2004[1] = "[100/03]", "17.09.04"
+        satz2026 = list(OFFEN)
+        satz2026[1] = "17.09.26"
+        _schreibe(wurzel, 9, 17, satz2026, satz2004)
+
+        erg = lade_fristen(datetime.date(2003, 1, 1), datetime.date(2030, 12, 31),
+                           wurzel=str(wurzel))
+        assert sorted(e["aktennummer"] for e in erg) == ["100/03", "322/26"]
+
+    def test_zaehlt_auch_ueber_den_jahreswechsel_nicht_doppelt(self, wurzel):
+        _schreibe(wurzel, 12, 30, OFFEN[:1] + ["30.12.25"] + OFFEN[2:])
+        erg = lade_fristen(datetime.date(2024, 1, 1), datetime.date(2027, 12, 31),
+                           wurzel=str(wurzel))
+        assert len(erg) == 1

@@ -920,6 +920,12 @@ export const apiStellungnahme = {
 };
 
 // ── PRD-01: To-Do-System ──────────────────────────────────────────────────────
+// Fristen einer Akte aus dem RA-MICRO-Kalenderbaum (read-only, 503 wenn der
+// E-Akte-Mount fehlt — der Ausfall darf nicht wie "keine Fristen" aussehen).
+export const apiAkteFristen = {
+  liste: (az) => request(`/akten/${az}/fristen`),
+};
+
 export const apiTodos = {
   liste:    (az)           => request(`/akten/${az}/todos`),
   erstelle: (az, daten)    => request(`/akten/${az}/todos`,

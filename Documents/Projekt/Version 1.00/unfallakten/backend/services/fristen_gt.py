@@ -130,18 +130,38 @@ def _saetze(inhalt: str) -> List[List[str]]:
     return saetze
 
 
-def _als_frist(felder: List[str], von: datetime.date, bis: datetime.date):
+def _tagesdateien(von: datetime.date, bis: datetime.date) -> List[Tuple[int, int]]:
+    """Die (Monat, Tag)-Paare des Zeitraums, jedes genau einmal.
+
+    Der Ordnername kennt kein Jahr: 09M/17 enthaelt den 17. September aller
+    Jahrgaenge seit 2003. Wer ueber die Datumswerte iteriert statt ueber die
+    Dateien, liest bei einem Zeitraum ueber mehrere Jahre dieselbe Datei
+    mehrfach und zaehlt ihre Saetze jedes Mal mit.
+    """
+    paare = []
+    gesehen = set()
+    tag = von
+    while tag <= bis:
+        schluessel = (tag.month, tag.day)
+        if schluessel not in gesehen:
+            gesehen.add(schluessel)
+            paare.append(schluessel)
+        tag += datetime.timedelta(days=1)
+    return paare
+
+
+def _als_frist(felder: List[str], gilt) -> Optional[dict]:
     if len(felder) <= FELD_GRUND:
         return None
     if felder[FELD_KENNUNG].strip() != KENNUNG_FRIST:
         return None
 
+    # Eine Tagesdatei sammelt alle Jahrgaenge seit 2003. Der Dateiname kennt
+    # kein Jahr, also entscheidet allein das Datum im Satz ueber den Zeitraum.
     ende = _datum(felder[FELD_FRISTENDE])
-    if ende is None or not (von <= ende <= bis):
+    if ende is None or not gilt(ende):
         return None
 
-    # Eine Tagesdatei sammelt alle Jahrgaenge seit 2003; der Jahresvergleich
-    # oben ist deshalb der eigentliche Filter, nicht der Dateiname.
     if len(felder) > FELD_ERLEDIGT_AM and _datum(felder[FELD_ERLEDIGT_AM]):
         return None
 
@@ -161,22 +181,10 @@ def _als_frist(felder: List[str], von: datetime.date, bis: datetime.date):
     }
 
 
-def lade_fristen(von: datetime.date, bis: datetime.date,
-                 wurzel: Optional[str] = None) -> List[dict]:
-    """Alle unerledigten Fristen mit Fristende zwischen `von` und `bis`.
-
-    Liest nur die Tagesdateien im Zeitfenster, nicht den ganzen Baum.
-    """
-    pfad = wurzel or standard_wurzel()
-    if not os.path.isdir(pfad):
-        raise FristenQuelleNichtErreichbar(
-            f"Fristenkalender nicht erreichbar: {pfad}")
-
+def _sammle(pfad: str, paare: List[Tuple[int, int]], gilt) -> List[dict]:
     ergebnis = []
-    tag = von
-    while tag <= bis:
-        datei = os.path.join(pfad, f"{tag.month:02d}M", f"{tag.day:02d}")
-        tag += datetime.timedelta(days=1)
+    for monat, tag in paare:
+        datei = os.path.join(pfad, f"{monat:02d}M", f"{tag:02d}")
         if not os.path.isfile(datei):
             continue
         try:
@@ -187,9 +195,40 @@ def lade_fristen(von: datetime.date, bis: datetime.date,
                 f"Fristenkalender nicht erreichbar: {datei}: {e}") from e
 
         for felder in _saetze(inhalt):
-            frist = _als_frist(felder, von, bis)
+            frist = _als_frist(felder, gilt)
             if frist:
                 ergebnis.append(frist)
 
     ergebnis.sort(key=lambda e: (e["frist_datum"], e["aktennummer"]))
     return ergebnis
+
+
+def _gepruefte_wurzel(wurzel: Optional[str]) -> str:
+    pfad = wurzel or standard_wurzel()
+    if not os.path.isdir(pfad):
+        raise FristenQuelleNichtErreichbar(
+            f"Fristenkalender nicht erreichbar: {pfad}")
+    return pfad
+
+
+def lade_fristen(von: datetime.date, bis: datetime.date,
+                 wurzel: Optional[str] = None) -> List[dict]:
+    """Alle unerledigten Fristen mit Fristende zwischen `von` und `bis`.
+
+    Liest nur die Tagesdateien im Zeitfenster, nicht den ganzen Baum.
+    """
+    return _sammle(_gepruefte_wurzel(wurzel), _tagesdateien(von, bis),
+                   lambda ende: von <= ende <= bis)
+
+
+def alle_offenen_fristen(wurzel: Optional[str] = None) -> List[dict]:
+    """Jede unerledigte Frist, unabhaengig vom Datum.
+
+    Fuer die Aktenansicht: dort zaehlt Vollstaendigkeit mehr als Ruhe. Eine
+    seit Jahren offene Frist ist entweder laengst erledigt und nur nie abgehakt
+    worden -- dann soll man das sehen -- oder sie ist echt.
+
+    Liest den ganzen Baum: 366 Dateien, rund 0,9 s kalt und 40 ms warm.
+    """
+    paare = [(monat, tag) for monat in range(1, 13) for tag in range(1, 32)]
+    return _sammle(_gepruefte_wurzel(wurzel), paare, lambda ende: True)

@@ -7,10 +7,12 @@
 
 ## 🔄 In Arbeit
 
-### Fristen-Kachel aus dem RA-MICRO-Kalenderbaum — ✅ umgesetzt (2026-09-07, Branch `fragebogen-favoritenliste`), Abnahme offen
+### Fristen aus dem RA-MICRO-Kalenderbaum — ✅ umgesetzt (2026-09-07, Branch `fragebogen-favoritenliste`), Abnahme offen
 Echte Fristen aus `Z:\RA\Kalender\GT`, Fenster 14 Tage zurück bis 3 Werktage voraus.
 Erledigte werden am Schlussfeld-Vermerk erkannt und ausgefiltert, Vorfristen gekennzeichnet.
 Leser `backend/services/fristen_gt.py`, Protokoll → CHANGELOG.
+Dazu ein Block in der Akten-Übersicht bei den To-Dos: dort **alle** unerledigten Fristen
+der Akte (51 Akten, 154 Fristen, bis zu 14 je Akte), laufende zuerst, read-only.
 **Kachel im Betrieb bestätigt** (RA Schatz, 07.09.2026: „funktioniert genau richtig").
 **Offen:**
 - **Testfrist löschen:** `ZZTESTFRIST0907` in Akte 274/25 (Beginn 31.12.2029, Ende 10.01.2030).
@@ -18,8 +20,11 @@ Leser `backend/services/fristen_gt.py`, Protokoll → CHANGELOG.
 - **Kachel gegenlesen:** Die 5 echten Fristen und 15 Vorfristen mit RA-MICRO vergleichen.
   Stimmen Grund, Datum und Sachbearbeiter?
 - **Mount-Ausfall prüfen:** `wsl -d docker-desktop -- umount /mnt/eakte` und die Übersicht
-  neu laden — die Kachel muss „Fristenkalender nicht erreichbar (E-Akte-Mount)" zeigen,
-  nicht „keine Fristen". Danach `tools/eakte_mount.ps1`.
+  neu laden — Kachel **und** Aktenblock müssen „Fristenkalender nicht erreichbar
+  (E-Akte-Mount)" zeigen, nicht „keine Fristen". Danach `tools/eakte_mount.ps1`.
+- **Aktenblock ansehen:** z.B. Akte 70/24 (10 Fristen) oder 603/25 (9). Viele davon sind
+  seit über einem Jahr offen und vermutlich nur nie abgehakt worden — falls das stört,
+  wäre der Aufklapper für Ältere die nächste Stufe.
 - **Entscheidung offen:** Überfällige **Vorfristen** machen aktuell 13 der 20 Einträge aus
   (älteste −14 Tage). Eine Vorfrist, deren echte Frist schon vorbei oder in Sicht ist, hat
   ihren Zweck erfüllt. Falls die Kachel zu voll wirkt: Vorfristen nur in der Vorschau
@@ -33,8 +38,8 @@ verifiziert; von 41 verwendeten Codes war vorher genau einer richtig). Erzeugt p
 - **Wiedervorlagen-Kachel ansehen:** Statt „Zahlung Gegner"/„Vollstreckung"/„Sachstand"
   muss dort jetzt „Mandant gemeldet?", „Ermittlungsakte da?", „Entscheidung/Gericht?"
   stehen. RA Schatz prüft, ob die Gründe zu den Akten passen.
-- **Fristen-Kachel ist verschwunden** — beabsichtigt, siehe unten. Falls sie vermisst
-  wird, ist das der Auftrag für die echte Fristen-Kachel.
+- **Fristen-Kachel** speist sich nicht mehr aus Wiedervorlagen, sondern aus dem
+  RA-MICRO-Kalenderbaum — eigener Eintrag oben.
 - **Stellungnahme-Filter:** `hole_faellige_wiedervorlagen(nur_stellungnahme=True)` filtert
   jetzt auf 11/16/99 statt 5/6/11/16. Prüfen, ob die Liste vollständig wirkt.
 

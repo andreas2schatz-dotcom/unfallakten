@@ -10,6 +10,7 @@ import EreignislistePanel from "../components/EreignislistePanel.jsx";
 import {
   akten as apiAkten,
   ramicroAkte as apiRaMicroAkte,
+  apiAkteFristen,
   apiTodos,
   request,
 } from "../api.js";
@@ -745,6 +746,23 @@ function TodoSection({ az, onTodoChange }) {
   const [neueFristTyp, setNeueFristTyp] = useState("");
   const [formOffen, setFormOffen] = useState(false);
   const [speichert, setSpeichert] = useState(false);
+  const [fristen, setFristen] = useState([]);
+  const [fristenFehler, setFristenFehler] = useState("");
+
+  // Fristen kommen aus dem RA-MICRO-Kalenderbaum, nicht aus der eigenen
+  // Datenbank. Faellt der E-Akte-Mount weg, antwortet der Endpunkt mit 503 --
+  // das muss sichtbar bleiben und darf nicht wie "keine Fristen" aussehen.
+  const ladeFristen = React.useCallback(() => {
+    setFristenFehler("");
+    apiAkteFristen.liste(az)
+      .then(r => setFristen(r?.fristen || []))
+      .catch(() => {
+        setFristen([]);
+        setFristenFehler("Fristenkalender nicht erreichbar (E-Akte-Mount)");
+      });
+  }, [az]);
+
+  useEffect(() => { ladeFristen(); }, [ladeFristen]);
 
   const ladeTodos = React.useCallback(() => {
     setLoading(true);
@@ -809,6 +827,94 @@ function TodoSection({ az, onTodoChange }) {
 
   const offen  = todos.filter(t => !t.erledigt);
   const erledigt = todos.filter(t => t.erledigt);
+
+  const fristFarbe = (frist) => {
+    if (frist.ist_vorfrist) return FARBEN.grau;
+    if (frist.tage_bis < 0) return FARBEN.rot;
+    if (frist.tage_bis < 3) return FARBEN.rot;
+    return frist.tage_bis < 7 ? FARBEN.orange : FARBEN.gelb;
+  };
+
+  const fristBadge = (frist) => {
+    if (frist.ist_vorfrist) return "Vorfrist";
+    if (frist.tage_bis < 0) return `${-frist.tage_bis} Tage überfällig`;
+    if (frist.tage_bis === 0) return "heute fällig";
+    return `in ${frist.tage_bis} Tagen`;
+  };
+
+  const renderFrist = (frist, i) => {
+    const f = fristFarbe(frist);
+    return (
+      <div key={`${frist.frist_datum}|${frist.frist_art}|${i}`} style={{
+        display:"flex", alignItems:"flex-start", gap:10,
+        padding:"10px 14px", background:f.bg,
+        border:`1px solid ${f.border}`, borderLeft:`4px solid ${f.dot}`,
+        borderRadius:8, marginBottom:6,
+      }}>
+        <span style={{ flexShrink:0, color:f.dot, marginTop:2 }}>{Ic.scale}</span>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontFamily:T.fontBody, fontSize:"0.925rem", fontWeight:600,
+            color:T.text, lineHeight:1.4 }}>
+            {frist.frist_art}
+          </div>
+          <div style={{ display:"flex", gap:8, marginTop:4, flexWrap:"wrap", alignItems:"center" }}>
+            <span style={{ fontSize:"0.72rem", background:"transparent", color:f.dot,
+              border:`1px solid ${f.border}`, borderRadius:4, padding:"1px 6px", fontWeight:700 }}>
+              {fristBadge(frist)}
+            </span>
+            <span style={{ fontSize:"0.72rem", color:T.textMuted, fontFamily:"ui-monospace,monospace" }}>
+              Frist: {(() => { try { const [y,m,d] = frist.frist_datum.split("-"); return `${d}.${m}.${y}`; } catch { return frist.frist_datum; } })()}
+            </span>
+            {frist.sb && <span style={{ fontSize:"0.72rem", color:T.textFaint }}>{frist.sb}</span>}
+            {frist.gerichts_az && (
+              <span style={{ fontSize:"0.72rem", color:T.textFaint }}>{frist.gerichts_az}</span>
+            )}
+          </div>
+          {frist.bemerkung && (
+            <div style={{ fontSize:"0.8rem", color:T.textMuted, marginTop:3 }}>{frist.bemerkung}</div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const fristenBlock = (fristen.length > 0 || fristenFehler) && (
+    <Card>
+      <div style={{ padding:"1rem 1.4rem" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline",
+          gap:12, marginBottom:10 }}>
+          <div style={{ fontFamily:T.fontDisplay, fontSize:"1.05rem", fontWeight:700,
+            color:T.navy }}>
+            Fristen
+            {fristen.length > 0 && (
+              <span style={{ marginLeft:8, fontSize:"0.825rem", background:T.redBg,
+                color:T.red, borderRadius:12, padding:"2px 8px", fontFamily:T.fontBody,
+                fontWeight:600, verticalAlign:"middle" }}>
+                {fristen.length}
+              </span>
+            )}
+          </div>
+          <div style={{ fontFamily:T.fontBody, fontSize:"0.78rem", color:T.textFaint }}>
+            aus RA-MICRO · wird dort abgehakt
+          </div>
+        </div>
+        {fristenFehler ? (
+          <div role="alert" style={{ background:T.redBg, border:`1px solid ${T.redLight}`,
+            borderRadius:7, padding:"10px 12px" }}>
+            <div style={{ fontSize:"0.875rem", fontWeight:600, color:T.redText || T.red }}>
+              {fristenFehler}
+            </div>
+            <button type="button" onClick={ladeFristen}
+              style={{ marginTop:8, fontSize:"0.72rem", fontWeight:600, color:T.redText || T.red,
+                border:`1px solid ${T.redLight}`, background:T.cardBg || "#fff",
+                borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>
+              Erneut laden
+            </button>
+          </div>
+        ) : fristen.map(renderFrist)}
+      </div>
+    </Card>
+  );
 
   const renderTodo = (todo) => {
     const d = todoDringlichkeit(todo);
@@ -983,6 +1089,8 @@ function TodoSection({ az, onTodoChange }) {
             </div>
           )}
         </Card>
+
+        {fristenBlock}
 
         {/* To-Do-Liste */}
         {loading ? (

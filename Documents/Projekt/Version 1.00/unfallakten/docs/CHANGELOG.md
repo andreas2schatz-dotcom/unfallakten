@@ -7,6 +7,48 @@
 
 ---
 
+## 2026-09-07 — Fristen auch in der Akten-Übersicht, bei den To-Dos
+
+Branch `fragebogen-favoritenliste`. Auftrag RA Schatz: *„außerdem sollte die frist in der
+übersichtsseite der akte auftauchen … bei den To Do und auffällig markiert."*
+
+**Ein Fehler im Fristen-Leser kam dabei ans Licht.** Für die Akte braucht es alle
+unerledigten Fristen, also einen Zeitraum über mehrere Jahre — und da lieferte
+`lade_fristen()` **42.042 statt 1.274** Treffer, 462 für eine einzige Akte. Ursache: die
+Schleife lief über die Datumswerte und öffnete dieselbe Tagesdatei einmal pro Jahrgang
+(17.09.2003, 17.09.2004 …), weil der Ordnername kein Jahr kennt. Im Dashboard-Fenster von
+18 Tagen fiel das nicht auf, weil dort jedes (Monat, Tag)-Paar nur einmal vorkommt.
+`_tagesdateien()` liefert die Paare jetzt eindeutig; zwei Tests halten es fest.
+
+**Umgesetzt:**
+
+- `alle_offenen_fristen()` im Leser: liest den ganzen Baum (366 Dateien, 0,9 s kalt,
+  40 ms warm) und teilt sich die Satzverarbeitung mit `lade_fristen()`.
+- Neuer Router `backend/routers/fristen_routes.py` mit `GET /akten/<az>/fristen`. Bewusst
+  getrennt von `todos_routes.py`: To-Dos liegen in SQLite und sind schreibbar, Fristen
+  kommen aus einem read-only-Dateibaum. Das Sachbearbeiterkürzel im Aktenzeichen stört
+  nicht — der Kalendersatz führt nur die nackte Nummer.
+- **Alle unerledigten Fristen**, auch jahrealte (Entscheidung RA Schatz). In der Akte
+  zählt Vollständigkeit mehr als Ruhe: eine seit Jahren offene Frist ist entweder längst
+  erledigt und nur nie abgehakt worden — dann soll man das sehen — oder sie ist echt.
+  Betroffen sind 51 der Unfallakten mit 154 Fristen, bis zu 14 je Akte.
+- **Reihenfolge:** erst was noch läuft (nächste zuerst), dann das Abgelaufene mit dem
+  Jüngsten oben. Rein nach Datum sortiert stand bei Akte 70/24 eine Frist von vor 572
+  Tagen ganz oben und die kommende Berufungsfrist ganz unten.
+- In `UebersichtSection` erscheint über den To-Dos ein eigener Block „Fristen" mit
+  Waage-Icon, kräftigem linken Farbbalken und den Ampelfarben der To-Dos. Ohne
+  Erledigt-Haken und ohne Löschen, dafür mit dem Hinweis „aus RA-MICRO · wird dort
+  abgehakt". Vorfristen bleiben neutral. Hat die Akte keine Fristen, entfällt der Block.
+- Fehlt der E-Akte-Mount, antwortet der Endpunkt auch hier mit **503** und der Block zeigt
+  „Fristenkalender nicht erreichbar (E-Akte-Mount)" mit „Erneut laden" — statt
+  stillschweigend nichts.
+
+**Tests:** `test_akte_fristen.py` (11), `test_fristen_gt.py` (30, davon 2 neu zum
+Mehrjahresfenster), `UebersichtSection.fristen.test.jsx` (7). Backend 2272 grün (71
+übersprungen), Frontend 646 grün.
+
+---
+
 ## 2026-09-07 — Fristen-Kachel zeigt echte Fristen aus dem RA-MICRO-Kalenderbaum
 
 Branch `fragebogen-favoritenliste`. Direkt im Anschluss an den Registry-Umbau (Eintrag
