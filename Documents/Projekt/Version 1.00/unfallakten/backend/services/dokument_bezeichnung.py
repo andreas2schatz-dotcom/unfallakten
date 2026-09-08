@@ -87,3 +87,34 @@ def baue_bezeichnung(klasse: Optional[str], felder: Optional[Dict[str, Any]],
     datum = _fmt_datum(felder.get(rollen["datum"])) if rollen.get("datum") else None
     betrag = _fmt_betrag(felder.get(rollen["betrag"])) if rollen.get("betrag") else None
     return _zusammen(label, aussteller, datum, betrag)
+
+
+def dokument_datum_aus_feldern(klasse: Optional[str],
+                               felder: Optional[Dict[str, Any]],
+                               registry,
+                               *,
+                               eingangsdatum: Optional[str] = None
+                               ) -> Optional[str]:
+    """Datum des Schreibens als ISO-String, oder None.
+
+    Liest dieselbe ``bezeichnung_felder.datum``-Rolle wie baue_bezeichnung.
+    Fuer 'sonstiges' gilt derselbe Rueckfall auf das Eingangsdatum.
+    """
+    felder = felder or {}
+    spec: Dict[str, Any] = {}
+    if registry is not None and klasse:
+        spec = (registry.klassen.get(klasse) or {})
+    rollen = spec.get("bezeichnung_felder") or {}
+
+    datum_key = rollen.get("datum")
+    roh = felder.get(datum_key) if datum_key else None
+    d = None
+    if roh is not None:
+        s = str(roh).strip()
+        d = parse_datum(s[:10]) or parse_datum(s)
+
+    if d is None and klasse == "sonstiges" and eingangsdatum:
+        s = str(eingangsdatum).strip()
+        d = parse_datum(s[:10]) or parse_datum(s)
+
+    return d.isoformat() if d else None
