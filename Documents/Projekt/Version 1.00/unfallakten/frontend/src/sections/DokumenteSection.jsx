@@ -16,14 +16,6 @@ import {
   API_BASE,
 } from "../api.js";
 
-// Nehmbar ist eine Position, deren Betrag im Schaden noch fehlt -- ein
-// vorhandener Beleg sagt darueber nichts aus (die Freigabe legt ihn selbst an).
-function istNehmbar(feld, schaden, kandidatMap) {
-  return Number(schaden?.[feld.k] || 0) <= 0 &&
-    kandidatMap[feld.k]?.betrag_vorschlag != null &&
-    (kandidatMap[feld.k]?.konfidenz || 0) >= 0.80;
-}
-
 function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten = [], schaden = {}, vorsteuer = false, onOpenReview }) {
   const istVerkehrsunfall = akte?.referat == null || akte?.referat === 4;
   const [dragging, setDrag]   = useState(false);
@@ -116,15 +108,12 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
     (belegeKandidaten || []).forEach(k => {
       if (!k.dok_id || !k.position_key) return;
       const pk = DISP[k.position_key] || k.position_key;
-      // Massgeblich ist, ob der Betrag im Schaden schon steht -- nicht, ob es
-      // einen Beleg gibt: seit der Freigabe selbst Belege schreibt, wuerde der
-      // Vorschlag sonst genau dann verschwinden, wenn der Beleg entsteht.
-      if (Number(schaden?.[pk] || 0) > 0) return;
+      if (belegMap[pk]) return;
       if (!map[k.dok_id]) map[k.dok_id] = [];
       map[k.dok_id].push({ ...k, position_key: pk });
     });
     return map;
-  }, [belegeKandidaten, schaden]);
+  }, [belegeKandidaten, belegMap]);
 
   // Inline-Beträge für Kandidaten ohne betrag_vorschlag
   const [uebernehmenLaden, setUebernehmenLaden] = useState(null); // posKey | "__alle__" | null
@@ -144,8 +133,12 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
 
   // Anzahl sofort nehmbarer Kandidaten (mit Betrag, Konfidenz >= 0.80, noch nicht belegt)
   const alleNehmbareAnzahl = useMemo(() =>
-    SCHADEN_F.filter(f => istNehmbar(f, schaden, kandidatMap)).length,
-    [schaden, kandidatMap]
+    SCHADEN_F.filter(f =>
+      !belegMap[f.k] &&
+      kandidatMap[f.k]?.betrag_vorschlag != null &&
+      (kandidatMap[f.k]?.konfidenz || 0) >= 0.80
+    ).length,
+    [belegMap, kandidatMap]
   );
 
   useEffect(() => {
@@ -536,7 +529,11 @@ function DokumenteSection({ dokumente, dispatch, akteId, akte, belegeKandidaten 
 
   // Alle nehmbaren Kandidaten auf einmal übernehmen
   const handleAlleAnnehmen = async () => {
-    const treffer = SCHADEN_F.filter(f => istNehmbar(f, schaden, kandidatMap));
+    const treffer = SCHADEN_F.filter(f =>
+      !belegMap[f.k] &&
+      kandidatMap[f.k]?.betrag_vorschlag != null &&
+      (kandidatMap[f.k]?.konfidenz || 0) >= 0.80
+    );
     if (!treffer.length) return;
     setUebernehmenLaden("__alle__");
     try {
