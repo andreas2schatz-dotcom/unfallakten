@@ -300,6 +300,7 @@ def hole_detail(intake_id: int):
         "bezeichnung": dok.get("bezeichnung"),
         "bezeichnung_vorschlag": _bezeichnung_vorschlag(dok),
         "default_ereignistyp": _default_ereignistyp(dok.get("klasse")),
+        "dokument_datum_vorschlag": _datum_vorschlag_sicher(dok),
         "klasse_quelle": dok.get("klasse_quelle"),
         "konfidenz": dok.get("konfidenz"),
         "queue_status": dok.get("queue_status"),
@@ -867,10 +868,17 @@ def post_freigabe(intake_id: int):
     text_pfad = _sichere_text_arbeitskopie(dok)
     if text_pfad:
         dok = {**dok, "arbeitskopie_pfad": text_pfad}
+
+    try:
+        dokument_datum = _dokument_datum(dok, payload)
+    except ValueError as exc:
+        return _err(str(exc), 422)
+
     try:
         dokument_id = schreibe_dokument(dok, akte_az,
                                          freigegeben_von=benutzer_id,
-                                         bezeichnung=_bezeichnung_effektiv(dok))
+                                         bezeichnung=_bezeichnung_effektiv(dok),
+                                         dokument_datum=dokument_datum)
     except FileNotFoundError as exc:
         return _err(f"Arbeitskopie fehlt: {exc}", 500)
     except Exception as exc:
@@ -1035,6 +1043,42 @@ def _bezeichnung_vorschlag(dok: Dict[str, Any]) -> str:
 def _bezeichnung_effektiv(dok: Dict[str, Any]) -> str:
     gespeichert = (dok.get("bezeichnung") or "").strip()
     return gespeichert or _bezeichnung_vorschlag(dok)
+
+
+def _dokument_datum(dok: Dict[str, Any],
+                    payload: Dict[str, Any]) -> Optional[str]:
+    """Datum des Schreibens als ISO-String. Handeingabe schlaegt Ableitung."""
+    from ..utils.datum import parse_datum
+
+    manuell = str((payload or {}).get("dokument_datum") or "").strip()
+    if manuell:
+        d = parse_datum(manuell)
+        if d is None:
+            raise ValueError(
+                f"Dokumentdatum {manuell!r} ist kein gueltiges Datum "
+                f"(erwartet TT.MM.JJJJ)."
+            )
+        return d.isoformat()
+
+    from ..intake.registry_loader import lade_registry, standard_pfad
+    from ..services.dokument_bezeichnung import dokument_datum_aus_feldern
+
+    felder = _parse(dok.get("parse_json")).get("felder") or {}
+    try:
+        reg = lade_registry(standard_pfad())
+    except Exception:  # pragma: no cover -- Best-Effort
+        reg = None
+    eingang = _eingangsdatum(dok["id"]) if dok.get("id") else None
+    return dokument_datum_aus_feldern(
+        dok.get("klasse"), felder, reg, eingangsdatum=eingang,
+    )
+
+
+def _datum_vorschlag_sicher(dok: Dict[str, Any]) -> Optional[str]:
+    try:
+        return _dokument_datum(dok, {})
+    except Exception:  # pragma: no cover -- Best-Effort
+        return None
 
 
 def _anker_dokument_id(intake_id: Optional[int], dokument_id: int,
