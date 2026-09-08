@@ -1,13 +1,39 @@
 # Projektstatus – Momentaufnahme
 
-**Generiert:** 2026-05-02 · **Zuletzt aktualisiert:** 2026-09-04  
-**Schema-Version:** 74 (Migrationen laufend, siehe Deploy-Warnungen)
+**Generiert:** 2026-05-02 · **Zuletzt aktualisiert:** 2026-09-08  
+**Schema-Version:** 74 (Dev) · **75** mit Branch `belegkette-fundament` (siehe Deploy-Warnungen)
 
 > ⚠️ **Abschnitte 1–3 unten sind Stand 2026-06-12 (Schema 42) und veraltet** — nur als grobe Modul-Übersicht lesen. Aktuelle Arbeit: `docs/TODO.md` · Umsetzungs-Historie: `docs/CHANGELOG.md` · Entscheidungen: `docs/DECISIONS.md`.
 
 ---
 
-## 0. Betrieb & Deploy-Warnungen (aktuell, 2026-09-04)
+## 0. Betrieb & Deploy-Warnungen (aktuell, 2026-09-08)
+
+### ⚠️ Migration 75 (`dokumente.dokument_datum`) — auf Branch `belegkette-fundament`, noch nicht gemergt
+Die Spalte trägt das **Datum des Schreibens**, nicht den Scan-Tag. Sie ist **nullable** —
+Dokumente ohne erkennbares Datum bleiben freigebbar. Die Migration ist wiederholbar
+(PRAGMA-Guard, `CREATE INDEX IF NOT EXISTS`, `INSERT OR IGNORE`) und **nicht destruktiv**;
+trotzdem gilt wie immer „Migration vor App-Code" (Gunicorn: einmal vorab, sonst
+Worker-Race).
+
+**Bestandsdaten:** `tools/dokument_datum_nachziehen.py` füllt leere Felder aus
+`parse_json`. **Der Trockenlauf ist die Vorgabe** — ohne `--schreiben` wird nichts
+geschrieben. Vor dem ersten Schreiblauf gegen die Kanzlei-DB: erst den Trockenlauf
+ansehen, die Zahl notieren, dann entscheiden. Ein bereits gesetztes Datum (etwa eine
+Handkorrektur aus der Freigabe) wird nie überschrieben.
+
+**Verhaltensänderung im Betrieb:** Freigabe-Ereignisse tragen ab jetzt das Schreibdatum
+statt „heute", und die Review-Freigabe schreibt **selbst** Belegzeilen nach
+`schadenposition_belege`. Ein freigegebenes Dokument verschwindet dadurch aus der
+Dokumenten-Inbox (der Filter dort wertet einen vorhandenen Beleg als „erledigt") —
+Entscheidung dazu steht bei RA Schatz aus, siehe `docs/TODO.md`.
+
+**Testlage auf dem Branch:** Backend 2348 bestanden, **1 Fehlschlag**
+(`test_akte_fristen.py::TestFilterAufDieAkte::test_nur_die_fristen_dieser_akte`), Frontend
+659 bestanden. Der Fehlschlag gehört **nicht** zu diesem Branch: der Test verdrahtet das
+Datum `2026-09-07` fest und fällt seit dem Tageswechsel, weil die Frist dadurch als
+überfällig einsortiert wird. Er fällt auch isoliert. Fix wäre ein relatives Fixtur-Datum
+— eigene kleine Änderung, siehe `docs/TODO.md`.
 
 ### ✅ Migration 73 + 74 gelaufen (2026-09-04): `dokumente.typ` ist weg
 Dev-DB steht auf **Schema 74**. Migration 73 füllte `dokumentenklasse` nach (795 Zeilen,

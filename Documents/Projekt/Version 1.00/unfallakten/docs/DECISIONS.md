@@ -5,6 +5,111 @@ Format: Entscheidung → Grund → Alternative → Konsequenz.
 
 ---
 
+## Das Dokumentdatum gehoert an das Dokument, nicht ins Ereignis (2026-09-08)
+
+### Eine Angabe, die laengst ermittelt wurde, bekommt endlich eine Spalte
+
+**Entscheidung:** `dokumente` bekommt die Spalte `dokument_datum` (Migration 75, TEXT,
+ISO, **nullable**) — das Datum, das auf dem Schreiben steht, nicht `hochgeladen_am`.
+Gefuellt wird sie aus der `bezeichnung_felder.datum`-Rolle der Klassen-Registry, im
+Freigabe-Dialog ist sie korrigierbar. Von dort speist sie die Dokumentzeile, das
+Freigabe-Ereignis und die Verzugsliste des Klage-Wizards.
+
+**Grund:** Das System ermittelte dieses Datum bereits klassenweise — 22 der 23
+Klassen-Registries deklarieren die Rolle — und goss es in einen Anzeigetext
+(„Gutachten Mueller & Partner vom 14.03.2024"), der als Prosa in `dokumente.bezeichnung`
+landete. Als Datum war es nirgends abfragbar. Deshalb musste der Klage-Wizard nach dem
+Verzugsdatum fragen, sortierte die Verzugsliste nach dem Scan-Tag, und jedes
+Freigabe-Ereignis trug „heute" statt des Schreibdatums.
+
+**Alternative:** Das Datum im Ereignismodell fuehren — verworfen. Ereignisse tragen
+Wirkung, Positionen und Versionierung; fuer „Gutachten vom 14.03.2024" ist das die
+schwerere Ebene, und sie trug bis dahin das falsche Datum. Das Datum ist eine
+unveraenderliche Eigenschaft des Dokuments und gehoert dorthin.
+
+**Konsequenz — die Etikett-Rolle ist nicht ueberall das Dokumentdatum.** Die Rolle war
+fuer die Anzeigebezeichnung gedacht. Bei `fragebogen` zeigt sie auf `unfalltag`; ein
+heute freigegebener Bogen zu einem Unfall von 2022 haette `dokument_datum='2022-04-27'`
+bekommen und das Ereignis um Jahre zurueckdatiert. Die Klasse ist deshalb in
+`dokument_datum_aus_feldern` ausgenommen. Aus demselben Grund entfaellt fuer `sonstiges`
+der Rueckfall auf das Eingangsdatum — er bleibt in `baue_bezeichnung`, wo er hingehoert.
+
+**Konsequenz — das Datum ist optional.** Ein Dokument ohne erkennbares Datum bleibt
+freigebbar, die Spalte bleibt NULL; ein Pflichtfeld haette das Einlesen von Altpapier
+blockiert. Nur eine *unlesbare* Handeingabe ist ein Fehler (422). Ein leeres Feld ist die
+bewusste Angabe „kein Datum" — geprueft wird auf Anwesenheit des Schluessels, nicht auf
+seinen Inhalt, sonst liesse sich ein falsch erkanntes Datum korrigieren, aber nie
+entfernen.
+
+**Konsequenz — der Bestand wird nachgezogen, nicht migriert.** Eine Migration darf die
+Registry nicht importieren; `tools/dokument_datum_nachziehen.py` fuellt leere Felder aus
+`parse_json`, mit dem Trockenlauf als Vorgabe und ohne je ein gesetztes Datum zu
+ueberschreiben.
+
+**Offen:** `pruefbericht` ist als einzige Klasse ohne `datum`-Rolle geblieben — ihr Schema
+kennt gar kein Datumsfeld.
+
+---
+
+## Beleg und Vorgang sind zwei Wahrheiten (2026-09-08)
+
+### Was eine Position beweist, und wann etwas hereinkam, sind verschiedene Fragen
+
+**Entscheidung:** `schadenposition_belege` beantwortet, **womit** eine Schadenposition
+bewiesen wird — ein Zustand. Das Ereignismodell beantwortet, **wann** etwas hereinkam —
+ein Vorgang. `backend/services/beleg_zuordnung.py` ist der einzige Schreibweg in die
+Beleg-Tabelle; Review-Freigabe und manuelle Zuordnung nutzen ihn beide. Die Klage zieht
+ihre Beweisangebote aus der Beleg-Tabelle, Chronik und Checkliste aus den Ereignissen.
+
+**Entscheidung (RA Schatz, 2026-09-08) — was ein Gutachten belegt:** Wertminderung,
+Restwert, die fiktiven Reparaturkosten (`rep_gutachten_netto`) und den
+Wiederbeschaffungswert (`wiederbeschaffung`), jeweils mit dem Betrag, der **woertlich im
+Gutachten steht**. Wertminderung und Restwert duerfen 0,00 sein — das ist eine gueltige
+Aussage des Gutachtens und erzeugt eine Belegzeile, keine Leerstelle. Gutachterkosten
+belegt **nicht** das Gutachten, sondern die SV-Rechnung.
+
+**Grund:** Die Freigabe schrieb bisher nur ein Ereignis; die Belegliste blieb leer. Der
+umgekehrte Weg — die Handzuordnung — schrieb in beide Toepfe. Die Automatik war damit
+schlechter verdrahtet als die Handarbeit, und dieselbe Arbeit fiel zweimal an. Die
+Beschraenkung auf woertliche Betraege hat einen konkreten Anlass: der erste Entwurf
+uebernahm die *buchungsabhaengige* Auswahl aus `waehle_fahrzeugschaden` und schrieb bei
+WBW 12.000 und Restwert 3.000 einen Beleg ueber 9.000 auf `wiederbeschaffung`. Die
+Beleganzeige im Schaden-Tab bietet den Belegbetrag per Knopf zur direkten Uebernahme an —
+ein Klick haette den Wiederbeschaffungswert auf 9.000 gesetzt, waehrend der Restwert
+stehen blieb, und damit den Geld-SSOT um genau diesen Betrag verfaelscht.
+
+**Alternative 1:** Die beiden Tabellen zusammenlegen — verworfen. Sie beantworten
+verschiedene Fragen; eine gemeinsame Tabelle haette die Frage nur verschoben.
+
+**Alternative 2:** Den Belegbetrag aus der Buchungsauswahl ableiten — verworfen, siehe
+oben. Lieber gar keine Belegzeile als eine mit einem Betrag, der so nicht im Dokument
+steht.
+
+**Konsequenz — Beleg und Ereignis gehen fuer Gutachten bewusst auseinander.** Der
+Ereignispfad (`_gutachten_positionen`) bleibt unveraendert und waehlt weiter die zur
+Abrechnungsart passende Fahrzeugschadenposition; der Belegpfad
+(`_gutachten_belegpositionen`) traegt die Gutachtenwerte. Eine gemeinsame Ableitung waere
+falsch, weil die beiden verschiedene Fragen beantworten.
+
+**Konsequenz — die Doppelbedeutung von `wiederbeschaffung` bleibt bestehen.** Im
+Buchungsmodell steht der Schluessel fuer den Wiederbeschaffungs*aufwand* (Wert abzueglich
+Restwert), im Schadenformular fuer den vollen Wiederbeschaffungswert mit dem Restwert als
+eigener Abzugszeile. Der Beleg folgt der Formular-Bedeutung, weil dort die Beleganzeige
+nachschlaegt — sonst waere er geschrieben, aber unsichtbar. Die Doppelbedeutung selbst ist
+damit nicht aufgeloest, nur bewusst in Kauf genommen.
+
+**Konsequenz — 0,00 ist ein Wert, keine Leerstelle.** Der bisherige Code pruefte mit
+Wahrheitswerten; `0.0` verschwand dabei. Das galt auch fuer Rechnungen, wo ein
+Bruttobetrag von 0,00 stillschweigend auf den Nettobetrag zurueckfiel. Beide Stellen
+pruefen jetzt auf Vorhandensein.
+
+**Offen:** Die fiktive Mehrwertsteuer, die RA Schatz ebenfalls als vom Gutachten belegt
+benennt, fehlt noch — der Parser extrahiert keinen ausgewiesenen Steuerbetrag, und
+`mwst_abzug` ist ein Abzugsposten, kein ausgewiesener Betrag. Nicht aus brutto minus netto
+ableiten.
+
+---
+
 ## Die Fristen-Kachel liest den Kalenderbaum, nicht die Datenbank (2026-09-07)
 
 ### Eine Dateiquelle wird zur Produktivquelle einer Dashboard-Kachel

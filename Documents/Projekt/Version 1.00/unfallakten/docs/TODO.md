@@ -43,6 +43,20 @@ CHANGELOG. **Offen:**
   Parserfeld.
 - **Toter Zweig `klage_routes.py`:** fragt nach der Klasse `verzugsschreiben`, die es in der
   Registry nicht gibt.
+- **Entscheidung RA Schatz offen — Beleg und Dokumenten-Inbox:** Weil die Freigabe jetzt
+  selbst Belege schreibt, verschwindet ein freigegebenes Dokument sofort aus der
+  Dokumenten-Inbox (`sichtbareDokumente` in `DokumenteSection.jsx` wertet einen vorhandenen
+  Beleg als „erledigt"), und sein Betrag wird nicht mehr zur Übernahme in den Schaden
+  angeboten. Soll ein Beleg aus der Freigabe das auslösen, oder soll dafür weiterhin
+  zählen, ob der Betrag im Schaden gesetzt ist? Ein Teilfix wurde bewusst zurückgenommen
+  (`d6e518e0`), weil er die Frage nur halb beantwortet hätte.
+- **Entscheidung RA Schatz offen — Beleg an die Ereignisbestätigung koppeln?** Wer im
+  Freigabe-Dialog den vorgeschlagenen Ereignistyp bewusst entfernt (Dublette, falsche
+  Klasse), bekommt den Beleg derzeit trotzdem. Es gibt keinen Weg, ihn bei der Freigabe zu
+  verhindern.
+- **Datumsabhängiger Alttest:** `test_akte_fristen.py::TestFilterAufDieAkte::test_nur_die_fristen_dieser_akte`
+  verdrahtet `2026-09-07` fest und fällt seit dem Tageswechsel (auch isoliert). Gehört
+  nicht zu dieser Arbeit; Fix ist ein relatives Fixtur-Datum.
 
 ### Termine der Akte bei den To-Dos — ✅ umgesetzt (2026-09-07, Branch `fragebogen-favoritenliste`), Abnahme offen
 Block „Termine" in der Akten-Übersicht, über den Fristen. Zeile aufklappbar (Ort, SB,
@@ -185,7 +199,7 @@ Feature live abgenommen: Prefill Mandant, OMA-XML **strukturgleich** zum echten 
 **Offen (opportunistisch, kein Blocker):**
 - Echter End-to-End-Create-Test beim **nächsten echten Neu-Mandanten**: Adress-Dublette Mandant (Punkt 4), Geschwister-Szenario (Punkt 5), `dtAnlage`-Prüfung. Mit Bestands-/Altakten nicht testbar (RA-MICRO-Test-Akten nicht löschbar).
 - Beteiligten-Dublettencheck (DEKRA/Versicherung) — erst am echten Import verifizieren, ob RA-MICROs eigene OMA-Dublettenprüfung reicht.
-- `beispieloma.xml` als **bereinigte** Test-Fixture committen (sonst skippt der Struktur-Guard-Test in CI); NICHT die echte Kundendatei (PII).
+- ~~`beispieloma.xml` als bereinigte Test-Fixture committen~~ ✅ erledigt 2026-09-08: anonymisiert aufgenommen (Name, Anschrift und Telefon der gegnerischen Person durch Platzhalter ersetzt, Firmenanschriften belassen).
 - Prod-Rollout: `oma-share`-Volume steht in `docker-compose.prod.yml`; bei non-root Gunicorn ggf. `uid`/`gid` anpassen.
 
 ### Dashboard-Hell — ✅ gemergt (2026-08-03), Feinschliff ✅ (2026-08-12)
