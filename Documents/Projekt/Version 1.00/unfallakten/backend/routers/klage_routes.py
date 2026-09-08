@@ -21,6 +21,7 @@ import re
 import sqlite3
 import uuid
 from pathlib import Path
+from typing import Optional
 from flask import Blueprint, request, jsonify, g, send_file
 from ..auth.middleware import login_erforderlich
 from ..models.akte import hole_akte_by_id
@@ -628,6 +629,17 @@ def _verzug_dokumente(az: str) -> list:
     return [dict(r) for r in rows]
 
 
+def _juengstes_verzugsdatum(verzug_dokumente) -> Optional[str]:
+    """Juengstes Datum aus den Verzugsdokumenten.
+
+    Die Reihenfolge in ``_verzug_dokumente`` sortiert primaer nach Klasse --
+    fuer die Auswahlliste richtig, fuer den Verzugsbeginn falsch: ein altes
+    Mahnschreiben duerfte sonst ein neueres Forderungsschreiben schlagen.
+    """
+    daten = [str(d["datum"]) for d in (verzug_dokumente or []) if d.get("datum")]
+    return max(daten) if daten else None
+
+
 @klage_bp.route("/daten", methods=["GET"])
 @login_erforderlich
 def hole_klage_daten(akte_id: str):
@@ -1059,11 +1071,7 @@ def hole_klage_daten(akte_id: str):
         _wende_globalen_vertreter_an(conn, alle_bet)
 
     # ── Verzugsdatum bestimmen ────────────────────────────────────────────────
-    verzug_datum = None
-    for _vd in (verzug_dokumente or []):
-        if _vd.get("datum"):
-            verzug_datum = _vd["datum"]
-            break
+    verzug_datum = _juengstes_verzugsdatum(verzug_dokumente)
     if not verzug_datum and letztes_forderung and letztes_forderung["datum"]:
         verzug_datum = letztes_forderung["datum"]
     if not verzug_datum:

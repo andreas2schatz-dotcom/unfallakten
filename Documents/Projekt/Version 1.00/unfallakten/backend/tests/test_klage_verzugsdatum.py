@@ -81,5 +81,30 @@ class TestVerzugsdokumente(unittest.TestCase):
         self.assertEqual(dokumente[0]["dokumentenklasse"], "mahnschreiben")
 
 
+class TestJuengstesVerzugsdatum(unittest.TestCase):
+    def _fn(self):
+        from backend.routers.klage_routes import _juengstes_verzugsdatum
+        return _juengstes_verzugsdatum
+
+    def test_juengstes_datum_gewinnt_gegen_die_klassenreihenfolge(self):
+        # So sortiert _verzug_dokumente: Mahnschreiben zuerst, obwohl aelter.
+        dokumente = [
+            {"dokumentenklasse": "mahnschreiben", "datum": "2023-05-04"},
+            {"dokumentenklasse": "forderungsschreiben", "datum": "2025-01-20"},
+        ]
+        self.assertEqual(self._fn()(dokumente), "2025-01-20")
+
+    def test_dokumente_ohne_datum_werden_uebergangen(self):
+        dokumente = [
+            {"dokumentenklasse": "mahnschreiben", "datum": None},
+            {"dokumentenklasse": "forderungsschreiben", "datum": "2024-02-01"},
+        ]
+        self.assertEqual(self._fn()(dokumente), "2024-02-01")
+
+    def test_ohne_dokumente_none(self):
+        self.assertIsNone(self._fn()([]))
+        self.assertIsNone(self._fn()(None))
+
+
 if __name__ == "__main__":
     unittest.main()
