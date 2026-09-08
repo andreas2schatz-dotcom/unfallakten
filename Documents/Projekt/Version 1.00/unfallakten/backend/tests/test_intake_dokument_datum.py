@@ -34,10 +34,21 @@ class TestDokumentDatumHelper(unittest.TestCase):
         d = self._helper()(self._dok(), {"dokument_datum": "2024-05-02"})
         self.assertEqual(d, "2024-05-02")
 
-    def test_leere_handeingabe_faellt_auf_ableitung_zurueck(self):
+    def test_leeres_feld_loescht_das_datum(self):
+        d = self._helper()(
+            self._dok(felder={"besichtigungsdatum": "14.03.2024"}),
+            {"dokument_datum": ""})
+        self.assertIsNone(d)
+
+    def test_nur_leerzeichen_loescht_das_datum(self):
         d = self._helper()(
             self._dok(felder={"besichtigungsdatum": "14.03.2024"}),
             {"dokument_datum": "   "})
+        self.assertIsNone(d)
+
+    def test_fehlender_schluessel_leitet_ab(self):
+        d = self._helper()(
+            self._dok(felder={"besichtigungsdatum": "14.03.2024"}), {})
         self.assertEqual(d, "2024-03-14")
 
     def test_unlesbare_handeingabe_wirft(self):

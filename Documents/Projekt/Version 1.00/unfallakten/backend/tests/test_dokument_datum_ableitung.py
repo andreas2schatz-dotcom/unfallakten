@@ -50,18 +50,16 @@ class TestDokumentDatumAbleitung(unittest.TestCase):
     def test_pruefbericht_hat_keine_datumsrolle(self):
         self.assertIsNone(self._ab("pruefbericht", {"vorgangsnummer": "4711"}))
 
-    def test_sonstiges_faellt_auf_eingangsdatum_zurueck(self):
-        self.assertEqual(
-            self._ab("sonstiges", {}, eingangsdatum="2024-07-01 08:00:00"),
-            "2024-07-01",
-        )
+    def test_sonstiges_ohne_eigenes_feld_hat_kein_datum(self):
+        self.assertIsNone(self._ab("sonstiges", {}))
 
-    def test_sonstiges_bevorzugt_das_eigene_feld(self):
+    def test_sonstiges_nutzt_das_eigene_feld(self):
         self.assertEqual(
-            self._ab("sonstiges", {"datum": "03.02.2024"},
-                     eingangsdatum="2024-07-01"),
-            "2024-02-03",
-        )
+            self._ab("sonstiges", {"datum": "03.02.2024"}), "2024-02-03")
+
+    def test_fragebogen_uebernimmt_den_unfalltag_nicht(self):
+        self.assertIsNone(
+            self._ab("fragebogen", {"unfalltag": "27.04.2022"}))
 
     def test_unbekannte_klasse_ergibt_none(self):
         self.assertIsNone(self._ab("gibtsnicht", {"datum": "01.01.2024"}))

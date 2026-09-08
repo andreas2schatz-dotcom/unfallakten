@@ -1056,11 +1056,19 @@ def _bezeichnung_effektiv(dok: Dict[str, Any]) -> str:
 
 def _dokument_datum(dok: Dict[str, Any],
                     payload: Dict[str, Any]) -> Optional[str]:
-    """Datum des Schreibens als ISO-String. Handeingabe schlaegt Ableitung."""
+    """Datum des Schreibens als ISO-String. Handeingabe schlaegt Ableitung.
+
+    Ein im Payload enthaltenes, aber leeres Feld ist die bewusste Angabe
+    "kein Datum erkennbar" und ergibt None -- nur ein ganz fehlender
+    Schluessel loest die Ableitung aus.
+    """
     from ..utils.datum import parse_datum
 
-    manuell = str((payload or {}).get("dokument_datum") or "").strip()
-    if manuell:
+    payload = payload or {}
+    if "dokument_datum" in payload:
+        manuell = str(payload.get("dokument_datum") or "").strip()
+        if not manuell:
+            return None
         d = parse_datum(manuell)
         if d is None:
             raise ValueError(
@@ -1077,10 +1085,7 @@ def _dokument_datum(dok: Dict[str, Any],
         reg = lade_registry(standard_pfad())
     except Exception:  # pragma: no cover -- Best-Effort
         reg = None
-    eingang = _eingangsdatum(dok["id"]) if dok.get("id") else None
-    return dokument_datum_aus_feldern(
-        dok.get("klasse"), felder, reg, eingangsdatum=eingang,
-    )
+    return dokument_datum_aus_feldern(dok.get("klasse"), felder, reg)
 
 
 def _datum_vorschlag_sicher(dok: Dict[str, Any]) -> Optional[str]:

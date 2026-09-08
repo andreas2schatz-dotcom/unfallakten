@@ -27,7 +27,7 @@ def nachziehen(trockenlauf: bool = True) -> Dict[str, int]:
 
     with get_connection() as conn:
         zeilen = conn.execute(
-            "SELECT id, dokumentenklasse, parse_json, hochgeladen_am "
+            "SELECT id, dokumentenklasse, parse_json "
             "FROM dokumente WHERE dokument_datum IS NULL"
         ).fetchall()
 
@@ -41,7 +41,6 @@ def nachziehen(trockenlauf: bool = True) -> Dict[str, int]:
 
             datum = dokument_datum_aus_feldern(
                 zeile["dokumentenklasse"], felder, reg,
-                eingangsdatum=zeile["hochgeladen_am"],
             )
             if not datum:
                 bericht["ohne_datum"] += 1
@@ -67,6 +66,8 @@ if __name__ == "__main__":
     args = p.parse_args()
     ergebnis = nachziehen(trockenlauf=not args.schreiben)
     modus = "GESCHRIEBEN" if args.schreiben else "TROCKENLAUF"
+    wirkung = ("Datum wurde gesetzt" if args.schreiben
+               else "Datum koennte gesetzt werden (nichts geschrieben)")
     print(f"[{modus}] geprueft: {ergebnis['geprueft']}, "
-          f"Datum gesetzt: {ergebnis['gesetzt']}, "
+          f"{wirkung}: {ergebnis['gesetzt']}, "
           f"ohne Datum: {ergebnis['ohne_datum']}")

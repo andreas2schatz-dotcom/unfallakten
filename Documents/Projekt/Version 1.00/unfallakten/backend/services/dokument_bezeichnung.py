@@ -89,18 +89,26 @@ def baue_bezeichnung(klasse: Optional[str], felder: Optional[Dict[str, Any]],
     return _zusammen(label, aussteller, datum, betrag)
 
 
+# Klassen, deren 'datum'-Rolle nachweislich NICHT das Datum des Schreibens
+# traegt: beim Unfallfragebogen ist es der Unfalltag, der Jahre vor der
+# Aufnahme des Bogens liegen kann.
+KLASSEN_OHNE_DOKUMENTDATUM = ("fragebogen",)
+
+
 def dokument_datum_aus_feldern(klasse: Optional[str],
                                felder: Optional[Dict[str, Any]],
-                               registry,
-                               *,
-                               eingangsdatum: Optional[str] = None
-                               ) -> Optional[str]:
+                               registry) -> Optional[str]:
     """Datum des Schreibens als ISO-String, oder None.
 
-    Liest dieselbe ``bezeichnung_felder.datum``-Rolle wie baue_bezeichnung.
-    Fuer 'sonstiges' gilt derselbe Rueckfall auf das Eingangsdatum.
+    Liest dieselbe ``bezeichnung_felder.datum``-Rolle wie baue_bezeichnung --
+    aber ohne deren Rueckfall auf das Eingangsdatum: die Spalte
+    ``dokumente.dokument_datum`` traegt das Datum des Schreibens, nie das
+    Eingangs- oder Scandatum.
     """
     felder = felder or {}
+    if klasse in KLASSEN_OHNE_DOKUMENTDATUM:
+        return None
+
     spec: Dict[str, Any] = {}
     if registry is not None and klasse:
         spec = (registry.klassen.get(klasse) or {})
@@ -111,10 +119,6 @@ def dokument_datum_aus_feldern(klasse: Optional[str],
     d = None
     if roh is not None:
         s = str(roh).strip()
-        d = parse_datum(s[:10]) or parse_datum(s)
-
-    if d is None and klasse == "sonstiges" and eingangsdatum:
-        s = str(eingangsdatum).strip()
         d = parse_datum(s[:10]) or parse_datum(s)
 
     return d.isoformat() if d else None
