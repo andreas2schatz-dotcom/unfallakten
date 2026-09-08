@@ -413,15 +413,12 @@ def zuordnen(akte_id):
             if not dok:
                 return _err("Dokument %d nicht in Akte %s gefunden." % (dok_id, akte_id), 404)
 
-            # Upsert: bei Duplikat aktualisieren
-            conn.execute("""
-                INSERT INTO schadenposition_belege (akte_az, position_key, dokument_id, betrag_aus_beleg, notiz)
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(akte_az, position_key, dokument_id)
-                DO UPDATE SET betrag_aus_beleg = excluded.betrag_aus_beleg,
-                              notiz = excluded.notiz
-            """, (akte_id, pos_key, dok_id, betrag, notiz))
-            conn.commit()
+            from ..services.beleg_zuordnung import ordne_beleg_zu
+            ordne_beleg_zu(akte_az=akte_id, position_key=pos_key,
+                           dokument_id=int(dok_id),
+                           betrag=(float(betrag) if betrag is not None
+                                   else None),
+                           notiz=notiz)
 
         logger.info("Beleg zugeordnet: %s/%s → Dok %d", akte_id, pos_key, dok_id)
 
