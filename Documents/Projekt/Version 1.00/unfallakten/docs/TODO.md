@@ -7,6 +7,21 @@
 
 ## 🔄 In Arbeit
 
+### Termine der Akte bei den To-Dos — ✅ umgesetzt (2026-09-07, Branch `fragebogen-favoritenliste`), Abnahme offen
+Block „Termine" in der Akten-Übersicht, über den Fristen. Zeile aufklappbar (Ort, SB,
+Notiz) statt eigener Terminseite. Quelle `raKalender.dbo.Events` über den neuen Dienst
+`backend/services/termine_ramicro.py`, den sich Dashboard-Kachel und Akte teilen.
+Anders als im Dashboard: ohne Datumsfenster und ohne Kalenderfilter. Protokoll → CHANGELOG.
+**Offen:**
+- **Aktenblock ansehen:** Akte mit Gerichtstermin öffnen — stehen Art, Datum, Uhrzeit und
+  Gericht richtig da, und stimmt der Inhalt beim Aufklappen mit RA-MICRO überein?
+- **Dashboard-Weg prüfen:** In der Termine-Kachel auf einen Termin klicken — die Akte muss
+  aufgehen und den Termin oben im Block zeigen.
+- **Ausfall prüfen:** RA-MICRO-Dienst aus → der Block muss „RA-MICRO nicht erreichbar"
+  mit „Erneut laden" zeigen, nicht „keine Termine".
+- **Menge beobachten:** Alte Akten führen womöglich viele vergangene Termine. Falls der
+  Block zu lang wird, wären die vergangenen der nächste Aufklapper.
+
 ### Fristen aus dem RA-MICRO-Kalenderbaum — ✅ umgesetzt (2026-09-07, Branch `fragebogen-favoritenliste`), Abnahme offen
 Echte Fristen aus `Z:\RA\Kalender\GT`, Fenster 14 Tage zurück bis 3 Werktage voraus.
 Erledigte werden am Schlussfeld-Vermerk erkannt und ausgefiltert, Vorfristen gekennzeichnet.

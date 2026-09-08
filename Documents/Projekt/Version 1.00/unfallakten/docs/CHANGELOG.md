@@ -7,6 +7,51 @@
 
 ---
 
+## 2026-09-07 — Termine der Akte bei den To-Dos, zum Aufklappen
+
+Branch `fragebogen-favoritenliste`. Auftrag RA Schatz: *„ich möchte, dass die termine in
+der jeweiligen akte als to do angezeigt werden, so macht die übersichtsection sinn wenn
+ich auf die termine klicke. klicke ich dort auf den termin, dann soll sich der Termin mit
+details öffnen."*
+
+**Keine eigene Terminseite.** Ein Termin hat aus RA-MICRO sechs Angaben (Art, Datum,
+Uhrzeit, Ort, SB, Notiz), und weil RA-MICRO read-only ist, gibt es dort nichts zu tun
+außer Lesen. Eine zweite Ansicht hätte einen Klick hin und einen zurück gekostet und die
+Akte aus dem Blick genommen. Stattdessen klappt die Terminzeile in der Übersicht an Ort
+und Stelle auf. Am Dashboard ändert sich nichts: der Klick auf einen Termin führt weiter
+in die Akte — und findet dort jetzt den Termin vor.
+
+**Umgesetzt:**
+
+- Neuer Dienst `backend/services/termine_ramicro.py` — die eine Stelle, die
+  `raKalender.dbo.Events` kennt. Die Satzaufbereitung stand bis dahin allein in
+  `dashboard_routes._lade_termine_heute()`; eine zweite Kopie für die Akte hätte zwei
+  Termin-Wahrheiten ergeben. Das Dashboard nutzt jetzt denselben Dienst, nur mit anderem
+  Zuschnitt (heute + morgen).
+- Neuer Router `backend/routers/termine_routes.py` mit `GET /akten/<az>/termine`, aus
+  demselben Grund von `todos_routes.py` getrennt wie die Fristen: To-Dos liegen in SQLite
+  und sind schreibbar, Termine kommen read-only aus RA-MICRO.
+- **Zwei Regeln anders als im Dashboard.** Kein Datumsfenster — der vergangene
+  Gerichtstermin gehört zur Geschichte des Falls. Und **kein Kalenderfilter**: das
+  Dashboard zeigt nur die gepflegten Anwaltskalender, in der Akte würde dieselbe Regel
+  Termine verschlucken. Ohne zugeordneten Kalender bleibt das SB-Feld leer.
+- **Reihenfolge wie bei den Fristen:** erst was noch ansteht (der nächste oben), dann das
+  Gewesene mit dem jüngsten zuerst; bei gleichem Tag nach Uhrzeit.
+- Der Block „Termine" steht in `UebersichtSection` über den Fristen. Zugeklappt: Art,
+  Ampel-Badge („heute", „morgen", „in 25 Tagen", „vor 12 Tagen"), Datum mit Wochentag,
+  das Gericht (nur bis zum ersten Komma — die RA-MICRO-Anschrift ist lang) und rechts die
+  Uhrzeit. Ein Klick auf die Zeile (`aria-expanded`) zeigt vollständigen Ort, SB und
+  Notiz. Kein Erledigt-Haken, Hinweis „aus RA-MICRO · wird dort gepflegt". Ohne Termine
+  entfällt der Block.
+- Ist RA-MICRO nicht erreichbar, antwortet der Endpunkt mit **503** und der Block zeigt
+  „RA-MICRO nicht erreichbar" mit „Erneut laden" — dieselbe Regel wie beim fehlenden
+  E-Akte-Mount der Fristen. Der Vergleich auf die Aktennummer trimmt (`LTRIM(RTRIM(...))`),
+  sonst zeigt ein aufgefülltes RA-MICRO-Textfeld die Akte stillschweigend leer.
+
+**Tests:** `test_akte_termine.py` (19), `UebersichtSection.termine.test.jsx` (9).
+
+---
+
 ## 2026-09-07 — Fristen auch in der Akten-Übersicht, bei den To-Dos
 
 Branch `fragebogen-favoritenliste`. Auftrag RA Schatz: *„außerdem sollte die frist in der
