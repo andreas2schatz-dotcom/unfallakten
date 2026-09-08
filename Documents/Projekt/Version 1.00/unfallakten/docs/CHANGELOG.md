@@ -28,6 +28,15 @@ Regeln R1 und R2 aus
 `docs/superpowers/specs/2026-09-07-belegkette-beweisantritt-design.md`.
 R3–R5 (Anlagennummern, „b.b.", Beweismittel-Schritt) stehen aus.
 
+**Schlussreview-Fixes (gleicher Tag):** Ein Gutachten belegt nur noch Positionen mit
+wörtlichem Betrag — der Fahrzeugschaden bekommt keine Belegzeile mehr, weil sein Betrag
+von der Abrechnungsart abhängt (Geld-SSOT). Unfallfragebögen übernehmen den Unfalltag
+nicht mehr als Dokumentdatum, und `sonstiges` fällt nicht mehr aufs Eingangsdatum zurück
+(nur die Bezeichnung tut das weiter). Ein im Freigabe-Dialog geleertes Datumsfeld löscht
+das Datum jetzt wirklich. Das Verzugsdatum im Klage-Wizard ist wieder das jüngste Datum
+statt des ersten Eintrags der klassensortierten Liste. Der „Betrag übernehmen"-Weg im
+Dokumente-Tab richtet sich nach dem Schadenbetrag statt nach der Existenz eines Belegs.
+
 ---
 
 ## 2026-09-07 — Termine der Akte bei den To-Dos, zum Aufklappen
