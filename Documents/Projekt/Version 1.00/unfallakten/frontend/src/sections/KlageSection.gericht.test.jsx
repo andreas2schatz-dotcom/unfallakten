@@ -25,3 +25,33 @@ describe("gerichtSpeichernOderWarnen (KW-27 Nachtrag)", () => {
     expect(warnung).toBeNull();
   });
 });
+
+import { gerichtQuelleText } from "./KlageSection.jsx";
+
+describe("gerichtQuelleText – Herkunft des Gerichtsvorschlags", () => {
+  it("weist ein in der Akte gespeichertes Gericht aus", () => {
+    expect(gerichtQuelleText("akte", "Offenbach").text).toMatch(/in akte gespeichert/i);
+  });
+
+  it("nennt die gepflegte Ortsliste als sichere Quelle", () => {
+    const q = gerichtQuelleText("ortsliste", "Heusenstamm");
+    expect(q.text).toMatch(/ortsliste/i);
+    expect(q.text).toMatch(/Heusenstamm/);
+    expect(q.text).not.toMatch(/bitte prüfen/i);
+  });
+
+  it("kennzeichnet den Namensabgleich als pruefbeduerftig", () => {
+    const q = gerichtQuelleText("unfallort_match", "Offenbach");
+    expect(q.text).toMatch(/bitte prüfen/i);
+    expect(q.text).toMatch(/Offenbach/);
+  });
+
+  it("kommt ohne Unfallort aus", () => {
+    expect(gerichtQuelleText("unfallort_match", "").text).toMatch(/bitte prüfen/i);
+    expect(gerichtQuelleText("ortsliste", null).text).toMatch(/ortsliste/i);
+  });
+
+  it("faellt bei unbekannter Quelle auf die manuelle Wahl zurueck", () => {
+    expect(gerichtQuelleText("irgendwas", "").text).toMatch(/manuell/i);
+  });
+});

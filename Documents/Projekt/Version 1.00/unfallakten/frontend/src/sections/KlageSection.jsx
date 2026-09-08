@@ -66,6 +66,20 @@ export async function gerichtSpeichernOderWarnen(akteId, gericht) {
   }
 }
 
+// Woher der Gerichtsvorschlag stammt. "ortsliste" ist gepflegtes Wissen ueber
+// die Gerichtsbezirke (backend/registry/gerichtsorte.yaml) und braucht keinen
+// Pruefhinweis; "unfallort_match" ist nur ein Namensabgleich auf Freitext und
+// bleibt ausdruecklich pruefbeduerftig.
+export function gerichtQuelleText(quelle, unfallort) {
+  const ort = (unfallort || "").trim();
+  const klammer = ort ? ` (${ort})` : "";
+  if (quelle === "akte")      return { text: "✓ In Akte gespeichert",  ton: "gruen" };
+  if (quelle === "ortsliste") return { text: `✓ Nach Ortsliste${klammer}`, ton: "gruen" };
+  if (quelle === "unfallort_match")
+    return { text: `⚡ Vorschlag nach Unfallort${klammer} – bitte prüfen`, ton: "warn" };
+  return { text: "Manuell gewählt", ton: "still" };
+}
+
 // V11 Standardtexte-Nachzug: schliesst die Race, bei der der Wizard bereits offen
 // ist, bevor der Standardtexte-Fetch aufgeloest hat (Step 7/9 haben – anders als
 // Step 3/StepAktLeg – keinen eigenen Auto-Generierungs-Effekt und wurden beim
@@ -956,19 +970,17 @@ function KlageSection({ akteId, akte, st, dispatch }) {
                     color:T.textMuted }}>
                     {[gericht.strasse, gericht.plz, gericht.ort].filter(Boolean).join(", ")}
                   </div>
-                  {gericht.quelle && (
-                    <div style={{ fontFamily:T.fontBody, fontSize:"0.8rem",
-                      marginTop:3,
-                      color: gericht.quelle === "akte" ? T.green
-                           : gericht.quelle === "unfallort_match" ? T.amber
-                           : T.textFaint }}>
-                      {gericht.quelle === "akte"
-                        ? "✓ In Akte gespeichert"
-                        : gericht.quelle === "unfallort_match"
-                        ? `⚡ Vorschlag nach Unfallort${daten?.unfallort ? ` (${daten.unfallort})` : ""} – bitte prüfen`
-                        : "Manuell gewählt"}
-                    </div>
-                  )}
+                  {gericht.quelle && (() => {
+                    const q = gerichtQuelleText(gericht.quelle, daten?.unfallort);
+                    return (
+                      <div style={{ fontFamily:T.fontBody, fontSize:"0.8rem", marginTop:3,
+                        color: q.ton === "gruen" ? T.green
+                             : q.ton === "warn"  ? T.amber
+                             : T.textFaint }}>
+                        {q.text}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <button onClick={() => { setGericht(null); setGTreffer([]); setGSuche(""); }}
                   style={{ background:"none", border:`1px solid ${T.border}`, borderRadius:6,

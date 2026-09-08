@@ -31,6 +31,7 @@ from ..models.dokument import registriere_dokument
 from ..word.klage_service import berechne_rvg, generiere_klageschrift, berechne_fahrzeugschaden, baue_klage_vorschau
 from ..word.word_service import KANZLEI_INFO, _lade_beteiligte_aus_ramicro, name_aus_ramicro_adresse
 from ..services.beteiligten_kuerzel_registry import bestimme_beteiligten_rolle
+from ..services.gerichtsvorschlag import waehle_gericht
 from ..word.forderungsschreiben_wv import _grammatik_vars, _netto_oder_brutto
 from ..word.stellungnahme_service import ersetze_platzhalter
 from ..models.schaden import (
@@ -467,36 +468,27 @@ def speichere_unfalldetails(akte_id: str):
 
 def _suche_gericht_nach_ort(unfallort: str) -> list:
     """
-    Sucht das wahrscheinlichste Gericht für einen Unfallort.
+    Sucht das wahrscheinlichste Gericht fuer einen Unfallort.
 
-    Matching-Priorität:
-      1. Gerichtsort = Unfallort (exakt, case-insensitiv)
-      2. Gerichtsort ist Teilwort im Unfallort (z.B. "Frankfurt" in "Frankfurt am Main")
-      3. Gerichtsname enthält Unfallort-Hauptwort
-      4. Teilstring-Match als Fallback
+    Zwei Stufen (Details und Bewertung in services/gerichtsvorschlag.py):
+      1. Gepflegte Ortsliste backend/registry/gerichtsorte.yaml -- noetig,
+         weil sehr viele Unfallorte Staedte ohne eigenes Amtsgericht sind.
+      2. Wortgenauer Abgleich gegen die Gerichtsadressen aus RA-MICRO.
 
-    Vermeidet falsche Treffer wie "Frankfurt an der Oder" wenn Unfallort
-    "Frankfurt am Main" ist, indem der vollständige Gerichtsort verglichen wird.
+    Frueher wurde das erste Wort des Unfallorts als Teilstring gesucht.
+    varU-ORT ist Freitext, das erste Wort daher meist ein Strassen- oder
+    Fuellwort -- "Auf der Rosenhoehe 68, Offenbach" fuehrte ueber "auf"
+    zum Amtsgericht K-auf-beuren (Akte 612/26).
     """
     if not unfallort:
         return []
 
-    ort_norm = unfallort.strip().lower()
-    # Hauptwort: erstes Token (z.B. "Frankfurt" aus "Frankfurt am Main")
-    ort_haupt = ort_norm.split()[0] if ort_norm else ""
-
-    kandidaten = []
-
     try:
-        from ..ramicro.connector import (
-            get_ramicro_connection, RaMicroNichtAktiv, RaMicroVerbindungsFehler
-        )
+        from ..ramicro.connector import get_ramicro_connection
         with get_ramicro_connection() as conn:
             cur = conn.cursor()
-            # Alle Gerichte laden die das Hauptwort irgendwo enthalten
-            # (bewusst weit – Scoring danach verfeinert)
             cur.execute("""
-                SELECT TOP 50
+                SELECT
                     iAdressnummer  AS adressnr,
                     sNachname      AS name,
                     [sStraße]      AS strasse,
@@ -505,67 +497,19 @@ def _suche_gericht_nach_ort(unfallort: str) -> list:
                 FROM tblAdressen
                 WHERE iAdressnummer >= 90000
                   AND (sNachname LIKE '%Amtsgericht%' OR sNachname LIKE '%Landgericht%')
-                  AND (sNachname LIKE %(haupt)s OR sOrt LIKE %(haupt)s)
-                ORDER BY sNachname ASC
-            """, {"haupt": f"%{ort_haupt}%"})
-            rows = cur.fetchall()
-
-        for r in rows:
-            name      = (r["name"] or "").strip()
-            gericht_ort = (r["ort"] or "").strip().lower()
-            name_low  = name.lower()
-            score     = 0
-
-            # ── Scoring ──────────────────────────────────────────────────────
-            # Gerichtsort exakt = Unfallort (beste Übereinstimmung)
-            if gericht_ort == ort_norm:
-                score += 100
-
-            # Gerichtsort ist Teilstring von Unfallort (z.B. "Frankfurt" in "Frankfurt am Main")
-            # NUR wenn Gerichtsort mindestens so lang wie das Hauptwort
-            elif gericht_ort and ort_norm.startswith(gericht_ort):
-                # Längerer Match = besser (Frankfurt am Main > Frankfurt)
-                score += 50 + len(gericht_ort)
-
-            elif gericht_ort and gericht_ort.startswith(ort_haupt):
-                # Gerichtsort beginnt mit Hauptwort ("Frankfurt an der Oder" beginnt mit "frankfurt")
-                # Aber: wenn Unfallort länger ist und Gerichtsort abweicht → Abzug
-                # Abzug proportional zur Abweichung der restlichen Tokens
-                ort_rest_tokens     = set(ort_norm.split()[1:])
-                gericht_rest_tokens = set(gericht_ort.split()[1:])
-                gemeinsam = ort_rest_tokens & gericht_rest_tokens
-                abweichung = len(ort_rest_tokens ^ gericht_rest_tokens)
-                score += 20 + len(gemeinsam) * 5 - abweichung * 8
-
-            # Gerichtsname enthält vollständigen Unfallort
-            if ort_norm in name_low:
-                score += 30
-            elif ort_haupt in name_low:
-                score += 15
-
-            # Amtsgericht bevorzugen
-            if "amtsgericht" in name_low:
-                score += 3
-
-            if score > 0:
-                kandidaten.append({
-                    "adressnr": r["adressnr"],
-                    "name":     name,
-                    "strasse":  (r["strasse"] or "").strip(),
-                    "plz":      (r["plz"]     or "").strip(),
-                    "ort":      (r["ort"]     or "").strip(),
-                    "quelle":   "unfallort_match",
-                    "_score":   score,
-                })
-
-        kandidaten.sort(key=lambda x: -x["_score"])
-
+            """)
+            gerichte = [dict(r) for r in cur.fetchall()]
     except Exception as e:
         cls = type(e).__name__
         if "NichtAktiv" not in cls and "VerbindungsFehler" not in cls:
             logger.debug("_suche_gericht_nach_ort: %s", e)
+        gerichte = []
 
-    return kandidaten
+    try:
+        return waehle_gericht(unfallort, gerichte)
+    except Exception as e:
+        logger.warning("_suche_gericht_nach_ort: Bewertung fehlgeschlagen: %s", e)
+        return []
 
 
 def _lade_gericht_aus_ramicro(az: str):

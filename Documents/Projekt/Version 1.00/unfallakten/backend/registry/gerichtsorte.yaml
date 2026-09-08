@@ -1,0 +1,116 @@
+# Gerichtsorte -- welcher Ort gehoert zu welchem Gericht
+# ======================================================
+#
+# Wozu diese Liste da ist
+# -----------------------
+# Der Unfallort kommt als Freitext aus RA-MICRO (WDM-Variable varU-ORT).
+# Sehr oft nennt er eine Stadt OHNE eigenes Amtsgericht. Aus dem Namen
+# laesst sich das zustaendige Gericht dann grundsaetzlich nicht ableiten --
+# dafuer braucht es die Gerichtsbezirke. Von 1607 Unfallorten im Bestand
+# betrifft das 525.
+#
+# RA-MICRO fuehrt diese Zuordnung in Z:\RA\Mdb\raplz.mdb (45 MB,
+# kennwortgeschuetzt). Im SQL Server steht sie nicht: keine passende
+# Tabelle, keine Funktion (alle acht Datenbanken geprueft, 2026-09-02).
+# Entscheidung RA Schatz: die wenigen relevanten Orte selbst pflegen,
+# statt 45 MB Fremddaten vorzuhalten.
+#
+# Diese Liste hat VORRANG vor dem Namensabgleich gegen die
+# Gerichtsadressen -- sie ist gepflegtes Wissen, der Abgleich nur Heuristik.
+#
+# ACHTUNG: Der Landkreis Offenbach gehoert NICHT geschlossen zum
+# Amtsgericht Offenbach. Er verteilt sich auf DREI Amtsgerichte -- nur
+# fuenf der dreizehn Kommunen fallen unter Offenbach, vier unter Langen
+# und vier unter Seligenstadt. Quelle: ordentliche-gerichtsbarkeit.
+# hessen.de, abgerufen 2026-09-02. Der Test TestKreisOffenbach in
+# backend/tests/test_gerichtsvorschlag.py haelt die Aufteilung fest.
+#
+# Pflege
+# ------
+#   <Ort>:
+#     gericht: <exakter Name wie in den RA-MICRO-Adressen>
+#     hinweis: <optional, z. B. Geltungsbereich oder Fundstelle>
+#
+# Der Ort wird WORTGENAU im Unfallort gesucht, auch mitten in einer
+# Adresse: "Bahnhofstr. 4, Heusenstamm" trifft "Heusenstamm". "Bad"
+# wuerde NICHT "Badenweiler" treffen. Bindestriche trennen wie
+# Leerzeichen, daher findet "Muehlheim" auch "Muehlheim-Laemmerspiel".
+# Mehrwortige Orte werden als Wortfolge gesucht und vor kuerzeren geprueft.
+#
+# Der Gerichtsname sollte wortgleich mit dem Eintrag in den RA-MICRO-
+# Adressen sein -- dann wird die dortige Anschrift automatisch
+# uebernommen. Alle unten genannten Gerichte sind dort vorhanden.
+#
+# Jeder Eintrag MUSS ein Gericht nennen; ein leerer Wert wird beim Laden
+# als Fehler gemeldet, damit keine halbe Pflege still danebengreift.
+
+gerichtsorte:
+
+  # ── Landkreis Offenbach -> Amtsgericht Offenbach am Main ────────────
+  Dietzenbach:
+    gericht: Amtsgericht Offenbach am Main
+  Heusenstamm:
+    gericht: Amtsgericht Offenbach am Main
+  Mühlheim:
+    gericht: Amtsgericht Offenbach am Main
+    hinweis: deckt auch "Mühlheim am Main" und die Ortsteile ab
+  Neu-Isenburg:
+    gericht: Amtsgericht Offenbach am Main
+  Obertshausen:
+    gericht: Amtsgericht Offenbach am Main
+
+  # ── Landkreis Offenbach -> Amtsgericht Langen (Hessen) ──────────────
+  Dreieich:
+    gericht: Amtsgericht Langen (Hessen)
+    hinweis: NICHT Offenbach -- Bezirk Langen
+  Sprendlingen:
+    gericht: Amtsgericht Langen (Hessen)
+    hinweis: Stadtteil von Dreieich
+  Dreieichenhain:
+    gericht: Amtsgericht Langen (Hessen)
+    hinweis: Stadtteil von Dreieich
+  Egelsbach:
+    gericht: Amtsgericht Langen (Hessen)
+  Langen:
+    gericht: Amtsgericht Langen (Hessen)
+  Rödermark:
+    gericht: Amtsgericht Langen (Hessen)
+    hinweis: Ober-Roden und Urberach, NICHT Seligenstadt
+
+  # ── Landkreis Offenbach -> Amtsgericht Seligenstadt ─────────────────
+  Hainburg:
+    gericht: Amtsgericht Seligenstadt
+  Mainhausen:
+    gericht: Amtsgericht Seligenstadt
+  Rodgau:
+    gericht: Amtsgericht Seligenstadt
+  Niederroden:
+    gericht: Amtsgericht Seligenstadt
+    hinweis: Stadtteil von Rodgau
+  Seligenstadt:
+    gericht: Amtsgericht Seligenstadt
+
+  # ── Main-Kinzig-Kreis -> Amtsgericht Hanau ──────────────────────────
+  Maintal:
+    gericht: Amtsgericht Hanau
+  Bruchköbel:
+    gericht: Amtsgericht Hanau
+
+  # ── Hochtaunus / Main-Taunus ────────────────────────────────────────
+  Oberursel:
+    gericht: Amtsgericht Bad Homburg v.d. Höhe
+  Kelkheim:
+    gericht: Amtsgericht Königstein im Taunus
+
+  # ── Wetteraukreis: Bezirk des 2005 aufgeloesten AG Bad Vilbel ───────
+  Karben:
+    gericht: Amtsgericht Frankfurt am Main
+    hinweis: AG Bad Vilbel zum 01.01.2005 aufgeloest, Bezirk zu Frankfurt
+  Bad Vilbel:
+    gericht: Amtsgericht Frankfurt am Main
+    hinweis: AG Bad Vilbel zum 01.01.2005 aufgeloest, Bezirk zu Frankfurt
+
+  # ── Eindeutigkeit ───────────────────────────────────────────────────
+  Frankfurt:
+    gericht: Amtsgericht Frankfurt am Main
+    hinweis: sonst konkurriert das gleichnamige Amtsgericht Frankfurt (Oder)
