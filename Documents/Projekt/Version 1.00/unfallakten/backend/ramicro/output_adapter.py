@@ -31,7 +31,8 @@ def _upload_verzeichnis() -> Path:
 
 def schreibe_dokument(intake_dok: Dict[str, Any], akte_az: str,
                       freigegeben_von: Optional[int],
-                      bezeichnung: Optional[str] = None) -> int:
+                      bezeichnung: Optional[str] = None,
+                      dokument_datum: Optional[str] = None) -> int:
     """Legt eine dokumente-Zeile fuer die Akte an. Liefert die dokument_id.
 
     Args:
@@ -41,6 +42,7 @@ def schreibe_dokument(intake_dok: Dict[str, Any], akte_az: str,
         freigegeben_von: benutzer_id des Freigebenden (fuer aktivitaeten).
         bezeichnung: effektive Dokumentenbezeichnung (PRD-37), falls gesetzt
             wird sie nach ``dokumente.bezeichnung`` uebernommen.
+        dokument_datum: Datum des Schreibens als ISO-String, falls bekannt.
 
     Raises:
         FileNotFoundError: Arbeitskopie liegt nicht (mehr) im Dateisystem.
@@ -80,6 +82,7 @@ def schreibe_dokument(intake_dok: Dict[str, Any], akte_az: str,
     parse_json = intake_dok.get("parse_json")
     felder = {
         "bezeichnung": bezeichnung or None,
+        "dokument_datum": dokument_datum or None,
         "parse_json": parse_json,
         "parse_konfidenz": intake_dok.get("konfidenz"),
         "parse_status": "erfolgreich" if parse_json else "ausstehend",
