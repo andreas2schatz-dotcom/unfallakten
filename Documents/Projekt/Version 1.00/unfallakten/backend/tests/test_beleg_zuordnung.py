@@ -103,14 +103,14 @@ class TestBelegeAusFreigabe(_Basis):
                     "wertminderung": "800,00",
                     "reparaturkosten_netto": "4500,00"},
         )
-        self.assertEqual(keys, ["rep_gutachten_netto", "restwert", "wbw",
-                                "wertminderung"])
+        self.assertEqual(keys, ["rep_gutachten_netto", "restwert",
+                                "wertminderung", "wiederbeschaffung"])
         belege = {r["position_key"]: r["betrag_aus_beleg"]
                   for r in self._belege()}
         self.assertEqual(belege, {"wertminderung": 800.0,
                                   "restwert": 3000.0,
                                   "rep_gutachten_netto": 4500.0,
-                                  "wbw": 12000.0})
+                                  "wiederbeschaffung": 12000.0})
 
     def test_gutachten_null_betraege_werden_nicht_weggelassen(self):
         from backend.services.beleg_zuordnung import belege_aus_freigabe
@@ -193,6 +193,26 @@ class TestBelegeAusFreigabe(_Basis):
             felder={"bruttobetrag": "100,00"},
         )
         self.assertEqual(keys, [])
+
+    def test_rechnung_faellt_auf_nettobetrag_zurueck(self):
+        from backend.services.beleg_zuordnung import belege_aus_freigabe
+        keys = belege_aus_freigabe(
+            akte_az="44/22", dokument_id=self._dok_id(),
+            klasse="mietwagenrechnung",
+            felder={"nettobetrag": "100,00"},
+        )
+        self.assertEqual(keys, ["mietwagenkosten"])
+        self.assertEqual(self._belege()[0]["betrag_aus_beleg"], 100.0)
+
+    def test_rechnung_bruttobetrag_null_faellt_nicht_auf_netto_zurueck(self):
+        from backend.services.beleg_zuordnung import belege_aus_freigabe
+        keys = belege_aus_freigabe(
+            akte_az="44/22", dokument_id=self._dok_id(),
+            klasse="mietwagenrechnung",
+            felder={"bruttobetrag": "0,00", "nettobetrag": "500,00"},
+        )
+        self.assertEqual(keys, ["mietwagenkosten"])
+        self.assertEqual(self._belege()[0]["betrag_aus_beleg"], 0.0)
 
 
 class TestSchreibeFreigabeBelege(_Basis):

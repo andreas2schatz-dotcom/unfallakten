@@ -52,6 +52,18 @@ def _gutachten_belegpositionen(felder: Dict[str, Any],
     nicht auf Wahrheitswert. Gutachterkosten belegt NICHT das Gutachten,
     sondern die SV-Rechnung (rechnungstyp_mapping.yaml: sv_rechnung ->
     __sv_kosten_vorsteuer__).
+
+    Der Wiederbeschaffungswert wird bewusst auf den Positionsschluessel
+    ``wiederbeschaffung`` geschrieben (nicht ``wbw``): die Beleganzeige im
+    Schaden-Tab (SchadenSection.jsx) schlaegt ausschliesslich unter den
+    SCHADEN_F-Schluesseln nach, und dort heisst der volle Wiederbeschaffungs-
+    wert ``wiederbeschaffung`` (frontend/src/config/constants.js), mit dem
+    Restwert als eigener Abzugszeile. Das ist eine Doppelbedeutung: im
+    Buchungsmodell (waehle_fahrzeugschaden in eingehende_ereignisse.py) steht
+    derselbe Schluessel fuer den WiederbeschaffungsAUFWAND (WBW abzueglich
+    Restwert). Der Beleg folgt hier der Formular-Bedeutung, weil er dort
+    angezeigt wird -- die Aufloesung dieser Doppelbedeutung ist in
+    docs/TODO.md als offener Punkt vermerkt.
     """
     from .eingehende_ereignisse import _feld_zu_zahl
 
@@ -83,7 +95,7 @@ def _gutachten_belegpositionen(felder: Dict[str, Any],
 
     wbw = _feld_zu_zahl(felder.get("wiederbeschaffungswert"))
     if wbw is not None:
-        positionen["wbw"] = wbw
+        positionen["wiederbeschaffung"] = wbw
 
     return positionen
 

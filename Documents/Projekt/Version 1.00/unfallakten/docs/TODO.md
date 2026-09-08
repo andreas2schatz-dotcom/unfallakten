@@ -21,10 +21,19 @@ CHANGELOG. **Offen:**
 - **R3–R5 stehen aus** (Anlagennummern, „b.b.", Beweismittel-Schritt im Klage-Wizard).
 - **Entscheidung RA Schatz (2026-09-08):** Ein Gutachten belegt Wertminderung, Restwert,
   die fiktiven Reparaturkosten (`rep_gutachten_netto`) und den Wiederbeschaffungswert
-  (`wbw`) — jeweils mit dem Betrag, der wörtlich im Gutachten steht. Wertminderung und
-  Restwert können 0 sein, das ist eine gültige Belegzeile. Gutachterkosten belegt NICHT
-  das Gutachten, sondern die SV-Rechnung. Umgesetzt in `_gutachten_belegpositionen`
-  (`backend/services/beleg_zuordnung.py`).
+  (`wiederbeschaffung`) — jeweils mit dem Betrag, der wörtlich im Gutachten steht.
+  Wertminderung und Restwert können 0 sein, das ist eine gültige Belegzeile.
+  Gutachterkosten belegt NICHT das Gutachten, sondern die SV-Rechnung. Umgesetzt in
+  `_gutachten_belegpositionen` (`backend/services/beleg_zuordnung.py`).
+- **Offen: Doppelbedeutung des Positionsschlüssels `wiederbeschaffung`.** Im Buchungsmodell
+  (`waehle_fahrzeugschaden` in `backend/services/eingehende_ereignisse.py`) steht
+  `wiederbeschaffung` für den Wiederbeschaffungs**aufwand** (WBW abzüglich Restwert); im
+  Schadenformular (`frontend/src/config/constants.js`, Label „Wiederbeschaffungswert
+  (WBW)") und in der Beleganzeige (`SchadenSection.jsx`) steht derselbe Schlüssel für den
+  vollen Wiederbeschaffungswert, mit dem Restwert als eigener Abzugszeile. Der neue
+  Gutachten-Beleg auf `wiederbeschaffung` (siehe oben) folgt bewusst der
+  Formular-Bedeutung, weil dort die Beleganzeige nachschlägt — die Doppelbedeutung selbst
+  ist damit nicht aufgelöst, nur bewusst in Kauf genommen.
 - **Offen: fiktive Mehrwertsteuer.** Der Gutachten-Parser extrahiert keinen ausgewiesenen
   Steuerbetrag (`backend/registry/klassen/gutachten.yaml` kennt nur `reparaturkosten_netto`
   und `reparaturkosten_brutto`) und es fehlt ein passender Positionsschlüssel — `mwst_abzug`
