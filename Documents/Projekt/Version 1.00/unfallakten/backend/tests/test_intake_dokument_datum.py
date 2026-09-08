@@ -87,6 +87,46 @@ class TestFreigabeSchreibtDatum(unittest.TestCase):
                              "parse_json": "{}"},
                             {"dokument_datum": "32.13.2024"})
 
+    def _intake_dokument(self, klasse="sonstiges", payload_typ="datei",
+                         textquelle=None, empfangen_am=None):
+        import json
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            did = conn.execute(
+                "INSERT INTO intake_dokumente "
+                "(sha256, arbeitskopie_pfad, payload_typ, klasse, "
+                " klasse_quelle, konfidenz, queue_status, parse_json, "
+                " textquelle, registry_version) "
+                "VALUES (?, 'x.pdf', ?, ?, 'auto', 0.9, "
+                " 'bereit_zur_review', ?, ?, 'v1')",
+                ("sha-" + klasse + "-" + payload_typ, payload_typ, klasse,
+                 json.dumps({"felder": {}}), textquelle),
+            ).lastrowid
+            if empfangen_am is not None:
+                conn.execute(
+                    "INSERT INTO zustellungen "
+                    "(intake_dokument_id, quelle, empfangen_am) "
+                    "VALUES (?, 'imap', ?)",
+                    (did, empfangen_am),
+                )
+            conn.commit()
+        return {"id": did, "klasse": klasse, "payload_typ": payload_typ,
+                "textquelle": textquelle, "parse_json": json.dumps({"felder": {}})}
+
+    def test_email_dokument_bekommt_zustelldatum(self):
+        from backend.routers.intake_routes import _dokument_datum
+        dok = self._intake_dokument(
+            payload_typ="text", empfangen_am="2026-09-08 16:50:29")
+        d = _dokument_datum(dok, {})
+        self.assertEqual(d, "2026-09-08")
+
+    def test_datei_dokument_ohne_feldtreffer_bleibt_none(self):
+        from backend.routers.intake_routes import _dokument_datum
+        dok = self._intake_dokument(
+            payload_typ="datei", empfangen_am="2026-09-08 16:50:29")
+        d = _dokument_datum(dok, {})
+        self.assertIsNone(d)
+
 
 if __name__ == "__main__":
     unittest.main()

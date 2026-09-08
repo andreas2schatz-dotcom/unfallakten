@@ -97,28 +97,41 @@ KLASSEN_OHNE_DOKUMENTDATUM = ("fragebogen",)
 
 def dokument_datum_aus_feldern(klasse: Optional[str],
                                felder: Optional[Dict[str, Any]],
-                               registry) -> Optional[str]:
+                               registry,
+                               eingangsdatum: Optional[str] = None) -> Optional[str]:
     """Datum des Schreibens als ISO-String, oder None.
 
-    Liest dieselbe ``bezeichnung_felder.datum``-Rolle wie baue_bezeichnung --
-    aber ohne deren Rueckfall auf das Eingangsdatum: die Spalte
-    ``dokumente.dokument_datum`` traegt das Datum des Schreibens, nie das
-    Eingangs- oder Scandatum.
+    Liest dieselbe ``bezeichnung_felder.datum``-Rolle wie baue_bezeichnung.
+    Liefert kein Feldtreffer, faellt die Funktion auf ``eingangsdatum``
+    zurueck, sofern der Aufrufer eines uebergibt -- sie kennt selbst keine
+    Klasse, die einen Rueckfall verdient. Bei gescannter Post liegt zwischen
+    Schreiben und Scan oft eine Luecke, deshalb geben nur Aufrufer, die
+    wissen dass es sich um eine E-Mail handelt (Zustellung = Versand), ein
+    ``eingangsdatum`` mit -- fuer Post bleibt es None und das Feld bleibt
+    leer, damit der Anwalt es vom Papier abliest.
+
+    ``KLASSEN_OHNE_DOKUMENTDATUM`` schaltet nur die Feld-Auswertung ab
+    (z. B. der Unfalltag im Fragebogen ist kein Schreibdatum) -- der
+    Rueckfall auf ``eingangsdatum`` gilt trotzdem, falls uebergeben.
     """
     felder = felder or {}
-    if klasse in KLASSEN_OHNE_DOKUMENTDATUM:
-        return None
-
-    spec: Dict[str, Any] = {}
-    if registry is not None and klasse:
-        spec = (registry.klassen.get(klasse) or {})
-    rollen = spec.get("bezeichnung_felder") or {}
-
-    datum_key = rollen.get("datum")
-    roh = felder.get(datum_key) if datum_key else None
     d = None
-    if roh is not None:
-        s = str(roh).strip()
-        d = parse_datum(s[:10]) or parse_datum(s)
+
+    if klasse not in KLASSEN_OHNE_DOKUMENTDATUM:
+        spec: Dict[str, Any] = {}
+        if registry is not None and klasse:
+            spec = (registry.klassen.get(klasse) or {})
+        rollen = spec.get("bezeichnung_felder") or {}
+
+        datum_key = rollen.get("datum")
+        roh = felder.get(datum_key) if datum_key else None
+        if roh is not None:
+            s = str(roh).strip()
+            d = parse_datum(s[:10]) or parse_datum(s)
+
+    if d is None and eingangsdatum is not None:
+        s = str(eingangsdatum).strip()
+        if s:
+            d = parse_datum(s[:10]) or parse_datum(s)
 
     return d.isoformat() if d else None

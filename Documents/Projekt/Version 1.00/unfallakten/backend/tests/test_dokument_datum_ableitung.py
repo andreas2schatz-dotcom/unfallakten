@@ -61,6 +61,34 @@ class TestDokumentDatumAbleitung(unittest.TestCase):
         self.assertIsNone(
             self._ab("fragebogen", {"unfalltag": "27.04.2022"}))
 
+    def test_fragebogen_ohne_eingangsdatum_bleibt_none(self):
+        self.assertIsNone(
+            self._ab("fragebogen", {"unfalltag": "27.04.2022"},
+                      eingangsdatum=None))
+
+    def test_fragebogen_mit_eingangsdatum_nutzt_zustelldatum_nicht_unfalltag(self):
+        self.assertEqual(
+            self._ab("fragebogen", {"unfalltag": "27.04.2022"},
+                      eingangsdatum="2024-06-01 09:00:00"),
+            "2024-06-01",
+        )
+
+    def test_rueckfall_auf_eingangsdatum_ohne_feldtreffer(self):
+        self.assertEqual(
+            self._ab("sonstiges", {}, eingangsdatum="2024-06-01 09:00:00"),
+            "2024-06-01",
+        )
+
+    def test_ohne_eingangsdatum_und_ohne_feldtreffer_ist_none(self):
+        self.assertIsNone(self._ab("sonstiges", {}, eingangsdatum=None))
+
+    def test_feldtreffer_schlaegt_den_rueckfall(self):
+        self.assertEqual(
+            self._ab("gutachten", {"besichtigungsdatum": "14.03.2024"},
+                      eingangsdatum="2024-06-01 09:00:00"),
+            "2024-03-14",
+        )
+
     def test_unbekannte_klasse_ergibt_none(self):
         self.assertIsNone(self._ab("gibtsnicht", {"datum": "01.01.2024"}))
 

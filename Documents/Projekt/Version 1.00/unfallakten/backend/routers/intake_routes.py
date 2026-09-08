@@ -1061,6 +1061,12 @@ def _dokument_datum(dok: Dict[str, Any],
     Ein im Payload enthaltenes, aber leeres Feld ist die bewusste Angabe
     "kein Datum erkennbar" und ergibt None -- nur ein ganz fehlender
     Schluessel loest die Ableitung aus.
+
+    Faellt kein Feld der Registry-Rolle, gibt es nur bei E-Mails einen
+    Rueckfall auf das Zustelldatum: eine Mail wird in derselben Minute
+    versandt und empfangen, das Zustelldatum ist praktisch das Datum des
+    Schreibens. Bei gescannter Post steht das Datum auf dem Papier, das
+    Scandatum waere falsch -- dort bleibt das Feld leer.
     """
     from ..utils.datum import parse_datum
 
@@ -1085,7 +1091,11 @@ def _dokument_datum(dok: Dict[str, Any],
         reg = lade_registry(standard_pfad())
     except Exception:  # pragma: no cover -- Best-Effort
         reg = None
-    return dokument_datum_aus_feldern(dok.get("klasse"), felder, reg)
+    eingangsdatum = None
+    if _ist_email(dok):
+        eingangsdatum = _eingangsdatum(dok.get("id"))
+    return dokument_datum_aus_feldern(dok.get("klasse"), felder, reg,
+                                      eingangsdatum=eingangsdatum)
 
 
 def _datum_vorschlag_sicher(dok: Dict[str, Any]) -> Optional[str]:
