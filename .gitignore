@@ -1,0 +1,17 @@
+# --- Schutz-Guardrail (angelegt 2026-07-15) ---
+# Das Git-Repository wurde versehentlich im Home-Verzeichnis initialisiert;
+# die eigentliche Projektwurzel ist Documents/Projekt/Version 1.00/unfallakten.
+# Diese Regeln ignorieren ALLES im Home-Verzeichnis AUSSER dem Projektordner,
+# damit ein versehentliches `git add -A` keine privaten Dateien erfasst.
+# Bereits versionierte Dateien bleiben davon unberuehrt.
+
+/*
+!/.gitignore
+!/README.md
+!/Documents/
+/Documents/*
+!/Documents/Projekt/
+/Documents/Projekt/*
+!/Documents/Projekt/Version 1.00/
+/Documents/Projekt/Version 1.00/*
+!/Documents/Projekt/Version 1.00/unfallakten/
