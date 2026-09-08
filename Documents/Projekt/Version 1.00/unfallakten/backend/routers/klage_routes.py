@@ -594,6 +594,40 @@ def _lade_gericht_aus_ramicro(az: str):
         return None
 
 
+def _verzug_dokumente(az: str) -> list:
+    """Mahn-, Verzugs- und Forderungsschreiben der Akte mit ihrem Datum.
+
+    Massgeblich ist dokumente.dokument_datum (Datum des Schreibens); die
+    Forderungshistorie dient nur noch als Rueckfall fuer Dokumente, die vor
+    Migration 75 angelegt wurden.
+    """
+    from ..db.database import get_connection
+    with get_connection() as conn:
+        rows = conn.execute(
+            """SELECT d.id, d.dateiname, d.dokumentenklasse, d.hochgeladen_am,
+                      COALESCE(
+                          d.dokument_datum,
+                          (SELECT MAX(fp.datum) FROM forderung_positionen fp
+                           WHERE fp.dokument_id = d.id)
+                      ) AS datum
+               FROM dokumente d
+               WHERE d.akte_id = ?
+                 AND d.dokumentenklasse IN
+                     ('mahnschreiben', 'verzugsschreiben', 'forderungsschreiben')
+               ORDER BY
+                 CASE d.dokumentenklasse
+                   WHEN 'mahnschreiben'    THEN 1
+                   WHEN 'verzugsschreiben' THEN 2
+                   ELSE 3
+                 END,
+                 CASE WHEN datum IS NULL THEN 1 ELSE 0 END,
+                 datum DESC,
+                 d.hochgeladen_am DESC""",
+            (az,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
 @klage_bp.route("/daten", methods=["GET"])
 @login_erforderlich
 def hole_klage_daten(akte_id: str):
@@ -679,23 +713,7 @@ def hole_klage_daten(akte_id: str):
         # Sortierung: mahnschreiben/verzugsschreiben zuerst (für Vorauswahl im Frontend)
         verzug_dokumente = []
         try:
-            vdok_rows = conn.execute(
-                """SELECT d.id, d.dateiname, d.dokumentenklasse, d.hochgeladen_am,
-                          (SELECT MAX(fp.datum) FROM forderung_positionen fp
-                           WHERE fp.dokument_id = d.id) AS datum
-                   FROM dokumente d
-                   WHERE d.akte_id = ?
-                     AND d.dokumentenklasse IN ('mahnschreiben', 'verzugsschreiben', 'forderungsschreiben')
-                   ORDER BY
-                     CASE d.dokumentenklasse
-                       WHEN 'mahnschreiben'   THEN 1
-                       WHEN 'verzugsschreiben' THEN 2
-                       ELSE 3
-                     END,
-                     d.hochgeladen_am DESC""",
-                (az,)
-            ).fetchall()
-            verzug_dokumente = [dict(r) for r in vdok_rows]
+            verzug_dokumente = _verzug_dokumente(az)
         except Exception:
             pass
 
@@ -1042,9 +1060,12 @@ def hole_klage_daten(akte_id: str):
 
     # ── Verzugsdatum bestimmen ────────────────────────────────────────────────
     verzug_datum = None
-    if letztes_forderung and letztes_forderung["datum"]:
+    for _vd in (verzug_dokumente or []):
+        if _vd.get("datum"):
+            verzug_datum = _vd["datum"]
+            break
+    if not verzug_datum and letztes_forderung and letztes_forderung["datum"]:
         verzug_datum = letztes_forderung["datum"]
-    # WDM-Fallback: VERZUGAB
     if not verzug_datum:
         verzug_datum = _wdm("varSCHREIBENVERZUG") or _wdm("varVERZUGAB") or None
 
