@@ -94,19 +94,31 @@ class TestBelegeAusFreigabe(_Basis):
         self.assertEqual(keys, ["mietwagenkosten"])
         self.assertEqual(self._belege()[0]["betrag_aus_beleg"], 812.50)
 
-    def test_gutachten_belegt_mehrere_positionen(self):
+    def test_gutachten_belegt_nur_woertliche_betraege(self):
         from backend.services.beleg_zuordnung import belege_aus_freigabe
         keys = belege_aus_freigabe(
             akte_az="44/22", dokument_id=self._dok_id(), klasse="gutachten",
             felder={"wiederbeschaffungswert": "12000,00",
                     "restwert_brutto": "3000,00",
-                    "wertminderung": "800,00"},
+                    "wertminderung": "800,00",
+                    "sv_kosten_brutto": "1190,00"},
         )
-        self.assertEqual(keys, ["wertminderung", "wiederbeschaffung"])
+        self.assertEqual(keys, ["sv_kosten", "wertminderung"])
         belege = {r["position_key"]: r["betrag_aus_beleg"]
                   for r in self._belege()}
         self.assertEqual(belege, {"wertminderung": 800.0,
-                                  "wiederbeschaffung": 9000.0})
+                                  "sv_kosten": 1190.0})
+
+    def test_gutachten_belegt_keinen_fahrzeugschaden(self):
+        from backend.services.beleg_zuordnung import belege_aus_freigabe
+        keys = belege_aus_freigabe(
+            akte_az="44/22", dokument_id=self._dok_id(), klasse="gutachten",
+            felder={"reparaturkosten_netto": "4500,00",
+                    "wiederbeschaffungswert": "12000,00",
+                    "restwert_brutto": "3000,00"},
+        )
+        self.assertEqual(keys, [])
+        self.assertEqual(self._belege(), [])
 
     def test_fehler_in_ordne_beleg_zu_wird_abgefangen(self):
         from unittest.mock import patch

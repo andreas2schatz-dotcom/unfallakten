@@ -39,12 +39,53 @@ def ordne_beleg_zu(*, akte_az: str, position_key: str, dokument_id: int,
         conn.commit()
 
 
+def _gutachten_belegpositionen(felder: Dict[str, Any],
+                               vorsteuer: bool) -> Dict[str, float]:
+    """Nur Positionen, deren Betrag woertlich im Gutachten steht.
+
+    Reparaturkosten, Wiederbeschaffungswert und Restwert bleiben aussen vor:
+    welcher Fahrzeugschaden gilt, haengt an der Abrechnungsart, und der
+    daraus errechnete Betrag (z. B. WBW abzueglich Restwert) steht so nicht
+    im Gutachten. Ein solcher Betrag darf nicht als Belegbetrag in den
+    Schaden uebernommen werden -- lieber keine Belegzeile.
+    """
+    from .eingehende_ereignisse import (
+        _FAHRZEUG_ALTERNATIVEN, _GUTACHTEN_FELD_ALIASSE, _feld_zu_zahl,
+    )
+
+    positionen: Dict[str, float] = {}
+    if not isinstance(felder, dict):
+        return positionen
+
+    for pk, aliase in _GUTACHTEN_FELD_ALIASSE.items():
+        if pk in _FAHRZEUG_ALTERNATIVEN:
+            continue
+        for name in aliase:
+            wert = _feld_zu_zahl(felder.get(name))
+            if wert:
+                positionen[pk] = wert
+                break
+
+    sv_netto = _feld_zu_zahl(felder.get("sv_kosten_netto"))
+    sv_brutto = _feld_zu_zahl(felder.get("sv_kosten_brutto"))
+    if sv_netto or sv_brutto:
+        if vorsteuer:
+            wert = sv_netto if sv_netto is not None else sv_brutto
+        else:
+            wert = sv_brutto if sv_brutto is not None else sv_netto
+        if wert:
+            positionen["sv_kosten"] = wert
+
+    return positionen
+
+
 def belege_aus_freigabe(*, akte_az: str, dokument_id: int, klasse: str,
                         felder: Optional[Dict[str, Any]] = None,
                         vorsteuer: bool = False) -> List[str]:
     """Traegt die Belege einer Review-Freigabe ein.
 
-    Gutachten belegen mehrere Positionen, Rechnungen genau eine. Klassen ohne
+    Gutachten belegen mehrere Positionen (ohne den Fahrzeugschaden, siehe
+    _gutachten_belegpositionen), Rechnungen genau eine. Klassen ohne
     Positionsbezug -- und die Auffangklasse 'rechnung' ohne Mapping-Eintrag --
     schreiben nichts. Best-Effort: Fehler brechen die Freigabe nie ab.
     """
@@ -53,11 +94,11 @@ def belege_aus_freigabe(*, akte_az: str, dokument_id: int, klasse: str,
 
     try:
         from .eingehende_ereignisse import (
-            _feld_zu_zahl, _gutachten_positionen, rechnungstyp_zu_position,
+            _feld_zu_zahl, rechnungstyp_zu_position,
         )
 
         if klasse == "gutachten":
-            paare = _gutachten_positionen(felder, vorsteuer, akte_az=akte_az)
+            paare = _gutachten_belegpositionen(felder, vorsteuer)
             for key, betrag in paare.items():
                 ordne_beleg_zu(akte_az=akte_az, position_key=key,
                                dokument_id=dokument_id,
