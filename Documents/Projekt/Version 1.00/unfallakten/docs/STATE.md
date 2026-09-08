@@ -1,7 +1,7 @@
 # Projektstatus – Momentaufnahme
 
 **Generiert:** 2026-05-02 · **Zuletzt aktualisiert:** 2026-09-08  
-**Schema-Version:** 74 (Dev) · **75** mit Branch `belegkette-fundament` (siehe Deploy-Warnungen)
+**Schema-Version:** 75 (Dev-DB migriert, siehe Deploy-Warnungen)
 
 > ⚠️ **Abschnitte 1–3 unten sind Stand 2026-06-12 (Schema 42) und veraltet** — nur als grobe Modul-Übersicht lesen. Aktuelle Arbeit: `docs/TODO.md` · Umsetzungs-Historie: `docs/CHANGELOG.md` · Entscheidungen: `docs/DECISIONS.md`.
 
@@ -9,8 +9,9 @@
 
 ## 0. Betrieb & Deploy-Warnungen (aktuell, 2026-09-08)
 
-### ⚠️ Migration 75 (`dokumente.dokument_datum`) — auf Branch `belegkette-fundament`, noch nicht gemergt
-Die Spalte trägt das **Datum des Schreibens**, nicht den Scan-Tag. Sie ist **nullable** —
+### ✅ Migration 75 (`dokumente.dokument_datum`) gelaufen (2026-09-08), in `fragebogen-favoritenliste` gemergt
+Dev-DB steht auf **Schema 75**, die Spalte ist vorhanden. Sie trägt das **Datum des
+Schreibens**, nicht den Scan-Tag. Sie ist **nullable** —
 Dokumente ohne erkennbares Datum bleiben freigebbar. Die Migration ist wiederholbar
 (PRAGMA-Guard, `CREATE INDEX IF NOT EXISTS`, `INSERT OR IGNORE`) und **nicht destruktiv**;
 trotzdem gilt wie immer „Migration vor App-Code" (Gunicorn: einmal vorab, sonst
@@ -21,6 +22,13 @@ Worker-Race).
 geschrieben. Vor dem ersten Schreiblauf gegen die Kanzlei-DB: erst den Trockenlauf
 ansehen, die Zahl notieren, dann entscheiden. Ein bereits gesetztes Datum (etwa eine
 Handkorrektur aus der Freigabe) wird nie überschrieben.
+
+**Vorbelegung des Datumsfelds:** Hat das Dokument selbst kein Datum, wird bei **E-Mails**
+das Zustelldatum vorgeschlagen (bei einer Mail praktisch das Schreibdatum), bei
+**gescannter Post nicht** — dort steht das Datum auf dem Papier. Gemessen am Bestand
+betrifft der E-Mail-Fall rund zwei Drittel der Queue. Unfallfragebögen sind von der
+Feld-Auswertung ausgenommen (ihre Datumsrolle zeigt auf den Unfalltag), bekommen als
+E-Mail aber das Zustelldatum.
 
 **Verhaltensänderung im Betrieb:** Freigabe-Ereignisse tragen ab jetzt das Schreibdatum
 statt „heute", und die Review-Freigabe schreibt **selbst** Belegzeilen nach
