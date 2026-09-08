@@ -393,14 +393,22 @@ def zuordnen(akte_id):
     """
     body = request.get_json(silent=True) or {}
     pos_key = (body.get("position_key") or "").strip()
-    dok_id = body.get("dokument_id")
+    dok_id_roh = body.get("dokument_id")
 
     if not pos_key:
         return _err("position_key ist erforderlich.", 422)
-    if not dok_id:
+    if not dok_id_roh:
         return _err("dokument_id ist erforderlich.", 422)
+    try:
+        dok_id = int(dok_id_roh)
+    except (TypeError, ValueError):
+        return _err("dokument_id ist keine gueltige Zahl.", 422)
 
-    betrag = body.get("betrag_aus_beleg")
+    betrag_roh = body.get("betrag_aus_beleg")
+    try:
+        betrag = float(betrag_roh) if betrag_roh is not None else None
+    except (TypeError, ValueError):
+        return _err("betrag_aus_beleg ist keine gueltige Zahl.", 422)
     notiz = body.get("notiz", "")
 
     try:
@@ -414,11 +422,15 @@ def zuordnen(akte_id):
                 return _err("Dokument %d nicht in Akte %s gefunden." % (dok_id, akte_id), 404)
 
             from ..services.beleg_zuordnung import ordne_beleg_zu
-            ordne_beleg_zu(akte_az=akte_id, position_key=pos_key,
-                           dokument_id=int(dok_id),
-                           betrag=(float(betrag) if betrag is not None
-                                   else None),
-                           notiz=notiz)
+            try:
+                ordne_beleg_zu(akte_az=akte_id, position_key=pos_key,
+                               dokument_id=dok_id, betrag=betrag, notiz=notiz)
+            except ValueError as e:
+                logger.warning(
+                    "Beleg zuordnen: unbekannter position_key %r (akte %s): %s",
+                    pos_key, akte_id, e,
+                )
+                return _err("Unbekannter position_key %r." % pos_key, 422)
 
         logger.info("Beleg zugeordnet: %s/%s → Dok %d", akte_id, pos_key, dok_id)
 
@@ -428,9 +440,9 @@ def zuordnen(akte_id):
             from ..services.eingehende_ereignisse import erzeuge_aus_beleg
             erzeuge_aus_beleg(
                 akte_az=akte_id,
-                dokument_id=int(dok_id),
+                dokument_id=dok_id,
                 position_key=pos_key,
-                betrag=(float(betrag) if betrag is not None else None),
+                betrag=betrag,
                 benutzer_id=getattr(g, "benutzer_id", None),
             )
         except Exception as exc:  # pragma: no cover -- Best-Effort
@@ -440,10 +452,6 @@ def zuordnen(akte_id):
                 akte_id, dok_id, pos_key, exc,
             )
         return _j({"status": "ok", "position_key": pos_key, "dokument_id": dok_id})
-    except ValueError as e:
-        logger.warning("Beleg zuordnen: unbekannter position_key %r (akte %s): %s",
-                       pos_key, akte_id, e)
-        return _err("Unbekannter position_key %r." % pos_key, 422)
     except Exception as e:
         logger.error("Beleg zuordnen fehlgeschlagen: %s", e)
         return _err("Zuordnung fehlgeschlagen: %s" % e, 500)
