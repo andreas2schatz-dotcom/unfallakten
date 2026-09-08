@@ -926,6 +926,13 @@ export const apiAkteFristen = {
   liste: (az) => request(`/akten/${az}/fristen`),
 };
 
+// Termine einer Akte aus raKalender.dbo.Events (read-only, 503 wenn RA-MICRO
+// nicht erreichbar ist — auch hier darf ein Ausfall nicht wie "keine Termine"
+// aussehen).
+export const apiAkteTermine = {
+  liste: (az) => request(`/akten/${az}/termine`),
+};
+
 export const apiTodos = {
   liste:    (az)           => request(`/akten/${az}/todos`),
   erstelle: (az, daten)    => request(`/akten/${az}/todos`,

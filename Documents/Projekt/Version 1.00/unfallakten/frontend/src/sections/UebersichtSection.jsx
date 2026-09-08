@@ -11,6 +11,7 @@ import {
   akten as apiAkten,
   ramicroAkte as apiRaMicroAkte,
   apiAkteFristen,
+  apiAkteTermine,
   apiTodos,
   request,
 } from "../api.js";
@@ -748,6 +749,9 @@ function TodoSection({ az, onTodoChange }) {
   const [speichert, setSpeichert] = useState(false);
   const [fristen, setFristen] = useState([]);
   const [fristenFehler, setFristenFehler] = useState("");
+  const [termine, setTermine] = useState([]);
+  const [termineFehler, setTermineFehler] = useState("");
+  const [terminOffen, setTerminOffen] = useState(null);
 
   // Fristen kommen aus dem RA-MICRO-Kalenderbaum, nicht aus der eigenen
   // Datenbank. Faellt der E-Akte-Mount weg, antwortet der Endpunkt mit 503 --
@@ -763,6 +767,20 @@ function TodoSection({ az, onTodoChange }) {
   }, [az]);
 
   useEffect(() => { ladeFristen(); }, [ladeFristen]);
+
+  // Termine kommen aus dem RA-MICRO-Kalender. Gleiche Regel wie bei den
+  // Fristen: ein Ausfall darf nicht wie "keine Termine" aussehen.
+  const ladeTermine = React.useCallback(() => {
+    setTermineFehler("");
+    apiAkteTermine.liste(az)
+      .then(r => setTermine(r?.termine || []))
+      .catch(() => {
+        setTermine([]);
+        setTermineFehler("RA-MICRO nicht erreichbar");
+      });
+  }, [az]);
+
+  useEffect(() => { ladeTermine(); setTerminOffen(null); }, [ladeTermine]);
 
   const ladeTodos = React.useCallback(() => {
     setLoading(true);
@@ -877,6 +895,140 @@ function TodoSection({ az, onTodoChange }) {
       </div>
     );
   };
+
+  const terminFarbe = (t) => {
+    if (t.tage_bis < 0) return FARBEN.grau;
+    if (t.tage_bis === 0) return FARBEN.rot;
+    if (t.tage_bis === 1) return FARBEN.orange;
+    return t.tage_bis < 7 ? FARBEN.gelb : FARBEN.grau;
+  };
+
+  const terminBadge = (t) => {
+    if (t.tage_bis < 0) return `vor ${-t.tage_bis} Tagen`;
+    if (t.tage_bis === 0) return "heute";
+    if (t.tage_bis === 1) return "morgen";
+    return `in ${t.tage_bis} Tagen`;
+  };
+
+  const terminDatum = (iso) => {
+    try {
+      const [y, m, d] = iso.split("-");
+      const wt = ["So","Mo","Di","Mi","Do","Fr","Sa"][new Date(`${iso}T12:00:00`).getDay()];
+      return `${wt} ${d}.${m}.${y}`;
+    } catch { return iso; }
+  };
+
+  // Die Anschrift aus RA-MICRO ist lang ("LG Darmstadt, Steubenplatz 12,
+  // 64293 Darmstadt, Saal 218"). Zugeklappt genuegt das Gericht.
+  const ortKurz = (ort) => (ort || "").split(",")[0].trim();
+
+  const renderTermin = (termin, i) => {
+    const f = terminFarbe(termin);
+    const offen = terminOffen === i;
+    const vergangen = termin.tage_bis < 0;
+    const detail = (label, wert) => wert ? (
+      <div style={{ display:"flex", gap:8, marginTop:4 }}>
+        <span style={{ fontSize:"0.75rem", color:T.textFaint, minWidth:52 }}>{label}</span>
+        <span style={{ fontSize:"0.8rem", color:T.textMuted }}>{wert}</span>
+      </div>
+    ) : null;
+
+    return (
+      <div key={`${termin.termin_datum}|${termin.uhrzeit || ""}|${termin.termin_art}|${i}`}
+        style={{
+          background: f.bg, border:`1px solid ${f.border}`, borderLeft:`4px solid ${f.dot}`,
+          borderRadius:8, marginBottom:6, opacity: vergangen ? 0.72 : 1,
+        }}>
+        <button type="button" aria-expanded={offen}
+          onClick={() => setTerminOffen(offen ? null : i)}
+          style={{
+            display:"flex", alignItems:"flex-start", gap:10, width:"100%",
+            padding:"10px 14px", background:"transparent", border:"none",
+            textAlign:"left", cursor:"pointer", font:"inherit",
+          }}>
+          <span aria-hidden="true" style={{ color:T.textFaint, fontSize:"0.7rem",
+            lineHeight:"1.4rem", transform: offen ? "rotate(90deg)" : "none",
+            transition:"transform 0.15s" }}>▶</span>
+          <span style={{ flex:1, minWidth:0 }}>
+            <span style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+              <span style={{ fontSize:"0.9rem", fontWeight:600, color:T.textDark }}>
+                {termin.termin_art || "Termin"}
+              </span>
+              <span style={{ fontSize:"0.7rem", fontWeight:700, color:f.dot,
+                background:T.cardBg || "#fff", border:`1px solid ${f.border}`,
+                borderRadius:10, padding:"1px 7px" }}>
+                {terminBadge(termin)}
+              </span>
+            </span>
+            <span style={{ display:"block", fontSize:"0.78rem", color:T.textMuted, marginTop:2 }}>
+              {[terminDatum(termin.termin_datum), ortKurz(termin.ort)]
+                .filter(Boolean).join(" · ")}
+            </span>
+            {termin.betreff && (
+              <span style={{ display:"block", fontSize:"0.78rem", color:T.textFaint, marginTop:1 }}>
+                {termin.betreff}
+              </span>
+            )}
+          </span>
+          <span className="tabular-nums" style={{ fontSize:"0.85rem", fontWeight:600,
+            color:T.textMid, whiteSpace:"nowrap" }}>
+            {termin.uhrzeit || ""}
+          </span>
+        </button>
+        {offen && (
+          <div style={{ padding:"0 14px 11px 38px", borderTop:`1px dashed ${f.border}`,
+            marginTop:2, paddingTop:9 }}>
+            {detail("Ort", termin.ort)}
+            {detail("SB", termin.sb)}
+            {detail("Notiz", termin.bemerkung)}
+            {!termin.ort && !termin.sb && !termin.bemerkung && (
+              <div style={{ fontSize:"0.8rem", color:T.textFaint }}>
+                Keine weiteren Angaben in RA-MICRO.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const termineBlock = (termine.length > 0 || termineFehler) && (
+    <Card>
+      <div style={{ padding:"1rem 1.4rem" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline",
+          gap:12, marginBottom:10 }}>
+          <div style={{ fontFamily:T.fontDisplay, fontSize:"1.05rem", fontWeight:700,
+            color:T.navy }}>
+            Termine
+            {termine.length > 0 && (
+              <span style={{ marginLeft:8, fontSize:"0.825rem", background:T.surface,
+                color:T.navy, borderRadius:12, padding:"2px 8px", fontFamily:T.fontBody,
+                fontWeight:600, verticalAlign:"middle" }}>
+                {termine.length}
+              </span>
+            )}
+          </div>
+          <div style={{ fontFamily:T.fontBody, fontSize:"0.78rem", color:T.textFaint }}>
+            aus RA-MICRO · wird dort gepflegt
+          </div>
+        </div>
+        {termineFehler ? (
+          <div role="alert" style={{ background:T.redBg, border:`1px solid ${T.redLight}`,
+            borderRadius:7, padding:"10px 12px" }}>
+            <div style={{ fontSize:"0.875rem", fontWeight:600, color:T.redText || T.red }}>
+              {termineFehler}
+            </div>
+            <button type="button" onClick={ladeTermine} aria-label="Termine erneut laden"
+              style={{ marginTop:8, fontSize:"0.72rem", fontWeight:600, color:T.redText || T.red,
+                border:`1px solid ${T.redLight}`, background:T.cardBg || "#fff",
+                borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>
+              Erneut laden
+            </button>
+          </div>
+        ) : termine.map(renderTermin)}
+      </div>
+    </Card>
+  );
 
   const fristenBlock = (fristen.length > 0 || fristenFehler) && (
     <Card>
@@ -1090,6 +1242,7 @@ function TodoSection({ az, onTodoChange }) {
           )}
         </Card>
 
+        {termineBlock}
         {fristenBlock}
 
         {/* To-Do-Liste */}

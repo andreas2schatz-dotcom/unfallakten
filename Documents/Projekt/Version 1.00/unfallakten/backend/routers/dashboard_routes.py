@@ -28,6 +28,10 @@ from ..services.wiedervorlage_code_registry import (
 from ..services.fristen_gt import (
     FristenQuelleNichtErreichbar, lade_fristen, standard_fenster
 )
+from ..services.termine_ramicro import (
+    SPALTEN as _TERMIN_SPALTEN, VON_UND_JOIN as _TERMIN_VON,
+    parse_datum as _parse_datum, satz_zu_termin
+)
 
 logger = logging.getLogger(__name__)
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
@@ -349,21 +353,6 @@ def _bilde_az(row):
     return az_roh
 
 
-def _parse_datum(raw, heute_dt):
-    # type: (object, date) -> tuple
-    """Gibt (iso_str, tage_bis) zurück."""
-    try:
-        if hasattr(raw, "date"):
-            d = raw.date()
-        elif isinstance(raw, str):
-            d = date.fromisoformat(str(raw)[:10])
-        else:
-            d = raw
-        return d.isoformat(), (d - heute_dt).days
-    except Exception:
-        return str(raw)[:10] if raw else "", 99
-
-
 def _lade_termine_heute():
     # type: () -> list
     heute_dt  = date.today()
@@ -386,78 +375,22 @@ def _lade_termine_heute():
             # nummern und Zusätze in Notes.
             cur.execute("""
                 SELECT TOP 100
-                    e.EventUid,
-                    e.StartDateTime,
-                    e.Subject,
-                    e.Summary,
-                    e.Location,
-                    e.Notes,
-                    e.Aktennummer,
-                    e.Aktenkurzbezeichnung,
-                    e.IsGerichtstermin,
-                    e.GerichtName,
-                    c.CalendarName
-                FROM raKalender.dbo.Events e
-                LEFT JOIN raKalender.dbo.Calendars c
-                    ON c.CalendarId = e.CalendarId AND c.Deleted = 0
+""" + _TERMIN_SPALTEN + _TERMIN_VON + """
                 WHERE CAST(e.StartDateTime AS DATE) BETWEEN %(heute)s AND %(morgen)s
                   AND e.IsDeleted = 0
                 ORDER BY e.StartDateTime ASC
             """, {"heute": heute_s, "morgen": morgen_s})
             for r in cur.fetchall():
-                cal_name = (r.get("CalendarName") or "").strip()
-                sb = kalender_map.get(cal_name)
                 # Ohne zugeordneten Kalender kein Termin: gepflegt sind nur die
                 # Anwaltskalender, die Angestellten arbeiten mit Wiedervorlagen.
-                if not sb:
+                termin = satz_zu_termin(r, kalender_map, heute_dt)
+                if not termin:
                     continue
-
-                datum_raw = r.get("StartDateTime")
-                datum_iso, tage = _parse_datum(datum_raw, heute_dt)
-
-                uhrzeit = None
-                if datum_raw is not None and hasattr(datum_raw, "strftime"):
-                    uhrzeit = datum_raw.strftime("%H:%M")
-
-                ak_nr = (r.get("Aktennummer") or "").strip()
-                az = ak_nr + sb if ak_nr else ""
-
-                kurz    = (r.get("Aktenkurzbezeichnung") or "").strip()
-                summary = (r.get("Summary") or "").strip()
-                if ak_nr and summary.startswith(ak_nr):
-                    summary = summary[len(ak_nr):].strip()
-
-                is_gt   = bool(r.get("IsGerichtstermin"))
-                subject = (r.get("Subject") or "").strip()
-                if is_gt:
-                    termin_art = subject or "Verhandlungstermin"
-                elif ak_nr or kurz:
-                    termin_art = subject or "Mandantentermin"
-                else:
-                    # Ohne Aktenbezug wäre "Mandantentermin" geraten
-                    # (Lehrgang, Urlaub, Behördengang).
-                    termin_art = subject
-
-                notiz = (r.get("Notes") or "").strip()
 
                 key = ("kalender", r.get("EventUid"))
                 if key not in seen_keys:
                     seen_keys.add(key)
-                    ergebnis.append({
-                        "az":              az,
-                        "mandant":         "",
-                        "kurzbezeichnung": kurz,
-                        "betreff":         kurz or summary,
-                        "termin_art":      termin_art,
-                        "termin_datum":    datum_iso,
-                        "uhrzeit":         uhrzeit,
-                        "tage_bis":        tage,
-                        "sb":              sb,
-                        "ort":             ((r.get("Location") or "").strip()
-                                            or (r.get("GerichtName") or "").strip()),
-                        "bemerkung":       " · ".join(
-                            z.strip() for z in notiz.splitlines() if z.strip()),
-                    })
+                    ergebnis.append(termin)
 
             # Bis 2026-09-07 wurden hier zusaetzlich Wiedervorlagen mit
             # art: termin als Gerichtstermine ausgegeben. Die drei Codes (9,

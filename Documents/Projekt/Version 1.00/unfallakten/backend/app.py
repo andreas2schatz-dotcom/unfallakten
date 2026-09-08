@@ -49,6 +49,7 @@ from .routers.sv_portal_routes import sv_portal_bp
 from .routers.stellungnahme_routes import stellungnahme_bp
 from .routers.todos_routes import todos_bp
 from .routers.fristen_routes import fristen_bp
+from .routers.termine_routes import termine_bp
 from .routers.wiedervorlage_routes import wiedervorlage_bp
 from .routers.word_routes import word_bp
 from .routers.portal_routes import portal_bp
@@ -234,6 +235,7 @@ def erstelle_app(test_config: dict = None) -> Flask:
     app.register_blueprint(stellungnahme_bp)
     app.register_blueprint(todos_bp)
     app.register_blueprint(fristen_bp)
+    app.register_blueprint(termine_bp)
     app.register_blueprint(wiedervorlage_bp)
     app.register_blueprint(word_bp)
     app.register_blueprint(portal_bp)

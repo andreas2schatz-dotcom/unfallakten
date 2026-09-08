@@ -15,6 +15,7 @@ vi.mock("../api.js", () => ({
     erstelle: vi.fn(), update: vi.fn(), loesche: vi.fn(),
   },
   apiAkteFristen: { liste: vi.fn(() => Promise.resolve({ fristen: [] })) },
+  apiAkteTermine: { liste: vi.fn(() => Promise.resolve({ termine: [] })) },
   apiSta: { kontext: vi.fn(), generieren: vi.fn() },
 }));
 
