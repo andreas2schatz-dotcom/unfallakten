@@ -7,6 +7,29 @@
 
 ---
 
+## 2026-09-08 — Belegkette Fundament (R1 + R2)
+
+Migration 75 gibt `dokumente` die Spalte `dokument_datum`: das Datum, das auf
+dem Schreiben steht, nicht der Tag des Einlesens. Es wird aus der
+`bezeichnung_felder.datum`-Rolle der Klassen-Registry abgeleitet (22 der 23
+Klassen tragen sie) und ist im Freigabe-Dialog korrigierbar. Freigabe-
+Ereignisse tragen dieses Datum statt „heute"; die Verzugsliste im Klage-Wizard
+sortiert danach.
+
+Die Review-Freigabe trägt ihre Belege jetzt selbst in `schadenposition_belege`
+ein — bisher tat das nur die manuelle Zuordnung, weshalb geparste Rechnungen
+in der Belegliste fehlten. Einziger Schreibweg ist
+`backend/services/beleg_zuordnung.py`.
+
+Bestandsdokumente füllt `tools/dokument_datum_nachziehen.py` nach
+(Trockenlauf per Vorgabe).
+
+Regeln R1 und R2 aus
+`docs/superpowers/specs/2026-09-07-belegkette-beweisantritt-design.md`.
+R3–R5 (Anlagennummern, „b.b.", Beweismittel-Schritt) stehen aus.
+
+---
+
 ## 2026-09-07 — Termine der Akte bei den To-Dos, zum Aufklappen
 
 Branch `fragebogen-favoritenliste`. Auftrag RA Schatz: *„ich möchte, dass die termine in

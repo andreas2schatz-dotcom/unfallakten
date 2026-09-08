@@ -159,7 +159,7 @@ Trigger: `unfallakte_geaendert` → setzt `geaendert_am = datetime('now','localt
 ---
 
 ### dokumente
-*Erstellt: Basisschema · Erweiterungen: Migration 24, 26, 38, 73, 74*
+*Erstellt: Basisschema · Erweiterungen: Migration 24, 26, 38, 73, 74, 75*
 
 | Spalte | Typ | Constraint / Herkunft |
 |---|---|---|
@@ -182,6 +182,7 @@ Trigger: `unfallakte_geaendert` → setzt `geaendert_am = datetime('now','localt
 | `eakte_pfad` | TEXT | nullable · *Mig 26* · Datei-Pfad im E-Akte-DMS |
 | `quelle` | TEXT | nullable DEFAULT 'upload' · *Mig 26* · 'upload'/'eakte' |
 | `portal_sichtbar` | INTEGER | NOT NULL DEFAULT 0 · *Mig 38* |
+| `dokument_datum` | TEXT | Datum des Schreibens (ISO), nicht das Eingangs- oder Scan-Datum. Abgeleitet aus `bezeichnung_felder.datum` der Klassen-Registry, bei der Freigabe korrigierbar, nullable. Migration 75. |
 
 ---
 

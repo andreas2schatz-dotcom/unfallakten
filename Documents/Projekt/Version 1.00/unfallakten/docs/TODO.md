@@ -7,6 +7,30 @@
 
 ## 🔄 In Arbeit
 
+### Belegkette Fundament (R1+R2) — ✅ umgesetzt (2026-09-08, Branch `belegkette-fundament`), Abnahme offen
+Migration 75 gibt `dokumente` die Spalte `dokument_datum` (Datum des Schreibens statt
+Eingang), abgeleitet aus `bezeichnung_felder.datum` der Klassen-Registry, im Freigabe-
+Dialog korrigierbar. Die Review-Freigabe trägt ihre Belege jetzt selbst in
+`schadenposition_belege` ein (`backend/services/beleg_zuordnung.py`, einziger Schreibweg).
+Spec `docs/superpowers/specs/2026-09-07-belegkette-beweisantritt-design.md`, Protokoll →
+CHANGELOG. **Offen:**
+- **Abnahme im Betrieb** (siehe Spec-Anhang): Gutachten freigeben → Datumsfeld vorbelegt,
+  Positionen zeigen das Gutachten als Beleg ohne manuelles Zuordnen; Mietwagenrechnung
+  freigeben → sofort Beleg an der Position; altes Forderungsschreiben mit Datum von damals
+  freigeben → steht im Klage-Wizard an der richtigen Stelle in der Verzugsliste.
+- **R3–R5 stehen aus** (Anlagennummern, „b.b.", Beweismittel-Schritt im Klage-Wizard).
+- **Entscheidung RA Schatz:** Der Belegbetrag eines Gutachtens stammt aus der
+  buchungsabhängigen Ableitung `waehle_fahrzeugschaden` statt aus dem Beleginhalt —
+  `restwert` bekommt gar keine Belegzeile, bei `abrechnungsart="konkret"` entsteht für den
+  Fahrzeugschaden überhaupt kein Beleg. Welche Position soll ein Gutachten unabhängig von
+  der Abrechnungsart beweisen?
+- **`tools/dokument_datum_nachziehen.py` meldet im Trockenlauf „Datum gesetzt: N"**, obwohl
+  nichts geschrieben wurde — vor dem ersten echten Schreiblauf in „Datum setzbar" ändern.
+- **`pruefbericht`** ist als einzige Klasse ohne `datum`-Rolle geblieben — braucht erst ein
+  Parserfeld.
+- **Toter Zweig `klage_routes.py`:** fragt nach der Klasse `verzugsschreiben`, die es in der
+  Registry nicht gibt.
+
 ### Termine der Akte bei den To-Dos — ✅ umgesetzt (2026-09-07, Branch `fragebogen-favoritenliste`), Abnahme offen
 Block „Termine" in der Akten-Übersicht, über den Fristen. Zeile aufklappbar (Ort, SB,
 Notiz) statt eigener Terminseite. Quelle `raKalender.dbo.Events` über den neuen Dienst
