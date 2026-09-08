@@ -148,6 +148,18 @@ Zeugen standen als Gegner in der Beteiligtenliste und waren im Klage-Wizard als 
 - **Entscheidung RA Schatz — `HV`/`VS`:** Beide sind als `offen: true` markiert, weil das Kürzel die Sparte nennt (Haftpflicht/Versicherung), nicht die Seite. In den Unfallakten kommt derzeit keines vor.
 - **Merken:** Nach Änderungen an der YAML ist ein `docker restart unfallakten-backend-dev` nötig (Reloader reagiert nur auf `.py`, die Registry cached).
 
+### 86 % der Review-Queue landen in `sonstiges` — Diagnose offen (2026-09-08)
+1.647 von 1.915 Wartedokumenten stehen in der Auffangklasse, **1.641 davon mit Konfidenz
+≥ 0,85** — also kein Schwellenwertproblem. Auffälligster Einzelposten: **629 aus
+`placetel.de`** (Telefonanlage; steht in `rausch_absender.yaml`, aber nur mit
+`policy: nur_body`), dazu 75 von der eigenen Kanzleidomain. Dokumente in `sonstiges`
+haben keinen Parser — kein Datum, keine Felder, keine Belege, alles Handarbeit.
+Aufgefallen bei der Belegketten-Abnahme, weil das Datumsfeld fast immer leer blieb.
+**Eigene Sitzung**, Auftrag und Kennzahlen in
+`handover/naechste_session_sonstiges_klassifikation_prompt.md`. Erster Schritt ist eine
+Stichprobe von 20–30 Dokumenten, nicht eine Codeanalyse — drei mögliche Ursachen
+(Rauschen / fehlende Klasse / Fehlklassifikation) führen zu völlig verschiedenen Lösungen.
+
 ### Review-Queue im Testbetrieb sauber halten (seit 2026-08-28)
 879 Altdokumente archiviert (reversibel, Papierkorb-Reiter), acht Werbedomains in die Rausch-Regel. Protokoll → CHANGELOG. **Offen:**
 - **Regelmäßig aufräumen, solange das System nicht live ist** — Zufluss 40–80 Dokumente/Tag, der Rauschfilter fängt davon nur ~7 %. Kommando: `MSYS_NO_PATHCONV=1 docker exec unfallakten-backend-dev python /app/tools/queue_altbestand_archivieren.py --dry-run` (ohne `--dry-run` räumt es auf).
