@@ -1125,10 +1125,10 @@ def _schreibe_freigabe_belege(*, dok, akte_az, dokument_id):
             klasse=dok.get("klasse") or "", felder=felder,
             vorsteuer=_mandanten_vorsteuer(akte_az),
         )
-    except Exception as exc:  # pragma: no cover -- Best-Effort
-        logger.warning(
-            "Freigabe-Belegphase fehlgeschlagen (intake=%s, akte=%s): %s",
-            dok.get("id"), akte_az, exc,
+    except Exception:
+        logger.exception(
+            "Freigabe-Belegphase fehlgeschlagen (intake=%s, akte=%s)",
+            dok.get("id"), akte_az,
         )
 
 

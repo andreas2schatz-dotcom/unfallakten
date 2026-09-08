@@ -440,6 +440,10 @@ def zuordnen(akte_id):
                 akte_id, dok_id, pos_key, exc,
             )
         return _j({"status": "ok", "position_key": pos_key, "dokument_id": dok_id})
+    except ValueError as e:
+        logger.warning("Beleg zuordnen: unbekannter position_key %r (akte %s): %s",
+                       pos_key, akte_id, e)
+        return _err("Unbekannter position_key %r." % pos_key, 422)
     except Exception as e:
         logger.error("Beleg zuordnen fehlgeschlagen: %s", e)
         return _err("Zuordnung fehlgeschlagen: %s" % e, 500)

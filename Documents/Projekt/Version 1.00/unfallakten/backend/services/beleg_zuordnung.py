@@ -63,21 +63,20 @@ def belege_aus_freigabe(*, akte_az: str, dokument_id: int, klasse: str,
                                dokument_id=dokument_id,
                                betrag=round(betrag, 2))
                 geschrieben.append(key)
-            return sorted(geschrieben)
-
-        pk = rechnungstyp_zu_position(klasse, vorsteuer=vorsteuer)
-        if pk:
-            betrag = (_feld_zu_zahl(felder.get("bruttobetrag"))
-                      or _feld_zu_zahl(felder.get("nettobetrag")))
-            ordne_beleg_zu(akte_az=akte_az, position_key=pk,
-                           dokument_id=dokument_id,
-                           betrag=round(betrag, 2) if betrag is not None
-                           else None)
-            geschrieben.append(pk)
-    except Exception as exc:  # pragma: no cover -- Best-Effort
-        logger.warning(
-            "Beleg aus Freigabe fehlgeschlagen (akte %s, dok %s, klasse %s): %s",
-            akte_az, dokument_id, klasse, exc,
+        else:
+            pk = rechnungstyp_zu_position(klasse, vorsteuer=vorsteuer)
+            if pk:
+                betrag = (_feld_zu_zahl(felder.get("bruttobetrag"))
+                          or _feld_zu_zahl(felder.get("nettobetrag")))
+                ordne_beleg_zu(akte_az=akte_az, position_key=pk,
+                               dokument_id=dokument_id,
+                               betrag=round(betrag, 2) if betrag is not None
+                               else None)
+                geschrieben.append(pk)
+    except Exception:
+        logger.exception(
+            "Beleg aus Freigabe fehlgeschlagen (akte %s, dok %s, klasse %s)",
+            akte_az, dokument_id, klasse,
         )
 
-    return geschrieben
+    return sorted(geschrieben)
