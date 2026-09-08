@@ -221,6 +221,44 @@ class _RouteBasis(unittest.TestCase):
             ).fetchall()
 
 
+class TestEreignisDatumAusDokument(_HelperBasis):
+    def _ereignis_datum(self, ereignistyp):
+        from backend.db.database import get_connection
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT datum FROM ereignisse WHERE akte_az='44/22' "
+                "AND ereignistyp=? ORDER BY id DESC LIMIT 1", (ereignistyp,)
+            ).fetchone()
+        return row["datum"] if row else None
+
+    def test_router_reicht_das_dokumentdatum_durch(self):
+        import json
+        from backend.routers.intake_routes import _schreibe_freigabe_ereignisse
+        dok = {"id": None, "klasse": "gutachten",
+               "parse_json": json.dumps(
+                   {"felder": {"besichtigungsdatum": "14.03.2024"}})}
+        _schreibe_freigabe_ereignisse(
+            dok=dok, akte_az="44/22", dokument_id=self._dok_id(),
+            payload={"kandidaten_ereignisse": [{"typ": "gutachten_eingegangen"}]},
+            benutzer_id=None, dokument_datum="2024-03-14",
+        )
+        self.assertEqual(self._ereignis_datum("gutachten_eingegangen"),
+                         "2024-03-14")
+
+    def test_ohne_dokumentdatum_bleibt_es_bei_heute(self):
+        import json
+        from datetime import date
+        from backend.routers.intake_routes import _schreibe_freigabe_ereignisse
+        dok = {"id": None, "klasse": "gutachten", "parse_json": json.dumps({})}
+        _schreibe_freigabe_ereignisse(
+            dok=dok, akte_az="44/22", dokument_id=self._dok_id(),
+            payload={"kandidaten_ereignisse": [{"typ": "gutachten_eingegangen"}]},
+            benutzer_id=None, dokument_datum=None,
+        )
+        self.assertEqual(self._ereignis_datum("gutachten_eingegangen"),
+                         date.today().isoformat())
+
+
 class TestFreigabeRouteE2E(_RouteBasis):
     def test_gutachten_schreibt_ereignis_mit_positionen(self):
         did = self._intake("gutachten",

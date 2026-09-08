@@ -937,6 +937,7 @@ def post_freigabe(intake_id: int):
     _schreibe_freigabe_ereignisse(
         dok=dok, akte_az=akte_az, dokument_id=dokument_id,
         payload=payload, benutzer_id=benutzer_id,
+        dokument_datum=dokument_datum,
     )
 
     # Fragebogen-Feld-Uebernahme (nur wenn Payload-Block vorhanden UND das
@@ -1107,7 +1108,7 @@ def _anker_dokument_id(intake_id: Optional[int], dokument_id: int,
 
 
 def _schreibe_freigabe_ereignisse(*, dok, akte_az, dokument_id, payload,
-                                   benutzer_id):
+                                   benutzer_id, dokument_datum=None):
     from ..services.eingehende_ereignisse import erzeuge_aus_freigabe
 
     try:
@@ -1141,7 +1142,7 @@ def _schreibe_freigabe_ereignisse(*, dok, akte_az, dokument_id, payload,
                 erzeuge_aus_freigabe(
                     akte_az=akte_az, dokument_id=dokument_id, ereignistyp=typ,
                     klasse=klasse, felder=felder, vorsteuer=vorsteuer,
-                    benutzer_id=benutzer_id,
+                    benutzer_id=benutzer_id, datum=dokument_datum,
                 )
             except Exception as exc:  # pragma: no cover -- Best-Effort
                 logger.warning(
