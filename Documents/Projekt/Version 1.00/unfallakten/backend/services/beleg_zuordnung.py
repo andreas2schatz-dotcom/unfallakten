@@ -41,40 +41,49 @@ def ordne_beleg_zu(*, akte_az: str, position_key: str, dokument_id: int,
 
 def _gutachten_belegpositionen(felder: Dict[str, Any],
                                vorsteuer: bool) -> Dict[str, float]:
-    """Nur Positionen, deren Betrag woertlich im Gutachten steht.
+    """Positionen, deren Betrag woertlich im Gutachten steht.
 
-    Reparaturkosten, Wiederbeschaffungswert und Restwert bleiben aussen vor:
-    welcher Fahrzeugschaden gilt, haengt an der Abrechnungsart, und der
-    daraus errechnete Betrag (z. B. WBW abzueglich Restwert) steht so nicht
-    im Gutachten. Ein solcher Betrag darf nicht als Belegbetrag in den
-    Schaden uebernommen werden -- lieber keine Belegzeile.
+    Entscheidung RA Schatz (2026-09-08): ein Gutachten belegt Wertminderung,
+    Restwert, die fiktiven Reparaturkosten und den Wiederbeschaffungswert --
+    jeweils mit dem Betrag, der so im Gutachten ausgewiesen ist. Wertminderung
+    und Restwert koennen 0 sein ("keine Wertminderung", "kein Restwert") --
+    das ist eine echte Aussage des Gutachtens und erzeugt eine Belegzeile mit
+    Betrag 0, keine fehlende Zeile. Deshalb wird auf `is not None` geprueft,
+    nicht auf Wahrheitswert. Gutachterkosten belegt NICHT das Gutachten,
+    sondern die SV-Rechnung (rechnungstyp_mapping.yaml: sv_rechnung ->
+    __sv_kosten_vorsteuer__).
     """
-    from .eingehende_ereignisse import (
-        _FAHRZEUG_ALTERNATIVEN, _GUTACHTEN_FELD_ALIASSE, _feld_zu_zahl,
-    )
+    from .eingehende_ereignisse import _feld_zu_zahl
 
     positionen: Dict[str, float] = {}
     if not isinstance(felder, dict):
         return positionen
 
-    for pk, aliase in _GUTACHTEN_FELD_ALIASSE.items():
-        if pk in _FAHRZEUG_ALTERNATIVEN:
-            continue
-        for name in aliase:
-            wert = _feld_zu_zahl(felder.get(name))
-            if wert:
-                positionen[pk] = wert
-                break
+    wertminderung = _feld_zu_zahl(felder.get("wertminderung"))
+    if wertminderung is not None:
+        positionen["wertminderung"] = wertminderung
 
-    sv_netto = _feld_zu_zahl(felder.get("sv_kosten_netto"))
-    sv_brutto = _feld_zu_zahl(felder.get("sv_kosten_brutto"))
-    if sv_netto or sv_brutto:
+    restwert_netto = _feld_zu_zahl(felder.get("restwert_netto"))
+    restwert_brutto = _feld_zu_zahl(felder.get("restwert_brutto"))
+    if restwert_netto is not None or restwert_brutto is not None:
         if vorsteuer:
-            wert = sv_netto if sv_netto is not None else sv_brutto
+            restwert = (restwert_netto if restwert_netto is not None
+                        else restwert_brutto)
         else:
-            wert = sv_brutto if sv_brutto is not None else sv_netto
-        if wert:
-            positionen["sv_kosten"] = wert
+            restwert = (restwert_brutto if restwert_brutto is not None
+                        else restwert_netto)
+    else:
+        restwert = _feld_zu_zahl(felder.get("restwert"))
+    if restwert is not None:
+        positionen["restwert"] = restwert
+
+    rep_gutachten = _feld_zu_zahl(felder.get("reparaturkosten_netto"))
+    if rep_gutachten is not None:
+        positionen["rep_gutachten_netto"] = rep_gutachten
+
+    wbw = _feld_zu_zahl(felder.get("wiederbeschaffungswert"))
+    if wbw is not None:
+        positionen["wbw"] = wbw
 
     return positionen
 
@@ -84,8 +93,8 @@ def belege_aus_freigabe(*, akte_az: str, dokument_id: int, klasse: str,
                         vorsteuer: bool = False) -> List[str]:
     """Traegt die Belege einer Review-Freigabe ein.
 
-    Gutachten belegen mehrere Positionen (ohne den Fahrzeugschaden, siehe
-    _gutachten_belegpositionen), Rechnungen genau eine. Klassen ohne
+    Gutachten belegen mehrere Positionen (siehe _gutachten_belegpositionen),
+    Rechnungen genau eine. Klassen ohne
     Positionsbezug -- und die Auffangklasse 'rechnung' ohne Mapping-Eintrag --
     schreiben nichts. Best-Effort: Fehler brechen die Freigabe nie ab.
     """
@@ -107,8 +116,9 @@ def belege_aus_freigabe(*, akte_az: str, dokument_id: int, klasse: str,
         else:
             pk = rechnungstyp_zu_position(klasse, vorsteuer=vorsteuer)
             if pk:
-                betrag = (_feld_zu_zahl(felder.get("bruttobetrag"))
-                          or _feld_zu_zahl(felder.get("nettobetrag")))
+                betrag = _feld_zu_zahl(felder.get("bruttobetrag"))
+                if betrag is None:
+                    betrag = _feld_zu_zahl(felder.get("nettobetrag"))
                 ordne_beleg_zu(akte_az=akte_az, position_key=pk,
                                dokument_id=dokument_id,
                                betrag=round(betrag, 2) if betrag is not None

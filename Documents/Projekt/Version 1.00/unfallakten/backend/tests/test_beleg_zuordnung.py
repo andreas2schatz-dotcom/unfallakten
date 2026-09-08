@@ -94,31 +94,75 @@ class TestBelegeAusFreigabe(_Basis):
         self.assertEqual(keys, ["mietwagenkosten"])
         self.assertEqual(self._belege()[0]["betrag_aus_beleg"], 812.50)
 
-    def test_gutachten_belegt_nur_woertliche_betraege(self):
+    def test_gutachten_alle_vier_positionen(self):
         from backend.services.beleg_zuordnung import belege_aus_freigabe
         keys = belege_aus_freigabe(
             akte_az="44/22", dokument_id=self._dok_id(), klasse="gutachten",
             felder={"wiederbeschaffungswert": "12000,00",
                     "restwert_brutto": "3000,00",
                     "wertminderung": "800,00",
-                    "sv_kosten_brutto": "1190,00"},
+                    "reparaturkosten_netto": "4500,00"},
         )
-        self.assertEqual(keys, ["sv_kosten", "wertminderung"])
+        self.assertEqual(keys, ["rep_gutachten_netto", "restwert", "wbw",
+                                "wertminderung"])
         belege = {r["position_key"]: r["betrag_aus_beleg"]
                   for r in self._belege()}
         self.assertEqual(belege, {"wertminderung": 800.0,
-                                  "sv_kosten": 1190.0})
+                                  "restwert": 3000.0,
+                                  "rep_gutachten_netto": 4500.0,
+                                  "wbw": 12000.0})
 
-    def test_gutachten_belegt_keinen_fahrzeugschaden(self):
+    def test_gutachten_null_betraege_werden_nicht_weggelassen(self):
         from backend.services.beleg_zuordnung import belege_aus_freigabe
         keys = belege_aus_freigabe(
             akte_az="44/22", dokument_id=self._dok_id(), klasse="gutachten",
-            felder={"reparaturkosten_netto": "4500,00",
-                    "wiederbeschaffungswert": "12000,00",
-                    "restwert_brutto": "3000,00"},
+            felder={"wertminderung": "0,00", "restwert_brutto": "0,00"},
+        )
+        self.assertEqual(keys, ["restwert", "wertminderung"])
+        belege = {r["position_key"]: r["betrag_aus_beleg"]
+                  for r in self._belege()}
+        self.assertEqual(belege, {"wertminderung": 0.0, "restwert": 0.0})
+
+    def test_gutachten_sv_kosten_erzeugt_keine_belegzeile(self):
+        from backend.services.beleg_zuordnung import belege_aus_freigabe
+        keys = belege_aus_freigabe(
+            akte_az="44/22", dokument_id=self._dok_id(), klasse="gutachten",
+            felder={"sv_kosten_brutto": "1190,00",
+                    "sv_kosten_netto": "1000,00"},
         )
         self.assertEqual(keys, [])
         self.assertEqual(self._belege(), [])
+
+    def test_gutachten_restwert_vorsteuerabzug_nimmt_netto(self):
+        from backend.services.beleg_zuordnung import belege_aus_freigabe
+        keys = belege_aus_freigabe(
+            akte_az="44/22", dokument_id=self._dok_id(), klasse="gutachten",
+            felder={"restwert_netto": "2500,00",
+                    "restwert_brutto": "3000,00"},
+            vorsteuer=True,
+        )
+        self.assertEqual(keys, ["restwert"])
+        self.assertEqual(self._belege()[0]["betrag_aus_beleg"], 2500.0)
+
+    def test_gutachten_restwert_ohne_vorsteuerabzug_nimmt_brutto(self):
+        from backend.services.beleg_zuordnung import belege_aus_freigabe
+        keys = belege_aus_freigabe(
+            akte_az="44/22", dokument_id=self._dok_id(), klasse="gutachten",
+            felder={"restwert_netto": "2500,00",
+                    "restwert_brutto": "3000,00"},
+            vorsteuer=False,
+        )
+        self.assertEqual(keys, ["restwert"])
+        self.assertEqual(self._belege()[0]["betrag_aus_beleg"], 3000.0)
+
+    def test_gutachten_restwert_faellt_auf_anderen_wert_zurueck(self):
+        from backend.services.beleg_zuordnung import belege_aus_freigabe
+        keys = belege_aus_freigabe(
+            akte_az="44/22", dokument_id=self._dok_id(), klasse="gutachten",
+            felder={"restwert_brutto": "3000,00"}, vorsteuer=True,
+        )
+        self.assertEqual(keys, ["restwert"])
+        self.assertEqual(self._belege()[0]["betrag_aus_beleg"], 3000.0)
 
     def test_fehler_in_ordne_beleg_zu_wird_abgefangen(self):
         from unittest.mock import patch

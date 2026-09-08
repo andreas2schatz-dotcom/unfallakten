@@ -19,11 +19,17 @@ CHANGELOG. **Offen:**
   freigeben → sofort Beleg an der Position; altes Forderungsschreiben mit Datum von damals
   freigeben → steht im Klage-Wizard an der richtigen Stelle in der Verzugsliste.
 - **R3–R5 stehen aus** (Anlagennummern, „b.b.", Beweismittel-Schritt im Klage-Wizard).
-- **Entscheidung RA Schatz:** Ein Gutachten belegt jetzt nur noch die Positionen, deren
-  Betrag wörtlich darin steht (`wertminderung`, `sv_kosten`). Für den Fahrzeugschaden
-  (Reparaturkosten / Wiederbeschaffung / Restwert) entsteht bewusst **keine** Belegzeile,
-  weil der Betrag dort von der Abrechnungsart abhängt. Welche Position soll ein Gutachten
-  unabhängig von der Abrechnungsart beweisen?
+- **Entscheidung RA Schatz (2026-09-08):** Ein Gutachten belegt Wertminderung, Restwert,
+  die fiktiven Reparaturkosten (`rep_gutachten_netto`) und den Wiederbeschaffungswert
+  (`wbw`) — jeweils mit dem Betrag, der wörtlich im Gutachten steht. Wertminderung und
+  Restwert können 0 sein, das ist eine gültige Belegzeile. Gutachterkosten belegt NICHT
+  das Gutachten, sondern die SV-Rechnung. Umgesetzt in `_gutachten_belegpositionen`
+  (`backend/services/beleg_zuordnung.py`).
+- **Offen: fiktive Mehrwertsteuer.** Der Gutachten-Parser extrahiert keinen ausgewiesenen
+  Steuerbetrag (`backend/registry/klassen/gutachten.yaml` kennt nur `reparaturkosten_netto`
+  und `reparaturkosten_brutto`) und es fehlt ein passender Positionsschlüssel — `mwst_abzug`
+  ist ein Abzugsposten (Nebenkosten), kein ausgewiesener Steuerbetrag. Nicht aus
+  brutto minus netto ableiten (Geld-SSOT). Parserfeld + Positionsschlüssel fehlen noch.
 - **`pruefbericht`** ist als einzige Klasse ohne `datum`-Rolle geblieben — braucht erst ein
   Parserfeld.
 - **Toter Zweig `klage_routes.py`:** fragt nach der Klasse `verzugsschreiben`, die es in der
