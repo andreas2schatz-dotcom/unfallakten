@@ -329,6 +329,7 @@ VALUES (37, 'Migration 37 – v_regulierungsstatus aus abrechnungsschreiben/regu
     72: "-- migration_72_klasse_quelle_nachholung",  # Handled by _run_migration_72
     73: "-- migration_73_dokumentenklasse_nachfuellen",  # Handled by _run_migration_73
     74: "-- migration_74_dokumente_typ_entfernen",  # Handled by _run_migration_74
+    75: "-- migration_75_dokument_datum",  # Handled by _run_migration_75
 }
 
 # Neue Spalten für pruefberichte (SQLite kennt kein ADD COLUMN IF NOT EXISTS)
@@ -1707,6 +1708,40 @@ def _run_migration_74(conn: sqlite3.Connection) -> None:
     logger.info("Migration 74 abgeschlossen.")
 
 
+def _run_migration_75(conn: sqlite3.Connection) -> None:
+    """
+    Migration 75: dokumente.dokument_datum.
+
+    Das Datum, das auf dem Schreiben steht -- nicht das Eingangs- oder
+    Scan-Datum (hochgeladen_am). Wird aus der bezeichnung_felder.datum-Rolle
+    der Klassen-Registry gefuellt und ist bei der Freigabe korrigierbar.
+    Nullable: Dokumente ohne erkennbares Datum bleiben freigebbar.
+
+    Bestandszeilen fuellt tools/dokument_datum_nachziehen.py nach -- eine
+    Migration darf die Registry nicht importieren.
+    """
+    conn.commit()
+    spalten = {r[1] for r in conn.execute(
+        "PRAGMA table_info(dokumente)").fetchall()}
+    if "dokument_datum" not in spalten:
+        conn.execute("ALTER TABLE dokumente ADD COLUMN dokument_datum TEXT")
+        conn.commit()
+        logger.info("Migration 75: dokumente.dokument_datum angelegt.")
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_dokumente_datum "
+        "ON dokumente (akte_id, dokument_datum)"
+    )
+    conn.commit()
+
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, beschreibung) "
+        "VALUES (75, 'dokumente.dokument_datum -- Datum des Schreibens')"
+    )
+    conn.commit()
+    logger.info("Migration 75 abgeschlossen.")
+
+
 def _migration_69_fk_reparatur(conn: sqlite3.Connection) -> None:
     """
     Baut forderung_positionen und abrechnungsschreiben neu auf, wenn ihr
@@ -2410,6 +2445,8 @@ def run_migrations() -> None:
                 _run_migration_73(conn)
             elif version == 74:
                 _run_migration_74(conn)
+            elif version == 75:
+                _run_migration_75(conn)
             else:
                 if _ist_reiner_kommentar_platzhalter(pending[version]):
                     raise RuntimeError(
