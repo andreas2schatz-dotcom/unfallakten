@@ -24,6 +24,7 @@ describe("naechsterFormState", () => {
       gewaehlteAkte: "44/22",
       ereignisse: [{ typ: "rechnung_eingegangen" }],
       bezeichnung: "",
+      dokumentDatum: "",
       dirty: {},
     });
   });
@@ -37,6 +38,7 @@ describe("naechsterFormState", () => {
       gewaehlteAkte: "",
       ereignisse: [],
       bezeichnung: "",
+      dokumentDatum: "",
       dirty: {},
     });
   });

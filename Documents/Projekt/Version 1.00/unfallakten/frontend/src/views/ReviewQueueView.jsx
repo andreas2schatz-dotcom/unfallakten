@@ -153,6 +153,18 @@ function fmtTag(iso) {
   return `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 }
 
+export function isoZuDe(iso) {
+  const s = String(iso || "").slice(0, 10);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : "";
+}
+
+export function deZuIso(de) {
+  const s = String(de || "").trim();
+  const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : s;
+}
+
 export function FragebogenEintrag({ item, aktiv, onClick, onVerwerfen,
                                      onAktenanlage, eingerueckt, vorgang }) {
   const kopf = item.bogen_kopf || {};
@@ -991,6 +1003,7 @@ export function naechsterFormState(detail, { skipFormReset = false } = {}) {
     gewaehlteAkte: detail?.parse?.akten_kandidaten?.[0]?.akte_az || "",
     ereignisse: initialeEreignisse(detail?.default_ereignistyp),
     bezeichnung: effektiveBezeichnung(detail),
+    dokumentDatum: isoZuDe(detail?.dokument_datum_vorschlag),
     dirty: {},
   };
 }
@@ -1150,7 +1163,8 @@ function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
                           ereignistypen, klassen, onEreignisChange,
                           onErsetztChange, onEreignisAdd, onEreignisDel,
                           onConfirm, onCancel, laeuft,
-                          fbVorschau, fbState, onFbToggle, onFbFeld, onFbAdopt }) {
+                          fbVorschau, fbState, onFbToggle, onFbFeld, onFbAdopt,
+                          dokumentDatum, onDokumentDatum }) {
   // Nur eingehende Typen anzeigen -- Review-Queue enthaelt eingegangene
   // Dokumente. Ausgehend/intern sind fachlich unpassend.
   const typenListe = (ereignistypen || []).filter(t => t.richtung === "eingehend");
@@ -1182,6 +1196,26 @@ function FreigabeDialog({ dokument, akteAz, ereignisse, ersetztIds,
             abschnitte={fbVorschau} state={fbState}
             onToggle={onFbToggle} onFeld={onFbFeld} onAdopt={onFbAdopt} />
         )}
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: T.textSm, fontWeight: 600,
+                          display: "block", marginBottom: 6 }}>
+            Datum des Schreibens
+          </label>
+          <input
+            type="text"
+            value={dokumentDatum}
+            placeholder="TT.MM.JJJJ"
+            onChange={e => onDokumentDatum(e.target.value)}
+            style={{ padding: "6px 8px", border: `1px solid ${T.border}`,
+                     borderRadius: 4, width: 140 }}
+          />
+          <div style={{ fontSize: T.textXs, color: T.textMuted,
+                        marginTop: 4 }}>
+            Steht auf dem Dokument, nicht der Tag des Einlesens. Leer lassen,
+            wenn kein Datum erkennbar ist.
+          </div>
+        </div>
 
         {/* K-2: Ereignis-Vorschläge */}
         <div style={{ marginBottom: 16 }}>
@@ -1295,6 +1329,7 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
   const [fbState, setFbState] = useState(null);
   const [splitOffen, setSplitOffen] = useState(false);
   const [bezeichnung, setBezeichnung] = useState("");
+  const [dokumentDatum, setDokumentDatum] = useState("");
   const [entfernung, setEntfernung] = useState(null);
 
   const laden = useCallback(async ({ skipFormReset = false } = {}) => {
@@ -1308,6 +1343,7 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
         setGewaehlteAkte(g => g || form.gewaehlteAkte);
         setEreignisse(form.ereignisse);
         setBezeichnung(form.bezeichnung);
+        setDokumentDatum(form.dokumentDatum);
       }
       return d;
     } catch (e) { setError(e.message); return null; }
@@ -1474,6 +1510,7 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
       await apiIntake.freigabe(id, {
         akte_az: gewaehlteAkte,
         kandidaten_ereignisse: ereignisse,
+        dokument_datum: deZuIso(dokumentDatum),
         ersetzt_ids: ids,
         fragebogen_uebernahme: (fbVorschau && fbState)
           ? baueUebernahmePayload(fbVorschau, fbState) : undefined,
@@ -1838,6 +1875,8 @@ function DetailPanel({ id, onFreigegeben, onOpenAkte, onVerwerfen,
             akteAz={gewaehlteAkte}
             ereignisse={ereignisse}
             ersetztIds={ersetztIds}
+            dokumentDatum={dokumentDatum}
+            onDokumentDatum={setDokumentDatum}
             ereignistypen={ereignistypen}
             klassen={klassen}
             fbVorschau={fbVorschau}
