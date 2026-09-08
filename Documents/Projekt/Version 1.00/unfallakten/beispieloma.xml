@@ -1,0 +1,347 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Onlinemandat typ="gruppe" name="Datenblatt für neue Mandanten">
+  <Rechtsangelegenheiten typ="gruppe" name="Startseite">
+    <Rechtsangelegenheit typ="option" name="Rechtsangelegenheit">
+      <value>VERKEHRSUNFALL</value>
+      <text>Verkehrsunfall</text>
+    </Rechtsangelegenheit>
+    <AndereAngelegenheitBezeichnung typ="feld" name="Andere Angelegenheit">
+      Verkehrsrecht
+    </AndereAngelegenheitBezeichnung>
+  </Rechtsangelegenheiten>
+  <Mandantenliste typ="gruppe" name="Daten zum Mandant">
+<Mandant typ="gruppe" name="1. Mandant">
+  <Nr typ="data">1</Nr>
+  <Bekannt typ="option" name="Waren Sie schon einmal Mandant in unserer Kanzlei?">
+    <value>1</value>
+    <text>Nein</text>
+  </Bekannt>
+  <Person>
+    <Anrede typ="option" name="Rechtsangelegenheit">
+      <value>HERR</value>
+      <text>Herr</text>
+    </Anrede>
+    <AndereAnredeBezeichnung typ="feld" name="Andere Anrede"></AndereAnredeBezeichnung>
+    <Titel typ="feld" name="Titel"></Titel>
+    <Adelstitel typ="feld" name="Adelstitel"></Adelstitel>
+    <Vorname typ="feld" name="Vorname">VornameM</Vorname>
+    <Nachname typ="feld" name="Nachname">NachnameM</Nachname>
+    <Geburtstag typ="feld" name="Geburtstag"></Geburtstag>
+    <Geburtsort typ="feld" name="Geburtsort"></Geburtsort>
+    <Geburtsname typ="feld" name="Geburtsname"></Geburtsname>
+    <Staatsangehoerigkeit typ="feld" name="Staatsangehoerigkeit"></Staatsangehoerigkeit>
+    <IdNr typ="feld" name="IdNr"></IdNr>
+  </Person>
+  
+  <Adresse>
+    <Strasse typ="feld" name="Straße Nr.">Wiener Straße 61</Strasse>
+    <Adresszusatz typ="feld" name="Adresszusatz"></Adresszusatz>
+    <PLZ typ="feld" name="PLZ">60599</PLZ>
+    <Ort typ="feld" name="Ort">Frankfurt am Main</Ort>
+    <Land typ="feld" name="Land">Deutschland</Land>
+    <LKZ typ="data">DE</LKZ>
+  </Adresse>
+  <Kontakt>
+    <Telefon typ="feld" name="Telefon"></Telefon>
+    <Mobiltelefon typ="feld" name="Mobiltelefon"></Mobiltelefon>
+    <EMail typ="feld" name="E-Mail"></EMail>
+  </Kontakt>
+  <Konto>
+    <IBAN typ="feld" name="IBAN"></IBAN>
+    <Bank typ="feld" name="Bank">Frankfurter Sparkasse</Bank>
+    <BIC typ="feld" name="BIC">HELADEF1822</BIC>
+  </Konto>
+  
+  <Rechtsschutzversicherer>
+    <Name typ="feld" name="Rechtsschutzversicherung">ADAC Rechtsschutzversicherung AG</Name>
+    <Versicherungsnummer typ="feld" name="Versicherungsnummer">45214535</Versicherungsnummer>
+  </Rechtsschutzversicherer>
+  
+  <Versicherung>
+    <Name typ="feld" name="Name der Versicherung"></Name>
+    <Schadennummer typ="feld" name="Schadennummer, Vertragsnummer, o.ä."></Schadennummer>
+  </Versicherung>
+</Mandant>
+</Mandantenliste>
+
+  
+<Gegnerliste typ="gruppe" name="Daten zum Gegner">
+
+<Gegner typ="gruppe" name="1. Gegner">
+  <Nr typ="data">1</Nr>
+  <Person>
+    <Anrede typ="option" name="Rechtsangelegenheit">
+      <value>HERR</value>
+      <text>Herr</text>
+    </Anrede>
+    <AndereAnredeBezeichnung typ="feld" name="Andere Anrede"></AndereAnredeBezeichnung>
+    <Titel typ="feld" name="Titel">Prof.</Titel>
+    <Adelstitel typ="feld" name="Adelstitel"></Adelstitel>
+    <Vorname typ="feld" name="Vorname">VornameG</Vorname>
+    <Nachname typ="feld" name="Nachname">NachnameG</Nachname>
+    <Geburtstag typ="feld" name="Geburtstag">5. Mai 2025</Geburtstag>
+    <Geburtsort typ="feld" name="Geburtsort"></Geburtsort>
+    <Geburtsname typ="feld" name="Geburtsname"></Geburtsname>
+    <Staatsangehoerigkeit typ="feld" name="Staatsangehoerigkeit"></Staatsangehoerigkeit>
+    <IdNr typ="feld" name="IdNr"></IdNr>
+  </Person>
+  
+  <Adresse>
+    <Strasse typ="feld" name="Straße Nr.">Gegnerstraße 2</Strasse>
+    <Adresszusatz typ="feld" name="Adresszusatz"></Adresszusatz>
+    <PLZ typ="feld" name="PLZ">60311</PLZ>
+    <Ort typ="feld" name="Ort">Frankfurt am Main</Ort>
+    <Land typ="feld" name="Land">Deutschland</Land>
+    <LKZ typ="data">DE</LKZ>
+  </Adresse>
+  <Kontakt>
+    <Telefon typ="feld" name="Telefon">069/1111111</Telefon>
+    <Mobiltelefon typ="feld" name="Mobiltelefon"></Mobiltelefon>
+    <EMail typ="feld" name="E-Mail">email@gegner.de</EMail>
+  </Kontakt>
+  <Konto>
+    <IBAN typ="feld" name="IBAN">DE85500905000004436242</IBAN>
+    <Bank typ="feld" name="Bank">Frankfurter Sparkasse</Bank>
+    <BIC typ="feld" name="BIC">HELADEF1822</BIC>
+  </Konto>
+  <Versicherung>
+    <Name typ="feld" name="Name der Versicherung"></Name>
+    <Schadennummer typ="feld" name="Schadennummer, Vertragsnummer, o.ä."></Schadennummer>
+  </Versicherung>
+  <Hinweise>
+      <Text typ="feld" name="Weitere Hinweise"></Text>
+  </Hinweise>
+  <Anwalt>
+      <KanzleiBezeichnung typ="feld" name="Bezeichnung Kanzlei"></KanzleiBezeichnung>
+      <Strasse typ="feld" name="Straße Nr."></Strasse>
+      <Adresszusatz typ="feld" name="Adresszusatz"></Adresszusatz>
+      <PLZ typ="feld" name="PLZ"></PLZ>
+      <Ort typ="feld" name="Ort"></Ort>
+      <Land typ="feld" name="Land">Deutschland</Land>
+      <LKZ typ="data">DE</LKZ>
+      <Aktenzeichen typ="feld" name="Aktenzeichen"></Aktenzeichen>
+  </Anwalt>
+</Gegner>
+
+</Gegnerliste>
+
+
+  <Beteiligtenliste typ="gruppe" name="Daten zu Beteiligten">
+
+  
+  <Beteiligter typ="gruppe" name="Beteiligter: Versicherung">
+    <Nr typ="data"></Nr>
+    <Versicherung typ="gruppe" name="Versicherung">
+        <Bezeichnung typ="feld" name="Bezeichnung">KRAVAG-LOGISTIC Versicherungs-AG c/o R+V</Bezeichnung>
+        <Aktenzeichen typ="feld" name="Aktenzeichen/Vorgangsnummer"></Aktenzeichen>
+    </Versicherung>
+  </Beteiligter>
+  
+  
+
+  
+  
+  
+  <Beteiligter typ="gruppe" name="3. Beteiligter">
+    <Nr typ="data"></Nr>
+    <Andere typ="gruppe" name="Andere Beteiligte">
+        <Bezeichnung typ="feld" name="Bezeichnung">WinValue</Bezeichnung>
+        <Aktenzeichen typ="feld" name="Aktenzeichen/Vorgangsnummer">HRB 7882</Aktenzeichen>
+        <Strasse typ="feld" name="Straße Nr.">Mastholter Str. 206</Strasse>
+        <Adresszusatz typ="feld" name="Adresszusatz"></Adresszusatz>
+        <PLZ typ="feld" name="PLZ">59558</PLZ>
+        <Ort typ="feld" name="Ort">Lippstadt</Ort>
+        <Land typ="feld" name="Land">Deutschland</Land>
+        <LKZ typ="data">DE</LKZ>
+        <Telefon typ="feld" name="Telefon">+49 (0) 2941 96669 0</Telefon>
+        <Mobiltelefon typ="feld" name="Mobiltelefon"></Mobiltelefon>
+        <EMail typ="feld" name="E-Mail">info@winvalue.de</EMail>
+        <Geburtstag typ="feld" name="Geburtstag"></Geburtstag>
+        <Geburtsort typ="feld" name="Geburtsort"></Geburtsort>
+        <Geburtsname typ="feld" name="Geburtsname"></Geburtsname>
+        <Staatsangehoerigkeit typ="feld" name="Staatsangehoerigkeit"></Staatsangehoerigkeit>
+    </Andere>
+  </Beteiligter>
+  
+  
+
+  
+  <Beteiligter typ="gruppe" name="Beteiligter: Behörde/Gericht">
+    <Nr typ="data"></Nr>
+    <Gericht typ="gruppe" name="Behörde/Gericht">
+      <Bezeichnung typ="feld" name="Bezeichnung">8. Polizeirevier Frankfurt</Bezeichnung>
+      <Aktenzeichen typ="feld" name="Aktenzeichen/Vorgangsnummer">
+      </Aktenzeichen>
+      <Zustellungsdatum typ="feld" name="Datum der Zustellung">2026-07-29
+      </Zustellungsdatum>
+      <Vorgangsart typ="option" name="Vorgangsart">
+        <value>NEUES_VERFAHREN</value>
+        <text>Neues Verfahren</text>
+      </Vorgangsart>
+    </Gericht>
+  </Beteiligter>
+  
+  
+
+  
+  
+  <Beteiligter typ="gruppe" name="3. Beteiligter">
+
+    <Nr typ="data"></Nr>
+    <Andere typ="gruppe" name="Andere Beteiligte">
+        <Bezeichnung typ="feld" name="Bezeichnung">Cassese</Bezeichnung>
+        <Aktenzeichen typ="feld" name="Aktenzeichen/Vorgangsnummer"></Aktenzeichen>
+        <Strasse typ="feld" name="Straße Nr.">Frankfurter Straße 97</Strasse>
+        <Adresszusatz typ="feld" name="Adresszusatz"></Adresszusatz>
+        <PLZ typ="feld" name="PLZ">63067</PLZ>
+        <Ort typ="feld" name="Ort">Offenbach am Main</Ort>
+        <Land typ="feld" name="Land">Deutschland</Land>
+        <LKZ typ="data">DE</LKZ>
+        <Telefon typ="feld" name="Telefon">0151 67220743</Telefon>
+        <Mobiltelefon typ="feld" name="Mobiltelefon"></Mobiltelefon>
+        <EMail typ="feld" name="E-Mail">info@svb-cassese.de</EMail>
+        <Geburtstag typ="feld" name="Geburtstag"></Geburtstag>
+        <Geburtsort typ="feld" name="Geburtsort"></Geburtsort>
+        <Geburtsname typ="feld" name="Geburtsname"></Geburtsname>
+        <Staatsangehoerigkeit typ="feld" name="Staatsangehoerigkeit"></Staatsangehoerigkeit>
+    </Andere>
+  </Beteiligter>
+  
+  
+  <Beteiligter typ="gruppe" name="3. Beteiligter">
+    <Nr typ="data"></Nr>
+    <Andere typ="gruppe" name="Andere Beteiligte">
+        <Bezeichnung typ="feld" name="Bezeichnung">KFZ-Sachverständigenbüro Cassese</Bezeichnung>
+        <Aktenzeichen typ="feld" name="Aktenzeichen/Vorgangsnummer"></Aktenzeichen>
+        <Strasse typ="feld" name="Straße Nr.">Frankfurter Straße 97</Strasse>
+        <Adresszusatz typ="feld" name="Adresszusatz"></Adresszusatz>
+        <PLZ typ="feld" name="PLZ">63067</PLZ>
+        <Ort typ="feld" name="Ort">Offenbach am Main</Ort>
+        <Land typ="feld" name="Land">Deutschland</Land>
+        <LKZ typ="data">DE</LKZ>
+        <Telefon typ="feld" name="Telefon">0151 67220743</Telefon>
+        <Mobiltelefon typ="feld" name="Mobiltelefon"></Mobiltelefon>
+        <EMail typ="feld" name="E-Mail">info@svb-cassese.de</EMail>
+        <Geburtstag typ="feld" name="Geburtstag"></Geburtstag>
+        <Geburtsort typ="feld" name="Geburtsort"></Geburtsort>
+        <Geburtsname typ="feld" name="Geburtsname"></Geburtsname>
+        <Staatsangehoerigkeit typ="feld" name="Staatsangehoerigkeit"></Staatsangehoerigkeit>
+    </Andere>
+  </Beteiligter>
+  
+  
+
+  
+  
+  <Beteiligter typ="gruppe" name="3. Beteiligter">
+
+    <Nr typ="data"></Nr>
+    <Andere typ="gruppe" name="Andere Beteiligte">
+        <Bezeichnung typ="feld" name="Bezeichnung">Herbert</Bezeichnung>
+        <Aktenzeichen typ="feld" name="Aktenzeichen/Vorgangsnummer"></Aktenzeichen>
+        <Strasse typ="feld" name="Straße Nr.">Tulpenhofstraße 1</Strasse>
+        <Adresszusatz typ="feld" name="Adresszusatz"></Adresszusatz>
+        <PLZ typ="feld" name="PLZ">63067</PLZ>
+        <Ort typ="feld" name="Ort">Offenbach</Ort>
+        <Land typ="feld" name="Land">Deutschland</Land>
+        <LKZ typ="data">DE</LKZ>
+        <Telefon typ="feld" name="Telefon">069/8008566-0</Telefon>
+        <Mobiltelefon typ="feld" name="Mobiltelefon"></Mobiltelefon>
+        <EMail typ="feld" name="E-Mail">alexander.herbert@anwalt-offenbach.de</EMail>
+        <Geburtstag typ="feld" name="Geburtstag"></Geburtstag>
+        <Geburtsort typ="feld" name="Geburtsort"></Geburtsort>
+        <Geburtsname typ="feld" name="Geburtsname"></Geburtsname>
+        <Staatsangehoerigkeit typ="feld" name="Staatsangehoerigkeit"></Staatsangehoerigkeit>
+    </Andere>
+  </Beteiligter>
+  
+  
+  <Beteiligter typ="gruppe" name="3. Beteiligter">
+    <Nr typ="data"></Nr>
+    <Andere typ="gruppe" name="Andere Beteiligte">
+        <Bezeichnung typ="feld" name="Bezeichnung">Dr. Herbert &amp; Koch</Bezeichnung>
+        <Aktenzeichen typ="feld" name="Aktenzeichen/Vorgangsnummer"></Aktenzeichen>
+        <Strasse typ="feld" name="Straße Nr.">Tulpenhofstraße 1</Strasse>
+        <Adresszusatz typ="feld" name="Adresszusatz"></Adresszusatz>
+        <PLZ typ="feld" name="PLZ">63067</PLZ>
+        <Ort typ="feld" name="Ort">Offenbach</Ort>
+        <Land typ="feld" name="Land">Deutschland</Land>
+        <LKZ typ="data">DE</LKZ>
+        <Telefon typ="feld" name="Telefon">069/8008566-0</Telefon>
+        <Mobiltelefon typ="feld" name="Mobiltelefon"></Mobiltelefon>
+        <EMail typ="feld" name="E-Mail">alexander.herbert@anwalt-offenbach.de</EMail>
+        <Geburtstag typ="feld" name="Geburtstag"></Geburtstag>
+        <Geburtsort typ="feld" name="Geburtsort"></Geburtsort>
+        <Geburtsname typ="feld" name="Geburtsname"></Geburtsname>
+        <Staatsangehoerigkeit typ="feld" name="Staatsangehoerigkeit"></Staatsangehoerigkeit>
+    </Andere>
+  </Beteiligter>
+  
+  
+
+</Beteiligtenliste>
+
+  <Zusatzangaben typ="gruppe" name="Daten an Anwalt senden">
+    <Text typ="feld" name="Falls Ihnen weitere Informationen zu dieser Sache vorliegen, die nicht bereits in dem Formular abgefragt wurden, geben Sie sie bitte in dem Textfeld unten ein. Sofern Ihnen bereits eine Terminsladung zugestellt wurde, geben Sie dies bitte unter Nennung des Termins mit Datum und Uhrzeit hier an.">
+      &lt;p&gt;Von: Martino Cassese &lt;info@svb-cassese.de&gt; 
+&lt;br&gt;Gesendet: Freitag, 17. April 2026 14:04
+&lt;br&gt;An: Rechtsanwaltskanzlei Koch, Schatz &amp; Kollegen - Andreas Schatz &lt;info@anwalt-offenbach.de&gt;; andreas.schatz@anwalt-offenbach.de
+&lt;br&gt;Betreff: Gutachten für Fahrzeug 4243 FRX - Herr Abdessamad Achkour Zejli - GA-202604-1189
+&lt;br&gt;
+&lt;br&gt; 
+&lt;br&gt;
+&lt;br&gt;Sehr geehrter Herr Schatz,
+&lt;br&gt;
+&lt;br&gt; 
+&lt;br&gt;
+&lt;br&gt;im Anhang dieser E-Mail erhalten Sie zur weiteren Bearbeitung das von Herr Abdessamad Achkour Zejli bei uns in Auftrag gegebene Gutachten Nr. GA-202604-1189 mit zugehöriger Rechnung.
+&lt;br&gt;
+&lt;br&gt; 
+&lt;br&gt;
+&lt;br&gt;Bitte bestätigen Sie uns kurz den Empfang des Gutachtens, damit wir den Vorgang intern abschließen können.
+&lt;br&gt;
+&lt;br&gt; 
+&lt;br&gt;
+&lt;br&gt;Hinweis zum Auftrag:
+&lt;br&gt;
+&lt;br&gt;Der vom Kunden unterschriebene Auftrag inkl. Preisvereinbarung liegt bei.
+&lt;br&gt;
+&lt;br&gt;Es wurde KEINE Abtretung unterzeichnet. Bitte folgenden Punkt im Auftrag beachten und den eintrittspflichtigen Versicherer vorsorglich darauf hinweisen.
+&lt;br&gt;
+&lt;br&gt; 
+&lt;br&gt;
+&lt;br&gt;&quot;2. Empfangszuständigkeit des Kfz-Sachverständigen zur Entgegennahme von Zahlungen
+&lt;br&gt;
+&lt;br&gt;Der Auftraggeber als Geschädigter weist den Schädiger bzw. dessen Kfz-Haftpflichtversicherer ausdrücklich an, die Vergütung für die
+&lt;br&gt;
+&lt;br&gt;Erstellung des Schadengutachtens vollständig – bei bestehender Vorsteuerabzugsberechtigung netto – und direkt an das beauftragte
+&lt;br&gt;
+&lt;br&gt;Kfz-Sachverständigenbüro zu zahlen – Zug um Zug gegen Abtretung etwaiger (das Sachverständigenrisiko betreffender) Ansprüche des
+&lt;br&gt;
+&lt;br&gt;Geschädigten gegen den Sachverständigen.&quot;
+&lt;br&gt;
+&lt;br&gt; 
+&lt;br&gt;
+&lt;br&gt; 
+&lt;br&gt;
+&lt;br&gt; 
+&lt;br&gt;
+&lt;br&gt;﻿
+&lt;br&gt;
+&lt;br&gt; 
+&lt;br&gt;
+&lt;br&gt;Mit freundlichen Grüßen
+&lt;br&gt;
+&lt;br&gt; 
+&lt;br&gt;
+&lt;br&gt;Martino Cassese&lt;/p&gt;
+    </Text>
+    <VerbindlicheAnfrageAkzeptiert typ="feld" name="Sie stellen eine rechtsverbindliche Anfrage. Sie sind damit einverstanden und verlangen ausdrücklich, dass vor Ende der 14-tägigen Widerrufsfrist mit der Bearbeitung des Mandats begonnen wird. Ihnen ist bekannt, dass Sie mit vollständiger Erledigung des Mandats Ihr Widerrufsrecht verlieren.">
+      X
+    </VerbindlicheAnfrageAkzeptiert>
+    <DatenschutzVereinbarungAkzeptiert typ="feld" name="Hiermit bestätigen Sie, dass Sie die Datenschutzerklärung akzeptieren und der Weitergabe Ihrer Daten an RA-MICRO Server durch die Online Mandats-Aufnahme zustimmen.">
+      X
+    </DatenschutzVereinbarungAkzeptiert>
+  </Zusatzangaben>
+  <tvm/>
+</Onlinemandat>
