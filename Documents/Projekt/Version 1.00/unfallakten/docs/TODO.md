@@ -143,17 +143,26 @@ Zeugen standen als Gegner in der Beteiligtenliste und waren im Klage-Wizard als 
 - **Entscheidung RA Schatz — `HV`/`VS`:** Beide sind als `offen: true` markiert, weil das Kürzel die Sparte nennt (Haftpflicht/Versicherung), nicht die Seite. In den Unfallakten kommt derzeit keines vor.
 - **Merken:** Nach Änderungen an der YAML ist ein `docker restart unfallakten-backend-dev` nötig (Reloader reagiert nur auf `.py`, die Registry cached).
 
-### 86 % der Review-Queue landen in `sonstiges` — Diagnose offen (2026-09-08)
-1.647 von 1.915 Wartedokumenten stehen in der Auffangklasse, **1.641 davon mit Konfidenz
-≥ 0,85** — also kein Schwellenwertproblem. Auffälligster Einzelposten: **629 aus
-`placetel.de`** (Telefonanlage; steht in `rausch_absender.yaml`, aber nur mit
-`policy: nur_body`), dazu 75 von der eigenen Kanzleidomain. Dokumente in `sonstiges`
-haben keinen Parser — kein Datum, keine Felder, keine Belege, alles Handarbeit.
-Aufgefallen bei der Belegketten-Abnahme, weil das Datumsfeld fast immer leer blieb.
-**Eigene Sitzung**, Auftrag und Kennzahlen in
-`handover/naechste_session_sonstiges_klassifikation_prompt.md`. Erster Schritt ist eine
-Stichprobe von 20–30 Dokumenten, nicht eine Codeanalyse — drei mögliche Ursachen
-(Rauschen / fehlende Klasse / Fehlklassifikation) führen zu völlig verschiedenen Lösungen.
+### `sonstiges` in der Review-Queue — Diagnose ✅ (2026-09-09), Umsetzung offen
+Befunde: `handover/2026-09-09-sonstiges-diagnose-befunde.md`. **Die Ausgangszahl war
+falsch** — der Papierkorb liegt in `verworfen_grund`, nicht in `queue_status`; die echte
+Queue hat **345 Dokumente, davon 271 `sonstiges` (79 %)**, nicht 1.915/1.647.
+Es ist kein Klassifikationsfehler: die Dokumente treffen tatsächlich keine der 23 Klassen.
+**Placetel ist erledigt** (Bodies werden nicht mehr gespeichert, Faxe bleiben — eigener
+CHANGELOG-/DECISIONS-Eintrag). **Offen — Entscheidungen RA Schatz:**
+- **Klasse `lichtbild`?** 38 Unfallfotos (`IMG_*.jpg`) sind der größte Einzelposten.
+  An der Dateiendung erkennbar, kein Parser nötig. Oder weiter Handarbeit?
+- **Klasse für allgemeine Versicherungskorrespondenz?** ~31 Briefe (`Anschreiben.pdf`,
+  `Geschäftsbrief.pdf`, `Reproduktion.pdf`) mit Datumsfeld — oder bewusst Handarbeit?
+- **Begleitmail-Unterdrückung:** ~21 Bodies ohne eigenen Inhalt („Bitte beachten Sie den
+  Anhang"). Muss eine **Inhalts**regel werden, keine Domainregel — die Absender sind
+  Versicherer, von denen echte Post kommt.
+- **Bewerbungen** (2): gehören die in dieses System?
+- **Papierkorb aufräumen:** 628 Placetel-Bodies liegen noch als Altbestand darin. Löschen?
+- Kleinkram: Terminanfragen des eigenen Buchungssystems (5) und Test-/Monitoring-Mails (3)
+  gehören nicht in die Queue.
+- **Merken:** `anwalt-offenbach.de` ist **kein** Rauschen — dort laufen die Unfallbögen
+  des Webformulars und die `WG:`-Weiterleitungen der Mitarbeiter ein.
 
 ### Review-Queue im Testbetrieb sauber halten (seit 2026-08-28)
 879 Altdokumente archiviert (reversibel, Papierkorb-Reiter), acht Werbedomains in die Rausch-Regel. Protokoll → CHANGELOG. **Offen:**
@@ -284,6 +293,7 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 
 | Datum | Feature |
 |---|---|
+| 2026-09-09 | **`sonstiges`-Diagnose + Placetel** — Ausgangszahl korrigiert (Papierkorb steckt in `verworfen_grund`: echte Queue 345 statt 1.915), drei Ursachen getrennt, Hebelliste erstellt; Placetel-Anrufbenachrichtigungen werden nicht mehr gespeichert (Policy `nur_body`→`nur_anhaenge`), Faxeingang bleibt. Befunde → `handover/2026-09-09-sonstiges-diagnose-befunde.md` |
 | 2026-09-09 | **Fehlablagen aus Phase 0 gelöscht** (Entscheidung RA Schatz): Dok 41478 (lag unter 971/25, gehört zu 852/25) und 43429 (lag unter 980/25, Zeichen 418/28 existiert nirgends) samt PDF entfernt; keine abhängigen Zeilen. Sicherung im Dev-Volume unter `/app/data/geloescht_fehlablage_20260909_072237`. Dazu `test_akte_fristen.py` auf relative Fixtur-Daten umgestellt (fest verdrahteter 07.09. drehte nach dem Tageswechsel die Sortierung), 11/11 grün |
 | 2026-08-28 | **Priorisierte Fragebogen-Liste in der Review-Queue** (Modul `fragebogen_signale`, Klasse `fragebogen` + Migration 71/72, Akten-Matching aus Bogenfeldern statt Regex, RA-MICRO-Kandidatensuche über `varM-KZ`/`varG-KZ`/`varU-TAG`/Nachname, Vier-Zustands-Ampel inkl. „abgelegt“, Queue-Endpunkt, ⭐-Sektion im Frontend, Aktenanlage aus Bogendaten, Erstkontakt-Doppelweg stillgelegt) — Branch `fragebogen-favoritenliste`, Protokoll → CHANGELOG. Abnahme im Betrieb offen, siehe „In Arbeit“ |
 | 2026-08-12 | **Sachbearbeiter-Verwaltung in den Einstellungen** (Migration 68, Tabelle `sachbearbeiter` mit 11 Startzeilen ersetzt vier hartcodierte Listen; CRUD-Reiter + RA-MICRO-Abgleich; Tagesübersicht-Chips mit Klarnamen-Tooltips) — Spec `docs/superpowers/specs/2026-08-12-sachbearbeiter-verwaltung-design.md`, Plan `docs/superpowers/plans/2026-08-12-sachbearbeiter-verwaltung.md`, Protokoll → CHANGELOG. Browser-Sichtprüfung offen, siehe „In Arbeit" |

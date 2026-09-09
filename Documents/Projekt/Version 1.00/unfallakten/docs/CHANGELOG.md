@@ -7,6 +7,30 @@
 
 ---
 
+## 2026-09-09 — `sonstiges`-Diagnose + Placetel speichert nicht mehr
+
+**Diagnose.** Auftrag war zu klären, warum 86 % der Review-Queue in der Auffangklasse
+landen. Erster Befund: die Zahl stimmte nicht. Der Papierkorb ist über
+`verworfen_grund` abgebildet, nicht über `queue_status` — die Auswertung zählte 1.590
+bereits aussortierte Dokumente mit. Echte Queue: **345 Dokumente, davon 271 `sonstiges`
+(79 %)**. Kein Klassifikationsfehler: die Dokumente treffen tatsächlich keine der 23
+Klassen. Größte Einzelposten sind 38 Unfallfotos und ~31 allgemeine Versicherer-Briefe,
+dazu ~21 inhaltslose Begleitmails („Bitte beachten Sie den Anhang"). Vollständige
+Befunde mit Hebelliste: `handover/2026-09-09-sonstiges-diagnose-befunde.md`.
+
+**Placetel.** Die Regel arbeitete bereits richtig: 627 Anrufbenachrichtigungen waren
+aussortiert, in der Queue standen nur 8 Anhänge — und das ist der **Faxeingang** der
+Kanzlei, darunter ein Gutachten, ein Fragebogen und zwei Rechnungen. Auf Entscheidung
+RA Schatz werden die Bodies jetzt gar nicht mehr gespeichert statt angelegt und sofort
+in den Papierkorb geschoben: Policy `nur_body` heißt jetzt `nur_anhaenge` und
+überspringt das Anlegen. `komplett` bleibt reversibel. Ohne Body-Zustellung haben die
+Faxe kein Elternteil mehr — beide Verbraucher vertragen das (`_lade_eltern_email` gibt
+None, `aktenanlage_service` gruppiert über `COALESCE(z.parent_id, z.id)`), und Absender,
+Betreff und Empfangsdatum stehen ohnehin auf der Anhang-Zustellung.
+TDD, 4 neue Tests, Vollsuite 2357 grün / 71 skipped.
+
+---
+
 ## 2026-09-09 — Fehlablagen gelöscht + datumsabhängiger Alttest repariert
 
 **Fehlablagen aus dem Phase-0-Handtest entfernt** (Entscheidung RA Schatz, 2026-09-09).

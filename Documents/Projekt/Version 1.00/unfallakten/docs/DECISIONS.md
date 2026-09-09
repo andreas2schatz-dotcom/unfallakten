@@ -5,6 +5,41 @@ Format: Entscheidung → Grund → Alternative → Konsequenz.
 
 ---
 
+## Rauschen, das niemand ansieht, wird nicht gespeichert (2026-09-09)
+
+### Der Papierkorb ist fuer Zweifelsfaelle da, nicht fuer Maschinenpost
+
+**Entscheidung:** Die Rausch-Policy `nur_body` heisst `nur_anhaenge` und legt den
+E-Mail-Body gar nicht erst an, statt ihn anzulegen und sofort in den Papierkorb zu
+schieben. Betroffen ist nur `placetel.de`. `komplett` (beA, Newsletter) bleibt
+unveraendert reversibel.
+
+**Grund:** RA Schatz zu den Placetel-Mails: „brauche ich in der ReviewQueue ueberhaupt
+nicht und auch nicht in der Akte. die speichern wir nicht." Der Body einer
+Anrufbenachrichtigung ist maschinenerzeugt und in jedem Einzelfall wertlos; 628 solcher
+Zeilen lagen im Papierkorb, ohne dass sie je jemand aufgeschlagen haette.
+
+**Alternative:** `policy: komplett` fuer Placetel — **verworfen, und zwar zwingend.**
+Placetel ist nicht nur die Telefonanlage, sondern auch der **Faxeingang** der Kanzlei.
+Die Anhaenge enthalten Gutachten, Frageboegen und Rechnungen. `komplett` haette
+eingehende Faxe ab sofort ungesehen verworfen. Die Unterscheidung Body/Anhang ist bei
+dieser Domain der ganze Punkt.
+
+**Konsequenz — der Papierkorb behaelt seine Bedeutung.** Er bleibt fuer Faelle, in denen
+eine Domainregel danebenliegen koennte: `anwaltverein.de` und `iww.de` verschicken neben
+Werbung auch echte Post, deshalb stehen sie gar nicht erst in der Liste, und
+Newsletter-Domains bleiben auf `komplett`, damit man nachsehen kann. Nicht gespeichert
+wird nur, was nachweislich Maschinenpost ist.
+
+**Konsequenz — Faxe haben kein Elternteil mehr.** Ohne Body-Zustellung ist
+`zustellungen.parent_id` bei Placetel-Anhaengen NULL. Beide Verbraucher tragen das:
+`_lade_eltern_email` liefert dann None (die Review-Detailansicht zeigt keinen
+E-Mail-Kontext), `aktenanlage_service` gruppiert ueber `COALESCE(z.parent_id, z.id)` und
+behandelt das Fax als eigene Gruppe. Absender, Betreff und Empfangsdatum stehen ohnehin
+auf der Anhang-Zustellung selbst.
+
+---
+
 ## Das Dokumentdatum gehoert an das Dokument, nicht ins Ereignis (2026-09-08)
 
 ### Eine Angabe, die laengst ermittelt wurde, bekommt endlich eine Spalte
