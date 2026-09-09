@@ -7,6 +7,40 @@
 
 ---
 
+## 2026-09-09 — Fehlablagen gelöscht + datumsabhängiger Alttest repariert
+
+**Fehlablagen aus dem Phase-0-Handtest entfernt** (Entscheidung RA Schatz, 2026-09-09).
+Die beiden am 2026-07-23 handgeprüften Fehlablagen sind gelöscht:
+
+| Dok | lag unter | referenziert | Lage |
+|---|---|---|---|
+| 41478 | 971/25 | „Ihr Zeichen 852/25PK" | 852/25 nur in RA-MICRO geführt |
+| 43429 | 980/25 | „418/28" | existiert weder hier noch in RA-MICRO |
+
+Beide trugen seit Juli einen `FEHLABLAGE`-Vermerk in `notizen`, aber verfälschten
+weiterhin die Soll/Ist-Differenz ihrer Wirtsakte (bei 980/25 stand einer Zahlung von
+7.858,88 € gar kein Eingang gegenüber). Verschieben war bei keinem möglich, weil die
+Zielakte im System nicht existiert.
+
+Vor dem Löschen auf abhängige Zeilen geprüft — alle fünf Fremdschlüssel auf `dokumente`
+(`klassifikation_training`, `schadenposition_belege`, `todos`, `forderung_positionen`,
+`abrechnungsschreiben`) sowie `ereignisse`, `pruefberichte`, `freigaben`,
+`zustellungen`, `position_ereignis_cache`: null Treffer. Gelöscht wurden die
+`dokumente`-Zeile und die Datei unter `/app/uploads`; das Original liegt weiter in der
+E-Akte. Sicherung (Zeilen als JSON + beide PDFs) im Dev-Volume unter
+`/app/data/geloescht_fehlablage_20260909_072237` — kann nach einer Weile weg.
+Aktenstand danach: 971/25 hat 9 Dokumente, 980/25 hat 2.
+
+**`test_akte_fristen.py` auf relative Fixtur-Daten umgestellt.** Der Test
+`TestFilterAufDieAkte::test_nur_die_fristen_dieser_akte` hatte den 07.09. fest
+verdrahtet und fiel seit dem Tageswechsel — auch isoliert. Kein Produktivfehler: die
+Sortierregel in `fristen_routes.py` stellt Laufendes vor Abgelaufenes, also rutschte die
+Frist vom 07.09. ab dem 08.09. korrekt nach unten, während der Test noch die alte
+Reihenfolge erwartete. Neue Hilfsfunktion `_in_tagen()`; alle festen Fristdaten der
+Filtertests laufen jetzt relativ zu heute. 11/11 grün.
+
+---
+
 ## 2026-09-08 — Belegkette Fundament (R1 + R2)
 
 Migration 75 gibt `dokumente` die Spalte `dokument_datum`: das Datum, das auf

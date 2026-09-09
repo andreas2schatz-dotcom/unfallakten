@@ -54,9 +54,6 @@ CHANGELOG. **Offen:**
   Freigabe-Dialog den vorgeschlagenen Ereignistyp bewusst entfernt (Dublette, falsche
   Klasse), bekommt den Beleg derzeit trotzdem. Es gibt keinen Weg, ihn bei der Freigabe zu
   verhindern.
-- **Datumsabhängiger Alttest:** `test_akte_fristen.py::TestFilterAufDieAkte::test_nur_die_fristen_dieser_akte`
-  verdrahtet `2026-09-07` fest und fällt seit dem Tageswechsel (auch isoliert). Gehört
-  nicht zu dieser Arbeit; Fix ist ein relatives Fixtur-Datum.
 
 ### Termine der Akte bei den To-Dos — ✅ umgesetzt (2026-09-07, Branch `fragebogen-favoritenliste`), Abnahme offen
 Block „Termine" in der Akten-Übersicht, über den Fristen. Zeile aufklappbar (Ort, SB,
@@ -81,8 +78,6 @@ Dazu ein Block in der Akten-Übersicht bei den To-Dos: dort **alle** unerledigte
 der Akte (51 Akten, 154 Fristen, bis zu 14 je Akte), laufende zuerst, read-only.
 **Kachel im Betrieb bestätigt** (RA Schatz, 07.09.2026: „funktioniert genau richtig").
 **Offen:**
-- **Testfrist löschen:** `ZZTESTFRIST0907` in Akte 274/25 (Beginn 31.12.2029, Ende 10.01.2030).
-  Danach verschwindet sie automatisch aus dem Bestand — sie liegt ohnehin außerhalb des Fensters.
 - **Kachel gegenlesen:** Die 5 echten Fristen und 15 Vorfristen mit RA-MICRO vergleichen.
   Stimmen Grund, Datum und Sachbearbeiter?
 - **Mount-Ausfall prüfen:** `wsl -d docker-desktop -- umount /mnt/eakte` und die Übersicht
@@ -204,7 +199,6 @@ Spec + Plan unter `docs/superpowers/`, Protokoll → CHANGELOG. Endstand deckung
 ### Offene Entscheidungen RA Schatz
 - **Schriftsatz-Zählung fürs RVG (`gebuehren_service._zaehle_schriftsaetze`):** Die Abfrage zählte bisher alles außer Gutachten und Sachstandsanfragen — weil `sonstiges` alle Feinklassen einsammelte, liefen SV-Rechnungen, Mietwagen- und Abschlepprechnungen als „Schriftsatz“ mit. Beim Wegfall von `typ` verhaltensgleich übersetzt (Ausschlussliste). Fachlich wäre vertretbar, Rechnungen künftig **nicht** mehr als Schriftsatz zu zählen — das senkt die Umfangsbewertung. Entscheidung RA Schatz.
 - **I-10 Haftungsquote (Forderungsschreiben):** Brief behauptet bei erfasster Teilhaftung weiterhin Alleinschuld und fordert ungekürzt; FE-Banner quotiert daneben. Braucht juristische Formulierung für den Teilhaftungs-Baustein (+ HQ=0-Konvention, vgl. Inkonsistenz Übersicht/DOCX).
-- **Fehlablage (Kürzungstaxonomie Phase 0):** Dok 41478 + 43429 aus Akten 971/25 / 980/25 löschen? (FEHLABLAGE-Vermerk gesetzt; 852/25 nur in RA-MICRO, 418/28 existiert nirgends.)
 
 ### Aktenanlage aus der ReviewQueue (PRD-NEW) — ✅ gemergt + gepusht (2026-08-03, `main`=`81e33206`), Nachlauf offen
 Feature live abgenommen: Prefill Mandant, OMA-XML **strukturgleich** zum echten RA-MICRO-Export, **Dateiname muss mit `Oma_` beginnen** (Watcher-Filter, case-sensitiv), Import wird erkannt. Behoben: stale-auftraggeber-Prefill + Anrede-Normalisierung, Migration-66-Reloader-Falle, OMA-Pfad (`Z:\RA\M-Plattform`) + Dateiname + XML-Struktur (keine leere `<Gegnerliste>`, `<tvm/>`). Prod-Compose nachgezogen. Detail → Memory `project_unfallakten_aktenanlage`.
@@ -221,7 +215,6 @@ Nacharbeit abgeschlossen: doppelte React-Keys, A11y (`aria-pressed`/`role=alert`
 **Offen:**
 - **Messung Zielwerte (~2026-08-20, nach ~4 Wochen Betrieb):** `docker exec unfallakten-backend-dev python /app/tools/kuerzungsmatching_report.py` — Zielwerte: Abdeckung ≥ 90 %, Trefferquote ≥ 75 %, Positionszuordnung ≥ 90 % (DECISIONS 2026-07-23). Baseline siehe CHANGELOG.
 - **Runden-Kachel im echten Betrieb** sichten, sobald die erste Akte 2 Abrechnungsrunden hat (Test-Abdeckung vorhanden, echter Fall noch nicht).
-- Fehlablage-Entscheidung → oben bei „Offene Entscheidungen RA Schatz".
 Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, Vorgangsautomat — Konzept `handover/KONZEPT-Kuerzungstaxonomie-Vorgangsautomat.md` Abschnitt 12.
 
 ---
@@ -291,6 +284,7 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 
 | Datum | Feature |
 |---|---|
+| 2026-09-09 | **Fehlablagen aus Phase 0 gelöscht** (Entscheidung RA Schatz): Dok 41478 (lag unter 971/25, gehört zu 852/25) und 43429 (lag unter 980/25, Zeichen 418/28 existiert nirgends) samt PDF entfernt; keine abhängigen Zeilen. Sicherung im Dev-Volume unter `/app/data/geloescht_fehlablage_20260909_072237`. Dazu `test_akte_fristen.py` auf relative Fixtur-Daten umgestellt (fest verdrahteter 07.09. drehte nach dem Tageswechsel die Sortierung), 11/11 grün |
 | 2026-08-28 | **Priorisierte Fragebogen-Liste in der Review-Queue** (Modul `fragebogen_signale`, Klasse `fragebogen` + Migration 71/72, Akten-Matching aus Bogenfeldern statt Regex, RA-MICRO-Kandidatensuche über `varM-KZ`/`varG-KZ`/`varU-TAG`/Nachname, Vier-Zustands-Ampel inkl. „abgelegt“, Queue-Endpunkt, ⭐-Sektion im Frontend, Aktenanlage aus Bogendaten, Erstkontakt-Doppelweg stillgelegt) — Branch `fragebogen-favoritenliste`, Protokoll → CHANGELOG. Abnahme im Betrieb offen, siehe „In Arbeit“ |
 | 2026-08-12 | **Sachbearbeiter-Verwaltung in den Einstellungen** (Migration 68, Tabelle `sachbearbeiter` mit 11 Startzeilen ersetzt vier hartcodierte Listen; CRUD-Reiter + RA-MICRO-Abgleich; Tagesübersicht-Chips mit Klarnamen-Tooltips) — Spec `docs/superpowers/specs/2026-08-12-sachbearbeiter-verwaltung-design.md`, Plan `docs/superpowers/plans/2026-08-12-sachbearbeiter-verwaltung.md`, Protokoll → CHANGELOG. Browser-Sichtprüfung offen, siehe „In Arbeit" |
 | 2026-08-11 | **Großer Merge nach `main` + Push** (`40c9143e..cf7dd74d`, FF): kompletter Stapel `intake-review-sichtbarkeit` + `abschlussbericht` — SSOT-Dokumentenklassen (22), Intake-Review-Sichtbarkeit, Abschluss-/Sachstandsbericht, Referenzwerkstatt+Entfernungsprüfung, Übersicht-Redesign A+B, Forderungsschreiben-Fixes (C-1, I-1–I-9), STA-Sofort-Fixes, E-Mail-Hotfixes, Testsanierungen (modul6/7 + Vollsuite). Entscheidung RA Schatz: Abnahmen produktiv statt vorab |
