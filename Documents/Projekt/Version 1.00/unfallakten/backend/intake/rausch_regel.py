@@ -4,8 +4,10 @@ Rausch-Absender-Regel.
 Laedt backend/registry/rausch_absender.yaml (fail-loud) und beantwortet, ob
 eine Absender-Domain automatisch aussortiert wird und mit welcher Policy:
 
-    nur_body  -> E-Mail-Body verwerfen, Anhaenge behalten (Placetel: Fax bleibt)
-    komplett  -> Body + alle Anhaenge verwerfen (beA-Benachrichtigung)
+    nur_anhaenge -> Body wird gar nicht gespeichert, Anhaenge laufen normal
+                    weiter (Placetel: Anrufbenachrichtigung weg, Fax bleibt)
+    komplett     -> Body + alle Anhaenge anlegen und in den Papierkorb
+                    verwerfen (reversibel, beA-Benachrichtigung)
 
 Kein Treffer -> None (unangetastet).
 """
@@ -17,7 +19,7 @@ from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-_ERLAUBTE_POLICIES = ("nur_body", "komplett")
+_ERLAUBTE_POLICIES = ("nur_anhaenge", "komplett")
 
 _cache: Dict[str, Dict[str, str]] = {}
 

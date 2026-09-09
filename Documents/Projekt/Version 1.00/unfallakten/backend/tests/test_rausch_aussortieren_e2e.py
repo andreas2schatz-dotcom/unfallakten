@@ -64,6 +64,16 @@ class TestRauschAussortieren(unittest.TestCase):
         shutil.rmtree(self._tmp, ignore_errors=True)
         os.environ.pop("INTAKE_ARCHIV_ROOT", None)
 
+    def _zaehle(self, tabelle):
+        with self.db.get_connection() as conn:
+            return conn.execute(f"SELECT COUNT(*) FROM {tabelle}").fetchone()[0]
+
+    def _zustellung(self, intake_id):
+        with self.db.get_connection() as conn:
+            return conn.execute(
+                "SELECT id, parent_id FROM zustellungen WHERE intake_dokument_id=?",
+                (intake_id,)).fetchone()
+
     def _verworfen(self, intake_id):
         with self.db.get_connection() as conn:
             row = conn.execute(
@@ -72,25 +82,57 @@ class TestRauschAussortieren(unittest.TestCase):
             ).fetchone()
         return row
 
-    def test_placetel_ohne_anhang_body_verworfen(self):
+    def test_placetel_ohne_anhang_wird_gar_nicht_gespeichert(self):
+        """Anrufbenachrichtigungen der Telefonanlage: nichts anlegen, auch
+        keine Papierkorb-Zeile (Entscheidung RA Schatz, 2026-09-09)."""
         from backend.intake.adapter_imap import verarbeite_email
         res = verarbeite_email(_email("no-reply@placetel.de"), konto="info")
-        row = self._verworfen(res["body"]["intake_dokument_id"])
-        self.assertIsNotNone(row["verworfen_am"])
-        self.assertEqual(row["verworfen_grund"], "rauschen")
-        self.assertIsNone(row["verworfen_von"])
+        self.assertIsNone(res["body"])
+        self.assertEqual(res["anhaenge"], [])
+        self.assertEqual(self._zaehle("intake_dokumente"), 0)
+        self.assertEqual(self._zaehle("zustellungen"), 0)
 
-    def test_placetel_mit_fax_body_weg_anhang_bleibt(self):
+    def test_placetel_mit_fax_nur_das_fax_wird_gespeichert(self):
+        """Placetel liefert auch den Faxeingang -- der Anhang muss bleiben."""
         from backend.intake.adapter_imap import verarbeite_email
         res = verarbeite_email(
             _email("no-reply@placetel.de",
                    anhaenge=[("fax.pdf", _minimales_pdf(b"fax1"))]),
             konto="info",
         )
-        self.assertIsNotNone(
-            self._verworfen(res["body"]["intake_dokument_id"])["verworfen_am"])
+        self.assertIsNone(res["body"])
+        self.assertEqual(len(res["anhaenge"]), 1)
+        self.assertEqual(self._zaehle("intake_dokumente"), 1)
+
         anhang_id = res["anhaenge"][0]["intake_dokument_id"]
         self.assertIsNone(self._verworfen(anhang_id)["verworfen_am"])
+
+    def test_placetel_fax_behaelt_absender_und_betreff_ohne_elternteil(self):
+        """Ohne Body-Zustellung haengt das Fax an keinem Elternteil mehr; die
+        Kopfdaten stehen auf der Anhang-Zustellung selbst."""
+        from backend.intake.adapter_imap import verarbeite_email
+        res = verarbeite_email(
+            _email("no-reply@placetel.de",
+                   anhaenge=[("fax.pdf", _minimales_pdf(b"fax2"))]),
+            konto="info",
+        )
+        zust = self._zustellung(res["anhaenge"][0]["intake_dokument_id"])
+        self.assertIsNone(zust["parent_id"])
+        with self.db.get_connection() as conn:
+            row = conn.execute(
+                "SELECT absender, betreff, empfangen_am, konto FROM zustellungen "
+                "WHERE id=?", (zust["id"],)).fetchone()
+        self.assertIn("placetel.de", row["absender"])
+        self.assertEqual(row["betreff"], "Test")
+        self.assertEqual(row["konto"], "info")
+        self.assertIsNotNone(row["empfangen_am"])
+
+    def test_komplett_bleibt_reversibel_im_papierkorb(self):
+        """Gegenprobe: komplett legt weiter an und verwirft nur -- Newsletter
+        sollen nachlesbar bleiben, falls doch echte Post dabei war."""
+        from backend.intake.adapter_imap import verarbeite_email
+        verarbeite_email(_email("noreply@bea-brak.de"), konto="info")
+        self.assertEqual(self._zaehle("intake_dokumente"), 1)
 
     def test_bea_mit_anhang_body_und_anhang_verworfen(self):
         from backend.intake.adapter_imap import verarbeite_email

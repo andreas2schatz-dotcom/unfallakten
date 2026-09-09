@@ -1,8 +1,13 @@
 # Rausch-Absender: E-Mails, die beim Eingang automatisch aussortiert werden.
-# policy nur_body   -> Body verwerfen, Anhaenge (z.B. Faxe) behalten
-# policy komplett   -> Body + alle Anhaenge verwerfen
+# policy nur_anhaenge -> Body wird gar nicht gespeichert, Anhaenge (z.B. Faxe)
+#                       laufen normal in die Queue
+# policy komplett     -> Body + alle Anhaenge anlegen und in den Papierkorb
+#                       verwerfen (reversibel)
+# Telefonanlage. Der Body ist eine Anrufbenachrichtigung und wird nicht
+# gespeichert; die Anhaenge sind der Faxeingang und muessen bleiben
+# (Entscheidung RA Schatz, 2026-09-09).
 - domain: placetel.de
-  policy: nur_body
+  policy: nur_anhaenge
 - domain: bea-brak.de
   policy: komplett
 # Fachverlags-Newsletter und Seminarwerbung (Sichtung Posteingang 2026-08-28).

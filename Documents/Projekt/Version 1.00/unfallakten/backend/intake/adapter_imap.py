@@ -4,7 +4,8 @@ S1.3 - IMAP-Adapter.
 Zerlegt eine rohe RFC-822-E-Mail in normierte Zustellungs-Datensaetze:
   * Body als eigene ``payload_typ='text'``-Zustellung (Parent).
   * Anhaenge einzeln als ``payload_typ='datei'``-Zustellungen mit
-    ``parent_id`` = id der Body-Zustellung.
+    ``parent_id`` = id der Body-Zustellung (None, wenn der Body nach
+    Rausch-Policy ``nur_anhaenge`` gar nicht gespeichert wurde).
 
 Encoding-Handling (UTF-16-BOM inkl. Fallback auf Header-Charset) lebt
 AUSSCHLIESSLICH hier — der Alt-Pfad in ``email_import/email_parser.py``
@@ -317,18 +318,26 @@ def verarbeite_email(
         geerbte_signale["absender_email"] = absender_email
         body_signale["absender_email"] = absender_email
 
-    body_intake_id, body_sha = oder_intake_dokument_fuer_text(body_text)
-    body_zust_id = erzeuge_zustellung(
-        body_intake_id,
-        quelle="imap",
-        absender=absender[:200] if absender else None,
-        auth_status=auth_status,
-        betreff=betreff[:500] if betreff else None,
-        empfangen_am=empfangen_am,
-        signale=body_signale,
-        konto=konto,
-        roh_referenz=roh_referenz,
-    )
+    policy = policy_fuer_domain(domain)
+
+    # nur_anhaenge: der Body wird gar nicht erst angelegt. Bei der Telefonanlage
+    # ist er eine Anrufbenachrichtigung, die auch im Papierkorb niemand ansieht
+    # -- die Anhaenge (Faxeingang) laufen unveraendert weiter.
+    if policy == "nur_anhaenge":
+        body_intake_id = body_zust_id = body_sha = None
+    else:
+        body_intake_id, body_sha = oder_intake_dokument_fuer_text(body_text)
+        body_zust_id = erzeuge_zustellung(
+            body_intake_id,
+            quelle="imap",
+            absender=absender[:200] if absender else None,
+            auth_status=auth_status,
+            betreff=betreff[:500] if betreff else None,
+            empfangen_am=empfangen_am,
+            signale=body_signale,
+            konto=konto,
+            roh_referenz=roh_referenz,
+        )
 
     anhang_ergebnisse: list[dict] = []
     for anh in anhaenge:
@@ -352,8 +361,7 @@ def verarbeite_email(
             "sha256": sha,
         })
 
-    policy = policy_fuer_domain(domain)
-    if policy:
+    if policy and policy != "nur_anhaenge":
         # Best-effort: eine fehlschlagende Auto-Aussortierung darf den Import
         # der restlichen Dokumente dieser E-Mail nicht abbrechen (Spec
         # Fehlerbehandlung) -- nur loggen und weitermachen.
@@ -366,7 +374,7 @@ def verarbeite_email(
                 # zurueck). Im seltenen Fall, dass ein komplett-Anhang (beA)
                 # bytegleich mit einem legitimen Bestandsdokument ist, wird
                 # dieses mitverworfen -- unkritisch, da Papierkorb-reversibel
-                # und nur_body Anhaenge ohnehin nie beruehrt.
+                # und nur_anhaenge Anhaenge ohnehin nie beruehrt.
                 for a in anhang_ergebnisse:
                     auto_verwerfen(a["intake_dokument_id"], grund="rauschen",
                                    kommentar=kommentar)
@@ -377,7 +385,7 @@ def verarbeite_email(
             )
 
     return {
-        "body": {
+        "body": None if body_intake_id is None else {
             "intake_dokument_id": body_intake_id,
             "zustellung_id": body_zust_id,
             "sha256": body_sha,
