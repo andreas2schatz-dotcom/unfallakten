@@ -7,12 +7,19 @@ jahrealte: dort zaehlt Vollstaendigkeit mehr als Ruhe (Entscheidung RA Schatz,
 import os
 os.environ.setdefault("FLASK_SECRET_KEY", "test-secret-key-akte-fristen")
 
+import datetime
 import types
 
 import pytest
 
 from backend.routers import fristen_routes
 from backend.services.fristen_gt import FristenQuelleNichtErreichbar
+
+
+def _in_tagen(tage):
+    """Fristdaten relativ zu heute. Feste Daten wandern mit dem Tageswechsel von
+    der Vorschau in die Rueckschau und drehen damit die Sortierung um."""
+    return (datetime.date.today() + datetime.timedelta(days=tage)).isoformat()
 
 
 def _frist(aktennummer, frist_datum, **abweichend):
@@ -54,19 +61,20 @@ def _rufe_auf(monkeypatch, akte_az, fristen=None, wirft=False):
 class TestFilterAufDieAkte:
 
     def test_nur_die_fristen_dieser_akte(self, monkeypatch):
+        naechste, spaetere = _in_tagen(3), _in_tagen(16)
         status, daten = _rufe_auf(monkeypatch, "322/26", [
-            _frist("322/26", "2026-09-07"),
-            _frist("489/25", "2026-09-07"),
-            _frist("322/26", "2026-09-20"),
+            _frist("322/26", naechste),
+            _frist("489/25", naechste),
+            _frist("322/26", spaetere),
         ])
         assert status == 200
         assert daten["anzahl"] == 2
         assert [f["frist_datum"] for f in daten["fristen"]] == \
-            ["2026-09-07", "2026-09-20"]
+            [naechste, spaetere]
 
     def test_sachbearbeiterkuerzel_im_aktenzeichen_stoert_nicht(self, monkeypatch):
         """Der Kalendersatz fuehrt nur die nackte Nummer."""
-        _, daten = _rufe_auf(monkeypatch, "322/26PK", [_frist("322/26", "2026-09-07")])
+        _, daten = _rufe_auf(monkeypatch, "322/26PK", [_frist("322/26", _in_tagen(3))])
         assert daten["anzahl"] == 1
 
     def test_alte_fristen_bleiben_sichtbar(self, monkeypatch):
@@ -77,7 +85,7 @@ class TestFilterAufDieAkte:
         assert daten["fristen"][0]["tage_bis"] < 0
 
     def test_akte_ohne_fristen(self, monkeypatch):
-        _, daten = _rufe_auf(monkeypatch, "999/26", [_frist("322/26", "2026-09-07")])
+        _, daten = _rufe_auf(monkeypatch, "999/26", [_frist("322/26", _in_tagen(3))])
         assert daten == {"fristen": [], "anzahl": 0}
 
     def test_unbekannte_akte_gibt_404(self, monkeypatch):
@@ -106,7 +114,7 @@ class TestAufbereitung:
 
     def test_aktennummer_wird_nicht_mit_ausgeliefert(self, monkeypatch):
         """Sie steht schon im Aufrufpfad."""
-        _, daten = _rufe_auf(monkeypatch, "322/26", [_frist("322/26", "2026-09-07")])
+        _, daten = _rufe_auf(monkeypatch, "322/26", [_frist("322/26", _in_tagen(3))])
         assert "aktennummer" not in daten["fristen"][0]
 
 
