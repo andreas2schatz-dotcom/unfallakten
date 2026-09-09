@@ -7,6 +7,34 @@
 
 ---
 
+## 2026-09-09 — Zwei neue Klassen, Papierkorb geleert
+
+**`lichtbild` und `versicherungsschreiben`** decken die beiden groessten Posten der
+Auffangklasse ab (37 Unfallfotos, 87 allgemeine Versicherer-Briefe). Beide tragen
+bewusst **keine Marker** und werden nicht in Stufe 1 vergeben, sondern in der Pipeline
+als Verfeinerung von `sonstiges` (`klassifikator.verfeinere_auffangklasse`) — Begruendung
+in DECISIONS. `tools/auffangklasse_verfeinern.py` fuehrt den Bestand nach; die
+`sonstiges`-Quote der Queue faellt damit von **79 % auf 43 %** (271 → 147 von 345).
+
+**Papierkorb aufgeraeumt.** 631 Placetel-Anrufbenachrichtigungen samt ihrer
+Zustellungen und Korrektur-Log-Zeilen geloescht (Entscheidung RA Schatz). Die zehn
+Fax-Anhaenge derselben Domain bleiben und wurden vom geloeschten Elternteil geloest —
+dasselbe Ergebnis, das der neue `nur_anhaenge`-Pfad kuenftig von vornherein erzeugt.
+Sicherung unter `/app/data/geloescht_placetel_bodies_20260909_084922`. Die scheinbaren
+Treffer in `freigaben`, `ereignisse`, `todos` und `schadenposition_belege` waren
+Fehlalarm: diese Spalten zeigen auf `dokumente.id`, nicht auf `intake_dokumente.id` —
+zwei getrennte ID-Raeume mit ueberlappenden Zahlen.
+
+**Bewerbungen** (3 Dokumente, Lebenslauf/Dossier/Praktikumsanfrage) in den Papierkorb
+verschoben — gehoeren nicht in die Unfallakten-Queue (Entscheidung RA Schatz).
+
+**Nebenbefund, nicht angefasst:** `PRAGMA foreign_key_check` meldet zwei alte, von
+dieser Arbeit unabhaengige Verstoesse — `klassifikation_training` Zeile 47 (`dok_id=144`
+ohne `dokumente`-Zeile, von 2026-04-05) und `aktivitaeten` Zeile 2025 (Testakte
+`ZZ-VERIFY/99`).
+
+---
+
 ## 2026-09-09 — `sonstiges`-Diagnose + Placetel speichert nicht mehr
 
 **Diagnose.** Auftrag war zu klären, warum 86 % der Review-Queue in der Auffangklasse

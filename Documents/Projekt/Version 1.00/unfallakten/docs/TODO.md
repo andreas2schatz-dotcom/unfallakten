@@ -143,24 +143,28 @@ Zeugen standen als Gegner in der Beteiligtenliste und waren im Klage-Wizard als 
 - **Entscheidung RA Schatz — `HV`/`VS`:** Beide sind als `offen: true` markiert, weil das Kürzel die Sparte nennt (Haftpflicht/Versicherung), nicht die Seite. In den Unfallakten kommt derzeit keines vor.
 - **Merken:** Nach Änderungen an der YAML ist ein `docker restart unfallakten-backend-dev` nötig (Reloader reagiert nur auf `.py`, die Registry cached).
 
-### `sonstiges` in der Review-Queue — Diagnose ✅ (2026-09-09), Umsetzung offen
-Befunde: `handover/2026-09-09-sonstiges-diagnose-befunde.md`. **Die Ausgangszahl war
-falsch** — der Papierkorb liegt in `verworfen_grund`, nicht in `queue_status`; die echte
-Queue hat **345 Dokumente, davon 271 `sonstiges` (79 %)**, nicht 1.915/1.647.
-Es ist kein Klassifikationsfehler: die Dokumente treffen tatsächlich keine der 23 Klassen.
-**Placetel ist erledigt** (Bodies werden nicht mehr gespeichert, Faxe bleiben — eigener
-CHANGELOG-/DECISIONS-Eintrag). **Offen — Entscheidungen RA Schatz:**
-- **Klasse `lichtbild`?** 38 Unfallfotos (`IMG_*.jpg`) sind der größte Einzelposten.
-  An der Dateiendung erkennbar, kein Parser nötig. Oder weiter Handarbeit?
-- **Klasse für allgemeine Versicherungskorrespondenz?** ~31 Briefe (`Anschreiben.pdf`,
-  `Geschäftsbrief.pdf`, `Reproduktion.pdf`) mit Datumsfeld — oder bewusst Handarbeit?
-- **Begleitmail-Unterdrückung:** ~21 Bodies ohne eigenen Inhalt („Bitte beachten Sie den
-  Anhang"). Muss eine **Inhalts**regel werden, keine Domainregel — die Absender sind
-  Versicherer, von denen echte Post kommt.
-- **Bewerbungen** (2): gehören die in dieses System?
-- **Papierkorb aufräumen:** 628 Placetel-Bodies liegen noch als Altbestand darin. Löschen?
-- Kleinkram: Terminanfragen des eigenen Buchungssystems (5) und Test-/Monitoring-Mails (3)
-  gehören nicht in die Queue.
+### `sonstiges` in der Review-Queue — Diagnose ✅, zwei Klassen gebaut (2026-09-09)
+Befunde: `handover/2026-09-09-sonstiges-diagnose-befunde.md`. Die Ausgangszahl vom
+2026-09-08 war falsch (Papierkorb steckt in `verworfen_grund`) — echte Queue **345**,
+nicht 1.915. Umgesetzt: Placetel speichert nicht mehr, Klassen `lichtbild` (37) und
+`versicherungsschreiben` (87), Bewerbungen und 631 Placetel-Bodies weg.
+**`sonstiges`-Quote 79 % → 43 %** (271 → 147). **Offen:**
+- **Abnahme im Betrieb:** Review-Queue öffnen — 37 Fotos müssen als „Lichtbild",
+  87 Briefe als „Versicherungsschreiben" erscheinen, nicht mehr als „Sonstiges".
+  Dropdown zeigt jetzt 25 Klassen.
+- **Reparse für die Datumsfelder:** Die Nachführung hat nur die Klasse gesetzt. Ein
+  Versicherungsschreiben aus dem Altbestand trägt noch kein Datum — das füllt erst ein
+  echter Pipeline-Lauf. Ob ein Sammel-Reparse der 87 lohnt, ist offen (OCR + LLM).
+- **Entscheidung RA Schatz — Begleitmails (~21):** Bodies ohne eigenen Inhalt („Bitte
+  beachten Sie den Anhang"). Länge und Absender taugen **nicht** als Unterscheidung: der
+  HUK-Textbaustein ist 1.600 Zeichen lang, die inhaltsreiche SMI-Mail 538; SMI und
+  Versicherer verschicken beides. Vorschlag steht: **zusammenfassen statt wegwerfen** —
+  ein Body mit Anhängen und ohne eigene Klasse bekommt keine eigene Queue-Zeile mehr,
+  sondern wird bei seinem Anhang gezeigt (`parent_id`/`_lade_eltern_email` gibt es schon).
+- **Weitere Klassen denkbar** (gleiche Bauart, in `verfeinere_auffangklasse`):
+  allgemeine Mandantenkorrespondenz, Deckungszusage RSV.
+- **Alte Fremdschlüssel-Verstöße** (unabhängig, klein): `klassifikation_training` Zeile 47
+  und `aktivitaeten` Zeile 2025 (Testakte `ZZ-VERIFY/99`) zeigen ins Leere.
 - **Merken:** `anwalt-offenbach.de` ist **kein** Rauschen — dort laufen die Unfallbögen
   des Webformulars und die `WG:`-Weiterleitungen der Mitarbeiter ein.
 
@@ -293,6 +297,7 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 
 | Datum | Feature |
 |---|---|
+| 2026-09-09 | **Klassen `lichtbild` + `versicherungsschreiben`** als Verfeinerung der Auffangklasse (ohne Marker, damit sie abfotografierte Rechnungen und Abrechnungsschreiben nicht an sich ziehen); Bestand nachgeführt via `tools/auffangklasse_verfeinern.py`, `sonstiges` 79 % → 43 %; 631 Placetel-Bodies und 3 Bewerbungen aus der Queue entfernt |
 | 2026-09-09 | **`sonstiges`-Diagnose + Placetel** — Ausgangszahl korrigiert (Papierkorb steckt in `verworfen_grund`: echte Queue 345 statt 1.915), drei Ursachen getrennt, Hebelliste erstellt; Placetel-Anrufbenachrichtigungen werden nicht mehr gespeichert (Policy `nur_body`→`nur_anhaenge`), Faxeingang bleibt. Befunde → `handover/2026-09-09-sonstiges-diagnose-befunde.md` |
 | 2026-09-09 | **Fehlablagen aus Phase 0 gelöscht** (Entscheidung RA Schatz): Dok 41478 (lag unter 971/25, gehört zu 852/25) und 43429 (lag unter 980/25, Zeichen 418/28 existiert nirgends) samt PDF entfernt; keine abhängigen Zeilen. Sicherung im Dev-Volume unter `/app/data/geloescht_fehlablage_20260909_072237`. Dazu `test_akte_fristen.py` auf relative Fixtur-Daten umgestellt (fest verdrahteter 07.09. drehte nach dem Tageswechsel die Sortierung), 11/11 grün |
 | 2026-08-28 | **Priorisierte Fragebogen-Liste in der Review-Queue** (Modul `fragebogen_signale`, Klasse `fragebogen` + Migration 71/72, Akten-Matching aus Bogenfeldern statt Regex, RA-MICRO-Kandidatensuche über `varM-KZ`/`varG-KZ`/`varU-TAG`/Nachname, Vier-Zustands-Ampel inkl. „abgelegt“, Queue-Endpunkt, ⭐-Sektion im Frontend, Aktenanlage aus Bogendaten, Erstkontakt-Doppelweg stillgelegt) — Branch `fragebogen-favoritenliste`, Protokoll → CHANGELOG. Abnahme im Betrieb offen, siehe „In Arbeit“ |

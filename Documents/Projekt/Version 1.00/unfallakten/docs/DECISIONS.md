@@ -5,6 +5,43 @@ Format: Entscheidung → Grund → Alternative → Konsequenz.
 
 ---
 
+## Neue Klassen fuer den langen Schwanz verfeinern die Auffangklasse (2026-09-09)
+
+### Eine Klasse, die alles einsammeln koennte, darf nicht mitbieten
+
+**Entscheidung:** `lichtbild` und `versicherungsschreiben` tragen **keine Marker**. Sie
+werden nicht in Stufe 1 des Klassifikators vergeben, sondern danach, in
+`klassifikator.verfeinere_auffangklasse()`, und **nur dort, wo sonst `sonstiges`
+stuende**. Reihenfolge: Bilddatei schlaegt Absender.
+
+**Grund:** Beide Klassen haetten als normale Marker-Klassen Dokumente an sich gezogen,
+die bereits richtig erkannt sind.
+
+- **Bilddateien:** 46 lagen im Bestand, davon **8 korrekt klassifiziert** — abfotografierte
+  Rechnungen, Kaufvertraege, Pruefberichte. Eine Regel „Bildendung → Lichtbild" haette
+  genau die acht zerstoert, die funktionieren.
+- **Versichererbriefe:** Marker wie `Schadennummer` oder `Ihr Zeichen` stehen in nahezu
+  jedem Brief eines Versicherers — auch in Abrechnungsschreiben, Pruefberichten und
+  Mahnschreiben, die eigene Klassen haben. Der Kandidat waere mit
+  `MARKER_BASIS_KONFIDENZ` in Konkurrenz zu ihnen getreten.
+
+**Alternative:** Markerlisten mit Ausschluessen („Schadennummer, aber nicht
+Prueferloes") — verworfen. Ausschlusslisten wachsen mit jeder neuen Fachklasse und
+kippen still, wenn eine davon dazukommt. Die Auffangklasse ist der einzige Ort, an dem
+feststeht, dass keine Fachklasse zugegriffen hat.
+
+**Konsequenz:** Neue Klassen dieser Art (Kandidaten aus der Diagnose: allgemeine
+Mandantenkorrespondenz, Deckungszusage) gehoeren in dieselbe Funktion, nicht in eine
+Markerliste. Wer eine Marker-Klasse ergaenzt, muss dagegen pruefen, was sie den
+bestehenden Klassen wegnimmt.
+
+**Konsequenz — Felder kommen erst beim Reparse.** Die Nachfuehrung des Bestands
+(`tools/auffangklasse_verfeinern.py`) aendert nur die Klasse. Ein Versicherungsschreiben
+aus dem Altbestand traegt deshalb noch kein Datum; das fuellt erst ein echter
+Pipeline-Lauf.
+
+---
+
 ## Rauschen, das niemand ansieht, wird nicht gespeichert (2026-09-09)
 
 ### Der Papierkorb ist fuer Zweifelsfaelle da, nicht fuer Maschinenpost
