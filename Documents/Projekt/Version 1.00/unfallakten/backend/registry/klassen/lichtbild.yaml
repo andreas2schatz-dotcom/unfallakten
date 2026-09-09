@@ -1,0 +1,25 @@
+klasse: lichtbild
+
+# Unfallfotos und andere Lichtbilder. Bewusst OHNE Marker: die Klasse wird
+# nicht ueber den Text erkannt, sondern in der Pipeline als Verfeinerung der
+# Auffangklasse vergeben (Bilddatei, aus der kein Dokument lesbar war).
+# Ein abfotografiertes Dokument -- Rechnung, Kaufvertrag -- behaelt deshalb
+# seine echte Klasse; nur was sonst 'sonstiges' waere, wird zum Lichtbild.
+
+marker: []
+
+regex_felder: {}
+
+schema:
+  datum: date
+  beschreibung: string
+
+pflichtfelder: []
+kritische_felder: []
+validierungsregeln: []
+fristrelevanz: false
+loeschfrist_jahre: 10
+label: Lichtbild
+richtung: eingehend
+bezeichnung_felder:
+  datum: datum

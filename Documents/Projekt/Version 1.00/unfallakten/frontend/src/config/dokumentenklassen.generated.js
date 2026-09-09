@@ -49,6 +49,10 @@ const DOK_TYPEN = [
     "label": "Krankenhausbericht"
   },
   {
+    "value": "lichtbild",
+    "label": "Lichtbild"
+  },
+  {
     "value": "mahnschreiben",
     "label": "Mahnschreiben"
   },
@@ -91,6 +95,10 @@ const DOK_TYPEN = [
   {
     "value": "verdienstausfall_nachweis",
     "label": "Verdienstausfall-Nachweis"
+  },
+  {
+    "value": "versicherungsschreiben",
+    "label": "Versicherungsschreiben"
   }
 ];
 const KLASSE_TO_POS = {

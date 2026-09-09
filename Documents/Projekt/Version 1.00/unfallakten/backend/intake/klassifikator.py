@@ -14,6 +14,7 @@ Konfidenz 0.5.
 """
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 from typing import Iterable, List, Optional, Sequence, Tuple
@@ -30,6 +31,8 @@ SIGNAL_KONFIDENZ = 0.55
 SIGNAL_PLUS_MARKER_BONUS = 0.05
 
 SONSTIGES_FALLBACK_KONFIDENZ = 0.5
+
+BILD_ENDUNGEN = (".jpg", ".jpeg", ".png", ".heic")
 
 
 @dataclass
@@ -128,6 +131,37 @@ def klassifiziere_stufe1(text: str,
     ]
     kandidaten.sort(key=lambda x: x.konfidenz, reverse=True)
     return kandidaten, hinweise
+
+
+def verfeinere_auffangklasse(klasse: str, signale: Iterable[dict]):
+    """Verfeinert ``sonstiges`` anhand der Zustellungs-Signale.
+
+    Liefert ``(klasse, quelle)``; ``quelle`` ist None, wenn nichts greift.
+
+    Die beiden Klassen ``lichtbild`` und ``versicherungsschreiben`` tragen
+    bewusst keine Marker und werden hier vergeben statt in Stufe 1. Ein
+    Marker wie 'Schadennummer' steht in fast jedem Versichererbrief und
+    wuerde Abrechnungsschreiben und Pruefberichte an sich ziehen; eine Regel
+    auf die Dateiendung wuerde abfotografierte Rechnungen zu Fotos machen.
+    Als Verfeinerung der Auffangklasse kann beides nur dort greifen, wo sonst
+    gar nichts stuende.
+    """
+    if klasse != "sonstiges":
+        return klasse, None
+
+    kategorie = None
+    for signal in signale or ():
+        if not isinstance(signal, dict):
+            continue
+        name = signal.get("dateiname")
+        if name and os.path.splitext(str(name))[1].lower() in BILD_ENDUNGEN:
+            return "lichtbild", "bilddatei"
+        if kategorie is None and signal.get("absender_kategorie"):
+            kategorie = str(signal["absender_kategorie"]).lower()
+
+    if kategorie == "versicherung":
+        return "versicherungsschreiben", "absender"
+    return klasse, None
 
 
 def _kuerze(text: str) -> str:

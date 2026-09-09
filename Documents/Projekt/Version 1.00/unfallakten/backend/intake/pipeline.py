@@ -36,6 +36,7 @@ from ..intake.fragebogen_signale import baue_signale, erkenne_fragebogen
 from ..intake.validierung import pruefe_validierungsregeln
 from ..intake.klassifikator import (
     Kandidat, klassifiziere_stufe1, klassifiziere_stufe2,
+    verfeinere_auffangklasse,
 )
 from ..intake.queue import markiere_bereit, markiere_fehler, reserviere_naechsten
 from ..intake.registry_loader import lade_registry, standard_pfad
@@ -233,9 +234,12 @@ def verarbeite_dokument(intake_id: int) -> bool:
             konfidenz = 1.0
             neue_klasse_quelle = "fragebogen"
         else:
-            klasse = klasse_auto
+            klasse, verfeinert_aus = verfeinere_auffangklasse(klasse_auto, signale)
             konfidenz = konfidenz_auto
             neue_klasse_quelle = "auto"
+            if verfeinert_aus:
+                hinweise.append(
+                    f"Auffangklasse verfeinert zu {klasse} ({verfeinert_aus})")
 
         # ── Feld-Extraktion (S1.6b) ──────────────────────────────────────
         # WICHTIG: gegen die effektive Klasse (manuell hat Vorrang), nicht

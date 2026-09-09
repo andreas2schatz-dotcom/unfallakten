@@ -1,0 +1,39 @@
+klasse: versicherungsschreiben
+
+# Allgemeine Korrespondenz eines Versicherers ohne eigene Fachklasse:
+# Anschreiben, Geschaeftsbriefe, Mitteilungen, Uebersendungsschreiben.
+#
+# Bewusst OHNE Marker. Die Klasse wird in der Pipeline als Verfeinerung der
+# Auffangklasse vergeben (Absender-Signal 'versicherung'), nicht ueber den
+# Text. Marker wie 'Schadennummer' oder 'Ihr Zeichen' stehen in nahezu jedem
+# Versichererbrief und wuerden Abrechnungsschreiben, Pruefberichte und
+# Mahnschreiben an sich ziehen -- die Klasse darf nur greifen, wo sonst
+# 'sonstiges' stuende.
+
+marker: []
+
+regex_felder:
+  datum:
+    - "(?:vom|Datum|Schreiben vom)[:\\s]+(\\d{2}\\.\\d{2}\\.\\d{4})"
+    - "(\\d{2}\\.\\d{2}\\.\\d{4})"
+  schadennummer:
+    - "Schaden(?:s)?[- ]?(?:Nr\\.?|nummer)[:\\s]*([A-Za-z0-9][A-Za-z0-9./-]{4,})"
+  aktenzeichen:
+    - "(?:Ihr Zeichen|Ihre Zeichen)[:\\s]*(\\d{1,4}/\\d{2}[A-Z]{0,2})"
+
+schema:
+  aussteller: string
+  datum: date
+  schadennummer: string
+  aktenzeichen: string
+  betreff: string
+
+pflichtfelder: []
+kritische_felder: []
+validierungsregeln: []
+fristrelevanz: false
+loeschfrist_jahre: 6
+label: Versicherungsschreiben
+richtung: eingehend
+bezeichnung_felder:
+  datum: datum
