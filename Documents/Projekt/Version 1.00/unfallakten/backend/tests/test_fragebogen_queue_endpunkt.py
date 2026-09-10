@@ -27,7 +27,6 @@ def _setup(test_id: str):
         os.remove(db_path)
     os.environ["DB_PATH"] = db_path
     os.environ["UPLOAD_DIR"] = os.path.join(_tmp_dir, f"uploads_{test_id}")
-    os.environ["RAMICRO_AKTIV"] = "false"
 
     import backend.db.database as db_mod
     import backend.models.benutzer as ben_mod
@@ -56,6 +55,8 @@ def _auth(client):
 
 class TestQueueEndpunkt(unittest.TestCase):
     def setUp(self):
+        # RA-MICRO ist suiteweit aus (conftest.py) -- bis 2026-09-10 schaltete
+        # _setup() es hier prozessweit ab und nahm es nie zurueck.
         self.client = _setup(self._testMethodName)
         self.headers = _auth(self.client)
 

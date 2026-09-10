@@ -44,6 +44,31 @@ os.environ.setdefault("ADMIN_EMAIL", "admin@test.de")
 os.environ.setdefault("ADMIN_PASSWORT", "Admin123!")
 os.environ.setdefault("ADMIN_NAME", "Admin")
 
+# RA-MICRO ist in der normalen Testsuite grundsaetzlich AUS -- zentral, nicht
+# je Datei. Kein setdefault: der Dev-Container setzt RAMICRO_AKTIV=true, das
+# muss hier ueberschrieben werden.
+#
+# Befund 2026-09-10: Bis dahin schaltete test_fragebogen_queue_endpunkt.py
+# RA-MICRO in seinem _setup() prozessweit ab und nahm es nie zurueck. Weil die
+# Datei alphabetisch vor test_klage_*, test_modul3 und test_modul5 laeuft, lief
+# die halbe Suite danach mit abgeschaltetem RA-MICRO -- die Vollsuite war
+# gruen, jede Teilmenge rot (58 Fehler in 22 Dateien, alle mit derselben
+# Ursache). Ein zufaelliger Nebeneffekt der Dateireihenfolge darf nicht
+# darueber entscheiden, ob ein Test besteht.
+#
+# Das entschaerft den Sperrhahn unten NICHT: get_ramicro_connection bricht bei
+# ausgeschaltetem RA-MICRO ab, BEVOR pymssql importiert oder ein Socket
+# geoeffnet wird -- es kann also weiterhin kein Test unbemerkt gegen die
+# Produktivdatenbank lesen. Der Sperrhahn bewacht ab jetzt genau den Fall, fuer
+# den er gebaut wurde: ein Test, der RA-MICRO absichtlich einschaltet und dabei
+# einen Mock vergisst.
+#
+# Wer RA-MICRO braucht, schaltet es fuer seine Dauer selbst ein
+# (monkeypatch.setenv("RAMICRO_AKTIV", "true") -- Muster: test_modul8.py) und
+# mockt dann den Zugriff.
+if os.environ.get("RAMICRO_INTEGRATION") != "1":
+    os.environ["RAMICRO_AKTIV"] = "false"
+
 import pytest
 from unittest import mock
 
