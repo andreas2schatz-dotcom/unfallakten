@@ -7,6 +7,79 @@
 
 ---
 
+## 2026-09-10 — Testsuite war reihenfolgenabhaengig (58 verdeckte Fehler)
+
+**Befund.** Beim Gegenpruefen der Kuerzel-Aenderung fielen vier Tests durch
+(`test_modul3.py::TestBeteiligte`, `test_klage_kw27_gericht_persistenz.py`), waehrend
+die Vollsuite 2374 gruen meldete. Ursache war **nicht** ein fehlender Mock, sondern die
+Dateireihenfolge: `test_fragebogen_queue_endpunkt.py` setzte in seinem `_setup()`
+`os.environ["RAMICRO_AKTIV"] = "false"` — prozessweit, ohne Ruecknahme. Weil die Datei
+alphabetisch vor `test_klage_*`, `test_modul3` und `test_modul5` laeuft, lief die halbe
+Suite danach mit abgeschaltetem RA-MICRO.
+
+**Umfang.** Nach dem Stopfen des Lecks kamen **58 Fehler in 22 Dateien** zum Vorschein,
+alle mit derselben einen Ursache: der Sperrhahn aus `conftest.py` (bewusst eine
+`BaseException`, damit er nicht im produktiven `except Exception` verschwindet) schlug
+bei jedem Test an, der eine Route mit RA-MICRO-Zusammenfuehrung aufruft
+(`word_service._lade_beteiligte_aus_ramicro` ueber `beteiligte_routes.py:93` und
+`klage_routes.py:753`). Diese Tests bestanden seit dem 2026-08-28 nur deshalb, weil das
+Leck RA-MICRO fuer sie abgeschaltet hatte.
+
+**Loesung.** Der Schalter gehoert an genau eine Stelle: `conftest.py` schaltet RA-MICRO
+fuer die gesamte Suite ab, gekoppelt an `RAMICRO_INTEGRATION` (bei `=1` bleibt er an,
+sonst koennten die Integrationstests nicht mehr echt verbinden). Das entschaerft den
+Sperrhahn **nicht**: `get_ramicro_connection` bricht bei ausgeschaltetem RA-MICRO ab,
+bevor `pymssql` importiert oder ein Socket geoeffnet wird — kein Test kann unbemerkt
+gegen die Produktivdatenbank lesen. Der Sperrhahn bewacht ab jetzt genau den Fall, fuer
+den er gebaut wurde: ein Test, der RA-MICRO absichtlich einschaltet und dabei einen Mock
+vergisst. Wer RA-MICRO braucht, legt den Schalter nur fuer die Dauer seines Tests um
+(`monkeypatch.setenv`, Muster `test_modul8.py:56`).
+
+**Wachhund gegen den Rueckfall:** `backend/tests/test_ramicro_schalter_guard.py` (Bauart
+wie `test_dokumente_typ_guard.py`) verbietet die bleibende Zuweisung in jeder Testdatei
+ausser `conftest.py`, prueft die zentrale Abschaltung im Quelltext und stellt zur
+Laufzeit gegen, dass der Schalter tatsaechlich aus ist. Gegenprobe: mit dem alten Leck
+3/3 rot, danach 3/3 gruen — der Wachhund benannte die Leckzeile praezise.
+
+**Stand:** Vollsuite **2377 gruen** / 71 skipped (2374 + 3 Wachhund-Tests), und —
+das war der Punkt — dieselben Tests sind jetzt auch **einzeln** gruen: die vier
+gemeldeten 14/14, die 22 zuvor verdeckten Dateien 206/206.
+
+---
+
+## 2026-09-10 — Drei Abnahmen, fuenf Beteiligten-Kuerzel geklaert
+
+**Abgenommen durch RA Schatz:** die **Wiedervorlagegruende** aus `Z:\RA\Mas\TextWV.msk`
+(„passt"), die **priorisierte Fragebogen-Liste** in der Review-Queue (die acht Altboegen
+sind verarbeitet) und die **Beteiligten-Kuerzel-Registry** (an einer Live-Akte
+verifiziert). Die drei Eintraege sind aus „In Arbeit" in die Erledigt-Tabelle gewandert.
+
+**Fuenf Kuerzel nachgetragen** (`backend/registry/beteiligten_kuerzel.yaml`) — damit
+gibt es keinen Eintrag mit `offen: true` mehr und kein Bestandskuerzel faellt noch in
+die Auffangregel:
+
+| Kuerzel | Bezeichnung | Rolle | Anmerkung |
+|---|---|---|---|
+| `UB`   | Unterbeteiligter   | `sonstiger` | |
+| `KOAN` | Korrespondenzanwalt | `sonstiger` | wie `KR` |
+| `OA`   | Ordnungsamt        | `behoerde`  | gehoert **immer** in die Gruppe Behoerden/Gerichte |
+| `HV`   | Eigene Haftpflichtversicherung | `eigene_versicherung` | war `sonstiger, offen: true` |
+| `VS`   | Versicherung (Sparte offen) | `sonstiger` | war `offen: true` |
+
+Der Punkt bei **`HV`**: gemeint ist die **eigene** Haftpflichtversicherung — die
+gegnerische traegt `GHPV`/`GH`/`GHV`. Die Rolle ist deshalb `eigene_versicherung` wie
+bei `HPV`, und ein Beklagtenvorschlag kann daraus nicht werden (die Registry laesst den
+ohnehin nur bei `gegner`/`gegner_hv` zu). **`VS`** bleibt bewusst seitenneutral: es ist
+die Sammelangabe fuer jede Art von Versicherung, eine Zuordnung zur eigenen Seite waere
+geraten, eine zur Gegenseite gefaehrlich.
+
+Fuenf neue Tests in `TestNachgetrageneKuerzel` (`test_beteiligten_kuerzel.py`), darunter
+die Gegenprobe `HV` ≠ `GHPV` und die Gruppenzuordnung von `OA` ueber `_klassifiziere`.
+**116/116 gruen.** Nach dem Ausrollen ist ein `docker restart unfallakten-backend-dev`
+noetig — der Reloader reagiert nur auf `.py`, die Registry cached.
+
+---
+
 ## 2026-09-09 — Zwei neue Klassen, Papierkorb geleert
 
 **`lichtbild` und `versicherungsschreiben`** decken die beiden groessten Posten der

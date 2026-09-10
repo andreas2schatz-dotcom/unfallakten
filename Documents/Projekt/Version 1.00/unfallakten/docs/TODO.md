@@ -91,19 +91,6 @@ der Akte (51 Akten, 154 Fristen, bis zu 14 je Akte), laufende zuerst, read-only.
   ihren Zweck erfüllt. Falls die Kachel zu voll wirkt: Vorfristen nur in der Vorschau
   zeigen, nicht in der Rückschau.
 
-### Wiedervorlagegründe aus der RA-MICRO-Maske — ✅ umgesetzt (2026-09-07, Branch `fragebogen-favoritenliste`), Abnahme offen
-Die geratenen Bezeichnungen sind durch `Z:\RA\Mas\TextWV.msk` ersetzt (99 Gründe, alle
-verifiziert; von 41 verwendeten Codes war vorher genau einer richtig). Erzeugt per
-`py tools/gen_wiedervorlage_codes.py`. Protokoll → CHANGELOG, Begründung → DECISIONS.
-**Offen — Sichtkontrolle im Betrieb:**
-- **Wiedervorlagen-Kachel ansehen:** Statt „Zahlung Gegner"/„Vollstreckung"/„Sachstand"
-  muss dort jetzt „Mandant gemeldet?", „Ermittlungsakte da?", „Entscheidung/Gericht?"
-  stehen. RA Schatz prüft, ob die Gründe zu den Akten passen.
-- **Fristen-Kachel** speist sich nicht mehr aus Wiedervorlagen, sondern aus dem
-  RA-MICRO-Kalenderbaum — eigener Eintrag oben.
-- **Stellungnahme-Filter:** `hole_faellige_wiedervorlagen(nur_stellungnahme=True)` filtert
-  jetzt auf 11/16/99 statt 5/6/11/16. Prüfen, ob die Liste vollständig wirkt.
-
 ### Dokumentklasse als SSOT — ✅ umgesetzt (2026-09-04, Branch `fragebogen-favoritenliste`), Abnahme offen
 `dokumente.typ` ist entfallen, `dokumentenklasse` ist alleinige Wahrheit. Spec + Plan unter
 `docs/superpowers/`, Protokoll → CHANGELOG, Begründungen → DECISIONS, Deploy → STATE Abschnitt 0.
@@ -124,24 +111,6 @@ Backend 2222 grün (69 skipped), Frontend 634 grün. **Offen — Abnahme im Betr
   Doppel-Deploy nötig.
 - **Sicherung aufräumen:** `/app/data/bak_vor_migration_74.db` im Dev-Volume löschen,
   sobald die Abnahme durch ist.
-
-### Priorisierte Fragebogen-Liste in der Review-Queue — ✅ codeseitig komplett (2026-08-28, Branch `fragebogen-favoritenliste`), Abnahme offen
-Spec + Plan unter `docs/superpowers/`, Protokoll → CHANGELOG. Alle 8 Aufgaben committet (`60e28ef4`..`b15bcd24`), Backend 1994 grün (38 skipped), Frontend 594 grün. **Offen — Abnahme im Betrieb:**
-- **Reparse der acht Altbögen:** In der Review-Queue je Bogen (474, 475, 476, 527, 613, 672, 727, 834) den Reparse-Knopf drücken, rund zehn Sekunden warten. Sie tragen noch `sonstiges`; die Signale entstehen erst beim Pipeline-Lauf neu.
-- **Sektion prüfen:** Liste zeigt oben „⭐ Unfallfragebögen (8)", darunter „Übrige Dokumente".
-- **Ampeln prüfen:** 476 → 641/26 (Aktenzeichen); die sechs über die Mandantenadresse geprüften Fälle grün auf 742/26, 760/26, 768/26, 710/26, 751/26, 749/26; 474 weiterhin 675/26 (Kennzeichen). Bogen 672 gehört zur **abgelegten** Akte 749/26 — muss den Zustand „abgelegt" mit Ablagedatum zeigen und **keinen** Anlage-Knopf.
-- **Eine Freigabe durchspielen:** grünen Bogen öffnen, Akte bestätigen, Feld-Übernahme prüfen (Mandant/Gegner/Unfall/Personenschaden), freigeben. Der Eintrag verschwindet aus der Sektion, das Dokument erscheint in der Akte als „Unfallfragebogen vom …".
-- **Blauen Fall prüfen:** Ist kein Bogen blau, ersatzweise an einem Testbogen ohne bekannte Merkmale — der Anlage-Dialog muss mit Name, Anschrift, Telefon, E-Mail, Kennzeichen und Unfalltag vorbefüllt öffnen.
-- **`unfall@`-Reiter prüfen:** Die Karte „Fragebogen-Erstkontakt" ist verschwunden, der Reiter im Übrigen unverändert. Der Erstkontakt-Weg ist stillgelegt, die Tabelle `fragebogen_erstkontakt` bleibt leer bestehen.
-- **Merken für Tests:** 18 Tests laufen absichtlich echt gegen RA-MICRO und werden normal übersprungen — Aufruf mit `RAMICRO_INTEGRATION=1 pytest -m ramicro_integration backend/tests/`.
-
-### Beteiligten-Kürzel-Verzeichnis — ✅ umgesetzt (2026-08-31, Branch `fragebogen-favoritenliste`), Abnahme offen
-Zeugen standen als Gegner in der Beteiligtenliste und waren im Klage-Wizard als Beklagte vorausgewählt. Fünf getrennte Kürzel-Auslegungen sind auf `backend/registry/beteiligten_kuerzel.yaml` vereinheitlicht. Protokoll → CHANGELOG, Begründungen → DECISIONS. Backend 2105 grün, Frontend 603 grün. **Offen — Abnahme im Browser:**
-- **Akte 13/26:** Müller und Bukh müssen als „Zeuge/Zeugin" erscheinen (violett), nicht als Gegner. Danach den Klage-Wizard derselben Akte öffnen: nur die VHV darf angehakt sein.
-- **Akte 108/26:** Rechtsschutzversicherung, Schadenabwickler, Landgericht, Staatsanwaltschaft und Polizei müssen einzeln benannt sein — vorher hießen alle fünf „Sonstige Beteiligte".
-- **Fragezeichen-Fälle sichten:** Drei Beteiligte im Bestand tragen ein Kürzel ohne Eintrag (`KOAN`, `OA`, `UB`). Sie zeigen ein „?" mit Erklärung beim Überfahren. Wenn Sie die Bedeutung kennen: in die YAML nachtragen.
-- **Entscheidung RA Schatz — `HV`/`VS`:** Beide sind als `offen: true` markiert, weil das Kürzel die Sparte nennt (Haftpflicht/Versicherung), nicht die Seite. In den Unfallakten kommt derzeit keines vor.
-- **Merken:** Nach Änderungen an der YAML ist ein `docker restart unfallakten-backend-dev` nötig (Reloader reagiert nur auf `.py`, die Registry cached).
 
 ### `sonstiges` in der Review-Queue — Diagnose ✅, zwei Klassen gebaut (2026-09-09)
 Befunde: `handover/2026-09-09-sonstiges-diagnose-befunde.md`. Die Ausgangszahl vom
@@ -286,7 +255,6 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 ## ❓ Unklar / zu klären
 - **Echte RA-MICRO-Fristen** — liegen nicht im SQL Server (alle acht Datenbanken geprüft, `raKalender.dbo.Deadlist` existiert und ist leer). Offen: In welchem RA-MICRO-Modul werden sie geführt, und lässt sich die Synchronisation nach `Deadlist` einschalten?
 - **Freitext-Wiedervorlagen mit Fristcharakter** — 652 Einträge, darunter „Anspruchsbegründung fertigen! DRINGEND!". Landen in der Wiedervorlagen-Kachel. Erkennung offen.
-- **Wiedervorlagegrund-Bezeichnungen unverifiziert** — Alle 46 eingebauten RA-MICRO-Codes in `backend/registry/wiedervorlage_codes.yaml` tragen `verifiziert: false`; die Texte stammen aus einer früheren Session und wurden nie gegen RA-MICROs eigene Auswahlliste geprüft. Sechs Codes (25, 61, 63, 78, 93, 98) haben noch gar keine Bezeichnung (`offen: true`) und erscheinen als „Unbekannter Grund (<code>)". Klärt sich durch einen Screenshot der RA-MICRO-Dropdownliste „Wiedervorlagegrund" oder durch Stichprobe der fünf Codes aus der Fristen-Kachel gegen die jeweilige Akte: 55 → 158/25CO, 21 → 157/23AS, 51 → 361/25PK, 75 → 403/26AH, 31 → 808/26AS. Eilt: 537 Wiedervorlagen zeigen inzwischen eine dieser unverifizierten Bezeichnungen, wo vorher nur das pauschale Wort „Wiedervorlage" stand.
 - **PRD-29 DKz-Filter — erledigt oder offen?** Handover sagt „implementiert" (via Schlagwort `E-Brief`, da DKz-Feld in DB fehlt), v56 sagt „nicht gestartet". Ist das ursprüngliche Ziel als erfüllt zu betrachten?
 - **Zwei getrennte Positions-Modelle abgleichen (aus UX-Review 2026-07-31, Baustelle 3):** Das alte Schaden-Formular (`schadenpositionen`-Tabelle, füttert Forderung/Klage) und das neuere Ereignis-Modell (`ereignisse`/`ereignis_positionen`/`position_ereignis_cache`, füttert `PositionsDashboard`) laufen parallel und gleichen sich **nicht** automatisch ab; die `position_key`-Namensräume differieren (alt hat `_netto`-Varianten, Registry `positionsarten.yaml` nicht — im Code als „bis P1.7" vertagt, `belege_routes.py:135-152`). Zu klären: konsolidieren (eine SSOT) oder bewusst getrennt lassen? Kontext: `docs/superpowers/specs/2026-07-31-belege-zu-positionen-design.md` §9.
 
@@ -297,10 +265,12 @@ Phase 2 (vorgemerkt): Trigger-Umkehr Stellungnahme (PRD-39), Zahlungs-Kaskade, V
 
 | Datum | Feature |
 |---|---|
+| 2026-09-10 | **Fünf Beteiligten-Kürzel geklärt (RA Schatz)** und in `beteiligten_kuerzel.yaml` nachgetragen: `UB` = Unterbeteiligter, `KOAN` = Korrespondenzanwalt (beide `sonstiger`), `OA` = Ordnungsamt (`behoerde`, Gruppe Behörden/Gerichte), `HV` = **eigene** Haftpflichtversicherung (`eigene_versicherung` wie HPV — die gegnerische trägt GHPV/GH/GHV), `VS` = Sammelangabe Versicherung, bleibt bewusst seitenneutral `sonstiger`. `offen: true` gibt es damit nicht mehr; 5 neue Tests, 116/116 grün |
+| 2026-09-10 | **Drei Abnahmen durch RA Schatz** — (1) **Wiedervorlagegründe aus `Z:\RA\Mas\TextWV.msk`** (99 Gründe, alle verifiziert): Kachel im Betrieb abgenommen, „passt". (2) **Priorisierte Fragebogen-Liste in der Review-Queue**: erledigt, die acht Altbögen sind verarbeitet. (3) **Beteiligten-Kürzel-Registry**: an einer Live-Akte verifiziert, funktioniert |
 | 2026-09-09 | **Klassen `lichtbild` + `versicherungsschreiben`** als Verfeinerung der Auffangklasse (ohne Marker, damit sie abfotografierte Rechnungen und Abrechnungsschreiben nicht an sich ziehen); Bestand nachgeführt via `tools/auffangklasse_verfeinern.py`, `sonstiges` 79 % → 43 %; 631 Placetel-Bodies und 3 Bewerbungen aus der Queue entfernt |
 | 2026-09-09 | **`sonstiges`-Diagnose + Placetel** — Ausgangszahl korrigiert (Papierkorb steckt in `verworfen_grund`: echte Queue 345 statt 1.915), drei Ursachen getrennt, Hebelliste erstellt; Placetel-Anrufbenachrichtigungen werden nicht mehr gespeichert (Policy `nur_body`→`nur_anhaenge`), Faxeingang bleibt. Befunde → `handover/2026-09-09-sonstiges-diagnose-befunde.md` |
 | 2026-09-09 | **Fehlablagen aus Phase 0 gelöscht** (Entscheidung RA Schatz): Dok 41478 (lag unter 971/25, gehört zu 852/25) und 43429 (lag unter 980/25, Zeichen 418/28 existiert nirgends) samt PDF entfernt; keine abhängigen Zeilen. Sicherung im Dev-Volume unter `/app/data/geloescht_fehlablage_20260909_072237`. Dazu `test_akte_fristen.py` auf relative Fixtur-Daten umgestellt (fest verdrahteter 07.09. drehte nach dem Tageswechsel die Sortierung), 11/11 grün |
-| 2026-08-28 | **Priorisierte Fragebogen-Liste in der Review-Queue** (Modul `fragebogen_signale`, Klasse `fragebogen` + Migration 71/72, Akten-Matching aus Bogenfeldern statt Regex, RA-MICRO-Kandidatensuche über `varM-KZ`/`varG-KZ`/`varU-TAG`/Nachname, Vier-Zustands-Ampel inkl. „abgelegt“, Queue-Endpunkt, ⭐-Sektion im Frontend, Aktenanlage aus Bogendaten, Erstkontakt-Doppelweg stillgelegt) — Branch `fragebogen-favoritenliste`, Protokoll → CHANGELOG. Abnahme im Betrieb offen, siehe „In Arbeit“ |
+| 2026-08-28 | **Priorisierte Fragebogen-Liste in der Review-Queue** (Modul `fragebogen_signale`, Klasse `fragebogen` + Migration 71/72, Akten-Matching aus Bogenfeldern statt Regex, RA-MICRO-Kandidatensuche über `varM-KZ`/`varG-KZ`/`varU-TAG`/Nachname, Vier-Zustands-Ampel inkl. „abgelegt“, Queue-Endpunkt, ⭐-Sektion im Frontend, Aktenanlage aus Bogendaten, Erstkontakt-Doppelweg stillgelegt) — Branch `fragebogen-favoritenliste`, Protokoll → CHANGELOG. **Abnahme durch RA Schatz am 2026-09-10** |
 | 2026-08-12 | **Sachbearbeiter-Verwaltung in den Einstellungen** (Migration 68, Tabelle `sachbearbeiter` mit 11 Startzeilen ersetzt vier hartcodierte Listen; CRUD-Reiter + RA-MICRO-Abgleich; Tagesübersicht-Chips mit Klarnamen-Tooltips) — Spec `docs/superpowers/specs/2026-08-12-sachbearbeiter-verwaltung-design.md`, Plan `docs/superpowers/plans/2026-08-12-sachbearbeiter-verwaltung.md`, Protokoll → CHANGELOG. Browser-Sichtprüfung offen, siehe „In Arbeit" |
 | 2026-08-11 | **Großer Merge nach `main` + Push** (`40c9143e..cf7dd74d`, FF): kompletter Stapel `intake-review-sichtbarkeit` + `abschlussbericht` — SSOT-Dokumentenklassen (22), Intake-Review-Sichtbarkeit, Abschluss-/Sachstandsbericht, Referenzwerkstatt+Entfernungsprüfung, Übersicht-Redesign A+B, Forderungsschreiben-Fixes (C-1, I-1–I-9), STA-Sofort-Fixes, E-Mail-Hotfixes, Testsanierungen (modul6/7 + Vollsuite). Entscheidung RA Schatz: Abnahmen produktiv statt vorab |
 | 2026-08-11 | **Backend-Vollsuite-Testsanierung: 123 → 0 Failures** (1735/1735 grün): modul1–4 + Nachbarn auf heutige API portiert; 3 echte Befunde gefixt (Frisch-DB-FK `unfallakte(id)`→`az` in Migration 3, `todos` ON DELETE CASCADE, „Rechnung (Auffang)" raus aus der Dokumentbezeichnung via `bezeichnung_label`); 2 Isolationsprobleme (sv_portal-Fixture ohne eigenes DB_PATH, akten_matching gegen echtes RA-MICRO). Protokoll → CHANGELOG |
