@@ -249,6 +249,49 @@ class TestTerminsvertretung:
         assert e.offen is False
 
 
+class TestNachgetrageneKuerzel:
+    """Fuenf Kuerzel aus dem Bestand, die RA Schatz am 2026-09-10 geklaert
+    hat. Vorher liefen KOAN/OA/UB in die Auffangregel und HV/VS trugen
+    'offen: true'."""
+
+    def test_unterbeteiligter(self):
+        e = bestimme_beteiligten_rolle(4, "UB")
+        assert e.bezeichnung == "Unterbeteiligter"
+        assert e.rolle == "sonstiger"
+        assert e.unbekannt is False
+
+    def test_korrespondenzanwalt(self):
+        e = bestimme_beteiligten_rolle(4, "KOAN")
+        assert e.bezeichnung == "Korrespondenzanwalt"
+        assert e.rolle == "sonstiger"
+        assert e.unbekannt is False
+
+    def test_ordnungsamt_ist_behoerde(self):
+        """RA Schatz: OA gehoert immer in die Gruppe Behoerden/Gerichte."""
+        from backend.routers.ramicro_akte_routes import _klassifiziere
+        e = bestimme_beteiligten_rolle(4, "OA")
+        assert e.bezeichnung == "Ordnungsamt"
+        assert e.rolle == "behoerde"
+        assert _klassifiziere(4, "OA") == "behoerde"
+
+    def test_hv_ist_die_eigene_haftpflicht(self):
+        """HV meint die eigene Haftpflicht -- die gegnerische traegt GHPV/GH/GHV.
+        Ein Beklagtenvorschlag darf daraus nie werden."""
+        e = bestimme_beteiligten_rolle(4, "HV")
+        assert e.rolle == "eigene_versicherung"
+        assert e.beklagter_vorschlag is False
+        assert e.offen is False
+        assert bestimme_beteiligten_rolle(4, "GHPV").rolle == "gegner_hv"
+
+    def test_vs_bleibt_seitenneutral(self):
+        """VS nennt nur die Sparte. Aus einer Sammelangabe darf weder eine
+        eigene Versicherung noch ein Gegner werden."""
+        e = bestimme_beteiligten_rolle(4, "VS")
+        assert e.rolle == "sonstiger"
+        assert e.beklagter_vorschlag is False
+        assert e.unbekannt is False
+
+
 class TestSchreibweisen:
     """RA-MICRO enthaelt 'HVw', 'g' und 'r' -- Gross-/Kleinschreibung
     und Leerzeichen duerfen die Zuordnung nicht kippen."""

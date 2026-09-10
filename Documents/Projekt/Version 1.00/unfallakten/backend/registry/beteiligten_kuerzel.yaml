@@ -79,6 +79,7 @@ kuerzel:
   FA:   {bezeichnung: "Finanzamt",           rolle: behoerde}
   GB:   {bezeichnung: "Grundbuchamt",        rolle: behoerde}
   HR:   {bezeichnung: "Handelsregister",     rolle: behoerde}
+  OA:   {bezeichnung: "Ordnungsamt",         rolle: behoerde}
 
   # ── Geld, Vollstreckung, Insolvenz ────────────────────────────────────
   KI:   {bezeichnung: "Kreditinstitut",      rolle: bank}
@@ -93,6 +94,8 @@ kuerzel:
   # Bewusst rolle=sonstiger: die Bezeichnung traegt die Genauigkeit,
   # eine eigene Rolle braeuchte keiner dieser Faelle.
   KR:   {bezeichnung: "Korrespondenzanwalt",           rolle: sonstiger}
+  KOAN: {bezeichnung: "Korrespondenzanwalt",           rolle: sonstiger}
+  UB:   {bezeichnung: "Unterbeteiligter",              rolle: sonstiger}
   TR:   {bezeichnung: "Terminsvertreter",              rolle: sonstiger}
   REF:  {bezeichnung: "Referendar/in",                 rolle: sonstiger}
   SH:   {bezeichnung: "Streithelfer",                  rolle: sonstiger}
@@ -111,10 +114,16 @@ kuerzel:
   HBV:  {bezeichnung: "Hauptbevollmaechtigter",        rolle: sonstiger}
   UBV:  {bezeichnung: "Unterbevollmaechtigter",        rolle: sonstiger}
 
-  # Offen: Kuerzel nennt die Sparte, nicht die Seite. Bis zur Klaerung die
-  # sichere Variante -- kein Beklagtenvorschlag.
-  HV:   {bezeichnung: "Haftpflichtversicherung",   rolle: sonstiger, offen: true}
-  VS:   {bezeichnung: "Versicherung",              rolle: sonstiger, offen: true}
+  # Geklaert von RA Schatz am 2026-09-10: HV meint die EIGENE Haftpflicht-
+  # versicherung (die gegnerische traegt GHPV/GH/GHV) -- deshalb dieselbe
+  # Rolle wie HPV und in keinem Fall ein Beklagtenvorschlag.
+  HV:   {bezeichnung: "Eigene Haftpflichtversicherung", rolle: eigene_versicherung}
+
+  # VS ist die Sammelangabe fuer jede Art von Versicherung und laesst die
+  # Seite bewusst offen (RA Schatz, 2026-09-10). Deshalb bleibt es
+  # 'sonstiger': eine Zuordnung zur eigenen Seite waere geraten, eine zur
+  # Gegenseite gefaehrlich.
+  VS:   {bezeichnung: "Versicherung (Sparte offen)",    rolle: sonstiger}
 
 
 # Auffang, wenn KEIN Kuerzel gesetzt ist: dann entscheidet die
